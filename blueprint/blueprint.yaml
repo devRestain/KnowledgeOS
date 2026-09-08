@@ -1,0 +1,1695 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+status: implementation_blueprint
+contract_validation:
+  schema: blueprint/blueprint.schema.json
+  checksum_manifest: blueprint/CHECKSUMS.sha256
+  command: vaultctl blueprint validate
+  blueprint_authoring_source_of_truth: blueprint/blueprint.yaml
+  generated_runtime_artifacts:
+    properties: ops/policies/properties.yaml
+    pipeline_registry: ops/actions
+    trusted_schemas: ops/schemas
+  post_bootstrap_operational_source_of_truth: ops/policies_and_schemas_with_blueprint_roundtrip_check
+  cross_document_checks:
+    - path_type_template_consistency
+    - action_command_schema_consistency
+    - bridge_state_and_runtime_path_consistency
+    - markdown_examples_validate_against_generated_schemas
+    - checked_in_generated_artifacts_have_zero_diff
+    - canonical_registry_sets_and_relation_directions_are_exact
+    - base_dashboard_filter_sort_limit_consistency
+    - projection_required_fields_nullability_hash_domain_and_ordering
+    - capture_finalize_and_project_bundle_transaction_contracts
+    - negative_mutation_fixtures_fail_closed
+path_namespaces:
+  obsidian_working_copy_bridge: vault_relative_posix
+  control_jobs_and_policies: control_root_relative_posix_with_vault_prefix
+  runtime_artifacts: runtime_relative_posix
+  bridge_ingest_records_both: true
+path_match_semantics: gitwildmatch_with_nfc_and_casefold_collision_checks
+authoritative_document: OBSIDIAN_VAULT_BLUEPRINT.md
+technical_annex: OBSIDIAN_VAULT_WHITEPAPER.md
+conflict_precedence:
+  - OBSIDIAN_VAULT_BLUEPRINT.md
+  - blueprint/blueprint.yaml
+  - OBSIDIAN_VAULT_WHITEPAPER.md
+
+defaults:
+  workspace_name: KnowledgeOS
+  vault_name: KnowledgeOS
+  language: ko
+  canonical_timezone: Asia/Seoul
+  notes_remote_visibility: private
+  mobile_git_client: working_copy
+  mac_git_client: obsidian_git_manual
+  remote_unattended: false
+  mobile_immediate_api: false
+  always_on_git_roundtrip: false
+  query_engine: core_bases_plus_tasks
+  retrieval_phase: lexical_first
+
+repositories:
+  control:
+    root: .
+    responsibility:
+      - docs
+      - ops
+      - automation_tests
+    excludes:
+      - vault
+      - runtime
+  vault:
+    root: vault
+    independent_git_repository: true
+    remote_role: github_notes_repository
+    obsidian_vault_root: true
+    mobile_clone_root: true
+    mobile_invariant: linked_external_worktree_root_equals_obsidian_vault_root
+    mobile_git_metadata_may_remain_in_working_copy_container: true
+    tracked_transport_root: .vault-bridge
+  runtime:
+    root: runtime
+    git_tracked: false
+    contains_durable_evidence: true
+  receipt_git_fields:
+    job:
+      - control_git_head
+      - vault_git_head
+    commit:
+      - control_git_head
+      - vault_git_head_before
+      - vault_git_head_after
+      - vault_relative_paths
+      - staged_blob_hashes
+  job_output_commit_repository: vault
+  control_repository_commit_is_separate: true
+
+device_profiles:
+  mac:
+    role: decide_connect_execute
+    config_folder: .obsidian-mac
+    start_note: Home.md
+    git_writer: obsidian_git_manual
+    llm_execution: true
+    canonical_apply: interactive_only
+  iphone:
+    role: capture_consult_defer
+    config_folder: .obsidian-phone
+    start_note: Mobile.md
+    git_writer: working_copy
+    llm_execution: request_or_optional_api
+    canonical_apply: false
+    target_consult_seconds: 10
+    target_capture_seconds: 30
+  ipad:
+    role: read_annotate_light_clarify
+    config_folder: .obsidian-tablet
+    start_note: Mobile.md
+    git_writer: working_copy
+    llm_execution: request_or_review
+    canonical_apply: false
+  mobile_safe_work:
+    - unique_capture_create
+    - open_daily
+    - search_and_read
+    - short_body_edit
+    - set_triage_hint
+    - publish_bridge_request
+    - inspect_proposal
+  mobile_forbidden_work:
+    - bulk_move
+    - bulk_rename
+    - delete
+    - plugin_install
+    - git_conflict_resolution
+    - canonical_llm_apply
+
+mobile_install_gate:
+  requires_working_copy_pro:
+    - push
+    - linked_external_repository
+  external_worktree_location: on_my_device/Obsidian/KnowledgeOS
+  forbidden_parallel_sync: [icloud_drive, obsidian_sync, dropbox, onedrive]
+  expected_root_sentinel: .knowledgeos-root.json
+  root_sentinel_contract:
+    required_fields: [schema_version, contract_id, vault_uuid, canonical_vault_name, remote_identity_sha256, expected_branch]
+    schema_version: 1
+    contract_id: knowledgeos-vault-root-v1
+    canonical_vault_name: KnowledgeOS
+    remote_identity_canonical_form: "github.com/<lowercase-owner>/<lowercase-repository>.git\\n"
+    remote_identity_sha256: sha256_of_utf8_canonical_form
+    forbid_in_remote_identity: [credentials, token, query, fragment]
+  verify:
+    - expected_remote_fingerprint
+    - expected_branch
+    - worktree_root_equals_vault_root
+    - config_override_and_restart
+    - roundtrip_fixture
+  pull_merge_requires_obsidian_closed: true
+
+fixed_paths:
+  vault:
+    - .knowledgeos-root.json
+    - Home.md
+    - Mobile.md
+    - 00_Inbox/Captures
+    - 00_Inbox/Imports
+    - 01_AI_Review/Pending
+    - 01_AI_Review/Resolved
+    - 01_AI_Review/Rejected
+    - 01_AI_Review/Expired
+    - 01_AI_Review/Conflict
+    - 10_Journal/Daily
+    - 10_Journal/Weekly
+    - 10_Journal/Monthly
+    - 20_Projects
+    - 30_Areas
+    - 40_Knowledge/Notes
+    - 40_Knowledge/Ideas
+    - 40_Knowledge/Questions
+    - 40_Knowledge/Sources
+    - 40_Knowledge/People
+    - 50_Maps
+    - 60_Meetings
+    - 80_Assets/Inbox
+    - 80_Assets/Images
+    - 80_Assets/Documents
+    - 80_Assets/Audio
+    - 90_Archive/Projects
+    - 90_Archive/Captures
+    - 90_Archive/Other
+    - 99_System/Templates
+    - 99_System/Bases
+    - 99_System/Dashboards
+    - 99_System/Schemas
+    - 99_System/Scripts/QuickAdd
+    - 99_System/CSS
+  required_vault_files:
+    - .knowledgeos-root.json
+    - .vault-bridge/README.md
+    - Home.md
+    - Mobile.md
+    - 99_System/Templates/T00_Capture.md
+    - 99_System/Templates/T01_AI_Proposal.md
+    - 99_System/Templates/T10_Daily.md
+    - 99_System/Templates/T11_Weekly.md
+    - 99_System/Templates/T12_Monthly.md
+    - 99_System/Templates/T20_Project.md
+    - 99_System/Templates/T21_Idea.md
+    - 99_System/Templates/T22_Question.md
+    - 99_System/Templates/T23_Artifact.md
+    - 99_System/Templates/T24_Project_Note.md
+    - 99_System/Templates/T30_Area.md
+    - 99_System/Templates/T40_Knowledge.md
+    - 99_System/Templates/T41_Source.md
+    - 99_System/Templates/T42_Person.md
+    - 99_System/Templates/T50_MOC.md
+    - 99_System/Templates/T60_Meeting.md
+    - 99_System/Bases/Journal.base
+    - 99_System/Bases/Inbox.base
+    - 99_System/Bases/Projects.base
+    - 99_System/Bases/Decisions.base
+    - 99_System/Bases/Ideas.base
+    - 99_System/Bases/Knowledge.base
+    - 99_System/Bases/Sources.base
+    - 99_System/Bases/Review.base
+    - 99_System/Dashboards/Tasks.md
+    - 99_System/Dashboards/Weekly_Review.md
+    - 99_System/Schemas/Property_Dictionary.md
+    - 99_System/Scripts/QuickAdd/PrepareTitle.js
+    - 99_System/CSS/dashboard.css
+  transport:
+    - .vault-bridge/protocol
+    - .vault-bridge/requests
+    - .vault-bridge/responses
+  device_config_roots:
+    - .obsidian-mac
+    - .obsidian-phone
+    - .obsidian-tablet
+  runtime:
+    - staging
+    - queue
+    - quarantine
+    - awaiting_remote_authorization
+    - running
+    - review
+    - approved
+    - applying
+    - done
+    - rejected
+    - expired
+    - failed
+    - conflict
+    - runs
+    - receipts
+    - locks
+    - index
+    - cache
+    - logs
+
+required_control_files:
+  - ops/pyproject.toml
+  - ops/uv.lock
+  - ops/vaultops.toml
+  - ops/config/plugins.yaml
+  - ops/config/shortcuts.yaml
+  - ops/config/commands.yaml
+  - ops/config/command-ids.yaml
+  - ops/config/local-models.yaml
+  - ops/config/mobile.yaml
+  - ops/config/bridge.yaml
+  - ops/config/quickadd-package.json
+  - ops/actions/triage.json
+  - ops/actions/draft-note.json
+  - ops/actions/summarize.json
+  - ops/actions/link-suggestions.json
+  - ops/actions/normalize.json
+  - ops/actions/answer.json
+  - ops/schemas/note.schema.json
+  - ops/schemas/job.schema.json
+  - ops/schemas/proposal.schema.json
+  - ops/schemas/receipt.schema.json
+  - ops/schemas/bridge-request.schema.json
+  - ops/schemas/bridge-response.schema.json
+  - ops/schemas/triage-result.schema.json
+  - ops/schemas/note-record.schema.json
+  - ops/schemas/edge-record.schema.json
+  - ops/schemas/retrieval-candidate.schema.json
+  - ops/schemas/answer.schema.json
+  - ops/schemas/blueprint.schema.json
+  - ops/prompts/system.md
+  - ops/prompts/triage.md
+  - ops/prompts/draft-note.md
+  - ops/prompts/summarize.md
+  - ops/prompts/link-suggestions.md
+  - ops/prompts/normalize.md
+  - ops/prompts/answer.md
+  - ops/policies/paths.yaml
+  - ops/policies/properties.yaml
+  - ops/policies/privacy.yaml
+  - ops/policies/redaction-patterns.yaml
+  - ops/policies/relations.yaml
+  - ops/policies/retrieval.yaml
+  - ops/policies/generated-sections.yaml
+
+required_control_root_files:
+  - AGENTS.md
+  - README.md
+  - .gitignore
+  - .gitattributes
+  - docs/ARCHITECTURE.md
+  - docs/OPERATIONS.md
+  - docs/MOBILE.md
+  - docs/RUNTIME.md
+  - docs/DECISIONS.md
+
+common_properties:
+  required:
+    schema_version: {obsidian_type: number, const: 1}
+    id:
+      obsidian_type: text
+      format: uuid_v4_or_approved_deterministic_id
+      immutable: true
+      approved_deterministic_id_classes: [proposal_from_job_uuid, periodic_from_period_id, system_fixed_id]
+    type:
+      obsidian_type: text
+      enum: [capture, proposal, daily, weekly, monthly, project, project_note, idea, question, artifact, area, knowledge, source, person, moc, meeting, home, system]
+    title: {obsidian_type: text, min_length: 1, equals_filename_stem: true}
+    status: {obsidian_type: text, enum_from: note_types.TYPE.statuses}
+    created: {obsidian_type: datetime, require_timezone: true}
+    modified: {obsidian_type: datetime, require_timezone: true, semantics: schema_writer_time}
+    aliases: {obsidian_type: list, item_type: text}
+    tags: {obsidian_type: tags}
+    sensitivity: {obsidian_type: text, enum: [public, personal, confidential]}
+    ai_policy: {obsidian_type: text, enum: [remote_ok, ask, local_only, deny]}
+    ai_status: {obsidian_type: text, enum: [idle, queued, proposed, approved, applied, rejected, conflict, expired, error]}
+  optional_context_lists:
+    - projects
+    - areas
+    - topics
+    - sources
+    - people
+    - related
+  optional_relation_lists:
+    - supports
+    - contradicts
+    - explains
+    - applies_to
+    - derived_from
+    - implements
+    - raises
+  invariants:
+    - title_equals_file_basename
+    - id_is_immutable
+    - wikilinks_in_yaml_are_quoted
+    - modified_is_schema_writer_time
+    - freshness_uses_file_mtime
+
+property_registry:
+  projects: {obsidian_type: list, item_type: quoted_wikilink, object_type: project}
+  areas: {obsidian_type: list, item_type: quoted_wikilink, object_type: area}
+  topics: {obsidian_type: list, item_type: quoted_wikilink, object_type: moc}
+  sources: {obsidian_type: list, item_type: quoted_wikilink, object_type: source}
+  people: {obsidian_type: list, item_type: quoted_wikilink, object_type: person}
+  related: {obsidian_type: list, item_type: quoted_wikilink, object_type: any_note}
+  supports: {obsidian_type: list, item_type: quoted_wikilink, object_type: knowledge}
+  contradicts: {obsidian_type: list, item_type: quoted_wikilink, object_type: knowledge}
+  explains: {obsidian_type: list, item_type: quoted_wikilink, object_type: knowledge_or_question}
+  applies_to: {obsidian_type: list, item_type: quoted_wikilink, object_type: project_or_idea}
+  derived_from: {obsidian_type: list, item_type: quoted_wikilink, object_type: provenance_source}
+  implements: {obsidian_type: list, item_type: quoted_wikilink, object_type: idea}
+  raises: {obsidian_type: list, item_type: quoted_wikilink, object_type: question}
+  priority: {obsidian_type: text, enum: [high, medium, low]}
+  focus_rank: {obsidian_type: number, integer: true, minimum: 1}
+  next_action: {obsidian_type: text, min_length: 1}
+  outcome: {obsidian_type: text, min_length: 1}
+  target_date: {obsidian_type: date}
+  question_kind: {obsidian_type: text, enum: [decision, research, problem]}
+  decision: {obsidian_type: text}
+  decision_by: {obsidian_type: date}
+  confidence: {obsidian_type: text, enum: [low, medium, high, unknown]}
+  artifact_kind: {obsidian_type: text, enum: [specification, prototype, report, presentation, code, dataset, other]}
+  artifact_uri: {obsidian_type: text}
+  artifact_hash: {obsidian_type: text}
+  artifact_repo: {obsidian_type: text}
+  capture_kind: {obsidian_type: text, enum: [thought, url, quote, voice, file, other]}
+  capture_label: {obsidian_type: text}
+  captured_from: {obsidian_type: text, enum: [mac_quickadd, mac_cli, ios_shortcut, ipad_shortcut, ios_share_sheet, ipad_share_sheet, import]}
+  capture_device: {obsidian_type: text, enum: [mac, iphone, ipad]}
+  triage_projects: {obsidian_type: list, item_type: quoted_wikilink, object_type: project}
+  needs_desktop_review: {obsidian_type: checkbox}
+  device_timezone: {obsidian_type: text, format: iana_timezone}
+  canonical_date: {obsidian_type: date}
+  canonical_timezone: {obsidian_type: text, format: iana_timezone}
+  possibility: {obsidian_type: text, min_length: 1}
+  proposal_id: {obsidian_type: text, format: uuid_v4}
+  source_hashes: {obsidian_type: list, item_type: text, item_format: "vault_relative_path|sha256:64hex"}
+  period_start: {obsidian_type: date}
+  period_end: {obsidian_type: date}
+  standard: {obsidian_type: text, min_length: 1}
+  review_cadence: {obsidian_type: text, enum: [weekly, monthly, quarterly, semiannual, annual]}
+  next_review: {obsidian_type: date}
+  claim: {obsidian_type: text, min_length: 1}
+  last_reviewed: {obsidian_type: date}
+  source_kind: {obsidian_type: text, enum: [paper, book, article, web, video, podcast, course, document, dataset, other]}
+  source_url: {obsidian_type: text, format: uri}
+  authors: {obsidian_type: list, item_type: text}
+  published_date: {obsidian_type: date}
+  citation_key: {obsidian_type: text}
+  asset: {obsidian_type: text, format: quoted_wikilink_to_80_assets}
+  asset_hash: {obsidian_type: text, format: sha256}
+  extractor: {obsidian_type: text}
+  extractor_version: {obsidian_type: text}
+  page_locator_scheme: {obsidian_type: text}
+  organization: {obsidian_type: text}
+  note_kind: {obsidian_type: text, enum: [exploration, draft, research, plan, log, other]}
+  scope: {obsidian_type: text, min_length: 1}
+  meeting_at: {obsidian_type: datetime, require_timezone: true}
+  attendees: {obsidian_type: list, item_type: quoted_wikilink_or_text}
+  purpose: {obsidian_type: text, min_length: 1}
+  audience: {obsidian_type: text, enum: [desktop, mobile, system]}
+  today_focus: {obsidian_type: text}
+  triage_hint: {obsidian_type: text, enum: [none, discard, hold, task, project, idea, question, knowledge, source]}
+
+note_types:
+  capture:
+    path_globs:
+      - 00_Inbox/Captures/**/*.md
+      - 00_Inbox/Imports/**/*.md
+      - 90_Archive/Captures/**/*.md
+    statuses: [unprocessed, triaged, discarded]
+    required_extra: [captured_from, capture_device, capture_kind, triage_hint, needs_desktop_review]
+    optional_extra: [capture_label, device_timezone, canonical_date, canonical_timezone, triage_projects, asset, asset_hash, extractor, extractor_version, page_locator_scheme]
+    template: T00_Capture.md
+  proposal:
+    path_globs:
+      - 01_AI_Review/**/*.md
+    statuses: [pending, approved, applied, rejected, conflict, expired]
+    required_extra: [proposal_id, source_hashes]
+    template: T01_AI_Proposal.md
+  daily:
+    path_globs:
+      - 10_Journal/Daily/**/*.md
+    statuses: [open, closed]
+    required_extra: [period_start, period_end]
+    optional_extra: [today_focus]
+    template: T10_Daily.md
+  weekly:
+    path_globs:
+      - 10_Journal/Weekly/**/*.md
+    statuses: [open, closed]
+    required_extra: [period_start, period_end]
+    template: T11_Weekly.md
+  monthly:
+    path_globs:
+      - 10_Journal/Monthly/**/*.md
+    statuses: [open, closed]
+    required_extra: [period_start, period_end]
+    template: T12_Monthly.md
+  project:
+    path_globs:
+      - 20_Projects/*/*.md
+      - 90_Archive/Projects/*/*/*.md
+    root_filename_equals_parent: true
+    statuses: [planned, active, blocked, done, cancelled]
+    required_extra: [outcome, priority]
+    optional_extra: [focus_rank, next_action, target_date]
+    conditional_requirements:
+      - when: {status: active}
+        require: [focus_rank, next_action]
+      - when: {status: blocked}
+        require: [focus_rank, next_action]
+    field_constraints:
+      focus_rank: {type: integer, minimum: 1}
+      priority: {enum: [high, medium, low]}
+    template: T20_Project.md
+  project_note:
+    path_globs:
+      - 20_Projects/*/Working/**/*.md
+      - 90_Archive/Projects/*/*/Working/**/*.md
+    exclude_globs:
+      - 20_Projects/*/Working/*MOC.md
+      - 90_Archive/Projects/*/*/Working/*MOC.md
+    statuses: [draft, active, superseded, archived]
+    required_extra: [projects, note_kind]
+    field_constraints:
+      projects: {min_items: 1, max_items: 1, must_resolve_to_parent_project_bundle: true}
+    template: T24_Project_Note.md
+  idea:
+    path_globs:
+      - 40_Knowledge/Ideas/**/*.md
+    statuses: [seed, incubating, testing, promoted, parked, dropped]
+    required_extra: [possibility]
+    template: T21_Idea.md
+  question:
+    path_globs:
+      - 40_Knowledge/Questions/**/*.md
+    statuses: [open, deciding, answered, deferred, closed]
+    required_extra: [question_kind]
+    optional_extra: [decision, decision_by, priority]
+    conditional_requirements:
+      - when: {question_kind: decision}
+        require: [decision]
+    template: T22_Question.md
+  artifact:
+    path_globs:
+      - 20_Projects/*/Artifacts/**/*.md
+      - 90_Archive/Projects/*/*/Artifacts/**/*.md
+    statuses: [draft, review, final, deprecated]
+    required_extra: [artifact_kind, projects]
+    optional_extra: [artifact_uri, artifact_hash, artifact_repo, asset]
+    field_constraints:
+      projects: {min_items: 1, max_items: 1, must_resolve_to_parent_project_bundle: true}
+      when_status_final_require_one_of: [artifact_uri, artifact_repo, asset]
+      artifact_hash_must_bind_to: [artifact_uri, artifact_repo, asset]
+    template: T23_Artifact.md
+  area:
+    path_globs:
+      - 30_Areas/**/*.md
+    statuses: [active, paused, retired]
+    required_extra: [standard, review_cadence, next_review]
+    template: T30_Area.md
+  knowledge:
+    path_globs:
+      - 40_Knowledge/Notes/**/*.md
+    statuses: [seed, developing, evergreen, deprecated]
+    required_extra: [claim, confidence]
+    optional_extra: [last_reviewed]
+    template: T40_Knowledge.md
+  source:
+    path_globs:
+      - 40_Knowledge/Sources/**/*.md
+    statuses: [queued, reading, processed, archived]
+    required_extra: [source_kind]
+    optional_extra: [source_url, authors, published_date, citation_key, asset, asset_hash, extractor, extractor_version, page_locator_scheme, derived_from]
+    field_constraints:
+      when_status_processed_or_archived_require_one_of: [source_url, asset, derived_from, citation_key]
+    template: T41_Source.md
+  person:
+    path_globs:
+      - 40_Knowledge/People/**/*.md
+    statuses: [active, inactive]
+    required_extra: []
+    optional_extra: [organization]
+    default_ai_policy: deny
+    template: T42_Person.md
+  moc:
+    path_globs:
+      - 50_Maps/**/*.md
+      - 20_Projects/*/Working/*MOC.md
+      - 90_Archive/Projects/*/*/Working/*MOC.md
+    statuses: [active, retired]
+    required_extra: [scope]
+    template: T50_MOC.md
+  meeting:
+    path_globs:
+      - 60_Meetings/**/*.md
+    statuses: [scheduled, held, cancelled]
+    required_extra: [meeting_at, attendees]
+    default_ai_policy: deny
+    template: T60_Meeting.md
+  home:
+    exact_paths: [Home.md, Mobile.md]
+    statuses: [active]
+    required_extra: [purpose, audience]
+  system:
+    path_globs:
+      - 99_System/**/*.md
+    exclude_globs:
+      - 99_System/Templates/**/*.md
+    statuses: [active, deprecated]
+    required_extra: [purpose]
+
+mobile_capture:
+  path_pattern: 00_Inbox/Captures/YYYY/MM/YYYYMMDD-HHmmss-device-uuid8.md
+  write_mode: create_only
+  user_label_property: capture_label
+  user_label_is_not_in_path: true
+  body_preservation: verbatim_under_original_heading
+  common_daily_append: forbidden_by_default
+  triage_hint_values:
+    - none
+    - discard
+    - hold
+    - task
+    - project
+    - idea
+    - question
+    - knowledge
+    - source
+  triage_hint_invariants:
+    - status_remains_unprocessed
+    - path_does_not_change
+    - final_triage_runs_on_mac
+  time_fields:
+    - created_with_device_offset
+    - device_timezone
+    - canonical_date
+    - canonical_timezone
+  default_needs_desktop_review: true
+  conditional_required:
+    when_captured_from: [ios_shortcut, ipad_shortcut, ios_share_sheet, ipad_share_sheet]
+    require: [capture_label, capture_device, device_timezone, canonical_date, canonical_timezone, needs_desktop_review]
+  limits:
+    markdown_bytes: 65536
+    selected_text_bytes: 20480
+    reject_nul_and_invalid_utf8: true
+    long_dictation: local_outbox_then_mac_import
+
+mobile_assets:
+  allowed_mime: [image/jpeg, image/png, application/pdf]
+  heic_behavior: convert_to_jpeg_and_revalidate_or_create_metadata_placeholder
+  max_image_bytes: 5242880
+  max_pdf_bytes: 10485760
+  forbidden: [audio, video, executable]
+  oversize_behavior: url_filename_size_sha256_placeholder
+  assets_soft_warning_bytes: 262144000
+  worktree_soft_warning_bytes: 1073741824
+  lfs: deferred_until_working_copy_roundtrip_adr
+
+relation_registry:
+  canonical_predicates:
+    supports:
+      allowed_subject_types: [source, knowledge]
+      allowed_object_types: [knowledge]
+    contradicts:
+      allowed_subject_types: [source, knowledge]
+      allowed_object_types: [knowledge]
+    explains:
+      allowed_subject_types: [knowledge]
+      allowed_object_types: [knowledge, question]
+    applies_to:
+      allowed_subject_types: [knowledge]
+      allowed_object_types: [project, idea]
+    derived_from:
+      allowed_subject_types: [idea, question, knowledge, project, artifact, source]
+      allowed_object_types: [capture, daily, weekly, monthly, source, idea, meeting]
+    implements:
+      allowed_subject_types: [project]
+      allowed_object_types: [idea]
+    raises:
+      allowed_subject_types: [idea, knowledge, project]
+      allowed_object_types: [question]
+  inverse_aliases:
+    supported_by: invert_to_supports
+    raised_by: invert_to_raises
+  unknown_predicate_policy: propose_related_or_reject
+  context_predicates:
+    projects: {allowed_object_types: [project]}
+    areas: {allowed_object_types: [area]}
+    topics: {allowed_object_types: [moc]}
+    sources: {allowed_object_types: [source]}
+    people: {allowed_object_types: [person]}
+    related: {allowed_object_types: [any_note]}
+  edge_kinds:
+    semantic: canonical_predicates
+    context: context_predicates
+    wikilink: notes_jsonl_only
+  inverse_materialization: false
+  proposal_provenance: ai_proposed
+  canonical_projection_provenance: canonical_property
+  canonical_source_locator: frontmatter_predicate_index
+  canonical_object_locator: wikilink_fragment_or_null
+  proposal_confidence_is_not_canonical: true
+  receipt_provenance_is_local_audit_overlay: true
+
+templates:
+  directory: 99_System/Templates
+  required:
+    - T00_Capture.md
+    - T01_AI_Proposal.md
+    - T10_Daily.md
+    - T11_Weekly.md
+    - T12_Monthly.md
+    - T20_Project.md
+    - T21_Idea.md
+    - T22_Question.md
+    - T23_Artifact.md
+    - T24_Project_Note.md
+    - T30_Area.md
+    - T40_Knowledge.md
+    - T41_Source.md
+    - T42_Person.md
+    - T50_MOC.md
+    - T60_Meeting.md
+
+bases:
+  directory: 99_System/Bases
+  required:
+    - Inbox.base
+    - Projects.base
+    - Decisions.base
+    - Ideas.base
+    - Knowledge.base
+    - Sources.base
+    - Review.base
+    - Journal.base
+  views:
+    Journal.base:
+      Today Focus:
+        filters: {type: daily, period_start: today}
+        sort: [file_name_desc]
+        limit: 1
+        columns: [file.link, today_focus]
+    Projects.base:
+      Now:
+        filters:
+          type: project
+          status_in: [active, blocked]
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+        limit: 3
+        columns: [file.link, status, next_action, focus_rank, priority, target_date]
+      Mobile:
+        filters:
+          type: project
+          status_in: [active, blocked]
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+        limit: 3
+        columns: [file.link, next_action, status]
+      Next Actions:
+        filters:
+          type: project
+          status_in: [active, blocked]
+          next_action_nonempty: true
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+        limit: 3
+        columns: [file.link, next_action, status]
+      Blocked:
+        filters: {type: project, status: blocked}
+        sort: [focus_rank_asc, priority_high_to_low, file_name_asc]
+        limit: 5
+        columns: [file.link, next_action, target_date]
+    Decisions.base:
+      Open:
+        filters:
+          type: question
+          status_in: [open, deciding]
+          question_kind: decision
+          decision_nonempty: true
+        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
+        limit: 5
+        columns: [file.link, decision, decision_by, projects, priority]
+    Ideas.base:
+      Incubating:
+        filters:
+          type: idea
+          status_in: [seed, incubating, testing]
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 10
+        columns: [file.link, status, possibility, projects, file.mtime]
+    Knowledge.base:
+      Radar:
+        filters:
+          type_in: [knowledge, idea]
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 6
+        columns: [file.link, type, status, confidence, file.mtime]
+    Inbox.base:
+      Unprocessed:
+        filters: {type: capture, status: unprocessed}
+        sort: [created_asc, file_name_asc]
+        limit: 10
+        columns: [file.link, created, capture_kind, triage_hint, needs_desktop_review]
+      Mobile Review:
+        filters: {type: capture, status: unprocessed, needs_desktop_review: true}
+        sort: [created_asc, file_name_asc]
+        limit: 5
+        columns: [file.link, capture_label, triage_hint]
+    Sources.base:
+      Reading queue:
+        filters:
+          type: source
+          status_in: [queued, reading]
+        sort: [published_date_desc_nulls_last, file_name_asc]
+        limit: 10
+        columns: [file.link, status, source_kind, authors, published_date]
+      Processed:
+        filters: {type: source, status: processed}
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 20
+        columns: [file.link, source_kind, published_date, source_url]
+    Review.base:
+      PendingOrConflict:
+        filters: {type: proposal, status_in: [pending, conflict]}
+        sort: [created_asc, file_name_asc]
+        limit: 10
+        columns: [file.link, status, proposal_id, created]
+      Mobile Results:
+        filters: {type: proposal, status_in: [pending, conflict]}
+        sort: [created_desc, file_name_asc]
+        limit: 5
+        columns: [file.link, status, created]
+  generated_against_installed_obsidian_version: true
+  cli_query_smoke_required: true
+
+dashboards:
+  home:
+    path: Home.md
+    type: home
+    audience: desktop
+    sections:
+      - name: today_direction
+        source: Journal.base
+        view: Today Focus
+        limit: 1
+        always_available_secondary_action: obsidian_daily_uri_canonical_vault_name
+      - name: quick_capture
+        actions: [CAPTURE_THOUGHT, NEW_IDEA, NEW_PROJECT, NEW_QUESTION, NEW_KNOWLEDGE]
+        baseline_launcher: quickadd_verified_command_ids_with_hotkeys
+        hotkeys: [option_command_i, option_command_j, option_command_p, option_command_q, option_command_k]
+      - name: now
+        source: Projects.base
+        view: Now
+        limit: 3
+        status_in: [active, blocked]
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+      - name: needs_a_decision
+        source: Decisions.base
+        view: Open
+        limit: 5
+        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
+      - name: next_actions
+        source: Projects.base
+        view: Next Actions
+        limit: 3
+      - name: knowledge_radar
+        source: Knowledge.base
+        view: Radar
+        limit: 6
+        freshness_field: file.mtime
+      - name: inbox
+        source: Inbox.base
+        view: Unprocessed
+        limit: 10
+      - name: ai_review
+        source: Review.base
+        view: PendingOrConflict
+        limit: 10
+      - name: support_status
+        blocked_source: Projects.base#Blocked
+        waiting_source: 99_System/Dashboards/Tasks.md#Waiting
+        sync_source: obsidian_git_status_bar_or_vaultctl_git_status
+        must_not_persist_stale_sync_claim: true
+  mobile:
+    path: Mobile.md
+    type: home
+    audience: mobile
+    layout: single_column
+    community_plugin_required: false
+    stale_snapshot_notice_required: true
+    sections:
+      - name: quick_capture
+        actions: [ko_capture, ko_save_source, ko_defer_to_mac, ko_sync]
+        link_scheme: shortcuts_percent_encoded
+      - name: today
+        action: obsidian_daily_canonical_vault_name
+      - name: focus_projects_and_next_actions
+        source: Projects.base
+        view: Mobile
+        limit: 3
+        canonical_action_field: next_action
+      - name: needs_desktop_review
+        source: Inbox.base
+        view: Mobile Review
+        limit: 5
+      - name: ai_results
+        source: Review.base
+        view: Mobile Results
+        limit: 5
+      - name: bookmarks
+        fallback: plain_wikilinks
+        moc_fallback: obsidian_search_exact_vault_query_path_50_maps
+
+plugin_profiles:
+  core_all_devices:
+    - Properties
+    - Bases
+    - Daily notes
+    - Templates
+    - Search
+    - Backlinks
+    - Outgoing links
+    - Bookmarks
+    - File recovery
+  core_mac_only:
+    - Workspaces
+  device_local_untracked_state:
+    - bookmarks.json
+    - workspace.json
+    - workspace-mobile.json
+  mac_baseline:
+    - id: quickadd
+      role: human_capture_router
+    - id: templater-obsidian
+      role: template_renderer
+    - id: obsidian-tasks-plugin
+      role: action_query
+    - id: obsidian-linter
+      role: bounded_hygiene
+    - id: obsidian-git
+      role: manual_mac_git_ui
+  mobile_baseline:
+    community_plugins: []
+    git_writer: working_copy
+  optional:
+    - obsidian-shellcommands
+    - dataview
+    - calendar-plus
+    - omnisearch
+    - obsidian-zotero-desktop-connector
+    - obsidian-excalidraw-plugin
+    - obsidian-advanced-uri
+    - obsidian-meta-bind-plugin
+  forbidden_defaults:
+    - quickadd_ai
+    - templater_system_commands
+    - templater_global_new_file_trigger
+    - dataviewjs
+    - tasks_javascript_queries
+    - obsidian_git_auto_pull
+    - obsidian_git_auto_commit
+    - obsidian_git_auto_push
+
+quickadd_choices:
+  CAPTURE_THOUGHT:
+    template: T00_Capture.md
+    target_pattern: 00_Inbox/Captures/YYYY/MM/YYYYMMDD-HHmmss title.md
+  NEW_PROJECT:
+    template: T20_Project.md
+    target_pattern: 20_Projects/title/title.md
+    create_sibling_directories: [Working, Artifacts]
+    create_project_moc: false
+  NEW_PROJECT_MOC:
+    template: T50_MOC.md
+    target_pattern: 20_Projects/selected-project/Working/selected-project MOC.md
+    requires_existing_active_project: true
+    human_curated: true
+  NEW_IDEA:
+    template: T21_Idea.md
+    target_pattern: 40_Knowledge/Ideas/title.md
+  NEW_QUESTION:
+    template: T22_Question.md
+    target_pattern: 40_Knowledge/Questions/title.md
+  NEW_ARTIFACT:
+    template: T23_Artifact.md
+    target_pattern: 20_Projects/selected-project/Artifacts/title.md
+    requires_existing_active_project: true
+  NEW_AREA:
+    template: T30_Area.md
+    target_pattern: 30_Areas/title.md
+  NEW_KNOWLEDGE:
+    template: T40_Knowledge.md
+    target_pattern: 40_Knowledge/Notes/title.md
+  NEW_SOURCE:
+    template: T41_Source.md
+    target_pattern: 40_Knowledge/Sources/title.md
+  NEW_PERSON:
+    template: T42_Person.md
+    target_pattern: 40_Knowledge/People/title.md
+  NEW_MOC:
+    template: T50_MOC.md
+    target_pattern: 50_Maps/title MOC.md
+  NEW_MEETING:
+    template: T60_Meeting.md
+    target_pattern: 60_Meetings/YYYY/YYYY-MM-DD — title.md
+
+shortcut_contracts:
+  - id: ko_capture
+    display_name: KO · Capture
+    input: [share_sheet, dictation, text]
+    output: unique_capture_note
+    overwrites_existing: false
+    pull_before_capture: false
+    durable_outbox_first: true
+    automatic_commit_requires_exact_staged_set_visibility: true
+  - id: ko_save_source
+    display_name: KO · Save Source
+    input: [url, selected_text, comment]
+    output: unique_import_capture
+    overwrites_existing: false
+  - id: ko_today
+    display_name: KO · Today
+    input: []
+    output: open_daily_or_mobile
+    writes_files: false
+  - id: ko_defer_to_mac
+    display_name: KO · Defer to Mac
+    input: [source_path, action_id]
+    output: immutable_bridge_request
+    overwrites_existing: false
+    hash_domain: sha256_of_committed_git_blob_bytes
+    requires_source: [tracked, byte_identical_to_expected_head_blob, no_index_or_worktree_drift]
+    capability_gate: working_copy_exact_committed_blob_access_verified
+    unavailable_or_dirty_fallback: show_status_and_do_not_publish_request
+  - id: ko_sync
+    display_name: KO · Sync
+    input: []
+    output: safe_sync_or_status_ui
+    requires_obsidian_closed: true
+    automatic_merge_only_if_fast_forward_proven: true
+    after_fast_forward: validate_and_quicklook_latest_bridge_response_for_this_device
+
+mobile_recovery_outbox:
+  root: on_my_device/KnowledgeOS-Recovery/Outbox
+  outside_notes_repository: true
+  payload_path: JOB_ID/input.json
+  event_path: JOB_ID/events/NNNN-event.json
+  create_only: true
+  payload_hash: sha256
+  states: [captured, vault_written, committed, pushed, remote_observed, local_vault_transferred]
+  retry_idempotency: job_id_plus_payload_sha256
+  identity_binding: job_id_equals_note_id_and_deterministic_target_path_is_in_payload
+  remote_observed: expected_remote_branch_contains_exact_target_blob_sha256
+  cleanup_requires: [remote_observed_or_local_vault_transfer_receipt, minimum_age_7_days, interactive_confirmation]
+  pre_persist_cancel_guarantee: none
+  post_persist_failure_guarantee: payload_and_event_survive_cancel_reboot_retry
+  stale_warning_days: 30
+  encrypted_device_backup_required: true
+
+mobile_git_transaction:
+  capture_runs_pull: false
+  verify_before_write: [repository, remote_fingerprint, branch, root_sentinel]
+  include_all_modified: false
+  auto_commit_requires:
+    - preexisting_staged_set_empty
+    - staged_set_equals_exact_new_paths
+    - installed_action_exposes_staged_set
+  fallback: open_single_file_commit_ui_and_keep_outbox
+  push_failure: keep_local_commit_and_outbox
+  every_commit_and_push_requires:
+    - expected_repository_remote_branch_and_sentinel
+    - exact_changed_and_staged_path_set_visible
+    - all_changed_bytes_pass_github_storage_policy
+    - no_confidential_frontmatter
+    - bounded_secret_pattern_scan
+    - explicit_user_confirmation
+  if_bytes_or_staged_set_cannot_be_inspected: no_automatic_commit_or_push
+  existing_file_edit:
+    allowed_mutation: [short_body_edit, triage_hint, triage_projects, needs_desktop_review]
+    requires_clean_fast_forward_sync_before_edit: true
+    commit_mode: interactive_exact_file_only
+    privacy_gate_is_same_as_new_capture: true
+  sync:
+    requires_obsidian_closed: true
+    clean_only: true
+    fast_forward_only: true
+    diverged_or_unknown: open_status_ui_without_merge
+
+actions:
+  pipeline_registry:
+    directory: ops/actions
+    one_config_per_pipeline_kind: true
+    filenames:
+      triage: triage.json
+      draft_note: draft-note.json
+      summarize: summarize.json
+      link_suggestions: link-suggestions.json
+      normalize: normalize.json
+      answer: answer.json
+  user_action_routes:
+    organize: {pipelines: [triage, normalize]}
+    summarize: {pipelines: [summarize]}
+    relate: {pipelines: [link_suggestions], requires_candidate_set: true}
+    extract: {pipelines: [draft_note]}
+    inbox: {pipelines: [triage], fan_out_per_source: true, default_limit: 20}
+    project-summary: {pipelines: [summarize], preprocess: retrieve_with_project_scope, requires_candidate_set: true}
+  invariants:
+    - every_bridge_pipeline_kind_maps_to_exactly_one_registry_file
+    - every_pipeline_registry_entry_resolves_to_one_action_config_and_one_prompt_file
+    - user_action_route_is_not_an_output_schema_identity
+    - unknown_or_duplicate_pipeline_mapping_fails_closed
+
+automation_lanes:
+  l0_capture:
+    model: none
+    vault_output_scope: [00_Inbox]
+    runtime_output_scope: []
+    approval: invocation
+  l1_mac_interactive:
+    route_id: codex_chatgpt_login
+    execution_class: remote
+    vault_output_scope: [01_AI_Review]
+    runtime_output_scope: [review, runs, receipts]
+    approval: preview_then_human
+  l1_mobile_async:
+    transport: .vault-bridge
+    execution_device: mac
+    vault_output_scope: [01_AI_Review, .vault-bridge/responses]
+    runtime_output_scope: [awaiting_remote_authorization, queue, review, runs, receipts]
+    approval: preview_then_human
+  l1_mobile_immediate:
+    enabled_by_default: false
+    provider: openai_api_via_relay
+    max_payload_bytes: 20480
+    vault_output_scope: [00_Inbox, 01_AI_Review]
+    runtime_output_scope: []
+    approval: mobile_preview_before_save
+    enablement_requires:
+      - https_endpoint
+      - audience_bound_short_ttl_action_scoped_revocable_token
+      - request_uuid_plus_payload_hash_idempotency
+      - action_request_and_response_schemas
+      - payload_timeout_retry_limits
+      - per_user_rate_and_daily_monthly_cost_budgets
+      - kill_switch
+      - verified_no_raw_payload_prompt_answer_or_auth_logs
+      - relay_has_no_vault_or_github_credentials
+      - device_outbox_and_preview_before_create
+      - replay_expiry_offline_partial_schema_failure_tests
+  l2_retrieval:
+    capability: hybrid
+    enabled_components: [lexical_fts, typed_link_expansion]
+    vector_enabled_by_default: false
+    vector_enablement_gate: optional_vector_rrf_improves_baseline
+    vault_output_scope: [01_AI_Review]
+    runtime_output_scope: [index, review, runs, receipts]
+    approval: promote_through_proposal
+
+bridge:
+  root: .vault-bridge
+  trusted_schemas:
+    request: ops/schemas/bridge-request.schema.json
+    response: ops/schemas/bridge-response.schema.json
+  deployed_schema_copies:
+    request: .vault-bridge/protocol/request.schema.json
+    response: .vault-bridge/protocol/response.schema.json
+    authority: generated_copy_with_digest_not_import_authority
+  request_path_pattern: .vault-bridge/requests/YYYY/MM/JOB_ID.json
+  response_path_pattern: .vault-bridge/responses/YYYY/MM/JOB_ID/NNNN-status.json
+  immutable: true
+  request_contains_content: false
+  request_required_fields:
+    - schema_version
+    - job_id
+    - created_at
+    - device_id
+    - pipeline_kind
+    - source.path
+    - source.blob_sha256
+    - target
+    - parameters
+    - route_id
+    - mode
+  action_contracts:
+    triage:
+      target: null
+      optional_source_fields: [locator, fragment_sha256]
+      output_schema: ops/schemas/triage-result.schema.json
+    draft_note:
+      target_required: [path, expected_sha256, type]
+      expected_sha256: ""
+      parameters_one_of: [selected_candidate_id_and_digest, validated_title]
+      output_schema: ops/schemas/proposal.schema.json
+    summarize:
+      target: null
+      parameter: bounded_summary_mode
+      output_schema: ops/schemas/answer.schema.json#summary
+    link_suggestions:
+      target_must_equal_source_path_and_hash: true
+      parameter: retrieval_profile_id
+      candidate_set_generated_on_mac: true
+      output_schema: ops/schemas/proposal.schema.json
+    answer:
+      target: null
+      query_must_be_source_capture_reference: true
+      parameters: [scope_id]
+      output_schema: ops/schemas/answer.schema.json#answer
+  ingest_checks:
+    - trusted_control_schema
+    - uuid_v4
+    - path_namespace
+    - request_committed_in_expected_branch
+    - request_add_only_history
+    - request_blob_sha256
+    - source_blob_same_commit_tree
+    - source_blob_sha256
+    - current_worktree_drift
+    - regular_file
+    - size_limit
+    - replay
+    - privacy
+  ingest_receipt_fields:
+    - request_path
+    - request_sha256
+    - request_blob_id
+    - introducing_commit
+    - committed_tree_id
+    - source_path
+    - source_blob_id
+    - source_blob_sha256
+    - normalized_internal_manifest_sha256
+    - bridge_schema_sha256
+  idempotency:
+    key: job_id_plus_canonical_request_sha256
+    same_id_same_digest: no_op
+    same_id_different_digest: quarantine_tamper_conflict
+  states:
+    - committed_request
+    - ingested
+    - awaiting_remote_authorization
+    - queued
+    - rejected
+    - running
+    - proposal_ready
+    - answer_ready
+    - no_change
+    - insufficient_input
+    - refused
+    - failed
+    - conflict
+    - expired
+    - published_local
+    - human_push
+    - mobile_visible
+  allowed_transitions:
+    committed_request: [ingested]
+    ingested: [awaiting_remote_authorization, queued, rejected, conflict]
+    awaiting_remote_authorization: [queued, rejected, expired]
+    queued: [running, rejected, conflict]
+    running: [proposal_ready, answer_ready, no_change, insufficient_input, refused, failed, conflict]
+    proposal_ready: [published_local, rejected, expired, conflict]
+    answer_ready: [published_local, expired, conflict]
+    no_change: [published_local]
+    insufficient_input: [published_local]
+    refused: [published_local]
+    failed: [published_local]
+    conflict: [published_local]
+    rejected: [published_local]
+    expired: [published_local]
+    published_local: [human_push]
+    human_push: [mobile_visible]
+  response:
+    writer: vaultctl_bridge_publish_only
+    status_enum: [awaiting_remote_authorization, queued, rejected, needs_review, answer_ready, no_change, insufficient_input, refused, failed, conflict, expired]
+    required_fields: [schema_version, job_id, sequence, status, event_at, request_sha256, request_commit, warnings]
+    terminal_statuses: [rejected, needs_review, answer_ready, no_change, insufficient_input, refused, failed, conflict, expired]
+    terminal_required_fields: [completed_at, job_receipt_sha256, output_schema_sha256]
+    proposal_fields: [proposal_id, proposal_path, proposal_sha256]
+    answer_fields: [answer_id, answer_plaintext, citations, answer_sha256]
+    answer_plaintext_forbids: [html, active_markdown_embed, command_uri]
+    write_mode: create_only
+    mobile_visibility: ko_sync_validates_latest_event_and_displays_status_or_bounded_result_in_quicklook
+  state_mapping:
+    awaiting_remote_authorization: {runtime: awaiting_remote_authorization, public_status: awaiting_remote_authorization}
+    queued: {runtime: queue, public_status: queued}
+    rejected: {runtime: rejected, public_status: rejected}
+    proposal_ready: {runtime: review, public_status: needs_review, review_folder: 01_AI_Review/Pending}
+    answer_ready: {runtime: review, public_status: answer_ready}
+    no_change: {runtime: done, public_status: no_change}
+    insufficient_input: {runtime: done, public_status: insufficient_input}
+    refused: {runtime: done, public_status: refused}
+    failed: {runtime: failed, public_status: failed}
+    conflict: {runtime: conflict, public_status: conflict, review_folder: 01_AI_Review/Conflict}
+    expired: {runtime: expired, public_status: expired, review_folder: 01_AI_Review/Expired}
+  publish:
+    interactive_only: true
+    exact_commit_repository: vault
+    exact_commit_set: [response_event, proposal_artifact_if_status_needs_review]
+    pushes_remote: false
+    crash_recovery:
+      - fsync_publish_intent_before_response_create
+      - on_retry_recompute_identical_canonical_event_digest
+      - resume_only_if_existing_event_and_staged_or_committed_blob_match_intent
+      - quarantine_on_any_digest_or_path_mismatch
+      - append_completion_record_after_commit
+  detection:
+    baseline: manual_sync_then_vaultctl_bridge_ingest
+    scheduled_reconcile_scans_local_committed_head: true
+    performs_git_network_io: false
+  retention:
+    v1_delete_or_move: false
+    future_compaction_requires: [permanent_digest_tombstone, explicit_adr]
+  trust_boundary:
+    baseline: notes_repository_write_access
+    device_id_is_authentication: false
+    stronger_option: device_signature_adr
+  implicit_git_network_commands: false
+
+llm:
+  default_interactive_route: codex_chatgpt_login
+  routes:
+    codex_chatgpt_login: {execution_class: remote}
+    openai_api_relay: {execution_class: remote, enabled_by_default: false}
+    local_profile: {route_id_pattern: "local:<profile>", execution_class: local}
+  silent_provider_fallback: false
+  live_vault_write: false
+  output_outcomes:
+    - proposed
+    - decision
+    - no_change
+    - insufficient_input
+    - refused
+  triage:
+    allowed_source_types: [capture, daily]
+    allowed_candidate_types: [task, idea, question, knowledge, project, source]
+    candidate_min: 1
+    candidate_max: 5
+    candidate_is_write_operation: false
+    selected_candidate_creates_separate_job: true
+    daily_source_requires_locator_and_fragment_hash: true
+    capture_finalize:
+      command: vaultctl capture finalize
+      interactive_only: true
+      model_operations: false
+      transaction:
+        - verify_source_hash_and_capture_schema
+        - validate_outcome_triaged_or_discarded
+        - resolve_optional_related_target
+        - journal_status_and_related_update_intent
+        - publish_frontmatter_update
+        - link_aware_move_to_90_Archive/Captures/YYYY
+        - verify_destination_schema_and_links
+        - append_completion_receipt
+      crash_recovery: resume_from_fsynced_journal_or_quarantine_on_hash_conflict
+  draft_note:
+    allowed_source_types: [capture, daily, source, idea]
+    allowed_target_types: [idea, question, knowledge, project, source]
+    one_target_per_job: true
+    project_target_creates_deterministic_bundle_directories: true
+  remote_authorization:
+    state: awaiting_remote_authorization
+    command: vaultctl ai authorize-remote JOB_ID --expires RFC3339
+    tty_only: true
+    artifact_path: runtime/runs/JOB_ID/receipts/remote-authorization.json
+    mutates_immutable_job_manifest: false
+    state_manifest_references_artifact_path_and_sha256: true
+    binds:
+      - canonical_request_sha256
+      - committed_vault_tree_id
+      - source_and_fragment_hashes
+      - action_config_sha256
+      - prompt_sha256
+      - output_schema_sha256
+      - provider_route_and_resolved_model
+      - privacy_policy_sha256
+      - expiry
+  approval_binds:
+    - proposal_sha256
+    - diff_sha256
+    - source_baselines
+    - target_baselines
+    - bridge_request_sha256_or_null
+    - committed_vault_tree_id
+    - action_config_sha256
+    - prompt_sha256
+    - policy_bundle_sha256
+    - schema_sha256
+    - provider_route_and_resolved_model
+    - candidate_set_sha256_or_null
+    - retrieval_config_sha256_or_null
+    - input_index_generation_or_null
+    - control_and_vault_git_baselines
+    - triage_selection_set_sha256_or_null
+    - expiry
+  partial_relation_approval:
+    mutates_original_proposal: false
+    produces_filtered_proposal_and_new_diff: true
+    requires_new_digest_bound_approval: true
+
+projection:
+  output_path_namespace: runtime_relative_posix
+  schema_path_namespace: control_root_relative_posix
+  generation_root: index/exports/generations/GENERATION_ID
+  notes_jsonl: index/exports/generations/GENERATION_ID/notes.jsonl
+  edges_jsonl: index/exports/generations/GENERATION_ID/edges.jsonl
+  manifest: index/exports/generations/GENERATION_ID/manifest.json
+  current_pointer: index/exports/current.json
+  schemas:
+    note_record: ops/schemas/note-record.schema.json
+    edge_record: ops/schemas/edge-record.schema.json
+    retrieval_candidate: ops/schemas/retrieval-candidate.schema.json
+    answer: ops/schemas/answer.schema.json
+  record_contracts:
+    note:
+      additional_properties: false
+      required: [id, path, title, type, status, properties, body, wikilinks, created, modified, content_hash, schema_version]
+      fields:
+        id: uuid_or_system_id
+        path: vault_relative_posix
+        title: text
+        type: note_type_enum
+        status: type_status_enum
+        properties: flat_object_excluding_promoted_fields
+        body: text
+        wikilinks: list_of_wikilink_records
+        created: iso8601_with_offset
+        modified: iso8601_with_offset
+        content_hash: sha256
+        schema_version: integer
+      promoted_frontmatter_fields: [schema_version, id, type, title, status, created, modified]
+      properties_contract:
+        key_order: unicode_codepoint_lexicographic_after_nfc
+        values: validated_flat_frontmatter_values
+      wikilink_item:
+        additional_properties: false
+        required: [raw_target, resolved_id, resolved_path, locator]
+        fields:
+          raw_target: text
+          resolved_id: uuid_or_system_id_or_null
+          resolved_path: vault_relative_posix_or_null
+          locator: text_or_null
+        unresolved_link: preserve_raw_target_with_null_resolved_fields
+      content_hash_domain: sha256_of_exact_utf8_lf_source_markdown_bytes
+    edge:
+      additional_properties: false
+      required: [subject_id, edge_kind, predicate, object_id, subject_path, object_path, provenance, source_locator, object_locator, source_content_hash, relation_schema_version]
+      fields:
+        subject_id: uuid_or_system_id
+        edge_kind: [semantic, context]
+        predicate: registry_value
+        object_id: uuid_or_system_id
+        subject_path: vault_relative_posix
+        object_path: vault_relative_posix
+        provenance: canonical_property
+        source_locator: frontmatter_predicate_index
+        object_locator: text_or_null
+        source_content_hash: sha256
+        relation_schema_version: integer
+      nullability:
+        object_locator: text_or_null
+      duplicate_policy: duplicate_canonical_edge_tuple_is_validation_error
+  serialization:
+    encoding: utf8
+    bom: false
+    newline: lf
+    terminal_newline_count: 1
+    json_separators: compact
+    object_key_order: unicode_codepoint_lexicographic_after_nfc
+    record_sort:
+      notes: [path_nfc_utf8_bytes, id]
+      edges: [subject_id, edge_kind, predicate, object_id, object_locator_nulls_first]
+    source_list_order: preserve
+    non_lf_or_invalid_utf8_source: reject
+  deterministic_sort: true
+  byte_stable_for_same_inputs: true
+  publish_protocol:
+    - freeze_source_path_hash_snapshot
+    - write_and_fsync_generation_files
+    - write_and_fsync_generation_manifest
+    - verify_source_snapshot_unchanged
+    - atomic_replace_current_pointer
+    - fsync_parent_directory
+  reader_contract: read_pointer_once_and_use_one_generation_only
+  reject_mixed_generation_or_digest_mismatch: true
+  modifies_vault: false
+  canonical_edges_only: true
+  canonical_edge_fields:
+    - subject_id
+    - edge_kind
+    - predicate
+    - object_id
+    - subject_path
+    - object_path
+    - provenance
+    - source_locator
+    - object_locator
+    - source_content_hash
+    - relation_schema_version
+  excluded_from_byte_stable_projection:
+    - file_mtime
+    - local_receipt_provenance
+    - proposal_confidence
+
+retrieval:
+  phases:
+    - native_exact_and_links
+    - lexical_fts
+    - local_vectors
+    - reciprocal_rank_fusion
+    - bounded_typed_graph_expansion
+  graph_expansion:
+    default_hops: 1
+    maximum_hops: 2
+    per_hop_node_cap: 20
+    total_edge_cap: 60
+    total_candidate_cap: 50
+    one_hop_allowlist:
+      predicates: [supports, contradicts, explains, applies_to, derived_from, implements, raises, projects, areas, topics, sources, people, related]
+      directions: [outgoing, incoming]
+    two_hop_sequence_allowlist:
+      - [{direction: incoming, predicate: applies_to}, {direction: incoming, predicate: supports}]
+      - [{direction: incoming, predicate: applies_to}, {direction: incoming, predicate: contradicts}]
+      - [{direction: outgoing, predicate: implements}, {direction: outgoing, predicate: derived_from}]
+      - [{direction: outgoing, predicate: raises}, {direction: incoming, predicate: explains}]
+      - [{direction: incoming, predicate: projects}, {direction: outgoing, predicate: sources}]
+    unknown_sequence_policy: reject
+  corpus:
+    default_include_types: [knowledge, source, project, project_note, artifact, idea, question]
+    journal_requires_explicit_scope: true
+    exclude_paths:
+      - .vault-bridge/**
+      - .obsidian-*/**
+      - 99_System/**
+      - 01_AI_Review/Rejected/**
+      - 01_AI_Review/Expired/**
+    review_corpus_separate: [01_AI_Review/Pending/**, 01_AI_Review/Conflict/**]
+  policy_gate_points:
+    - before_remote_embedding_or_indexing
+    - during_candidate_fusion_and_graph_expansion
+    - immediately_before_model_context
+  remote_embedding:
+    allowed_ai_policy: [remote_ok]
+    ask_requires_digest_bound_interactive_authorization: true
+    local_only_and_deny_forbidden: true
+  local_embedding:
+    deny_forbidden: true
+  filter_before_model:
+    - scope
+    - path
+    - type
+    - sensitivity
+    - ai_policy
+  frozen_candidate_fields:
+    - query_sha256
+    - policy_decision_sha256
+    - index_generation_id
+    - note_id
+    - path
+    - content_hash
+    - chunk_id
+    - chunk_hash
+    - chunk_locator
+    - retrieval_reason
+    - lexical_score_and_rank
+    - vector_score_and_rank
+    - rrf_parameter_and_rank
+    - graph_path
+    - parser_and_chunker_version
+    - embedding_provider_model_dimension_and_artifact_digest
+    - indexer_version
+    - retrieval_config_sha256
+  staleness:
+    default: fail_closed_and_require_rebuild
+    running_query_pins_generation: true
+  answer_requires:
+    - note_id
+    - path
+    - locator
+    - evidence_hash
+    - uncertainty
+  graphrag_default: deferred
+
+privacy:
+  sensitivity_values: [public, personal, confidential]
+  ai_policy_values: [remote_ok, ask, local_only, deny]
+  defaults:
+    general: {sensitivity: personal, ai_policy: ask}
+    person: {sensitivity: personal, ai_policy: deny}
+    meeting: {sensitivity: personal, ai_policy: deny}
+  forbidden_combinations:
+    - {sensitivity: confidential, ai_policy: remote_ok}
+  multi_source_rule: every_source_must_pass_and_output_inherits_strictest
+  github_is_separate_remote_boundary: true
+  github_notes_profile:
+    confidential_notes_allowed: false
+    regulated_or_institution_restricted_data_allowed: false
+    working_copy_ai_commit_message: disabled
+    local_only_material_destination: separate_vault
+
+git:
+  one_writer_per_device: true
+  mobile_writer: working_copy
+  mac_writer: obsidian_git_manual_or_vaultctl_not_both_concurrently
+  existing_file_edit_requires_explicit_clean_fast_forward_sync: true
+  unique_capture_does_not_pull: true
+  offline_unique_capture_allowed: true
+  merge_conflict_capture_fallback: device_local_recovery_outbox
+  exact_path_commit: true
+  forbidden_automation:
+    - force_push
+    - reset
+    - stash
+    - rebase
+    - implicit_pull
+    - implicit_push
+  conflict_resolution_device: mac
+  fully_automatic_roundtrip_requires:
+    - separate_service_clone
+    - dedicated_branch_or_refspec
+    - explicit_adr
+    - explicit_user_authorization
+  mobile_credentials:
+    author_email: github_noreply_recommended
+    preferred: per_device_write_deploy_key_bound_to_notes_repository
+    alternative: working_copy_verified_repository_scoped_fine_grained_pat
+    forbidden_default: account_wide_oauth_repo_scope_or_shared_account_ssh_key
+    inventory_fields: [credential_type, public_fingerprint_or_token_identifier, repository, device_id, revoke_location]
+    app_and_device_lock_required: true
+    lost_device_actions: [delete_repository_deploy_key_or_revoke_pat, revoke_working_copy_callback_access_key, revoke_oauth_session_if_present, revoke_device_ssh_key, audit_recent_commits, prove_subsequent_push_is_rejected]
+    private_repository_is_not_confidentiality_boundary: true
+
+commands:
+  - vaultctl doctor
+  - vaultctl bootstrap
+  - vaultctl configure
+  - vaultctl blueprint validate
+  - vaultctl schema export
+  - vaultctl capture text
+  - vaultctl capture url
+  - vaultctl capture finalize
+  - vaultctl note create
+  - vaultctl note validate
+  - vaultctl asset import
+  - vaultctl project archive
+  - vaultctl fmt
+  - vaultctl ai queue
+  - vaultctl ai organize
+  - vaultctl ai summarize
+  - vaultctl ai relate
+  - vaultctl ai extract
+  - vaultctl ai inbox
+  - vaultctl ai project-summary
+  - vaultctl ai worker
+  - vaultctl ai review
+  - vaultctl ai approve
+  - vaultctl ai authorize-remote
+  - vaultctl ai reject
+  - vaultctl ai apply
+  - vaultctl bridge ingest
+  - vaultctl bridge status
+  - vaultctl bridge publish
+  - vaultctl export jsonl
+  - vaultctl graph validate
+  - vaultctl index build
+  - vaultctl index verify
+  - vaultctl search
+  - vaultctl retrieve
+  - vaultctl ask
+  - vaultctl period create
+  - vaultctl reconcile
+  - vaultctl git status
+  - vaultctl commit
+  - vaultctl receipts verify
+  - vaultctl plugins audit
+  - vaultctl launchd install
+  - vaultctl repair plan
+  - vaultctl repair apply
+  - vaultctl obsidian
+  - vaultctl ui
+command_content_transport:
+  stdin_or_validated_file_required_for: [capture_body, source_url, url_comment, rejection_reason, search_query, retrieval_query, answer_question]
+  argv_allowed_for: [action_id, pipeline_kind, route_id, local_profile_id, enum, uuid, bounded_title, validated_relative_path, heading_or_block_locator, validated_exact_absolute_regular_file_path_for_asset_import]
+
+implementation_phases:
+  - inventory_and_migration_plan
+  - portable_vault
+  - git_and_mobile_baseline
+  - mac_plugin_profile
+  - vaultctl_without_llm
+  - readonly_llm_proposal
+  - retrieval
+  - background_and_optional_remote
+  - optional_thin_chat_client
+
+acceptance_scenarios:
+  - fresh_bootstrap
+  - existing_vault_additive_migration
+  - home_cockpit_limits
+  - mobile_core_only
+  - working_copy_pro_and_linked_external_worktree_gate
+  - single_sync_transport_and_default_obsidian_ignored
+  - root_sentinel_remote_branch_roundtrip
+  - root_sentinel_schema_and_remote_fingerprint_canonicalization
+  - portable_vault_name_uri_on_iphone_and_ipad
+  - iphone_unique_capture
+  - mobile_offline_auth_push_failure_preserves_outbox
+  - mobile_unexpected_staged_path_fails_closed
+  - mobile_shortcut_cancel_and_reboot_recovery
+  - mobile_remote_observed_ack_and_seven_day_cleanup
+  - mobile_existing_edit_privacy_before_index_and_push
+  - mobile_defer_rejects_dirty_or_unreadable_committed_blob
+  - repository_scoped_credential_and_lost_device_revoke_drill
+  - mobile_stale_snapshot_disclosure
+  - mobile_asset_budget_refusal
+  - heic_conversion_or_refusal_core_render
+  - ipad_non_destructive_triage_hint
+  - ipad_exact_file_edit_commit
+  - external_worktree_relink_without_data_loss
+  - working_copy_conflict_fail_closed
+  - bridge_request_hash_binding
+  - bridge_replay_noop
+  - bridge_same_id_different_digest_quarantine
+  - bridge_remote_authorization_wait
+  - bridge_exact_response_commit
+  - bridge_all_terminal_outcomes_visible_after_sync
+  - bridge_publish_crash_resume_or_quarantine
+  - prompt_injection_is_data
+  - immutable_job_separate_remote_authorization_receipt
+  - approval_digest_binding
+  - historical_receipt_survives_later_note_update
+  - deterministic_jsonl_projection
+  - generation_pointer_prevents_mixed_jsonl
+  - retrieval_policy_before_embedding_and_context
+  - stale_index_fails_closed
+  - lexical_typed_link_answer_with_citations
+  - optional_vector_rrf_improves_baseline
+  - thin_chat_plugin_removal_preserves_cli
+  - plugin_free_readability
+  - sleep_wake_reconciliation
+  - guestbook_horror_fixture_exact_bytes_and_frozen_mtime
+  - guestbook_horror_end_to_end
+  - capture_finalize_transaction_recovery
+  - source_capture_asset_provenance_roundtrip
+  - project_local_link_cardinality_and_final_artifact_locator
+  - blueprint_cross_validator_negative_fixtures

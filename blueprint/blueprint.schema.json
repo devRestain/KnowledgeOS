@@ -1,0 +1,800 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/blueprint.schema.json",
+  "title": "KnowledgeOS implementation blueprint contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "status",
+    "contract_validation",
+    "path_namespaces",
+    "path_match_semantics",
+    "authoritative_document",
+    "technical_annex",
+    "conflict_precedence",
+    "defaults",
+    "repositories",
+    "device_profiles",
+    "mobile_install_gate",
+    "fixed_paths",
+    "required_control_files",
+    "required_control_root_files",
+    "common_properties",
+    "property_registry",
+    "note_types",
+    "mobile_capture",
+    "mobile_assets",
+    "relation_registry",
+    "templates",
+    "bases",
+    "dashboards",
+    "plugin_profiles",
+    "quickadd_choices",
+    "shortcut_contracts",
+    "mobile_recovery_outbox",
+    "mobile_git_transaction",
+    "actions",
+    "automation_lanes",
+    "bridge",
+    "llm",
+    "projection",
+    "retrieval",
+    "privacy",
+    "git",
+    "commands",
+    "command_content_transport",
+    "implementation_phases",
+    "acceptance_scenarios"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract_id": {"const": "knowledgeos-blueprint-v2"},
+    "status": {"const": "implementation_blueprint"},
+    "contract_validation": {"$ref": "#/$defs/contractValidation"},
+    "path_namespaces": {"$ref": "#/$defs/pathNamespaces"},
+    "path_match_semantics": {"const": "gitwildmatch_with_nfc_and_casefold_collision_checks"},
+    "authoritative_document": {"const": "OBSIDIAN_VAULT_BLUEPRINT.md"},
+    "technical_annex": {"const": "OBSIDIAN_VAULT_WHITEPAPER.md"},
+    "conflict_precedence": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "OBSIDIAN_VAULT_BLUEPRINT.md"},
+        {"const": "blueprint/blueprint.yaml"},
+        {"const": "OBSIDIAN_VAULT_WHITEPAPER.md"}
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "defaults": {"$ref": "#/$defs/defaults"},
+    "repositories": {"$ref": "#/$defs/repositories"},
+    "device_profiles": {"$ref": "#/$defs/deviceProfiles"},
+    "mobile_install_gate": {"$ref": "#/$defs/mobileInstallGate"},
+    "fixed_paths": {"$ref": "#/$defs/fixedPaths"},
+    "required_control_files": {
+      "type": "array",
+      "minItems": 43,
+      "maxItems": 43,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^ops/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"},
+      "allOf": [
+        {"contains": {"const": "ops/config/commands.yaml"}},
+        {"contains": {"const": "ops/actions/answer.json"}},
+        {"contains": {"const": "ops/prompts/answer.md"}},
+        {"contains": {"const": "ops/schemas/blueprint.schema.json"}},
+        {"contains": {"const": "ops/policies/redaction-patterns.yaml"}}
+      ]
+    },
+    "required_control_root_files": {
+      "const": [
+        "AGENTS.md",
+        "README.md",
+        ".gitignore",
+        ".gitattributes",
+        "docs/ARCHITECTURE.md",
+        "docs/OPERATIONS.md",
+        "docs/MOBILE.md",
+        "docs/RUNTIME.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    "common_properties": {"$ref": "#/$defs/commonProperties"},
+    "property_registry": {"$ref": "#/$defs/propertyRegistry"},
+    "note_types": {"$ref": "#/$defs/noteTypes"},
+    "mobile_capture": {"$ref": "#/$defs/mobileCapture"},
+    "mobile_assets": {"$ref": "#/$defs/mobileAssets"},
+    "relation_registry": {"$ref": "#/$defs/nonEmptyObject"},
+    "templates": {"$ref": "#/$defs/templates"},
+    "bases": {"$ref": "#/$defs/bases"},
+    "dashboards": {"$ref": "#/$defs/dashboards"},
+    "plugin_profiles": {"$ref": "#/$defs/pluginProfiles"},
+    "quickadd_choices": {"$ref": "#/$defs/quickaddChoices"},
+    "shortcut_contracts": {"$ref": "#/$defs/shortcutContracts"},
+    "mobile_recovery_outbox": {"$ref": "#/$defs/mobileRecoveryOutbox"},
+    "mobile_git_transaction": {"$ref": "#/$defs/mobileGitTransaction"},
+    "actions": {"$ref": "#/$defs/actions"},
+    "automation_lanes": {"$ref": "#/$defs/automationLanes"},
+    "bridge": {"$ref": "#/$defs/bridge"},
+    "llm": {"$ref": "#/$defs/llm"},
+    "projection": {"$ref": "#/$defs/projection"},
+    "retrieval": {"$ref": "#/$defs/retrieval"},
+    "privacy": {"$ref": "#/$defs/privacy"},
+    "git": {"$ref": "#/$defs/git"},
+    "commands": {
+      "type": "array",
+      "minItems": 47,
+      "maxItems": 47,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^vaultctl(?: [a-z][a-z0-9-]*)+$"},
+      "allOf": [
+        {"contains": {"const": "vaultctl blueprint validate"}},
+        {"contains": {"const": "vaultctl configure"}},
+        {"contains": {"const": "vaultctl capture finalize"}},
+        {"contains": {"const": "vaultctl ai authorize-remote"}},
+        {"contains": {"const": "vaultctl bridge publish"}},
+        {"contains": {"const": "vaultctl receipts verify"}}
+      ]
+    },
+    "command_content_transport": {"$ref": "#/$defs/commandContentTransport"},
+    "implementation_phases": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "acceptance_scenarios": {
+      "type": "array",
+      "minItems": 34,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+      "allOf": [
+        {"contains": {"const": "fresh_bootstrap"}},
+        {"contains": {"const": "mobile_core_only"}},
+        {"contains": {"const": "bridge_remote_authorization_wait"}},
+        {"contains": {"const": "deterministic_jsonl_projection"}},
+        {"contains": {"const": "guestbook_horror_end_to_end"}}
+      ]
+    }
+  },
+  "$defs": {
+    "nonEmptyObject": {"type": "object", "minProperties": 1},
+    "stringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "possiblyEmptyStringArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "contractValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "checksum_manifest", "command", "blueprint_authoring_source_of_truth", "generated_runtime_artifacts", "post_bootstrap_operational_source_of_truth", "cross_document_checks"],
+      "properties": {
+        "schema": {"const": "blueprint/blueprint.schema.json"},
+        "checksum_manifest": {"const": "blueprint/CHECKSUMS.sha256"},
+        "command": {"const": "vaultctl blueprint validate"},
+        "blueprint_authoring_source_of_truth": {"const": "blueprint/blueprint.yaml"},
+        "generated_runtime_artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["properties", "pipeline_registry", "trusted_schemas"],
+          "properties": {
+            "properties": {"const": "ops/policies/properties.yaml"},
+            "pipeline_registry": {"const": "ops/actions"},
+            "trusted_schemas": {"const": "ops/schemas"}
+          }
+        },
+        "post_bootstrap_operational_source_of_truth": {"type": "string", "minLength": 1},
+        "cross_document_checks": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "pathNamespaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obsidian_working_copy_bridge", "control_jobs_and_policies", "runtime_artifacts", "bridge_ingest_records_both"],
+      "properties": {
+        "obsidian_working_copy_bridge": {"const": "vault_relative_posix"},
+        "control_jobs_and_policies": {"const": "control_root_relative_posix_with_vault_prefix"},
+        "runtime_artifacts": {"const": "runtime_relative_posix"},
+        "bridge_ingest_records_both": {"const": true}
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "required": ["workspace_name", "vault_name", "language", "canonical_timezone", "notes_remote_visibility", "mobile_git_client", "mac_git_client", "remote_unattended", "mobile_immediate_api", "always_on_git_roundtrip", "query_engine", "retrieval_phase"],
+      "properties": {
+        "workspace_name": {"const": "KnowledgeOS"},
+        "vault_name": {"const": "KnowledgeOS"},
+        "language": {"const": "ko"},
+        "canonical_timezone": {"const": "Asia/Seoul"},
+        "notes_remote_visibility": {"const": "private"},
+        "remote_unattended": {"const": false},
+        "mobile_immediate_api": {"const": false},
+        "always_on_git_roundtrip": {"const": false}
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control", "vault", "runtime", "receipt_git_fields", "job_output_commit_repository", "control_repository_commit_is_separate"],
+      "properties": {
+        "control": {"$ref": "#/$defs/nonEmptyObject"},
+        "vault": {
+          "type": "object",
+          "required": ["root", "independent_git_repository", "obsidian_vault_root", "mobile_invariant", "tracked_transport_root"],
+          "properties": {
+            "root": {"const": "vault"},
+            "independent_git_repository": {"const": true},
+            "obsidian_vault_root": {"const": true},
+            "mobile_invariant": {"const": "linked_external_worktree_root_equals_obsidian_vault_root"},
+            "tracked_transport_root": {"const": ".vault-bridge"}
+          }
+        },
+        "runtime": {"$ref": "#/$defs/nonEmptyObject"},
+        "receipt_git_fields": {"$ref": "#/$defs/nonEmptyObject"},
+        "job_output_commit_repository": {"const": "vault"},
+        "control_repository_commit_is_separate": {"const": true}
+      }
+    },
+    "deviceProfiles": {
+      "type": "object",
+      "required": ["mac", "iphone", "ipad", "mobile_safe_work", "mobile_forbidden_work"],
+      "properties": {
+        "mac": {"$ref": "#/$defs/nonEmptyObject"},
+        "iphone": {"$ref": "#/$defs/nonEmptyObject"},
+        "ipad": {"$ref": "#/$defs/nonEmptyObject"},
+        "mobile_safe_work": {"$ref": "#/$defs/stringArray"},
+        "mobile_forbidden_work": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "mobileInstallGate": {
+      "type": "object",
+      "required": ["requires_working_copy_pro", "external_worktree_location", "forbidden_parallel_sync", "expected_root_sentinel", "root_sentinel_contract", "verify", "pull_merge_requires_obsidian_closed"],
+      "properties": {
+        "requires_working_copy_pro": {"$ref": "#/$defs/stringArray"},
+        "external_worktree_location": {"type": "string", "minLength": 1},
+        "forbidden_parallel_sync": {"$ref": "#/$defs/stringArray"},
+        "expected_root_sentinel": {"const": ".knowledgeos-root.json"},
+        "root_sentinel_contract": {
+          "type": "object",
+          "required": ["required_fields", "schema_version", "contract_id", "canonical_vault_name", "remote_identity_canonical_form", "remote_identity_sha256", "forbid_in_remote_identity"]
+        },
+        "verify": {"$ref": "#/$defs/stringArray"},
+        "pull_merge_requires_obsidian_closed": {"const": true}
+      }
+    },
+    "fixedPaths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vault", "required_vault_files", "transport", "device_config_roots", "runtime"],
+      "properties": {
+        "vault": {"$ref": "#/$defs/stringArray"},
+        "required_vault_files": {
+          "type": "array",
+          "minItems": 33,
+          "maxItems": 33,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "allOf": [
+            {"contains": {"const": "Home.md"}},
+            {"contains": {"const": "Mobile.md"}},
+            {"contains": {"const": "99_System/Scripts/QuickAdd/PrepareTitle.js"}},
+            {"contains": {"const": "99_System/CSS/dashboard.css"}},
+            {"contains": {"const": ".vault-bridge/README.md"}}
+          ]
+        },
+        "transport": {"$ref": "#/$defs/stringArray"},
+        "device_config_roots": {
+          "type": "array",
+          "prefixItems": [{"const": ".obsidian-mac"}, {"const": ".obsidian-phone"}, {"const": ".obsidian-tablet"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "runtime": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "commonProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "optional_context_lists", "optional_relation_lists", "invariants"],
+      "properties": {
+        "required": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_version", "id", "type", "title", "status", "created", "modified", "aliases", "tags", "sensitivity", "ai_policy", "ai_status"],
+          "properties": {
+            "schema_version": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["const"],
+              "properties": {"obsidian_type": {"const": "number"}, "const": {"const": 1}}
+            },
+            "id": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["format", "immutable", "approved_deterministic_id_classes"],
+              "properties": {"obsidian_type": {"const": "text"}, "format": {"const": "uuid_v4_or_approved_deterministic_id"}, "immutable": {"const": true}, "approved_deterministic_id_classes": {"const": ["proposal_from_job_uuid", "periodic_from_period_id", "system_fixed_id"]}}
+            },
+            "type": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["enum"],
+              "properties": {"obsidian_type": {"const": "text"}, "enum": {"const": ["capture", "proposal", "daily", "weekly", "monthly", "project", "project_note", "idea", "question", "artifact", "area", "knowledge", "source", "person", "moc", "meeting", "home", "system"]}}
+            },
+            "title": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["min_length", "equals_filename_stem"],
+              "properties": {"obsidian_type": {"const": "text"}, "min_length": {"const": 1}, "equals_filename_stem": {"const": true}}
+            },
+            "status": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["enum_from"],
+              "properties": {"obsidian_type": {"const": "text"}, "enum_from": {"const": "note_types.TYPE.statuses"}}
+            },
+            "created": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["require_timezone"],
+              "properties": {"obsidian_type": {"const": "datetime"}, "require_timezone": {"const": true}}
+            },
+            "modified": {
+              "allOf": [{"$ref": "#/$defs/propertyDefinition"}],
+              "required": ["require_timezone", "semantics"],
+              "properties": {"obsidian_type": {"const": "datetime"}, "require_timezone": {"const": true}, "semantics": {"const": "schema_writer_time"}}
+            },
+            "aliases": {"allOf": [{"$ref": "#/$defs/propertyDefinition"}], "properties": {"obsidian_type": {"const": "list"}, "item_type": {"const": "text"}}},
+            "tags": {"allOf": [{"$ref": "#/$defs/propertyDefinition"}], "properties": {"obsidian_type": {"const": "tags"}}},
+            "sensitivity": {"allOf": [{"$ref": "#/$defs/propertyDefinition"}], "properties": {"obsidian_type": {"const": "text"}, "enum": {"const": ["public", "personal", "confidential"]}}},
+            "ai_policy": {"allOf": [{"$ref": "#/$defs/propertyDefinition"}], "properties": {"obsidian_type": {"const": "text"}, "enum": {"const": ["remote_ok", "ask", "local_only", "deny"]}}},
+            "ai_status": {"allOf": [{"$ref": "#/$defs/propertyDefinition"}], "properties": {"obsidian_type": {"const": "text"}, "enum": {"const": ["idle", "queued", "proposed", "approved", "applied", "rejected", "conflict", "expired", "error"]}}}
+          }
+        },
+        "optional_context_lists": {"$ref": "#/$defs/stringArray"},
+        "optional_relation_lists": {"$ref": "#/$defs/stringArray"},
+        "invariants": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "propertyDefinition": {
+      "type": "object",
+      "required": ["obsidian_type"],
+      "properties": {
+        "obsidian_type": {"enum": ["text", "number", "date", "datetime", "list", "tags", "checkbox"]},
+        "item_type": {"type": "string"},
+        "object_type": {"type": "string"},
+        "enum": {"type": "array", "minItems": 1, "uniqueItems": true},
+        "integer": {"type": "boolean"},
+        "minimum": {"type": "number"},
+        "min_length": {"type": "integer", "minimum": 1},
+        "format": {"type": "string"},
+        "item_format": {"type": "string"},
+        "require_timezone": {"type": "boolean"}
+      }
+    },
+    "propertyRegistry": {
+      "type": "object",
+      "minProperties": 60,
+      "additionalProperties": {"$ref": "#/$defs/propertyDefinition"}
+    },
+    "noteType": {
+      "type": "object",
+      "required": ["statuses", "required_extra"],
+      "properties": {
+        "path_globs": {"$ref": "#/$defs/stringArray"},
+        "exact_paths": {"$ref": "#/$defs/stringArray"},
+        "exclude_globs": {"$ref": "#/$defs/stringArray"},
+        "statuses": {"$ref": "#/$defs/stringArray"},
+        "required_extra": {"$ref": "#/$defs/possiblyEmptyStringArray"},
+        "optional_extra": {"$ref": "#/$defs/possiblyEmptyStringArray"},
+        "template": {"type": "string", "pattern": "^T[0-9]{2}_.+\\.md$"},
+        "root_filename_equals_parent": {"type": "boolean"},
+        "default_ai_policy": {"enum": ["remote_ok", "ask", "local_only", "deny"]},
+        "conditional_requirements": {"type": "array", "items": {"$ref": "#/$defs/nonEmptyObject"}},
+        "field_constraints": {"$ref": "#/$defs/nonEmptyObject"}
+      },
+      "oneOf": [
+        {"required": ["path_globs"], "not": {"required": ["exact_paths"]}},
+        {"required": ["exact_paths"], "not": {"required": ["path_globs"]}}
+      ]
+    },
+    "noteTypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture", "proposal", "daily", "weekly", "monthly", "project", "project_note", "idea", "question", "artifact", "area", "knowledge", "source", "person", "moc", "meeting", "home", "system"],
+      "properties": {
+        "capture": {"$ref": "#/$defs/noteType"},
+        "proposal": {"$ref": "#/$defs/noteType"},
+        "daily": {"$ref": "#/$defs/noteType"},
+        "weekly": {"$ref": "#/$defs/noteType"},
+        "monthly": {"$ref": "#/$defs/noteType"},
+        "project": {"$ref": "#/$defs/noteType"},
+        "project_note": {"$ref": "#/$defs/noteType"},
+        "idea": {"$ref": "#/$defs/noteType"},
+        "question": {"$ref": "#/$defs/noteType"},
+        "artifact": {"$ref": "#/$defs/noteType"},
+        "area": {"$ref": "#/$defs/noteType"},
+        "knowledge": {"$ref": "#/$defs/noteType"},
+        "source": {"$ref": "#/$defs/noteType"},
+        "person": {"$ref": "#/$defs/noteType"},
+        "moc": {"$ref": "#/$defs/noteType"},
+        "meeting": {"$ref": "#/$defs/noteType"},
+        "home": {"$ref": "#/$defs/noteType"},
+        "system": {"$ref": "#/$defs/noteType"}
+      }
+    },
+    "mobileCapture": {
+      "type": "object",
+      "required": ["path_pattern", "write_mode", "user_label_property", "user_label_is_not_in_path", "body_preservation", "common_daily_append", "triage_hint_values", "triage_hint_invariants", "time_fields", "default_needs_desktop_review", "conditional_required", "limits"]
+    },
+    "mobileAssets": {
+      "type": "object",
+      "required": ["allowed_mime", "heic_behavior", "max_image_bytes", "max_pdf_bytes", "forbidden", "oversize_behavior", "assets_soft_warning_bytes", "worktree_soft_warning_bytes", "lfs"]
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "required"],
+      "properties": {
+        "directory": {"const": "99_System/Templates"},
+        "required": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^T[0-9]{2}_.+\\.md$"},
+          "allOf": [
+            {"contains": {"const": "T00_Capture.md"}},
+            {"contains": {"const": "T21_Idea.md"}},
+            {"contains": {"const": "T22_Question.md"}},
+            {"contains": {"const": "T23_Artifact.md"}},
+            {"contains": {"const": "T24_Project_Note.md"}},
+            {"contains": {"const": "T60_Meeting.md"}}
+          ]
+        }
+      }
+    },
+    "bases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "required", "views", "generated_against_installed_obsidian_version", "cli_query_smoke_required"],
+      "properties": {
+        "directory": {"const": "99_System/Bases"},
+        "required": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z]+\\.base$"},
+          "allOf": [
+            {"contains": {"const": "Inbox.base"}},
+            {"contains": {"const": "Projects.base"}},
+            {"contains": {"const": "Decisions.base"}},
+            {"contains": {"const": "Ideas.base"}},
+            {"contains": {"const": "Knowledge.base"}},
+            {"contains": {"const": "Sources.base"}},
+            {"contains": {"const": "Review.base"}},
+            {"contains": {"const": "Journal.base"}}
+          ]
+        },
+        "views": {
+          "type": "object",
+          "required": ["Journal.base", "Projects.base", "Decisions.base", "Ideas.base", "Knowledge.base", "Inbox.base", "Sources.base", "Review.base"],
+          "additionalProperties": {"$ref": "#/$defs/nonEmptyObject"}
+        },
+        "generated_against_installed_obsidian_version": {"const": true},
+        "cli_query_smoke_required": {"const": true}
+      }
+    },
+    "dashboards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["home", "mobile"],
+      "properties": {
+        "home": {"$ref": "#/$defs/dashboard"},
+        "mobile": {"$ref": "#/$defs/dashboard"}
+      }
+    },
+    "dashboard": {
+      "type": "object",
+      "required": ["path", "type", "audience", "sections"],
+      "properties": {
+        "path": {"enum": ["Home.md", "Mobile.md"]},
+        "type": {"const": "home"},
+        "audience": {"enum": ["desktop", "mobile"]},
+        "sections": {"type": "array", "minItems": 5, "items": {"$ref": "#/$defs/nonEmptyObject"}}
+      }
+    },
+    "pluginProfiles": {
+      "type": "object",
+      "required": ["core_all_devices", "core_mac_only", "device_local_untracked_state", "mac_baseline", "mobile_baseline", "optional", "forbidden_defaults"],
+      "properties": {
+        "core_all_devices": {"$ref": "#/$defs/stringArray"},
+        "core_mac_only": {"$ref": "#/$defs/stringArray"},
+        "device_local_untracked_state": {"$ref": "#/$defs/stringArray"},
+        "mac_baseline": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"$ref": "#/$defs/pluginEntry"}},
+        "mobile_baseline": {"$ref": "#/$defs/nonEmptyObject"},
+        "optional": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": {"type": "string"}},
+        "forbidden_defaults": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "pluginEntry": {
+      "type": "object",
+      "required": ["id", "role"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}}
+    },
+    "quickaddChoice": {
+      "type": "object",
+      "required": ["template", "target_pattern"],
+      "properties": {
+        "template": {"type": "string", "pattern": "^T[0-9]{2}_.+\\.md$"},
+        "target_pattern": {"type": "string", "minLength": 1}
+      }
+    },
+    "quickaddChoices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CAPTURE_THOUGHT", "NEW_PROJECT", "NEW_PROJECT_MOC", "NEW_IDEA", "NEW_QUESTION", "NEW_ARTIFACT", "NEW_AREA", "NEW_KNOWLEDGE", "NEW_SOURCE", "NEW_PERSON", "NEW_MOC", "NEW_MEETING"],
+      "properties": {
+        "CAPTURE_THOUGHT": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_PROJECT": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_PROJECT_MOC": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_IDEA": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_QUESTION": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_ARTIFACT": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_AREA": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_KNOWLEDGE": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_SOURCE": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_PERSON": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_MOC": {"$ref": "#/$defs/quickaddChoice"},
+        "NEW_MEETING": {"$ref": "#/$defs/quickaddChoice"}
+      }
+    },
+    "shortcutContracts": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["id", "display_name", "input", "output"],
+        "properties": {
+          "id": {"enum": ["ko_capture", "ko_save_source", "ko_today", "ko_defer_to_mac", "ko_sync"]},
+          "display_name": {"type": "string", "minLength": 1},
+          "input": {"type": "array"},
+          "output": {"type": "string", "minLength": 1}
+        }
+      },
+      "allOf": [
+        {"contains": {"properties": {"id": {"const": "ko_capture"}}, "required": ["id"]}},
+        {"contains": {"properties": {"id": {"const": "ko_save_source"}}, "required": ["id"]}},
+        {"contains": {"properties": {"id": {"const": "ko_today"}}, "required": ["id"]}},
+        {"contains": {"properties": {"id": {"const": "ko_defer_to_mac"}}, "required": ["id"]}},
+        {"contains": {"properties": {"id": {"const": "ko_sync"}}, "required": ["id"]}}
+      ]
+    },
+    "mobileRecoveryOutbox": {
+      "type": "object",
+      "required": ["root", "outside_notes_repository", "payload_path", "event_path", "create_only", "payload_hash", "states", "retry_idempotency", "remote_observed", "cleanup_requires", "post_persist_failure_guarantee"],
+      "properties": {
+        "outside_notes_repository": {"const": true},
+        "create_only": {"const": true},
+        "states": {"$ref": "#/$defs/stringArray"},
+        "cleanup_requires": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "mobileGitTransaction": {
+      "type": "object",
+      "required": ["capture_runs_pull", "verify_before_write", "include_all_modified", "auto_commit_requires", "fallback", "push_failure", "every_commit_and_push_requires", "if_bytes_or_staged_set_cannot_be_inspected", "existing_file_edit", "sync"],
+      "properties": {
+        "capture_runs_pull": {"const": false},
+        "include_all_modified": {"const": false},
+        "verify_before_write": {"$ref": "#/$defs/stringArray"},
+        "auto_commit_requires": {"$ref": "#/$defs/stringArray"},
+        "every_commit_and_push_requires": {"$ref": "#/$defs/stringArray"},
+        "existing_file_edit": {"$ref": "#/$defs/nonEmptyObject"},
+        "sync": {"$ref": "#/$defs/nonEmptyObject"}
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline_registry", "user_action_routes", "invariants"],
+      "properties": {
+        "pipeline_registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["directory", "one_config_per_pipeline_kind", "filenames"],
+          "properties": {
+            "directory": {"const": "ops/actions"},
+            "one_config_per_pipeline_kind": {"const": true},
+            "filenames": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["triage", "draft_note", "summarize", "link_suggestions", "normalize", "answer"],
+              "properties": {
+                "triage": {"const": "triage.json"},
+                "draft_note": {"const": "draft-note.json"},
+                "summarize": {"const": "summarize.json"},
+                "link_suggestions": {"const": "link-suggestions.json"},
+                "normalize": {"const": "normalize.json"},
+                "answer": {"const": "answer.json"}
+              }
+            }
+          }
+        },
+        "user_action_routes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["organize", "summarize", "relate", "extract", "inbox", "project-summary"],
+          "properties": {
+            "organize": {"$ref": "#/$defs/nonEmptyObject"},
+            "summarize": {"$ref": "#/$defs/nonEmptyObject"},
+            "relate": {"$ref": "#/$defs/nonEmptyObject"},
+            "extract": {"$ref": "#/$defs/nonEmptyObject"},
+            "inbox": {"$ref": "#/$defs/nonEmptyObject"},
+            "project-summary": {"$ref": "#/$defs/nonEmptyObject"}
+          }
+        },
+        "invariants": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "lane": {
+      "type": "object",
+      "required": ["vault_output_scope", "runtime_output_scope", "approval"],
+      "properties": {
+        "vault_output_scope": {"$ref": "#/$defs/possiblyEmptyStringArray"},
+        "runtime_output_scope": {"$ref": "#/$defs/possiblyEmptyStringArray"},
+        "approval": {"type": "string", "minLength": 1}
+      }
+    },
+    "automationLanes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["l0_capture", "l1_mac_interactive", "l1_mobile_async", "l1_mobile_immediate", "l2_retrieval"],
+      "properties": {
+        "l0_capture": {"$ref": "#/$defs/lane"},
+        "l1_mac_interactive": {"$ref": "#/$defs/lane"},
+        "l1_mobile_async": {"$ref": "#/$defs/lane"},
+        "l1_mobile_immediate": {"$ref": "#/$defs/lane"},
+        "l2_retrieval": {"$ref": "#/$defs/lane"}
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "required": ["root", "trusted_schemas", "deployed_schema_copies", "request_path_pattern", "response_path_pattern", "immutable", "request_contains_content", "request_required_fields", "action_contracts", "ingest_checks", "ingest_receipt_fields", "idempotency", "states", "allowed_transitions", "response", "state_mapping", "publish", "detection", "retention", "trust_boundary", "implicit_git_network_commands"],
+      "properties": {
+        "root": {"const": ".vault-bridge"},
+        "trusted_schemas": {"type": "object", "required": ["request", "response"]},
+        "immutable": {"const": true},
+        "request_contains_content": {"const": false},
+        "request_required_fields": {"$ref": "#/$defs/stringArray"},
+        "action_contracts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["triage", "draft_note", "summarize", "link_suggestions", "answer"],
+          "properties": {
+            "triage": {"$ref": "#/$defs/nonEmptyObject"},
+            "draft_note": {"$ref": "#/$defs/nonEmptyObject"},
+            "summarize": {"$ref": "#/$defs/nonEmptyObject"},
+            "link_suggestions": {"$ref": "#/$defs/nonEmptyObject"},
+            "answer": {"$ref": "#/$defs/nonEmptyObject"}
+          }
+        },
+        "ingest_checks": {"$ref": "#/$defs/stringArray"},
+        "ingest_receipt_fields": {"$ref": "#/$defs/stringArray"},
+        "idempotency": {"$ref": "#/$defs/nonEmptyObject"},
+        "states": {"$ref": "#/$defs/stringArray"},
+        "allowed_transitions": {
+          "type": "object",
+          "minProperties": 15,
+          "additionalProperties": {"$ref": "#/$defs/stringArray"}
+        },
+        "response": {
+          "type": "object",
+          "required": ["writer", "status_enum", "required_fields", "terminal_statuses", "terminal_required_fields", "proposal_fields", "answer_fields", "write_mode", "mobile_visibility"]
+        },
+        "state_mapping": {"type": "object", "minProperties": 11},
+        "publish": {"type": "object", "required": ["interactive_only", "exact_commit_repository", "exact_commit_set", "pushes_remote", "crash_recovery"]},
+        "implicit_git_network_commands": {"const": false}
+      }
+    },
+    "llm": {
+      "type": "object",
+      "required": ["default_interactive_route", "routes", "silent_provider_fallback", "live_vault_write", "output_outcomes", "triage", "draft_note", "remote_authorization", "approval_binds", "partial_relation_approval"],
+      "properties": {
+        "silent_provider_fallback": {"const": false},
+        "live_vault_write": {"const": false},
+        "output_outcomes": {"$ref": "#/$defs/stringArray"},
+        "routes": {"type": "object", "required": ["codex_chatgpt_login", "openai_api_relay", "local_profile"]},
+        "remote_authorization": {
+          "type": "object",
+          "required": ["state", "command", "artifact_path", "mutates_immutable_job_manifest", "state_manifest_references_artifact_path_and_sha256", "binds"],
+          "properties": {
+            "mutates_immutable_job_manifest": {"const": false},
+            "state_manifest_references_artifact_path_and_sha256": {"const": true},
+            "binds": {"$ref": "#/$defs/stringArray"}
+          }
+        },
+        "approval_binds": {"$ref": "#/$defs/stringArray"},
+        "partial_relation_approval": {"$ref": "#/$defs/nonEmptyObject"}
+      }
+    },
+    "projection": {
+      "type": "object",
+      "required": ["output_path_namespace", "schema_path_namespace", "generation_root", "notes_jsonl", "edges_jsonl", "manifest", "current_pointer", "schemas", "record_contracts", "serialization", "deterministic_sort", "byte_stable_for_same_inputs", "publish_protocol", "reader_contract", "reject_mixed_generation_or_digest_mismatch", "modifies_vault", "canonical_edges_only", "canonical_edge_fields", "excluded_from_byte_stable_projection"],
+      "properties": {
+        "deterministic_sort": {"const": true},
+        "byte_stable_for_same_inputs": {"const": true},
+        "publish_protocol": {"$ref": "#/$defs/stringArray"},
+        "reject_mixed_generation_or_digest_mismatch": {"const": true},
+        "modifies_vault": {"const": false},
+        "canonical_edges_only": {"const": true},
+        "schemas": {"type": "object", "required": ["note_record", "edge_record", "retrieval_candidate", "answer"]},
+        "record_contracts": {"type": "object", "required": ["note", "edge"]},
+        "serialization": {"type": "object", "required": ["encoding", "bom", "newline", "terminal_newline_count", "json_separators", "object_key_order", "record_sort", "source_list_order", "non_lf_or_invalid_utf8_source"]},
+        "canonical_edge_fields": {"$ref": "#/$defs/stringArray"},
+        "excluded_from_byte_stable_projection": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": ["phases", "graph_expansion", "corpus", "policy_gate_points", "remote_embedding", "local_embedding", "filter_before_model", "frozen_candidate_fields", "staleness", "answer_requires", "graphrag_default"],
+      "properties": {
+        "phases": {"$ref": "#/$defs/stringArray"},
+        "graph_expansion": {
+          "type": "object",
+          "required": ["default_hops", "maximum_hops", "per_hop_node_cap", "total_edge_cap", "total_candidate_cap", "one_hop_allowlist", "two_hop_sequence_allowlist", "unknown_sequence_policy"],
+          "properties": {
+            "default_hops": {"const": 1},
+            "maximum_hops": {"const": 2},
+            "per_hop_node_cap": {"type": "integer", "minimum": 1, "maximum": 20},
+            "total_edge_cap": {"type": "integer", "minimum": 1, "maximum": 60},
+            "total_candidate_cap": {"type": "integer", "minimum": 1, "maximum": 50},
+            "two_hop_sequence_allowlist": {"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "required": ["direction", "predicate"]}}},
+            "unknown_sequence_policy": {"const": "reject"}
+          }
+        },
+        "policy_gate_points": {"$ref": "#/$defs/stringArray"},
+        "filter_before_model": {"$ref": "#/$defs/stringArray"},
+        "frozen_candidate_fields": {"$ref": "#/$defs/stringArray"},
+        "answer_requires": {"$ref": "#/$defs/stringArray"},
+        "graphrag_default": {"const": "deferred"}
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["sensitivity_values", "ai_policy_values", "defaults", "forbidden_combinations", "multi_source_rule", "github_is_separate_remote_boundary", "github_notes_profile"],
+      "properties": {
+        "sensitivity_values": {"$ref": "#/$defs/stringArray"},
+        "ai_policy_values": {"$ref": "#/$defs/stringArray"},
+        "github_is_separate_remote_boundary": {"const": true},
+        "github_notes_profile": {"type": "object", "required": ["confidential_notes_allowed", "regulated_or_institution_restricted_data_allowed", "working_copy_ai_commit_message", "local_only_material_destination"]}
+      }
+    },
+    "git": {
+      "type": "object",
+      "required": ["one_writer_per_device", "mobile_writer", "mac_writer", "existing_file_edit_requires_explicit_clean_fast_forward_sync", "unique_capture_does_not_pull", "offline_unique_capture_allowed", "merge_conflict_capture_fallback", "exact_path_commit", "forbidden_automation", "conflict_resolution_device", "fully_automatic_roundtrip_requires", "mobile_credentials"],
+      "properties": {
+        "one_writer_per_device": {"const": true},
+        "mobile_writer": {"const": "working_copy"},
+        "existing_file_edit_requires_explicit_clean_fast_forward_sync": {"const": true},
+        "unique_capture_does_not_pull": {"const": true},
+        "offline_unique_capture_allowed": {"const": true},
+        "exact_path_commit": {"const": true},
+        "forbidden_automation": {"$ref": "#/$defs/stringArray"},
+        "mobile_credentials": {"$ref": "#/$defs/nonEmptyObject"}
+      }
+    },
+    "commandContentTransport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stdin_or_validated_file_required_for", "argv_allowed_for"],
+      "properties": {
+        "stdin_or_validated_file_required_for": {"$ref": "#/$defs/stringArray"},
+        "argv_allowed_for": {"$ref": "#/$defs/stringArray"}
+      }
+    }
+  }
+}
