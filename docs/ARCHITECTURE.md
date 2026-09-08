@@ -19,12 +19,31 @@ KnowledgeOS는 자료 창고가 아니라 행동, 판단, 장기 지식을 연�
 KnowledgeOS/                  control workspace와 repository
 ├── docs/                     사람용 계약·운영·결정 기록
 ├── blueprint/                고정한 기계 판독 설계 패키지
-├── ops/                      향후 validator, vaultctl, policy, test
+├── ops/                      향후 validator, vaultctl, policy, test와 container 정의
 ├── vault/                    별도 Git repository이자 Obsidian Vault
-└── runtime/                  Git 밖의 Mac-local 상태
+└── runtime/                  Git 밖의 container bind-mounted persistent 상태
 ```
 
-control repository는 `vault/`와 `runtime/`을 ignore한다. `vault/`는 독립 notes repository이며 기본값은 submodule이 아니다. runtime과 note corpus를 섞지 않음으로써 Obsidian 검색에 코드·queue·log가 들어가는 것을 막고, 모바일은 notes repository만 Working Copy로 연결할 수 있다.
+control repository는 `vault/`와 `runtime/`을 ignore한다. `vault/`는 독립 notes repository이며 기본값은 submodule이 아니다. runtime과 note corpus를 섞지 않음으로써 Obsidian 검색에 코드·queue·log가 들어가는 것을 막고, 모바일은 notes repository만 Working Copy로 연결할 수 있다. 프로젝트의 Python/`uv`/CLI/worker는 Colima VM 안 container에서 실행하며, `mise`로 관리한 host Python/`uv` 직접 실행은 같은 lockfile을 사용하는 선택적 convenience path로만 허용한다.
+
+## Container 실행 경계
+
+```text
+macOS host
+├── Colima + Docker CLI/Compose (Docker Desktop daemon 불필요)
+├── make, shasum, Ruby/Psych (현재 foundation check)
+└── Obsidian / launchctl / plutil / 실제 device smoke
+        │
+        ▼
+Colima VM
+└── knowledgeos-dev / worker container
+    ├── Python, uv, project dependencies, vaultctl
+    ├── /workspace/control  ← control root
+    ├── /workspace/vault    ← 독립 Vault Git root
+    └── /workspace/runtime  ← durable queue/receipt/index/log
+```
+
+Compose wrapper를 사용하면 host dependency를 추가하지 않고 동일 image로 test, CLI, worker, projection, retrieval을 재현할 수 있다. Docker socket, host secret/keychain, SSH agent와 provider network는 기본적으로 container에 노출하지 않는다. Obsidian·Working Copy·LaunchAgent는 macOS/device 경계이지만, LaunchAgent가 실행하는 실제 KnowledgeOS worker는 container여야 한다.
 
 ## Vault의 고정 namespace
 

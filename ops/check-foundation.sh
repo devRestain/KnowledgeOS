@@ -191,6 +191,6 @@ else
 fi
 
 printf '%s\n' 'Foundation checksum/path checks: PASS'
-printf '%s\n' 'Blueprint JSON Schema validation: NOT IMPLEMENTED'
-printf '%s\n' 'Cross-document semantic validation: NOT IMPLEMENTED'
+printf '%s\n' 'Blueprint JSON Schema validation: AVAILABLE via make blueprint-check'
+printf '%s\n' 'Cross-document semantic validation: AVAILABLE via make blueprint-check (S03A-S03B gates)'
 printf '%s\n' 'Generated artifact zero-diff validation: NOT IMPLEMENTED'

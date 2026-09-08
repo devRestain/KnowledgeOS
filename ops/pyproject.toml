@@ -1,0 +1,38 @@
+[project]
+name = "vaultops"
+version = "0.1.0"
+description = "KnowledgeOS deterministic runtime and validation harness"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema>=4.25,<5",
+  "pathspec>=0.12,<1",
+  "pydantic>=2.11,<3",
+  "PyYAML>=6.0,<7",
+  "typer>=0.16,<1",
+  "watchfiles>=1.1,<2",
+]
+
+[project.scripts]
+vaultctl = "vaultops.cli:app"
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<9",
+  "pytest-cov>=6,<7",
+  "ruff>=0.12,<1",
+]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vaultops"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

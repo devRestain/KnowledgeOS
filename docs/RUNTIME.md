@@ -2,7 +2,7 @@
 
 ## 역할
 
-`runtime/`은 Mac control workspace의 장치 로컬 실행 상태다. Vault note corpus와 Git bridge transport에 섞지 않는다.
+`runtime/`은 control workspace에 보존하는 장치 로컬 실행 상태이며, 기본 worker 실행 위치는 Colima VM 위 Docker container다. Vault note corpus와 Git bridge transport에 섞지 않는다.
 
 ```text
 runtime/
@@ -28,6 +28,14 @@ runtime/
 ```
 
 이 디렉터리들은 현재 비어 있으며 worker나 상태 전이는 구현되지 않았다.
+
+## 물리적 저장·실행 경계
+
+- `runtime/`은 host workspace에서 container로 bind mount해 보존한다. container를 삭제하거나 다시 만들어도 receipt, journal, queue, conflict evidence가 사라지지 않아야 한다.
+- Python, `uv`, `vaultctl`, worker와 project dependency는 image layer 또는 container filesystem 안에 둔다. host 전용 `.venv`를 canonical 실행 경로로 만들지 않는다.
+- uv/build cache는 Colima 내부 named volume에 두고 `runtime/` durable evidence와 분리한다.
+- host Python/`uv` 직접 실행을 허용하는 경우에도 동일 `pyproject.toml`/`uv.lock`과 path policy를 사용하며, 실행 surface를 evidence에 기록한다.
+- Docker socket, host secret/keychain, SSH agent, provider network는 기본적으로 runtime container에 전달하지 않는다.
 
 ## 파일시스템과 sync 경계
 

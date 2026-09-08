@@ -1,0 +1,6 @@
+schema_version = 1
+project_name = "KnowledgeOS"
+control_root = "/workspace/control"
+vault_root = "/workspace/vault"
+runtime_root = "/workspace/runtime"
+timezone = "Asia/Seoul"

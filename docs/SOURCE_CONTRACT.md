@@ -44,7 +44,11 @@ Checksum manifest 자체의 SHA-256은 `c5b2ce4408337a5bda9b8dc686c49c3e8df2b331
 - YAML top-level key 42개와 JSON Schema top-level required key 42개 존재 확인
 - `contract_id`: `knowledgeos-blueprint-v2` 확인
 
-아직 `vaultctl blueprint validate`가 없고 JSON Schema validator 및 필수 cross-validator를 구현하지 않았다. 따라서 “blueprint 의미 검증 완료”라고 주장하지 않는다. portable Vault 구현 전에 다음을 코드와 negative fixture로 검증해야 한다.
+`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. 이 command는 safe YAML parse와 Draft 2020-12 JSON Schema를 먼저 실행한 뒤 registry/path/action/bridge 및 Base/dashboard/projection/transaction semantic 결과를 별도 보고한다. 현재는 generated artifact gate가 남아 있으므로 “blueprint 전체 의미 검증 완료” 또는 generated output 완료라고 주장할 수 없다. portable Vault 구현 전에 다음을 코드와 negative fixture로 검증해야 한다.
+
+- CLI 진단은 canonical source/schema/manifest SHA-256, contract ID, schema `$id`와 draft를 provenance로 포함한다.
+- 오류는 `code`, JSON Pointer `locator`, schema Pointer `schema_locator`를 포함하고 stable 순서로 출력한다.
+- JSON Schema와 S03A/S03B semantic gate가 PASS해도 `generated_artifact_validation`은 S03C deferred 상태다.
 
 - path ↔ type ↔ template 일치
 - action ↔ command ↔ output schema 일치
