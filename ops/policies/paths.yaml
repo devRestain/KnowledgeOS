@@ -1,6 +1,6 @@
 schema_version: 1
 contract_id: knowledgeos-blueprint-v2
-capability_profile: contract_validated
+capability_profile: portable_core
 artifact_kind: path_policy
 authoritative_inputs:
 - path: blueprint/blueprint.yaml

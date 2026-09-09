@@ -1,0 +1,419 @@
+schema_version: 1
+today: "2026-09-09"
+notes:
+  - path: 10_Journal/Daily/2026/2026-09-08.md
+    mtime: 10
+    properties:
+      type: daily
+      period_start: "2026-09-08"
+      today_focus: "어제의 방향"
+  - path: 10_Journal/Daily/2026/2026-09-09.md
+    mtime: 20
+    properties:
+      type: daily
+      period_start: "2026-09-09"
+      today_focus: "오늘의 가장 중요한 방향"
+  - path: 20_Projects/Alpha/Alpha.md
+    mtime: 30
+    properties:
+      type: project
+      status: active
+      focus_rank: 1
+      priority: high
+      target_date: "2026-09-20"
+      next_action: "Alpha의 첫 배포 준비"
+  - path: 20_Projects/Beta/Beta.md
+    mtime: 31
+    properties:
+      type: project
+      status: blocked
+      focus_rank: 2
+      priority: medium
+      target_date: "2026-09-10"
+      next_action: "Beta의 외부 의존성 확인"
+  - path: 20_Projects/Gamma/Gamma.md
+    mtime: 32
+    properties:
+      type: project
+      status: active
+      focus_rank: 3
+      priority: low
+      next_action: "Gamma의 다음 실험 기록"
+  - path: 20_Projects/Delta/Delta.md
+    mtime: 33
+    properties:
+      type: project
+      status: active
+      focus_rank: 4
+      priority: high
+      target_date: "2026-09-01"
+      next_action: ""
+  - path: 20_Projects/Epsilon/Epsilon.md
+    mtime: 34
+    properties:
+      type: project
+      status: done
+      focus_rank: 1
+      priority: high
+      next_action: "완료된 프로젝트"
+  - path: 20_Projects/Zeta/Zeta.md
+    mtime: 35
+    properties:
+      type: project
+      status: active
+      focus_rank: 5
+      priority: high
+      next_action: "Zeta의 범위 확인"
+  - path: 40_Knowledge/Questions/Q1.md
+    mtime: 40
+    properties:
+      type: question
+      status: open
+      question_kind: decision
+      decision: "Q1의 선택"
+      decision_by: "2026-09-10"
+      priority: low
+  - path: 40_Knowledge/Questions/Q2.md
+    mtime: 41
+    properties:
+      type: question
+      status: deciding
+      question_kind: decision
+      decision: "Q2의 선택"
+      priority: high
+  - path: 40_Knowledge/Questions/Q3.md
+    mtime: 42
+    properties:
+      type: question
+      status: open
+      question_kind: decision
+      decision: "Q3의 선택"
+      decision_by: "2026-09-09"
+      priority: medium
+  - path: 40_Knowledge/Questions/Q4.md
+    mtime: 43
+    properties:
+      type: question
+      status: open
+      question_kind: research
+      decision: "연구 질문"
+      decision_by: "2026-09-09"
+      priority: high
+  - path: 40_Knowledge/Questions/Q5.md
+    mtime: 44
+    properties:
+      type: question
+      status: answered
+      question_kind: decision
+      decision: "이미 답한 질문"
+      priority: high
+  - path: 40_Knowledge/Questions/Q6.md
+    mtime: 45
+    properties:
+      type: question
+      status: open
+      question_kind: decision
+      decision: "Q6의 선택"
+      decision_by: "2026-09-11"
+      priority: high
+  - path: 40_Knowledge/Questions/Q7.md
+    mtime: 46
+    properties:
+      type: question
+      status: open
+      question_kind: decision
+      decision: "Q7의 선택"
+      decision_by: "2026-09-12"
+      priority: low
+  - path: 40_Knowledge/Ideas/Idea-01.md
+    mtime: 101
+    properties:
+      type: idea
+      status: seed
+      possibility: "Idea 01"
+  - path: 40_Knowledge/Ideas/Idea-02.md
+    mtime: 102
+    properties:
+      type: idea
+      status: incubating
+      possibility: "Idea 02"
+  - path: 40_Knowledge/Ideas/Idea-03.md
+    mtime: 103
+    properties:
+      type: idea
+      status: testing
+      possibility: "Idea 03"
+  - path: 40_Knowledge/Ideas/Idea-04.md
+    mtime: 104
+    properties:
+      type: idea
+      status: seed
+      possibility: "Idea 04"
+  - path: 40_Knowledge/Ideas/Idea-05.md
+    mtime: 105
+    properties:
+      type: idea
+      status: incubating
+      possibility: "Idea 05"
+  - path: 40_Knowledge/Ideas/Idea-06.md
+    mtime: 106
+    properties:
+      type: idea
+      status: testing
+      possibility: "Idea 06"
+  - path: 40_Knowledge/Ideas/Idea-07.md
+    mtime: 107
+    properties:
+      type: idea
+      status: seed
+      possibility: "Idea 07"
+  - path: 40_Knowledge/Ideas/Idea-08.md
+    mtime: 108
+    properties:
+      type: idea
+      status: incubating
+      possibility: "Idea 08"
+  - path: 40_Knowledge/Ideas/Idea-09.md
+    mtime: 109
+    properties:
+      type: idea
+      status: testing
+      possibility: "Idea 09"
+  - path: 40_Knowledge/Ideas/Idea-10.md
+    mtime: 110
+    properties:
+      type: idea
+      status: seed
+      possibility: "Idea 10"
+  - path: 40_Knowledge/Ideas/Idea-11.md
+    mtime: 111
+    properties:
+      type: idea
+      status: incubating
+      possibility: "Idea 11"
+  - path: 40_Knowledge/Notes/Knowledge-01.md
+    mtime: 201
+    properties:
+      type: knowledge
+      status: developing
+      confidence: medium
+  - path: 40_Knowledge/Notes/Knowledge-02.md
+    mtime: 202
+    properties:
+      type: knowledge
+      status: evergreen
+      confidence: high
+  - path: 40_Knowledge/Notes/Knowledge-03.md
+    mtime: 203
+    properties:
+      type: knowledge
+      status: seed
+      confidence: unknown
+  - path: 00_Inbox/Captures/2026/09/Capture-01.md
+    mtime: 301
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T09:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 01"
+  - path: 00_Inbox/Captures/2026/09/Capture-02.md
+    mtime: 302
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T10:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 02"
+  - path: 00_Inbox/Captures/2026/09/Capture-03.md
+    mtime: 303
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T11:00:00+09:00"
+      capture_kind: source
+      triage_hint: later
+      needs_desktop_review: true
+      capture_label: "Capture 03"
+  - path: 00_Inbox/Captures/2026/09/Capture-04.md
+    mtime: 304
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T12:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 04"
+  - path: 00_Inbox/Captures/2026/09/Capture-05.md
+    mtime: 305
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T13:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 05"
+  - path: 00_Inbox/Captures/2026/09/Capture-06.md
+    mtime: 306
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T14:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 06"
+  - path: 00_Inbox/Captures/2026/09/Capture-07.md
+    mtime: 307
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T15:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 07"
+  - path: 00_Inbox/Captures/2026/09/Capture-08.md
+    mtime: 308
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T16:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 08"
+  - path: 00_Inbox/Captures/2026/09/Capture-09.md
+    mtime: 309
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T17:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 09"
+  - path: 00_Inbox/Captures/2026/09/Capture-10.md
+    mtime: 310
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T18:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 10"
+  - path: 00_Inbox/Captures/2026/09/Capture-11.md
+    mtime: 311
+    properties:
+      type: capture
+      status: unprocessed
+      created: "2026-09-09T19:00:00+09:00"
+      capture_kind: thought
+      triage_hint: none
+      needs_desktop_review: false
+      capture_label: "Capture 11"
+  - path: 40_Knowledge/Sources/Source-01.md
+    mtime: 401
+    properties:
+      type: source
+      status: queued
+      source_kind: article
+      published_date: "2026-09-08"
+  - path: 40_Knowledge/Sources/Source-02.md
+    mtime: 402
+    properties:
+      type: source
+      status: reading
+      source_kind: book
+      published_date: "2026-09-09"
+  - path: 40_Knowledge/Sources/Source-03.md
+    mtime: 403
+    properties:
+      type: source
+      status: processed
+      source_kind: paper
+      published_date: "2026-09-07"
+  - path: 01_AI_Review/Pending/Review-01.md
+    mtime: 501
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T09:00:00+09:00"
+      proposal_id: "proposal-01"
+  - path: 01_AI_Review/Pending/Review-02.md
+    mtime: 502
+    properties:
+      type: proposal
+      status: conflict
+      created: "2026-09-09T10:00:00+09:00"
+      proposal_id: "proposal-02"
+  - path: 01_AI_Review/Pending/Review-03.md
+    mtime: 503
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T11:00:00+09:00"
+      proposal_id: "proposal-03"
+  - path: 01_AI_Review/Pending/Review-04.md
+    mtime: 504
+    properties:
+      type: proposal
+      status: conflict
+      created: "2026-09-09T12:00:00+09:00"
+      proposal_id: "proposal-04"
+  - path: 01_AI_Review/Pending/Review-05.md
+    mtime: 505
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T13:00:00+09:00"
+      proposal_id: "proposal-05"
+  - path: 01_AI_Review/Pending/Review-06.md
+    mtime: 506
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T14:00:00+09:00"
+      proposal_id: "proposal-06"
+  - path: 01_AI_Review/Pending/Review-07.md
+    mtime: 507
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T15:00:00+09:00"
+      proposal_id: "proposal-07"
+  - path: 01_AI_Review/Pending/Review-08.md
+    mtime: 508
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T16:00:00+09:00"
+      proposal_id: "proposal-08"
+  - path: 01_AI_Review/Pending/Review-09.md
+    mtime: 509
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T17:00:00+09:00"
+      proposal_id: "proposal-09"
+  - path: 01_AI_Review/Pending/Review-10.md
+    mtime: 510
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T18:00:00+09:00"
+      proposal_id: "proposal-10"
+  - path: 01_AI_Review/Pending/Review-11.md
+    mtime: 511
+    properties:
+      type: proposal
+      status: pending
+      created: "2026-09-09T19:00:00+09:00"
+      proposal_id: "proposal-11"

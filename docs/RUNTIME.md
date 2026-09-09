@@ -2,7 +2,7 @@
 
 ## 역할
 
-`runtime/`은 control workspace에 보존하는 장치 로컬 실행 상태이며, 기본 worker 실행 위치는 Colima VM 위 Docker container다. Vault note corpus와 Git bridge transport에 섞지 않는다.
+`runtime/`은 control workspace에 보존하는 장치 로컬 실행 상태이며, 구현될 worker의 기본 실행 위치는 Colima VM 위 Docker container다. 현재 구현에서는 worker와 상태 전이가 없고, container는 검증·CLI·테스트 runtime으로 사용한다. Vault note corpus와 Git bridge transport에 섞지 않는다.
 
 ```text
 runtime/
@@ -36,6 +36,16 @@ runtime/
 - uv/build cache는 Colima 내부 named volume에 두고 `runtime/` durable evidence와 분리한다.
 - host Python/`uv` 직접 실행을 허용하는 경우에도 동일 `pyproject.toml`/`uv.lock`과 path policy를 사용하며, 실행 surface를 evidence에 기록한다.
 - Docker socket, host secret/keychain, SSH agent, provider network는 기본적으로 runtime container에 전달하지 않는다.
+
+## Bind mount UID/GID
+
+`KNOWLEDGEOS_UID`와 `KNOWLEDGEOS_GID`는 현재 실행 중인 호스트 계정의 숫자형 `id -u`/`id -g`와 같아야 한다. `Makefile`이 이 값을 자동 export하고 `ops/compose.yaml`은 값이 없을 때 `1000:1000`으로 추정하지 않고 fail closed한다. container user와 Colima 내부 uv cache tmpfs mount option이 같은 숫자를 사용해야 host bind mount와 cache에 root 또는 다른 사용자의 파일이 생기지 않는다.
+
+2026-09-09에는 실제 계정이 `501:20`이었고 `1000:1000` fallback 때문에 permission 오류가 확인되었다. 후속 세션은 `make`를 canonical wrapper로 사용하며, 직접 Compose를 호출할 때도 현재 host UID/GID를 명시한다. cache 삭제·재생성은 이 문제의 기본 해결책이 아니다.
+
+## Codex 세션 외부 접근 경계
+
+이 실행 환경에서 직접 접근 가능한 surface는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container뿐이다. Obsidian, 브라우저, Finder, Mail, Calendar, Slack, Teams, Working Copy, Shortcuts, `plutil`, `launchctl`과 기타 외부 애플리케이션은 직접 열거나 읽거나 쓰지 않는다. 필요한 실제 앱/device 검증은 사용자에게 가능 여부와 정확한 범위를 확인할 수 있도록 남기고, 사용자 확인 전에는 CUA·앱 CLI·AppleScript·connector를 사용하지 않는다.
 
 ## 파일시스템과 sync 경계
 

@@ -1,80 +1,89 @@
 schema_version: 1
 contract_id: knowledgeos-blueprint-v2
-capability_profile: contract_validated
+capability_profile: portable_core
 generator: vaultops.schema_export
 artifacts:
   - path: ops/policies/properties.yaml
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/common_properties, /property_registry]
     generator: vaultops.schema_export:properties
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/policies/paths.yaml
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/path_namespaces, /path_match_semantics, /fixed_paths]
     generator: vaultops.schema_export:paths
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/policies/relations.yaml
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/property_registry, /relation_registry]
     generator: vaultops.schema_export:relations
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/policies/privacy.yaml
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/privacy]
     generator: vaultops.schema_export:privacy
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/policies/retrieval.yaml
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/retrieval]
     generator: vaultops.schema_export:retrieval
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/schemas/blueprint.schema.json
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.schema.json
         selectors: [/]
     generator: vaultops.schema_export:trusted_blueprint_schema
     deployed_copy: true
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/expected/Property_Dictionary.md
-    owner: contract_validated
+    owner: portable_core
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/common_properties, /property_registry]
     generator: vaultops.schema_export:property_dictionary_expected
     deployed_copy: false
-    first_capability: contract_validated
+    first_capability: portable_core
   - path: ops/schemas/note.schema.json
-    owner: S04
-    status: NOT_APPLICABLE_FOR_PROFILE
+    owner: portable_core
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
-        selectors: [/common_properties, /property_registry, /note_types, /privacy]
-    generator: deferred_to_owner_session
-    deployed_copy: false
-    first_capability: S04
+        selectors: [/common_properties, /property_registry, /note_types]
+    generator: vaultops.schema_export:note_schema
+    deployed_copy: true
+    first_capability: portable_core
+  - path: vault/99_System/Schemas/Property_Dictionary.md
+    owner: portable_core
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/common_properties, /property_registry, /note_types]
+    generator: vaultops.schema_export:property_dictionary_deployed
+    deployed_copy: true
+    first_capability: portable_core
   - path: ops/policies/generated-sections.yaml
     owner: S04
     status: NOT_APPLICABLE_FOR_PROFILE

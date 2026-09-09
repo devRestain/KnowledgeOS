@@ -12,9 +12,12 @@ from pathlib import Path
 
 from . import __version__
 from .blueprint import validate_blueprint
+from .bootstrap import bootstrap
 from .foundation import check_foundation, check_source_manifest
+from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
 from .runtime import RuntimeLayout
 from .schema_export import export_schema_artifacts
+from .workflows import create_period_note, create_project_bundle
 from .yaml_safe import load_yaml_file
 
 
@@ -31,6 +34,37 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command")
 
     commands.add_parser("version", help="print the vaultops version")
+    bootstrap_command = commands.add_parser(
+        "bootstrap", help="add missing canonical directories and S05 templates"
+    )
+    bootstrap_command.add_argument("--dry-run", action="store_true", help="plan without writing")
+    bootstrap_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    project = commands.add_parser("project", help="create-only project bundle workflows")
+    project_commands = project.add_subparsers(dest="project_command", required=True)
+    project_create = project_commands.add_parser(
+        "create", help="atomically create a project root note and sibling directories"
+    )
+    project_create.add_argument("--title", required=True, help="bounded project title / filename stem")
+    project_create.add_argument("--id", dest="identifier", default=None, help="lowercase UUID v4")
+    project_create.add_argument("--created-at", default=None, help="ISO datetime with timezone")
+    project_create.add_argument("--status", default="planned")
+    project_create.add_argument("--outcome", default=None)
+    project_create.add_argument("--priority", default="medium")
+    project_create.add_argument("--focus-rank", type=int, default=None)
+    project_create.add_argument("--next-action", default=None)
+    project_create.add_argument("--target-date", default=None)
+    project_create.add_argument("--dry-run", action="store_true", help="plan without writing")
+    project_create.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    period = commands.add_parser("period", help="deterministic journal period workflows")
+    period_commands = period.add_subparsers(dest="period_command", required=True)
+    period_create = period_commands.add_parser("create", help="create a daily, weekly, or monthly note")
+    period_create.add_argument("--kind", required=True, choices=("daily", "weekly", "monthly"))
+    period_create.add_argument("--date", dest="selected_date", default=None, help="YYYY-MM-DD")
+    period_create.add_argument("--dry-run", action="store_true", help="plan without writing")
+    period_create.add_argument("--root", type=Path, default=None, help="mounted control root")
+
     doctor = commands.add_parser("doctor", help="run read-only runtime diagnostics")
     doctor.add_argument("--root", type=Path, default=None, help="mounted control root")
 
@@ -60,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     schema_export.add_argument("--check", action="store_true", help="check byte-for-byte zero-diff without writing")
     schema_export.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
+    note_commands = note.add_subparsers(dest="note_command", required=True)
+    note_validate = note_commands.add_parser("validate", help="read and validate a Vault-relative Markdown note")
+    note_validate.add_argument("path", type=Path, help="Vault-relative Markdown path")
+    note_validate.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
@@ -95,6 +135,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "version":
         print(__version__)
         return 0
+    if args.command == "bootstrap":
+        report = bootstrap(args.root or _control_root(), dry_run=args.dry_run)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 1
+    if args.command == "project" and args.project_command == "create":
+        report = create_project_bundle(
+            args.root or _control_root(),
+            title=args.title,
+            dry_run=args.dry_run,
+            identifier=args.identifier,
+            created_at=args.created_at,
+            status=args.status,
+            outcome=args.outcome,
+            priority=args.priority,
+            focus_rank=args.focus_rank,
+            next_action=args.next_action,
+            target_date=args.target_date,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 1
+    if args.command == "period" and args.period_command == "create":
+        report = create_period_note(
+            args.root or _control_root(),
+            kind=args.kind,
+            selected_date=args.selected_date,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 1
     if args.command == "doctor":
         return _doctor(args.root or _control_root())
     if args.command == "foundation":
@@ -116,10 +185,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "blueprint":
         if args.blueprint_command == "status":
-            print("capability_profile=contract_validated")
+            print("capability_profile=portable_core")
             print("blueprint_json_schema=implemented:S02")
             print("cross_document_validation=implemented:S03A-S03B")
-            print("generated_zero_diff=implemented:S03C (vaultctl schema export --check)")
+            print("generated_zero_diff=implemented:S03C-S04 (vaultctl schema export --check)")
             return 0
         result = validate_blueprint(args.root or _control_root())
         print(result.as_json(), end="")
@@ -128,6 +197,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = export_schema_artifacts(args.root or _control_root(), check=args.check)
         print(result.as_json(), end="")
         return result.exit_code
+    if args.command == "note":
+        root = (args.root or _control_root()).resolve()
+        if args.note_command == "validate":
+            try:
+                relative = args.path.as_posix()
+                note_path = resolve_vault_relative_path(root / "vault", relative)
+                result = NoteEngine.from_root(root).validate_text(relative, note_path.read_text(encoding="utf-8"))
+                print(json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if result.passed else 1
+            except (OSError, UnicodeError, UnsafePathError, ValueError) as error:
+                print(
+                    json.dumps(
+                        {
+                            "status": "FAIL",
+                            "path": args.path.as_posix(),
+                            "errors": [{"code": "NOTE_INPUT_INVALID", "locator": "/", "message": str(error)}],
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 1
     if args.command == "yaml":
         value = load_yaml_file(args.path)
         print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))

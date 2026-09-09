@@ -1,6 +1,8 @@
-.PHONY: verify source-check container-source-check container-verify image-build test lint vaultctl blueprint-check schema-check contract-check
+.PHONY: verify source-check container-source-check container-verify image-build test lint vaultctl blueprint-check schema-export schema-check contract-check
 
 COMPOSE = docker compose -f ops/compose.yaml
+# Bind mounts and the disposable cache must be owned by the invoking host user.
+# Do not replace these with a portable-looking 1000:1000 fallback.
 KNOWLEDGEOS_UID ?= $(shell id -u)
 KNOWLEDGEOS_GID ?= $(shell id -g)
 export KNOWLEDGEOS_UID KNOWLEDGEOS_GID
@@ -31,6 +33,9 @@ vaultctl:
 
 blueprint-check:
 	$(COMPOSE) run --rm dev vaultctl blueprint validate --root /workspace/control
+
+schema-export:
+	$(COMPOSE) run --rm dev vaultctl schema export --root /workspace/control
 
 schema-check:
 	$(COMPOSE) run --rm dev vaultctl schema export --check --root /workspace/control

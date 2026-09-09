@@ -1,0 +1,142 @@
+# -----------------------------------------------------------------------------
+# KnowledgeOS project-local Codex rules
+# -----------------------------------------------------------------------------
+#
+# This file is loaded only when the trusted KnowledgeOS project is active.
+#
+# Project boundary:
+# - workspace: /Users/yuk/DevFolder/CodePractice/WorkingProject/KnowledgeOS
+# - Compose file: ops/compose.yaml
+# - service: dev
+# - Compose project identity: use the identity resolved by Docker Compose from
+#   the active workspace; do not guess a project, image, or volume name here.
+# - The Compose file declares the `dev` service and a tmpfs-backed
+#   `knowledgeos-uv-cache` volume definition.
+#
+# Do not generalize these exact paths, service names, image names, or volume
+# names into the user-level default.rules file.
+
+# KnowledgeOS workspace and contract checks.
+prefix_rule(
+    pattern=["make", "verify"],
+    decision="allow",
+    justification="Run KnowledgeOS workspace foundation verification",
+)
+prefix_rule(
+    pattern=["make", "source-check"],
+    decision="allow",
+    justification="Run KnowledgeOS source contract verification",
+)
+prefix_rule(
+    pattern=["make", "container-source-check"],
+    decision="allow",
+    justification="Run KnowledgeOS source verification inside the project container",
+)
+prefix_rule(
+    pattern=["make", "container-verify"],
+    decision="allow",
+    justification="Run KnowledgeOS foundation verification inside the project container",
+)
+prefix_rule(
+    pattern=["make", "test"],
+    decision="allow",
+    justification="Run KnowledgeOS tests through disposable project containers",
+)
+prefix_rule(
+    pattern=["make", "lint"],
+    decision="allow",
+    justification="Run KnowledgeOS lint through the project container",
+)
+prefix_rule(
+    pattern=["make", "blueprint-check"],
+    decision="allow",
+    justification="Run KnowledgeOS blueprint validation through the project container",
+)
+prefix_rule(
+    pattern=["make", "schema-export"],
+    decision="allow",
+    justification="Generate the KnowledgeOS owned schema artifact in the workspace",
+)
+prefix_rule(
+    pattern=["make", "schema-check"],
+    decision="allow",
+    justification="Verify the KnowledgeOS generated schema artifact",
+)
+prefix_rule(
+    pattern=["make", "contract-check"],
+    decision="allow",
+    justification="Run the KnowledgeOS blueprint and schema contract checks",
+)
+prefix_rule(
+    pattern=["make", "vaultctl"],
+    decision="allow",
+    justification="Run the KnowledgeOS development CLI in the project container",
+)
+
+# Read-only operations for the exact KnowledgeOS Compose project.
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "ps"],
+    decision="allow",
+    justification="Read-only status for the KnowledgeOS Compose project",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "logs"],
+    decision="allow",
+    justification="Read-only logs for the KnowledgeOS Compose project",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "config"],
+    decision="allow",
+    justification="Read-only inspection of the KnowledgeOS Compose configuration",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "images"],
+    decision="allow",
+    justification="Read-only listing of images attached to the KnowledgeOS Compose project",
+)
+
+# Disposable container execution is automatic only with the exact project
+# Compose file, service, and mandatory --rm cleanup option.
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "run", "--rm", "dev"],
+    decision="allow",
+    justification="Run a disposable KnowledgeOS development container with mandatory cleanup",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "exec", "dev"],
+    decision="allow",
+    justification="Execute development commands inside the KnowledgeOS container",
+)
+
+# Persistent startup, image builds, and teardown remain approval-based. This
+# prevents routine tests from silently creating persistent containers or
+# repeatedly growing Docker image/build state.
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "up"],
+    decision="prompt",
+    justification="Starting the KnowledgeOS Compose project may create persistent containers or image state; confirm the exact scope",
+)
+prefix_rule(
+    pattern=["make", "image-build"],
+    decision="prompt",
+    justification="Building the KnowledgeOS image may create persistent image layers and cache; confirm the build is necessary",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "build"],
+    decision="prompt",
+    justification="Building the KnowledgeOS image may create persistent image layers and cache; confirm the build is necessary",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "down"],
+    decision="prompt",
+    justification="Stopping or removing KnowledgeOS project containers changes runtime state; confirm the exact scope",
+)
+prefix_rule(
+    pattern=["docker", "compose", "-f", "ops/compose.yaml", "rm"],
+    decision="prompt",
+    justification="Removing KnowledgeOS project containers is destructive; confirm the exact containers",
+)
+
+# Do not add project rules for daemon-wide prune commands or generic docker
+# rm/rmi/volume rm commands. The common default.rules policy keeps those
+# operations approval-based so another project's resources are not touched.

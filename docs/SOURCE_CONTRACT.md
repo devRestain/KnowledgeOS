@@ -28,12 +28,12 @@
 | 파일 | SHA-256 |
 |---|---|
 | `OBSIDIAN_VAULT_BLUEPRINT.md` | `3c0145d01cd4708f6f5be4c04b85dd089a8fc1a5775c6c0be20da401c91e8413` |
-| `OBSIDIAN_VAULT_WHITEPAPER.md` | `3ad80885d0defac3a6f07d65c2d9a816fe28658bdb078388b8e32c616050b749` |
+| `OBSIDIAN_VAULT_WHITEPAPER.md` | `2259defd070d5fc3c37f67b821e6eae59dcdfd1569b29f51e35ada7f6fd58632` |
 | `blueprint/README.md` | `fd37596d5eebb6e594b084cec6d51793f4c7aaddb5fa547a9e805fe9663035af` |
 | `blueprint/blueprint.schema.json` | `17f322760e3816ebf70524691326e0781b804951e0fd8342139769a3919dec66` |
 | `blueprint/blueprint.yaml` | `88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c` |
 
-Checksum manifest 자체의 SHA-256은 `c5b2ce4408337a5bda9b8dc686c49c3e8df2b331a6a15f06efa3d15427fe896e`다. `make verify`는 이 trust anchor를 먼저 확인하고, `make source-check`는 manifest와 다섯 산출물의 내부 일치를 검사한다.
+Checksum manifest 자체의 SHA-256은 `a3b458bcf10dbf525ed59fd76ae8e5e814ecadea8a7a6035cb53416a458c0322`다. `make verify`는 이 trust anchor를 먼저 확인하고, `make source-check`는 manifest와 다섯 산출물의 내부 일치를 검사한다.
 
 ## 이번 세션에서 확인한 범위
 
@@ -44,7 +44,7 @@ Checksum manifest 자체의 SHA-256은 `c5b2ce4408337a5bda9b8dc686c49c3e8df2b331
 - YAML top-level key 42개와 JSON Schema top-level required key 42개 존재 확인
 - `contract_id`: `knowledgeos-blueprint-v2` 확인
 
-`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. `vaultctl schema export`와 `--check`는 S03C ownership contract에 등록된 control artifact만 생성·검증하며, safe Blueprint validation을 통과하기 전에는 쓰지 않는다. `blueprint validate`와 generated artifact zero-diff는 서로 독립된 보고 surface다. S03C 이후에도 이를 production Vault 생성 완료로 해석하지 않는다.
+`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. S04에서는 `portable_core` ownership contract에 `ops/schemas/note.schema.json`과 `vault/99_System/Schemas/Property_Dictionary.md`를 추가했고, S05에서는 exact 16개 template과 create-only workflow를 추가했다. S06에서는 Blueprint `bases` registry를 authoritative input으로 삼는 별도 `base_dashboard` compiler/evaluator와 static Base/dashboard surface를 추가했다. `vaultctl schema export`와 `--check`는 명시된 schema 소유 artifact만 생성·검증하며, safe Blueprint validation을 통과하기 전에는 쓰지 않는다. `blueprint validate`, schema zero-diff, Base/dashboard compiler exactness는 서로 독립된 보고 surface다. schema gate 자체는 production note corpus, sentinel 또는 전체 Portable Vault 완료를 의미하지 않으며 S06 surface는 별도 test gate로 판정한다.
 
 - CLI 진단은 canonical source/schema/manifest SHA-256, contract ID, schema `$id`와 draft를 provenance로 포함한다.
 - 오류는 `code`, JSON Pointer `locator`, schema Pointer `schema_locator`를 포함하고 stable 순서로 출력한다.

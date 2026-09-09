@@ -1,10 +1,10 @@
 <!-- GENERATED: BEGIN knowledgeos-property-dictionary -->
 # Property Dictionary
 
-이 파일은 임시 expected rendering이다. S04에서 동일 generator가 검증된 Vault 사본을 배포한다.
+이 파일은 Blueprint registry에서 생성된 S04 strict note contract의 검증된 사본이다.
 
 - contract: `knowledgeos-blueprint-v2`
-- capability profile: `contract_validated`
+- capability profile: `portable_core`
 - authoritative input: `blueprint/blueprint.yaml` (SHA-256 `88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c`)
 - property count: `76`
 

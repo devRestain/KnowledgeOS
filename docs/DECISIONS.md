@@ -95,6 +95,54 @@
 - 이유: 하나의 wildcard policy directory나 Whitepaper 예시를 기계 원본으로 오인하면 뒤 단계의 소유권과 생성 입력이 섞인다. explicit path별 source selector와 generator를 고정하면 한 바이트 drift를 재현 가능한 check에서 잡으면서도 아직 승인·구현하지 않은 Vault mutation과 provider/bridge artifact를 만들지 않을 수 있다.
 - 영향: `vaultctl schema export`는 Blueprint/semantic validation 후 owned control artifact만 atomic write하고, `vaultctl schema export --check`는 byte-for-byte zero-diff와 future profile의 명시적 N/A 상태를 출력한다. `make blueprint-check`는 Blueprint semantic, `make schema-check`는 generated artifact gate, `make verify`는 bootstrap integrity를 각각 담당한다. S04는 이 policy와 trusted schema copy를 입력으로 note schema와 production Property Dictionary를 소유한다.
 
+### D-013 — S04 portable_core strict note boundary와 제한된 Vault 배포
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: `portable_core` profile은 S03C registry를 단일 입력으로 사용해 per-note-type strict schema, duplicate-key-safe frontmatter parser/writer, path/relation validator를 제공한다. generator가 소유하는 production Vault 파일은 `vault/99_System/Schemas/Property_Dictionary.md` 하나로 제한한다.
+- 이유: proposal과 projection이 서로 다른 property 해석을 갖지 않게 하면서도, 실제 사용자 note·template·dashboard를 한 번에 생성해 migration 경계를 넘지 않기 위해서다. dictionary와 machine schema는 같은 bytes contract에서 파생되어야 하며, 사용자 변경이 있는 deployed copy는 자동 overwrite하지 않는다.
+- 영향: `vaultctl note validate`는 read-only note contract 진단 surface이고, `make schema-export`는 명시된 generated artifact만 생성한다. S05가 template/bootstrap/project create를 추가하기 전까지 실제 note corpus와 sentinel은 생성하지 않는다. 관계는 `canonical_property` provenance와 explicit approval이 없는 proposal 상태로는 정본에 들어갈 수 없다.
+
+### D-014 — S05 template source와 create-only Vault workflow 경계
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: 16개 template은 `vault/99_System/Templates`의 사람이 읽을 수 있는 Markdown source로 배포한다. vaultops는 Templater JavaScript를 실행하지 않고 bounded context renderer만 사용한다. `bootstrap`은 전체 target preflight 뒤 누락 directory/template만 additive create하며 기존 파일을 overwrite하지 않는다. `project create`는 schema 검증된 Project root note와 `Working`/`Artifacts` sibling을 create-only bundle로 만든다. Daily/Weekly/Monthly는 Asia/Seoul에서 계산하는 vaultctl renderer가 소유한다.
+- 이유: template UX는 Obsidian/QuickAdd를 사용할 때도 이식 가능해야 하고, terminal 경로는 실행 코드나 raw placeholder를 해석해 보안 경계를 넓히면 안 된다. project bundle은 root note와 sibling의 부분 상태를 남기지 않아야 하며, period 생성은 locale/플러그인 동작과 분리된 ISO·calendar 계산이 필요하다.
+- 영향: S05는 실제 사용자 note, sentinel, Base/dashboard, plugin, remote, device, LLM을 활성화하지 않는다. `bootstrap --dry-run`이 live Vault mutation 전의 검토 surface이며, 충돌·재실행은 no-overwrite/no-op으로 보고한다.
+
+### D-015 — S06 Base/dashboard compiler와 plugin-free fallback 경계
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: 8개 Base와 14개 view의 bytes는 Blueprint `bases` registry에서 `vaultops.base_dashboard`가 결정론적으로 컴파일하고, frozen fixture evaluator와 exact-byte test가 그 결과를 검증한다. Home/Mobile/Tasks/Weekly Review는 Base embed를 사용하되 plain Markdown/wikilink fallback을 함께 제공하며, S06 artifact는 기존 `schema-export` ownership profile과 별도 gate로 유지한다.
+- 이유: Base query와 dashboard consumer가 Blueprint와 drift하지 않게 하면서도 Base/plugin 동작이 제한된 환경에서 핵심 navigation, capture, defer 정보를 잃지 않아야 한다. schema-export의 기존 소유 범위를 넓히지 않고 새로운 artifact family의 owner와 acceptance를 명시해야 generated status를 과장하지 않는다.
+- 영향: S06은 8개 static Base, dashboard surface, CSS, fixture/evaluator와 additive bootstrap 경계를 소유한다. freshness는 frontmatter `modified`가 아닌 filesystem `file.mtime`을 사용한다. sentinel, `.obsidian-*`, community plugin, remote, 실제 Obsidian smoke는 S07 이후의 별도 opt-in/acceptance로 남긴다.
+
+### D-016 — S07 fixed portable fixture와 앱 smoke 분리
+
+- 상태: accepted with blocked app gate
+- 날짜: 2026-09-09
+- 결정: S07은 `guestbook-horror`의 fixed input/expected bytes, SHA-256/mtime manifest, NoteEngine·Base evaluator 기반의 read-only integration gate와 negative fixture를 소유한다. archive·capture-finalize·asset import의 실제 mutation writer는 후속 S13C command slice가 소유하고, S07 expected Vault는 그 writer의 golden output contract만 고정한다.
+- 이유: Phase 1 exit gate가 note/path/property/link/query와 lifecycle provenance의 concrete evidence를 가져야 하지만, 후속 command 소유권을 앞당겨 구현하면 mutation transaction과 runtime receipt 경계가 섞인다. 고정된 bytes와 mtime을 먼저 검증하면 later writer를 안전하게 비교할 수 있다.
+- 영향: `portable_fixture`는 control repository의 synthetic fixture만 읽고 production `vault/`와 `runtime/`을 쓰지 않는다. `materialize_phase1_smoke_vault()`는 `/private/tmp` 같은 disposable 경로에서만 S06 core surface와 fixture를 합성하며 `.obsidian-*`, `.vault-bridge`, sentinel, plugin을 만들지 않는다. Obsidian restricted-mode smoke는 실제 앱 권한이 허용된 별도 evidence이고, 그 gate가 통과하기 전에는 S07 전체를 complete로 부르지 않는다.
+
+### D-017 — Host numeric UID/GID를 Compose fallback보다 우선
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: bind-mounted control/Vault/runtime와 Colima 내부 disposable cache는 현재 호스트의 `id -u`/`id -g`를 `KNOWLEDGEOS_UID`/`KNOWLEDGEOS_GID`로 사용한다. `Makefile`은 이 값을 자동 export하고, Compose는 값이 없으면 `1000:1000`으로 추정하지 않고 fail closed한다. Dockerfile도 UID/GID를 기본값으로 갖지 않으며 숫자형 non-root 값을 요구한다.
+- 이유: 실제 macOS 실행 계정 `501:20`과 기존 Compose `1000:1000` fallback이 달라 bind mount/cache permission 오류가 발생했다. 다른 사용자 환경에 특정 숫자를 하드코딩하는 것도 이식 가능한 해결이 아니다.
+- 영향: 후속 세션은 `make` wrapper를 canonical 경로로 사용하거나 직접 Compose에 현재 숫자형 UID/GID를 명시해야 한다. cache 삭제·재생성이나 production Vault 권한 변경은 이 결정에 포함되지 않는다.
+
+### D-018 — Codex 실행 세션의 외부 애플리케이션 접근 금지
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: Codex가 실행 세션에서 직접 접근할 수 있는 surface는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container로 제한한다. Obsidian, 브라우저, Finder, Mail, Calendar, Slack, Teams, Working Copy, Shortcuts와 기타 native/외부 애플리케이션 및 connector는 직접 열기·읽기·쓰기·조작하지 않는다.
+- 이유: 현재 Codex 작업 환경을 사용자가 지정한 개발 경계 밖으로 넓히지 않고, 실제 앱/device 확인이 필요한 작업은 사용자 판단과 별도 승인을 거치게 하기 위함이다.
+- 영향: 외부 앱 작업이 남으면 필요한 앱·행동·범위를 기록하고 사용자에게 가능한지 확인한다. 사용자 확인 전에는 CUA, 앱 CLI, AppleScript, URI, connector, plugin을 호출하지 않는다.
+
 ## 열려 있는 결정
 
 | ID | 결정할 내용 | 필요한 시점 | 보수적 기본값 |

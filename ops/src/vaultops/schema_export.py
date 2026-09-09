@@ -1,9 +1,10 @@
 """Deterministic generation and zero-diff validation for owned artifacts.
 
-S03C deliberately owns only the small control-side slice that is fully
-determined by ``blueprint/blueprint.yaml``. Later schemas, prompts, action
-registries, and Vault files remain visible in the ownership manifest but are
-reported as ``NOT_APPLICABLE_FOR_PROFILE`` until their owner session starts.
+The current ``portable_core`` profile owns only artifacts whose bytes are
+fully determined by the canonical Blueprint and the S04 note contract. Later
+schemas, prompts, action registries, and Vault files remain visible in the
+ownership manifest but are reported as ``NOT_APPLICABLE_FOR_PROFILE`` until
+their owner session starts.
 """
 
 from __future__ import annotations
@@ -23,12 +24,14 @@ import yaml
 from yaml import YAMLError
 
 from .blueprint import validate_blueprint
+from .note_engine import build_note_json_schema
 from .yaml_safe import load_yaml_file
 
 OWNERSHIP_CONTRACT_PATH = "ops/config/generated-artifacts.yaml"
-CAPABILITY_PROFILE = "contract_validated"
+CAPABILITY_PROFILE = "portable_core"
 GENERATOR_ID = "vaultops.schema_export"
 PROPERTY_DICTIONARY_PATH = "ops/expected/Property_Dictionary.md"
+DEPLOYED_PROPERTY_DICTIONARY_PATH = "vault/99_System/Schemas/Property_Dictionary.md"
 
 
 @dataclass(frozen=True)
@@ -111,15 +114,22 @@ OWNED_ARTIFACTS = (
         ("/common_properties", "/property_registry"),
         deployed_copy=False,
     ),
+    _owned(
+        "ops/schemas/note.schema.json",
+        "note_schema",
+        ("/common_properties", "/property_registry", "/note_types"),
+        deployed_copy=True,
+    ),
+    _owned(
+        DEPLOYED_PROPERTY_DICTIONARY_PATH,
+        "property_dictionary_deployed",
+        ("/common_properties", "/property_registry", "/note_types"),
+        deployed_copy=True,
+    ),
 )
 
 
 NOT_APPLICABLE_ARTIFACTS = (
-    _not_applicable(
-        "ops/schemas/note.schema.json",
-        "S04",
-        ("/common_properties", "/property_registry", "/note_types", "/privacy"),
-    ),
     _not_applicable(
         "ops/policies/generated-sections.yaml",
         "S04",
@@ -365,7 +375,7 @@ def _property_dictionary_bytes(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->",
         "# Property Dictionary",
         "",
-        "이 파일은 임시 expected rendering이다. S04에서 동일 generator가 검증된 Vault 사본을 배포한다.",
+        "이 파일은 Blueprint registry에서 생성된 S04 strict note contract의 검증된 사본이다.",
         "",
         f"- contract: `{blueprint['contract_id']}`",
         f"- capability profile: `{CAPABILITY_PROFILE}`",
@@ -406,8 +416,18 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
     if spec.path == "ops/schemas/blueprint.schema.json":
         source = workspace / "blueprint/blueprint.schema.json"
         return source.read_bytes()
-    if spec.path == PROPERTY_DICTIONARY_PATH:
+    if spec.path in {PROPERTY_DICTIONARY_PATH, DEPLOYED_PROPERTY_DICTIONARY_PATH}:
         return _property_dictionary_bytes(blueprint, spec, workspace)
+    if spec.path == "ops/schemas/note.schema.json":
+        return (
+            json.dumps(
+                build_note_json_schema(blueprint),
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=False,
+            )
+            + "\n"
+        ).encode("utf-8")
 
     if spec.path.endswith("/properties.yaml"):
         envelope = _envelope(blueprint, spec, "property_policy", workspace)
@@ -589,6 +609,25 @@ def export_schema_artifacts(root: str | Path, *, check: bool = False) -> SchemaE
         artifact_reports.append(
             _artifact_report(workspace, spec, expected=None, mode=mode, errors=errors)
         )
+
+    # A deployed Vault file can be a user's artifact. Never silently replace a
+    # differing file merely because the current generator owns the path.
+    if not check and not errors:
+        for spec in OWNED_ARTIFACTS:
+            if not spec.deployed_copy or not spec.path.startswith("vault/"):
+                continue
+            path, path_error = _target_path(workspace, spec.path)
+            expected = expected_bytes.get(spec.path)
+            if path_error or path is None or expected is None:
+                continue
+            if path.is_file() and not path.is_symlink() and path.read_bytes() != expected:
+                errors.append(
+                    _error(
+                        "SCHEMA_EXPORT_DEPLOYED_COPY_CONFLICT",
+                        f"/artifacts/{spec.path}",
+                        "refusing to overwrite a differing deployed Vault artifact",
+                    )
+                )
 
     if not check and not errors and blueprint is not None:
         for spec in OWNED_ARTIFACTS:

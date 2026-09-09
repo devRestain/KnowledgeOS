@@ -19,7 +19,7 @@ KnowledgeOS는 자료 창고가 아니라 행동, 판단, 장기 지식을 연�
 KnowledgeOS/                  control workspace와 repository
 ├── docs/                     사람용 계약·운영·결정 기록
 ├── blueprint/                고정한 기계 판독 설계 패키지
-├── ops/                      향후 validator, vaultctl, policy, test와 container 정의
+├── ops/                      validator, vaultctl, policy, test와 container 정의
 ├── vault/                    별도 Git repository이자 Obsidian Vault
 └── runtime/                  Git 밖의 container bind-mounted persistent 상태
 ```
@@ -43,7 +43,7 @@ Colima VM
     └── /workspace/runtime  ← durable queue/receipt/index/log
 ```
 
-Compose wrapper를 사용하면 host dependency를 추가하지 않고 동일 image로 test, CLI, worker, projection, retrieval을 재현할 수 있다. Docker socket, host secret/keychain, SSH agent와 provider network는 기본적으로 container에 노출하지 않는다. Obsidian·Working Copy·LaunchAgent는 macOS/device 경계이지만, LaunchAgent가 실행하는 실제 KnowledgeOS worker는 container여야 한다.
+Compose wrapper를 사용하면 host dependency를 추가하지 않고 동일 image로 현재 구현된 test·CLI·validator와 향후 worker·projection·retrieval을 재현할 수 있다. Docker socket, host secret/keychain, SSH agent와 provider network는 기본적으로 container에 노출하지 않는다. 현재 Codex 세션의 직접 접근 surface는 Codex 앱, workspace, Colima/Docker 개발 환경으로 한정하며, Obsidian·Working Copy·LaunchAgent·브라우저 등 외부 앱은 사용자 확인 전 직접 접근하지 않는다. 향후 LaunchAgent가 추가되더라도 실제 KnowledgeOS worker는 container에서 실행되어야 한다. Compose는 현재 호스트 숫자형 UID/GID를 요구하며 `1000:1000` fallback을 사용하지 않는다.
 
 ## Vault의 고정 namespace
 

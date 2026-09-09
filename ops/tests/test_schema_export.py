@@ -43,7 +43,10 @@ def test_schema_export_writes_only_explicit_owned_artifacts(tmp_path: Path) -> N
         item["status"] == "NOT_APPLICABLE_FOR_PROFILE"
         for item in result.report["artifacts"][len(OWNED_ARTIFACTS) :]
     )
-    assert not (root / "vault/99_System/Schemas/Property_Dictionary.md").exists()
+    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").exists()
+    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
+        root / "ops/expected/Property_Dictionary.md"
+    ).read_bytes()
     assert not (root / "runtime").exists()
     assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"
@@ -106,4 +109,32 @@ def test_schema_export_cli_returns_machine_readable_report(tmp_path: Path, capsy
     report = json.loads(capsys.readouterr().out)
 
     assert report["status"] == "PASS"
-    assert report["validation"]["capability_profile"] == "contract_validated"
+    assert report["validation"]["capability_profile"] == "portable_core"
+
+
+def test_note_schema_and_dictionary_share_the_registry_contract(tmp_path: Path) -> None:
+    root = _control_copy(tmp_path)
+    assert export_schema_artifacts(root).passed
+
+    schema = json.loads((root / "ops/schemas/note.schema.json").read_text(encoding="utf-8"))
+    blueprint = json.loads((root / "ops/schemas/blueprint.schema.json").read_text(encoding="utf-8"))
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    assert len(schema["oneOf"]) == 18
+    assert all(branch["additionalProperties"] is False for branch in schema["oneOf"])
+    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
+        root / "ops/expected/Property_Dictionary.md"
+    ).read_bytes()
+    assert blueprint["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+
+
+def test_schema_export_refuses_to_overwrite_differing_deployed_vault_artifact(tmp_path: Path) -> None:
+    root = _control_copy(tmp_path)
+    deployed = root / "vault/99_System/Schemas/Property_Dictionary.md"
+    deployed.parent.mkdir(parents=True)
+    deployed.write_text("# User file\n", encoding="utf-8")
+
+    result = export_schema_artifacts(root)
+
+    assert not result.passed
+    assert "SCHEMA_EXPORT_DEPLOYED_COPY_CONFLICT" in {error["code"] for error in result.report["errors"]}
+    assert deployed.read_text(encoding="utf-8") == "# User file\n"

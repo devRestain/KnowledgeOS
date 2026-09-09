@@ -1,7 +1,7 @@
 FROM python:3.12.8-slim-bookworm
 
-ARG KNOWLEDGEOS_UID=1000
-ARG KNOWLEDGEOS_GID=1000
+ARG KNOWLEDGEOS_UID
+ARG KNOWLEDGEOS_GID
 ARG UV_VERSION=0.8.14
 
 LABEL org.opencontainers.image.title="KnowledgeOS development runtime" \
@@ -21,7 +21,10 @@ RUN apt-get update \
     && python -m pip install --no-cache-dir "uv==${UV_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
-RUN if ! getent group "${KNOWLEDGEOS_GID}" >/dev/null; then \
+RUN case "${KNOWLEDGEOS_UID}" in ''|*[!0-9]*) echo 'KNOWLEDGEOS_UID must be numeric' >&2; exit 1;; esac \
+    && case "${KNOWLEDGEOS_GID}" in ''|*[!0-9]*) echo 'KNOWLEDGEOS_GID must be numeric' >&2; exit 1;; esac \
+    && [ "${KNOWLEDGEOS_UID}" -gt 0 ] \
+    && if ! getent group "${KNOWLEDGEOS_GID}" >/dev/null; then \
         groupadd --gid "${KNOWLEDGEOS_GID}" vaultops; \
     fi \
     && mkdir -p /home/vaultops \

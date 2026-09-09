@@ -22,3 +22,18 @@ def test_project_rejects_host_python_older_than_312() -> None:
     pyproject = (OPS_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'requires-python = ">=3.12"' in pyproject
     assert not re.search(r"requires-python\s*=\s*\">=3\\.[01]", pyproject)
+
+
+def test_compose_requires_the_invoking_host_uid_and_gid() -> None:
+    makefile = (CONTROL_ROOT / "Makefile").read_text(encoding="utf-8")
+    compose = (OPS_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    dockerfile = (OPS_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert "KNOWLEDGEOS_UID ?= $(shell id -u)" in makefile
+    assert "KNOWLEDGEOS_GID ?= $(shell id -g)" in makefile
+    assert "${KNOWLEDGEOS_UID:-1000}" not in compose
+    assert "${KNOWLEDGEOS_GID:-1000}" not in compose
+    assert "${KNOWLEDGEOS_UID:?" in compose
+    assert "${KNOWLEDGEOS_GID:?" in compose
+    assert "ARG KNOWLEDGEOS_UID=1000" not in dockerfile
+    assert "ARG KNOWLEDGEOS_GID=1000" not in dockerfile

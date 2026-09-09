@@ -1,0 +1,3790 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledgeos://schema/note-v1",
+  "title": "KnowledgeOS strict Markdown note",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "capture"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "unprocessed",
+            "triaged",
+            "discarded"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "captured_from": {
+          "type": "string",
+          "enum": [
+            "mac_quickadd",
+            "mac_cli",
+            "ios_shortcut",
+            "ipad_shortcut",
+            "ios_share_sheet",
+            "ipad_share_sheet",
+            "import"
+          ]
+        },
+        "capture_device": {
+          "type": "string",
+          "enum": [
+            "mac",
+            "iphone",
+            "ipad"
+          ]
+        },
+        "capture_kind": {
+          "type": "string",
+          "enum": [
+            "thought",
+            "url",
+            "quote",
+            "voice",
+            "file",
+            "other"
+          ]
+        },
+        "triage_hint": {
+          "type": "string",
+          "enum": [
+            "none",
+            "discard",
+            "hold",
+            "task",
+            "project",
+            "idea",
+            "question",
+            "knowledge",
+            "source"
+          ]
+        },
+        "needs_desktop_review": {
+          "type": "boolean"
+        },
+        "capture_label": {
+          "type": "string"
+        },
+        "device_timezone": {
+          "type": "string",
+          "pattern": "^(?:UTC|GMT|[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+)$"
+        },
+        "canonical_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "canonical_timezone": {
+          "type": "string",
+          "pattern": "^(?:UTC|GMT|[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+)$"
+        },
+        "triage_projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^\\[\\[80_Assets/[^\\]\\n]+\\]\\]$"
+        },
+        "asset_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "extractor": {
+          "type": "string"
+        },
+        "extractor_version": {
+          "type": "string"
+        },
+        "page_locator_scheme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "captured_from",
+        "capture_device",
+        "capture_kind",
+        "triage_hint",
+        "needs_desktop_review"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "proposal"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "proposal_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "source_hashes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^.+\\|sha256:[0-9a-f]{64}$"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "proposal_id",
+        "source_hashes"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "daily"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "period_start": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        },
+        "today_focus": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "period_start",
+        "period_end"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "weekly"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "period_start": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "period_start",
+        "period_end"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "monthly"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "period_start": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "period_start",
+        "period_end"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "project"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "active",
+            "blocked",
+            "done",
+            "cancelled"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "focus_rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_date": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "outcome",
+        "priority"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "active"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "focus_rank",
+              "next_action"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "blocked"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "focus_rank",
+              "next_action"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "project_note"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "note_kind": {
+          "type": "string",
+          "enum": [
+            "exploration",
+            "draft",
+            "research",
+            "plan",
+            "log",
+            "other"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "projects",
+        "note_kind"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "idea"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "seed",
+            "incubating",
+            "testing",
+            "promoted",
+            "parked",
+            "dropped"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "possibility": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "possibility"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "question"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "open",
+            "deciding",
+            "answered",
+            "deferred",
+            "closed"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "question_kind": {
+          "type": "string",
+          "enum": [
+            "decision",
+            "research",
+            "problem"
+          ]
+        },
+        "decision": {
+          "type": "string"
+        },
+        "decision_by": {
+          "type": "string",
+          "format": "date"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "question_kind"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "question_kind": {
+                "const": "decision"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "artifact"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "review",
+            "final",
+            "deprecated"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "artifact_kind": {
+          "type": "string",
+          "enum": [
+            "specification",
+            "prototype",
+            "report",
+            "presentation",
+            "code",
+            "dataset",
+            "other"
+          ]
+        },
+        "artifact_uri": {
+          "type": "string"
+        },
+        "artifact_hash": {
+          "type": "string"
+        },
+        "artifact_repo": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^\\[\\[80_Assets/[^\\]\\n]+\\]\\]$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "artifact_kind",
+        "projects"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "final"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "artifact_uri"
+                ]
+              },
+              {
+                "required": [
+                  "artifact_repo"
+                ]
+              },
+              {
+                "required": [
+                  "asset"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "area"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "paused",
+            "retired"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "standard": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_cadence": {
+          "type": "string",
+          "enum": [
+            "weekly",
+            "monthly",
+            "quarterly",
+            "semiannual",
+            "annual"
+          ]
+        },
+        "next_review": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "standard",
+        "review_cadence",
+        "next_review"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "knowledge"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "seed",
+            "developing",
+            "evergreen",
+            "deprecated"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "unknown"
+          ]
+        },
+        "last_reviewed": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "claim",
+        "confidence"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "source"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "reading",
+            "processed",
+            "archived"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "paper",
+            "book",
+            "article",
+            "web",
+            "video",
+            "podcast",
+            "course",
+            "document",
+            "dataset",
+            "other"
+          ]
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "published_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "citation_key": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^\\[\\[80_Assets/[^\\]\\n]+\\]\\]$"
+        },
+        "asset_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "extractor": {
+          "type": "string"
+        },
+        "extractor_version": {
+          "type": "string"
+        },
+        "page_locator_scheme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "source_kind"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "processed",
+                  "archived"
+                ]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "source_url"
+                ]
+              },
+              {
+                "required": [
+                  "asset"
+                ]
+              },
+              {
+                "required": [
+                  "derived_from"
+                ]
+              },
+              {
+                "required": [
+                  "citation_key"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "person"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "inactive"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "organization": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "moc"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "retired"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "scope"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "meeting"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "scheduled",
+            "held",
+            "cancelled"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "meeting_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "attendees": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "meeting_at",
+        "attendees"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "home"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audience": {
+          "type": "string",
+          "enum": [
+            "desktop",
+            "mobile",
+            "system"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "purpose",
+        "audience"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "system"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "deprecated"
+          ]
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "public",
+            "personal",
+            "confidential"
+          ]
+        },
+        "ai_policy": {
+          "type": "string",
+          "enum": [
+            "remote_ok",
+            "ask",
+            "local_only",
+            "deny"
+          ]
+        },
+        "ai_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "proposed",
+            "approved",
+            "applied",
+            "rejected",
+            "conflict",
+            "expired",
+            "error"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "supports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "contradicts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "explains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "implements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "raises": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+          }
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "type",
+        "title",
+        "status",
+        "created",
+        "modified",
+        "aliases",
+        "tags",
+        "sensitivity",
+        "ai_policy",
+        "ai_status",
+        "purpose"
+      ]
+    }
+  ]
+}

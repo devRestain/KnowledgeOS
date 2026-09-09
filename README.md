@@ -6,7 +6,7 @@ KnowledgeOS는 메모를 많이 쌓는 저장소가 아니라, 다음 세 질문
 2. 무엇을 결정하지 못해 진행이 멈춰 있는가?
 3. 오늘 포착하거나 정리해야 할 것은 무엇인가?
 
-현재 저장소는 완성된 Obsidian Vault나 자동화 제품이 아니다. 여러 후속 개발 세션이 같은 구조와 안전 경계를 공유할 수 있도록 만든 **foundation scaffold**다.
+현재 저장소는 완성된 Obsidian Vault나 자동화 제품이 아니다. 여러 후속 개발 세션이 같은 구조와 안전 경계를 공유할 수 있도록 만든 **contract-first portable-core scaffold**다.
 
 ## 현재 상태
 
@@ -18,16 +18,23 @@ KnowledgeOS는 메모를 많이 쌓는 저장소가 아니라, 다음 세 질문
 - S02 Blueprint JSON Schema validator를 추가하고, safe YAML parse와 Draft 2020-12 검증, checksum/contract/schema provenance, deterministic reason code·JSON Pointer 진단을 검증했다.
 - S03A semantic validator를 추가하고, registry exactness, path/type/template, relation direction, action/command/output-schema 선언, bridge state/transition/runtime closure를 검증했다.
 - S03B semantic validator를 추가하고, 8개 Base/14개 view query, Home/Mobile dashboard 연결, projection serialization 계약, project bundle cardinality와 capture-finalize transaction 순서를 검증했다.
-- S03C generated artifact ownership과 zero-diff gate를 추가하고, 현재 `contract_validated` profile이 소유하는 5개 policy, trusted Blueprint schema copy, 임시 Property Dictionary를 결정론적으로 생성·검증한다. 뒤 세션 산출물은 명시적으로 `NOT_APPLICABLE_FOR_PROFILE`로 보고한다.
+- S03C generated artifact ownership과 zero-diff gate를 추가하고, 당시 `contract_validated` profile이 소유한 5개 policy, trusted Blueprint schema copy, 임시 Property Dictionary를 결정론적으로 생성·검증했다. 뒤 세션 산출물은 명시적으로 `NOT_APPLICABLE_FOR_PROFILE`로 보고했다.
+- S04 strict note engine을 추가하고, `portable_core` profile에서 duplicate-key-safe frontmatter, schema-aware writer, 18개 note type, path/property/relation invariant를 검증한다. 동일 generator가 `ops/schemas/note.schema.json`과 `vault/99_System/Schemas/Property_Dictionary.md`를 배포·zero-diff 검증한다.
+- S05 exact 16개 template과 비실행 token renderer, additive/idempotent `bootstrap`, atomic create-only project bundle, ISO week·calendar month를 처리하는 Daily/Weekly/Monthly renderer를 추가했다.
+- S05 canonical acceptance를 84개 test, lint, Blueprint JSON Schema+semantic, generated artifact zero-diff, container source/foundation gate로 최종 검증했다.
+- S06 8개 Base와 canonical 14개 view, Home/Mobile 및 Tasks/Weekly Review navigation surface, CSS/plain-Markdown fallback, frozen fixture evaluator를 추가했다. canonical acceptance는 88개 test와 lint, Blueprint/schema/container gate로 검증했다.
+- S07 `guestbook-horror` fixed input/expected Vault, SHA-256/mtime manifest, archive/capture-finalize/asset-provenance golden bytes와 read-only negative fixture gate를 추가했다. canonical acceptance는 94개 test와 lint, Blueprint/schema/container gate로 검증했다.
+- 2026-09-09 실행에서 macOS host UID/GID `501:20`과 Compose의 `1000:1000` fallback 불일치로 bind mount/cache permission 오류가 드러났다. `Makefile`은 `id -u`/`id -g`를 자동 export하고 Compose/Dockerfile은 UID/GID 누락을 fail closed하도록 보강했다.
+- Codex 실행 세션의 직접 접근 범위는 Codex 앱, 이 workspace, Colima/Docker 개발 환경으로 제한한다. Obsidian·브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 등 외부 애플리케이션은 직접 열거나 조작하지 않고, 필요한 작업은 사용자에게 가능 여부와 범위를 확인할 수 있도록 남긴다.
 - control repository와 Vault repository를 각각 독립 Git root로 초기화하고 local `main` initial commit을 만들었다. 두 repository 모두 remote는 없다.
-- Git remote와 expected branch 계약, 후속 commit/push, Vault root sentinel, 노트·템플릿, Obsidian 설정, 플러그인, 실제 Vault mutation command, LLM 및 background worker는 아직 구현하지 않았다. `vaultctl blueprint validate`는 JSON Schema + S03A/S03B semantic을, `vaultctl schema export --check`는 control generated artifact zero-diff를 각각 read-only 검증한다.
+- Git remote와 expected branch 계약, 후속 commit/push, Vault root sentinel, Obsidian 설정, S07 실제 Obsidian restricted-mode smoke, LLM 및 background worker는 아직 구현하지 않았다. `vaultctl blueprint validate`는 JSON Schema + S03A/S03B semantic을, `vaultctl schema export --check`는 현재 `portable_core` generated artifact zero-diff를, `vaultctl note validate`는 개별 Markdown note contract를, S06 compiler/evaluator와 S07 portable fixture test는 Base/dashboard 및 통합 fixture를 각각 검증한다.
 - 실제 구현은 [다중 세션 구현 계획](docs/IMPLEMENTATION_PLAN.md)의 acceptance gate에 따라 진행한다.
 
 단계 이름은 두 기준 문서에서 다르게 사용된다. 현재 상태는 다음처럼 해석한다.
 
 - Blueprint §36의 `Phase 0: inventory`: 빈 target의 충돌 검사는 완료했지만 device·remote·sync를 포함한 전체 preflight는 미완료
 - Whitepaper §36의 `Phase 1: repository scaffold`: 독립 local Git 초기화를 포함한 기반 완료
-- Blueprint §36의 `Phase 1: portable Vault`: contract validation과 generated artifact gate 완료; S04에서 note schema와 Property Dictionary의 production Vault 배포를 시작
+- Blueprint §36의 `Phase 1: portable Vault`: S06 Base/dashboard와 S07 fixed fixture/portable contract gate까지 완료; 실제 restricted-mode 앱 smoke가 남아 있으므로 Phase 1 전체 완료로 부르지 않음
 
 따라서 이 저장소를 “사용 가능한 Vault” 또는 “Phase 1 전체 완료”라고 부르면 안 된다.
 
@@ -64,13 +71,15 @@ KnowledgeOS는 메모를 많이 쌓는 저장소가 아니라, 다음 세 질문
 make verify
 make source-check
 make blueprint-check
+make schema-export
 make schema-check
 ```
 
 - `make verify`: 고정 경로, 설계 산출물 hash, 금지된 literal placeholder와 symlink를 검사한다. Git이 초기화된 뒤에는 두 root와 control ignore 경계도 검사한다.
 - `make source-check`: 고정한 설계 패키지의 원래 checksum manifest를 다시 검사한다.
 - `make blueprint-check`: S01 container에서 canonical `blueprint.yaml`을 Draft 2020-12 JSON Schema와 S03A/S03B semantic gate로 read-only 검증한다.
-- `make schema-check`: S03C ownership contract에 등록된 현재 소유 artifact만 `vaultctl schema export --check`로 byte-for-byte 검증하고, 뒤 세션 산출물은 `NOT_APPLICABLE_FOR_PROFILE`로 보고한다. 이 명령은 `vault/`와 `runtime/`을 수정하지 않는다.
+- `make schema-export`: Blueprint 검증 뒤 현재 profile이 소유한 control artifact와 검증된 `vault/99_System/Schemas/Property_Dictionary.md`를 생성한다. 사용자 Vault 파일과 differing deployed copy는 덮어쓰지 않는다.
+- `make schema-check`: 현재 `portable_core`가 소유한 artifact만 `vaultctl schema export --check`로 byte-for-byte 검증하고, 뒤 세션 산출물은 `NOT_APPLICABLE_FOR_PROFILE`로 보고한다. 이 명령은 `vault/`와 `runtime/`을 수정하지 않는다.
 
 ## 변하지 않는 원칙
 
@@ -84,6 +93,6 @@ make schema-check
 
 ## 다음 구현 단위
 
-다음 기본 세션은 [구현 계획의 `S04`](docs/IMPLEMENTATION_PLAN.md)이다. S03C의 생성 policy/schema를 사용해 duplicate-key-safe frontmatter parser, schema-aware writer, note schema와 Property Dictionary의 production Vault 배포를 구현한다.
+다음 진입은 [구현 계획의 `S07`](docs/IMPLEMENTATION_PLAN.md) 계속 작업이다. fixed input/expected Vault와 hash/mtime/golden-byte gate는 닫혔고, 남은 exit gate는 disposable test Vault를 실제 Obsidian에서 Home/Bases/Daily와 plugin-free fallback으로 여는 restricted-mode smoke다. 2026-09-09에는 CUA의 Obsidian 사용 승인이 없어 앱 증거를 만들지 못했다.
 
 실제 remote URL, expected branch, Vault UUID가 확정되기 전에는 `.knowledgeos-root.json`을 만들지 않는다.

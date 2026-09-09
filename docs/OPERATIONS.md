@@ -9,7 +9,7 @@ make source-check   # 현재 foundation: host built-in으로 고정한 설계 �
 make verify         # 현재 foundation: host built-in foundation acceptance
 ```
 
-`make verify`는 현재 고정 namespace와 설계 원본의 bootstrap 무결성을 확인하고 generated validator가 사용 가능함을 보고한다. JSON Schema와 S03A/S03B semantic gate는 `make blueprint-check`가, S03C ownership/zero-diff는 `make schema-check`가 수행한다. 두 검사는 모두 production Vault를 수정하지 않는다.
+`make verify`는 현재 고정 namespace와 설계 원본의 bootstrap 무결성을 확인하고 generated validator가 사용 가능함을 보고한다. JSON Schema와 S03A/S03B semantic gate는 `make blueprint-check`가, S04 `portable_core` ownership/zero-diff는 `make schema-check`가 수행한다. S06 Base/dashboard는 `vaultops.base_dashboard` compiler와 frozen evaluator test가 소유하며 schema-export ownership profile에는 포함하지 않는다. `make schema-export`만 명시된 schema/Property Dictionary 배포본을 생성하며, 두 검사는 production Vault를 수정하지 않는다.
 
 `S01` 이후 일상적인 canonical 경로는 `make container-source-check`, `make container-verify`, `make test`, `make vaultctl`로 전환한다. 기존 `make source-check`/`make verify`는 추가 설치가 필요 없는 bootstrap 진단으로 계속 보존한다.
 
@@ -21,11 +21,17 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 - container: Python/`uv`, locked dependency, `vaultctl`, worker, test/lint, projection, retrieval, synthetic Git
 - bind mount: control root, 독립 `vault/`, durable `runtime/`
 - named volume: uv/build cache만 Colima 내부에 보관; receipt·queue·journal은 bind mount에 보존
-- 기본 실행: `make test`, `make vaultctl`, `make worker`, `make blueprint-check`, `make schema-check`가 Compose wrapper를 호출
+- 기본 실행: `make test`, `make vaultctl`, `make worker`, `make blueprint-check`, `make schema-export`, `make schema-check`가 Compose wrapper를 호출
 - 기본 격리: Docker socket, host secret/keychain, SSH agent, provider network는 비활성
 - `mise`: host Python/`uv`/필요 시 Node의 버전 shim을 관리하는 선택적 도구. `mise.toml`과 image version parity를 확인하고 global `pip`/`npm` 설치는 사용하지 않는다.
 
-호스트에서 직접 실행한 결과도 진단용으로는 허용하지만, 세션의 canonical acceptance evidence에는 image digest, container command, mount profile을 남긴다. Obsidian GUI, device/Working Copy, `plutil`, `launchctl`은 container로 대체할 수 없는 별도 macOS/device smoke 예외다. LaunchAgent도 host wrapper만 실행하고 실제 worker는 container에서 실행한다.
+호스트에서 직접 실행한 결과도 진단용으로는 허용하지만, 세션의 canonical acceptance evidence에는 image digest, container command, mount profile을 남긴다. 현재 Codex 실행 세션의 직접 접근 허용 범위는 Codex 앱, 이 workspace, Colima/Docker 개발 환경으로 한정한다. Obsidian GUI, 브라우저, Finder, Mail, Calendar, Slack, Teams, Working Copy, Shortcuts, `plutil`, `launchctl`과 같은 외부 앱·connector에는 직접 접근하지 않는다. 해당 smoke가 필요하면 필요한 앱·행동·범위를 사용자에게 확인할 수 있도록 남기고, 사용자 확인 전에는 CUA·앱 CLI·AppleScript·connector를 호출하지 않는다.
+
+### Host UID/GID와 bind mount
+
+`Makefile`은 실행 시점의 `id -u`와 `id -g`를 `KNOWLEDGEOS_UID`/`KNOWLEDGEOS_GID`로 export한다. `ops/compose.yaml`은 이 두 값이 없으면 `1000:1000`으로 fallback하지 않고 즉시 실패하며, disposable uv cache의 tmpfs mount option과 container `user`에도 동일한 값을 사용한다. `ops/Dockerfile`도 UID/GID 기본값을 갖지 않고 숫자형 non-root UID를 요구한다.
+
+2026-09-09 실제 실행에서 macOS 계정은 `501:20`이었지만 직접 Compose 경로의 `1000:1000` fallback이 남아 있어 bind mount/cache permission 오류가 드러났다. cache volume은 삭제·재생성하지 않았고, 이후 canonical Compose 검증은 `KNOWLEDGEOS_UID=501 KNOWLEDGEOS_GID=20`을 명시해 통과했다. 후속 세션은 `make`를 우선 사용하고, 직접 Compose를 호출할 때도 현재 호스트 숫자형 UID/GID를 명시한다.
 
 ## 단계별 gate
 
@@ -34,7 +40,7 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 | Inventory | 기존 Vault, Git, sync, property, plugin 조사 | target read-only 접근 | 빈 target 확인 완료; device·remote·sync 전체 preflight 미완료 |
 | Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 두 독립 local `main` repository와 initial commit까지 완료; remote 없음 |
 | Blueprint contract | JSON Schema, S03A/S03B semantic gate, generated ownership/zero-diff | `make blueprint-check`, `make schema-check`, negative mutation fixture | S03C 완료 |
-| Portable Vault | schema, 16 templates, 8 Bases, Home/Mobile, fixture | containerized blueprint full validation 도구 | 미착수 |
+| Portable Vault | strict note schema, Property Dictionary, 16 templates, create-only project/period workflow, 8 Bases/Home/Mobile, S07 fixed integration fixture | S04-S07 offline contract와 containerized validation | S07 fixture/contract PASS; 실제 Obsidian restricted-mode smoke blocked |
 | Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | 미착수 |
 | Mac plugin profile | Core + 최소 community plugins | 실제 Obsidian smoke 가능 | 미착수 |
 | `vaultctl` non-LLM | doctor, create, period, ingest, reconcile | container image와 path/schema/transaction tests | 미착수 |
@@ -67,12 +73,34 @@ notes:   KnowledgeOS/vault/.git
 1. 고정 blueprint를 JSON Schema와 cross-validator로 검증한다.
 2. common Properties와 type registry를 기계 판독 schema로 생성한다.
 3. 16개 template sample을 만든 뒤 모두 note schema로 검사한다.
-4. 8개 Base와 Home, Mobile, Tasks, Weekly Review를 생성한다.
-5. project bundle create/archive와 capture finalize를 transaction fixture로 검증한다.
-6. plugin-free restricted mode에서 Markdown과 핵심 link가 읽히는지 확인한다.
-7. 실제 Obsidian 설치본이 있을 때만 Base, CLI, config 형식을 smoke test한다.
+4. `bootstrap --dry-run` exact path를 검토한 뒤 누락 template/directory만 additive 생성한다.
+5. project root와 `Working`/`Artifacts` sibling을 create-only transaction으로 만들고, Daily/Weekly/Monthly period target을 결정론적으로 생성한다.
+6. 8개 Base와 Home, Mobile, Tasks, Weekly Review를 생성한다.
+7. S07 fixed input/expected Vault와 hash/mtime manifest, archive/capture-finalize/asset-provenance golden bytes를 read-only로 검증한다.
+8. project bundle create/archive와 capture finalize의 실제 mutation writer는 후속 S13C에서 구현하고, S07은 expected bytes만 고정한다.
+9. plugin-free restricted mode에서 Markdown과 핵심 link가 읽히는지 확인한다.
+10. 실제 Obsidian 설치본이 있고 UI 권한이 허용될 때만 Base, Home, Daily와 config 형식을 smoke test한다.
+
+## S06 Base/dashboard gate
+
+S06 정적 `.base`와 dashboard Markdown은 Blueprint 선언에서 파생되지만 S04 `schema-export` artifact가 아니다. 따라서 다음 두 검증을 함께 기록한다.
+
+- `make test`: `test_s06_dashboard.py`가 8개 Base의 compiler exact match, frozen fixture limit/order, `file.mtime` freshness, dashboard source bytes, bootstrap no-overwrite를 확인한다.
+- `make blueprint-check`와 `make schema-check`: Blueprint semantic contract와 기존 `portable_core` generated artifact zero-diff를 각각 확인한다. `schema-check`의 PASS 또는 `generated_artifact_validation` 상태를 S06 Base/dashboard 배포 완료로 확대 해석하지 않는다.
 
 빈 template, 빈 `.base`, 추측한 plugin JSON을 “구현됨” 표시용으로 먼저 만들지 않는다.
+
+## S07 fixed fixture gate
+
+`ops/tests/fixtures/s07_portable_vault/guestbook-horror/`는 S06 surface 위에서 portable local Vault의 offline evidence를 고정한다. `portable_fixture`는 다음 순서로 동작한다.
+
+1. manifest의 exact file set과 SHA-256을 확인한다.
+2. materialized copy에서만 fixed mtime을 적용하고, checked-in source의 checkout mtime을 신뢰하지 않는다.
+3. NoteEngine으로 note type/path/property/relation을 검증하고, fixture 전체 ID 중복과 wikilink heading/block locator를 확인한다.
+4. S06 Base evaluator로 `Home` 소비자에 해당하는 canonical view 결과가 expected path와 같은지 확인한다.
+5. expected archive/finalize/provenance bytes를 별도 tree로 검사한다. 이 tree는 mutation command나 receipt가 아니다.
+
+negative fixture는 invalid relation, duplicate ID, missing locator를 각각 fail closed한다. actual app smoke는 disposable Vault에서만 시도하며 workspace `vault/`에 `.obsidian-*`, `.vault-bridge`, sentinel 또는 plugin 파일을 만들지 않는다. 2026-09-09에는 CUA Obsidian approval이 없어 해당 evidence를 실행하지 못했고, S07 전체 상태는 blocked로 유지한다.
 
 ## 별도 사용자 입력이 필요한 값
 
@@ -94,8 +122,8 @@ notes:   KnowledgeOS/vault/.git
 2. `make verify`
 3. `S01` 이후에는 `make container-source-check`, `make container-verify`를 canonical container surface에서 실행
 4. S02 이후에는 `make blueprint-check`와 변경한 unit/negative fixture를 실행
-5. S03C 이후에는 `make schema-check`를 실행
+5. S03C 이후에는 `make schema-check`를 실행하고, artifact 소유가 바뀐 세션은 먼저 `make schema-export`를 실행
 6. 두 repository의 `git status --short --branch`
-7. 해당 단계에서만 필요한 실제 앱·device smoke
+7. 해당 단계에서만 필요한 실제 앱·device smoke는 사용자에게 가능 여부와 정확한 범위를 먼저 확인한 뒤 별도 사용자 작업으로 남김
 
-Obsidian/Working Copy/plugin/Codex CLI 세부 동작은 변할 수 있으므로 해당 단계에서 공식 문서와 실제 설치본을 다시 확인한다.
+Obsidian/Working Copy/plugin/Codex CLI 세부 동작은 변할 수 있으므로 해당 단계에서 공식 문서와 실제 설치본을 다시 확인한다. 단, 현재 Codex 실행 세션은 외부 애플리케이션을 직접 열거나 조작하지 않으며, 사용자가 별도 수행 가능 여부를 확인한 뒤에만 다음 작업으로 분리한다.

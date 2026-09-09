@@ -151,7 +151,7 @@ done
 foundation_bad_runtime_files=$(find runtime -type f ! -perm 600 -print)
 [ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
-foundation_manifest_expected='c5b2ce4408337a5bda9b8dc686c49c3e8df2b331a6a15f06efa3d15427fe896e'
+foundation_manifest_expected='a3b458bcf10dbf525ed59fd76ae8e5e814ecadea8a7a6035cb53416a458c0322'
 foundation_manifest_actual=$(shasum -a 256 blueprint/CHECKSUMS.sha256 | awk '{print $1}')
 [ "$foundation_manifest_actual" = "$foundation_manifest_expected" ] || foundation_fail "checksum manifest hash mismatch: expected=$foundation_manifest_expected actual=$foundation_manifest_actual"
 
@@ -194,4 +194,4 @@ fi
 printf '%s\n' 'Foundation checksum/path checks: PASS'
 printf '%s\n' 'Blueprint JSON Schema validation: AVAILABLE via make blueprint-check'
 printf '%s\n' 'Cross-document semantic validation: AVAILABLE via make blueprint-check (S03A-S03B gates)'
-printf '%s\n' 'Generated artifact zero-diff validation: AVAILABLE via make schema-check (S03C)'
+printf '%s\n' 'Generated artifact zero-diff validation: AVAILABLE via make schema-check (S03C-S04)'

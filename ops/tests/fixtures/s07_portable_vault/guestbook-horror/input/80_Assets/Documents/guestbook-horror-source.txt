@@ -1,0 +1,2 @@
+KnowledgeOS S07 synthetic source asset.
+The bytes are intentionally small and non-executable.

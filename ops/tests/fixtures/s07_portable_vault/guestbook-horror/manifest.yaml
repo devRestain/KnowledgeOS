@@ -1,0 +1,117 @@
+schema_version: 1
+fixture: guestbook-horror
+purpose: S07 portable local Vault exit gate
+today: 2026-09-09
+timezone: Asia/Seoul
+input:
+  root: input
+  note_paths:
+    - 00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md
+    - 10_Journal/Daily/2026/2026-09-09.md
+    - 20_Projects/guestbook-horror/guestbook-horror.md
+    - 20_Projects/guestbook-horror/Working/guestbook-horror MOC.md
+    - 20_Projects/guestbook-horror/Working/플레이 루프 후보.md
+    - 20_Projects/guestbook-horror/Artifacts/Guestbook Horror Spec.md
+    - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+    - 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
+    - 40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md
+    - 40_Knowledge/Sources/Guestbook Horror Design Note.md
+  files:
+    - path: 00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md
+      sha256: 0c867595d5298195f4a72ee25961020479e7b4f83d39f93b41ae961807bd3266
+      mtime: 1788915600
+    - path: 10_Journal/Daily/2026/2026-09-09.md
+      sha256: 8ed7bcab3cc0bbb323461fe2f6463116f8f40213cce7c69f0b48ed3455b6e77f
+      mtime: 1788912000
+    - path: 20_Projects/guestbook-horror/Artifacts/Guestbook Horror Spec.md
+      sha256: 80a27ed4fb3943fc4679aad363e234a8fbf60a826bb37c904bac6fe0a5016e4d
+      mtime: 1788921000
+    - path: 20_Projects/guestbook-horror/Working/guestbook-horror MOC.md
+      sha256: 724f8e1b29acb2c672e6b8fb0b4e19027504ccfda4f00a8057629be8b868f503
+      mtime: 1788920400
+    - path: 20_Projects/guestbook-horror/Working/플레이 루프 후보.md
+      sha256: 4626b5357f7f18a1a40066b38436059b94b0b10cf59a3c5c50efa828f3ae47e3
+      mtime: 1788919800
+    - path: 20_Projects/guestbook-horror/guestbook-horror.md
+      sha256: 10de10dff53ce787812ea98418552586b791552f69971ff5e17ff52de52ad96c
+      mtime: 1788919200
+    - path: 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+      sha256: 2934a2ebcc76cdf8bce27ed4a9c10c6cb2375dcfdafa99c3da897f03df8f8756
+      mtime: 1788916200
+    - path: 40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md
+      sha256: 09e078ef4bb38f6c687d745e0fa24937e7bb226ca2396e9695d985a75562645a
+      mtime: 1788917400
+    - path: 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
+      sha256: df2be2a6bd11a261a83ad8671c3e804a2da1939ee98d8a062fa1f8d84dda6486
+      mtime: 1788916800
+    - path: 40_Knowledge/Sources/Guestbook Horror Design Note.md
+      sha256: 0e51443a1df8244cf114dec98cd7cb48a065151aa26a0ceac1921e00aace5caa
+      mtime: 1788918000
+    - path: 80_Assets/Documents/guestbook-horror-source.txt
+      sha256: c1b1c3844dec875ccbedaa656bda2f0d084812ad8cf97dc8d5851f9b96f07b48
+      mtime: 1788918001
+expected:
+  root: expected
+  note_paths:
+    - 40_Knowledge/Sources/Guestbook Horror Design Note.md
+    - 90_Archive/Captures/2026/20260909-090000-mac-deadbeef.md
+    - 90_Archive/Projects/2026/guestbook-horror/guestbook-horror.md
+    - 90_Archive/Projects/2026/guestbook-horror/Working/guestbook-horror MOC.md
+    - 90_Archive/Projects/2026/guestbook-horror/Working/플레이 루프 후보.md
+    - 90_Archive/Projects/2026/guestbook-horror/Artifacts/Guestbook Horror Spec.md
+  files:
+    - path: 40_Knowledge/Sources/Guestbook Horror Design Note.md
+      sha256: d6d1cf529e978ab4b4d758571449d8a474e3a53fcdf4310cf27e3cb75a607102
+      mtime: 1788923400
+    - path: 80_Assets/Documents/guestbook-horror-source.txt
+      sha256: c1b1c3844dec875ccbedaa656bda2f0d084812ad8cf97dc8d5851f9b96f07b48
+      mtime: 1788923401
+    - path: 90_Archive/Captures/2026/20260909-090000-mac-deadbeef.md
+      sha256: e7bb9c6b84e701f6a1513b2037ba7405b6dc766e0ba864af819de9b15a5c7e4c
+      mtime: 1788923700
+    - path: 90_Archive/Projects/2026/guestbook-horror/Artifacts/Guestbook Horror Spec.md
+      sha256: c15777ed1e79a5fced1ab8fec635e00f2da44bca6d0137d59ba75768df56bdf6
+      mtime: 1788922800
+    - path: 90_Archive/Projects/2026/guestbook-horror/Working/guestbook-horror MOC.md
+      sha256: d96c19ad4698002153909d208d33662e61d7d51b7655840561f82d0b1a29863e
+      mtime: 1788922801
+    - path: 90_Archive/Projects/2026/guestbook-horror/Working/플레이 루프 후보.md
+      sha256: 5e3bf469ae059225d2af4c0218676e80e02f25a1add8a2c2bd327fad547fdcc9
+      mtime: 1788922802
+    - path: 90_Archive/Projects/2026/guestbook-horror/guestbook-horror.md
+      sha256: 24a7ddc7bf66f62b408ef42a12637e71a871ca93867379a46403e00898dc1cbb
+      mtime: 1788922803
+queries:
+  - base: Journal.base
+    view: Today Focus
+    expected_paths:
+      - 10_Journal/Daily/2026/2026-09-09.md
+  - base: Projects.base
+    view: Now
+    expected_paths:
+      - 20_Projects/guestbook-horror/guestbook-horror.md
+  - base: Projects.base
+    view: Next Actions
+    expected_paths:
+      - 20_Projects/guestbook-horror/guestbook-horror.md
+  - base: Decisions.base
+    view: Open
+    expected_paths:
+      - 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
+  - base: Ideas.base
+    view: Incubating
+    expected_paths:
+      - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+  - base: Knowledge.base
+    view: Radar
+    expected_paths:
+      - 40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md
+      - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+  - base: Inbox.base
+    view: Unprocessed
+    expected_paths:
+      - 00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md
+  - base: Sources.base
+    view: Reading queue
+    expected_paths:
+      - 40_Knowledge/Sources/Guestbook Horror Design Note.md

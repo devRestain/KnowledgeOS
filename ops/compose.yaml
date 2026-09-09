@@ -4,10 +4,10 @@ services:
       context: ..
       dockerfile: ops/Dockerfile
       args:
-        KNOWLEDGEOS_UID: ${KNOWLEDGEOS_UID:-1000}
-        KNOWLEDGEOS_GID: ${KNOWLEDGEOS_GID:-1000}
+        KNOWLEDGEOS_UID: ${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make}
+        KNOWLEDGEOS_GID: ${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make}
         UV_VERSION: ${KNOWLEDGEOS_UV_VERSION:-0.8.14}
-    user: "${KNOWLEDGEOS_UID:-1000}:${KNOWLEDGEOS_GID:-1000}"
+    user: "${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make}:${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make}"
     working_dir: /workspace/control/ops
     environment:
       HOME: /home/vaultops
@@ -27,4 +27,4 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs
-      o: "uid=${KNOWLEDGEOS_UID:-1000},gid=${KNOWLEDGEOS_GID:-1000},mode=0700"
+      o: "uid=${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make},gid=${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make},mode=0700"

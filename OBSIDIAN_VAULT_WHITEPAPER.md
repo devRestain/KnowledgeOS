@@ -1,14 +1,33 @@
 # MacBook Air용 Obsidian Vault와 LLM 자동화 기술 부속서
 
-> 문서 상태: Technical Annex  
-> 문서 버전: 1.2.0  
-> 기준일: 2026-09-07  
+> 문서 상태: Technical Annex
+> 문서 버전: 1.3.0
+> 기준일: 2026-09-09
 > 대상 독자: Vault 소유자, 구현을 수행할 Codex, 향후 유지보수자  
 > 기본 시간대: Asia/Seoul  
 > 검증 기준 Obsidian 버전: Desktop 1.13.7 public 이상  
 > 최상위 구현 기준: `OBSIDIAN_VAULT_BLUEPRINT.md`와 `blueprint/blueprint.yaml`
 
 이 문서는 해시 검증, 원자적 쓰기, 승인, receipt, plugin 감사, Codex 격리 실행, launchd 같은 저수준 구현을 정의하는 기술 부속서다. 사용자 경험, 노트 type, Home/Mobile, Working Copy Git topology, bridge, JSONL/Hybrid RAG가 이 문서와 최상위 청사진에서 충돌하면 최상위 청사진을 따른다. 구현 Codex는 이 파일만 단독 입력으로 사용하면 안 된다.
+
+## 구현 정합성 snapshot (2026-09-09)
+
+이 snapshot은 현재 `KnowledgeOS` checkout에서 실제로 확인된 구조와 capability를 기록한다. 아래 Part I–IV의 상세 명세 중 이 snapshot에 `미구현`으로 표시된 항목은 최종 설계 목표이지 현재 구현 완료를 뜻하지 않는다. 현재 상태와 세션 범위의 판단은 `README.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/IMPLEMENTATION_PLAN.md`와 이 snapshot을 함께 사용하며, 설계 명세를 실제 산출물의 존재 증거로 해석하지 않는다.
+
+| 영역 | 현재 실제 구조·capability | 정합성 상태 |
+|---|---|---|
+| control workspace | `AGENTS.md`, `README.md`, `docs/`, `blueprint/`, `Makefile`, `ops/`와 독립 control Git root | 구현됨 |
+| 개발 runtime | Python `3.12.8` / uv `0.8.14` pinned image, Colima/Docker Compose, non-root bind mount, `runtime/` durable namespace, host 숫자형 UID/GID 전달 | 구현됨; `501:20` 권한 이슈와 fail-closed 설정은 §19.1에 기록 |
+| Blueprint gates | `vaultctl blueprint validate`, Draft 2020-12 JSON Schema, S03A/S03B semantic gate, S03C–S04 owned artifact zero-diff | 구현됨; schema·semantic·generated gate는 별도 보고 |
+| note/template workflow | `NoteEngine`, strict note schema, 16 template, additive `bootstrap`, create-only project bundle, Daily/Weekly/Monthly renderer | 구현됨 |
+| Base/dashboard | 8개 `.base`, 14개 view, Home/Mobile/Tasks/Weekly Review, CSS/plain-Markdown fallback, frozen evaluator | 구현됨; 실제 Obsidian 렌더링은 미실행 |
+| S07 portable evidence | `guestbook-horror` fixed input/expected/negative fixture, SHA-256/mtime manifest, golden bytes, read-only validator와 disposable materializer | 오프라인 gate 구현됨; 실제 앱 gate blocked |
+| 현재 Vault 산출물 | 독립 `vault/.git`, 고정 namespace, S05 template와 S06 Base/dashboard/navigation artifact, `Property_Dictionary.md`, `Home.md`, `Mobile.md` | 실제 존재 |
+| 의도적으로 없는 산출물 | `.knowledgeos-root.json`, bridge protocol/response 파일, `.obsidian-*` 내부 설정, QuickAdd/plugin 설정, AI/job/proposal/receipt/projection schema, launchd plist, remote/device 설정 | 미구현·미활성 |
+| 현재 CLI surface | `version`, `bootstrap`, `project create`, `period create`, `doctor`, `foundation`, `blueprint`, `schema export`, `note validate`, `yaml` | 구현됨; 백서의 후속 명령 표에는 미구현 명령이 포함됨 |
+| Codex 실행 세션의 직접 접근 | Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container만 허용 | 외부 앱 직접 접근 금지 |
+
+현재 `vault/.obsidian-mac`, `vault/.obsidian-phone`, `vault/.obsidian-tablet`와 `vault/.vault-bridge/{protocol,requests,responses}`는 foundation namespace를 위한 빈 디렉터리일 뿐 내부 설정·protocol 파일이 아니다. 실제 S07 fixture는 control repository의 `ops/tests/fixtures/`에 보관되며 production `vault/`에 복사되지 않는다. `vault/`와 `runtime/`은 이 세션의 백서 정합성 확인에서도 사용자 데이터·durable state 경계로 보존한다.
 
 상위 blueprint가 이 부속서의 범용 예시를 치환하는 핵심 mapping은 다음과 같다.
 
@@ -89,6 +108,8 @@ KnowledgeOS/                # Mac의 Codex control workspace와 control Git root
 
 원시 shell 명령으로 기존 Markdown을 직접 덮어쓰거나 이동하는 것은 금지한다. 링크를 바꾸는 move/rename은 공식 Obsidian CLI를 우선한다. 앱이 없을 때 기존 파일을 바꿔야 한다면 hash 검증과 원자적 교체를 구현한 vaultops apply만 사용한다.
 
+위 표는 최종 설계에서의 writer ownership이다. 현재 구현은 `vaultops`의 검증·schema export·note validate·additive bootstrap·create-only project/period workflow와 S06/S07 offline gate까지만 제공하며, Obsidian CLI bridge, `capture finalize`, `asset import`, `vaultops apply`, AI worker, bridge publisher는 아직 제공하지 않는다. 또한 Codex 실행 세션은 이 설계 경로를 자동으로 실행하지 않는다. Obsidian·브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 등 외부 애플리케이션이 필요한 작업은 사용자에게 앱·행동·범위의 가능 여부를 확인할 수 있도록 남기며, 확인 전에는 직접 열거나 읽거나 쓰지 않는다.
+
 ## 2. 설계 목표와 비목표
 
 ### 2.1 목표
@@ -115,7 +136,7 @@ KnowledgeOS/                # Mac의 Codex control workspace와 control Git root
 
 ## 3. 전체 디렉터리 명세
 
-아래 트리는 Codex가 최초 구현 시 생성해야 하는 기준 구조다. Git이 빈 directory를 보존하지 않으므로 fresh clone 뒤 vaultctl bootstrap이 빈 directory를 재생성한다. Obsidian 탐색기를 흐리는 filler README나 placeholder note는 만들지 않는다.
+아래 트리는 현재 checkout의 실제 파일 목록이 아니라 최종 target structure와 단계별 생성 계약이다. 현재 구현 snapshot은 문서 상단의 표를 우선한다. Git이 빈 directory를 보존하지 않으므로 fresh clone 뒤 vaultctl bootstrap이 해당 단계에서 소유한 누락 directory를 재생성한다. Obsidian 탐색기를 흐리는 filler README나 placeholder note는 만들지 않는다. 따라서 이 트리에 보이는 sentinel, bridge protocol, `.obsidian-*` 내부 파일, 후속 schema·action·worker·launchd 파일은 현재 구현의 존재를 주장하지 않는다.
 
 ~~~text
 KnowledgeOS/
@@ -2537,6 +2558,12 @@ Source/Knowledge → evidence locator + hash → REQ-ID
 
 MacBook Air에서는 상시 LLM watcher보다 queue가 생길 때만 깨는 worker와 하루 한 번 reconciliation을 기본으로 한다. CPU·배터리·절전 상태에 유리하고 중복 이벤트도 줄인다.
 
+현재 구현의 canonical 개발 runtime은 위의 generic macOS 경로보다 구체적으로 고정되어 있다. `make`가 `docker compose -f ops/compose.yaml`을 호출하고, `KNOWLEDGEOS_UID ?= $(shell id -u)`와 `KNOWLEDGEOS_GID ?= $(shell id -g)`를 export한다. Compose bind mount, container `user`, Colima 내부 disposable uv cache tmpfs는 이 동일한 숫자형 host identity를 사용해야 한다.
+
+2026-09-09 실제 실행에서 macOS 계정은 `501:20`이었다. 기존 Compose의 `1000:1000` fallback은 host bind mount/cache 소유권과 어긋나 permission 오류를 만들었다. 현재 설정은 `1000:1000`을 fallback으로 사용하지 않고 UID/GID가 없으면 fail closed하며, Dockerfile도 UID/GID 기본값 없이 숫자형 non-root 값을 요구한다. 이 변경은 다른 사용자에게 `501:20`을 하드코딩하는 것이 아니라 각 실행 host의 `id -u`/`id -g`를 재사용하는 계약이다. cache 삭제·재생성이나 production Vault 권한 변경은 해결책으로 간주하지 않는다.
+
+Codex 실행 세션의 직접 접근 범위는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container로 제한한다. Obsidian, 브라우저, Finder, Mail, Calendar, Slack, Teams, Working Copy, Shortcuts, `plutil`, `launchctl`과 기타 외부 애플리케이션은 이 세션에서 직접 열거나 조작하지 않는다. 실제 앱·device smoke가 필요하면 사용자에게 가능 여부와 정확한 범위를 확인할 수 있도록 별도 작업으로 남긴다.
+
 ### 19.2 pyproject.toml 최소 계약
 
 ~~~toml
@@ -2868,6 +2895,8 @@ marker 밖의 사람 문장은 replace operation이라도 byte-for-byte 보존�
 ## 22. vaultctl 명령 계약
 
 모든 명령은 project root를 자동 탐색하되 --root로 명시할 수 있어야 한다. 성공은 exit 0, 정책 거부는 20번대, 충돌은 30번대, 외부 도구 실패는 40번대, 내부 오류는 70을 사용한다.
+
+아래 표는 전체 target CLI contract다. 현재 제공되는 명령은 위의 구현 snapshot과 실제 `ops/src/vaultops/cli.py`를 기준으로 하며, 표에만 선언되고 snapshot의 current CLI surface에 없는 명령은 후속 구현 단계의 요구사항이다. 선언된 명령을 현재 구현되었다고 추정하거나, 외부 앱·Git·remote 작업의 실행 권한으로 해석하지 않는다.
 
 아래 namespace가 유일한 canonical CLI다. 초기 초안의 flat `queue`, `worker`, `review`, `approve`, `apply` spelling은 호환 alias로도 만들지 않는다. 본문·질문·사유·comment처럼 민감할 수 있는 문자열은 argv로 받지 않고 stdin 또는 검증된 file descriptor/path로만 받는다.
 
