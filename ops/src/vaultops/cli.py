@@ -14,6 +14,7 @@ from . import __version__
 from .blueprint import validate_blueprint
 from .foundation import check_foundation, check_source_manifest
 from .runtime import RuntimeLayout
+from .schema_export import export_schema_artifacts
 from .yaml_safe import load_yaml_file
 
 
@@ -50,6 +51,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate blueprint.yaml with the Draft 2020-12 JSON Schema",
     )
     blueprint_validate.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    schema = commands.add_parser("schema", help="export and verify owned control artifacts")
+    schema_commands = schema.add_subparsers(dest="schema_command", required=True)
+    schema_export = schema_commands.add_parser(
+        "export",
+        help="generate owned policies and trusted schema copies",
+    )
+    schema_export.add_argument("--check", action="store_true", help="check byte-for-byte zero-diff without writing")
+    schema_export.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
@@ -106,12 +116,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "blueprint":
         if args.blueprint_command == "status":
-            print("capability_profile=blueprint_semantic_gate2")
+            print("capability_profile=contract_validated")
             print("blueprint_json_schema=implemented:S02")
             print("cross_document_validation=implemented:S03A-S03B")
-            print("generated_zero_diff=deferred:S03C")
+            print("generated_zero_diff=implemented:S03C (vaultctl schema export --check)")
             return 0
         result = validate_blueprint(args.root or _control_root())
+        print(result.as_json(), end="")
+        return result.exit_code
+    if args.command == "schema":
+        result = export_schema_artifacts(args.root or _control_root(), check=args.check)
         print(result.as_json(), end="")
         return result.exit_code
     if args.command == "yaml":

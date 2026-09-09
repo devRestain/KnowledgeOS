@@ -1,0 +1,117 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+artifact_kind: path_policy
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /path_namespaces
+  - /path_match_semantics
+  - /fixed_paths
+  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+paths:
+  namespaces:
+    obsidian_working_copy_bridge: vault_relative_posix
+    control_jobs_and_policies: control_root_relative_posix_with_vault_prefix
+    runtime_artifacts: runtime_relative_posix
+    bridge_ingest_records_both: true
+  match_semantics: gitwildmatch_with_nfc_and_casefold_collision_checks
+  fixed:
+    vault:
+    - .knowledgeos-root.json
+    - Home.md
+    - Mobile.md
+    - 00_Inbox/Captures
+    - 00_Inbox/Imports
+    - 01_AI_Review/Pending
+    - 01_AI_Review/Resolved
+    - 01_AI_Review/Rejected
+    - 01_AI_Review/Expired
+    - 01_AI_Review/Conflict
+    - 10_Journal/Daily
+    - 10_Journal/Weekly
+    - 10_Journal/Monthly
+    - 20_Projects
+    - 30_Areas
+    - 40_Knowledge/Notes
+    - 40_Knowledge/Ideas
+    - 40_Knowledge/Questions
+    - 40_Knowledge/Sources
+    - 40_Knowledge/People
+    - 50_Maps
+    - 60_Meetings
+    - 80_Assets/Inbox
+    - 80_Assets/Images
+    - 80_Assets/Documents
+    - 80_Assets/Audio
+    - 90_Archive/Projects
+    - 90_Archive/Captures
+    - 90_Archive/Other
+    - 99_System/Templates
+    - 99_System/Bases
+    - 99_System/Dashboards
+    - 99_System/Schemas
+    - 99_System/Scripts/QuickAdd
+    - 99_System/CSS
+    required_vault_files:
+    - .knowledgeos-root.json
+    - .vault-bridge/README.md
+    - Home.md
+    - Mobile.md
+    - 99_System/Templates/T00_Capture.md
+    - 99_System/Templates/T01_AI_Proposal.md
+    - 99_System/Templates/T10_Daily.md
+    - 99_System/Templates/T11_Weekly.md
+    - 99_System/Templates/T12_Monthly.md
+    - 99_System/Templates/T20_Project.md
+    - 99_System/Templates/T21_Idea.md
+    - 99_System/Templates/T22_Question.md
+    - 99_System/Templates/T23_Artifact.md
+    - 99_System/Templates/T24_Project_Note.md
+    - 99_System/Templates/T30_Area.md
+    - 99_System/Templates/T40_Knowledge.md
+    - 99_System/Templates/T41_Source.md
+    - 99_System/Templates/T42_Person.md
+    - 99_System/Templates/T50_MOC.md
+    - 99_System/Templates/T60_Meeting.md
+    - 99_System/Bases/Journal.base
+    - 99_System/Bases/Inbox.base
+    - 99_System/Bases/Projects.base
+    - 99_System/Bases/Decisions.base
+    - 99_System/Bases/Ideas.base
+    - 99_System/Bases/Knowledge.base
+    - 99_System/Bases/Sources.base
+    - 99_System/Bases/Review.base
+    - 99_System/Dashboards/Tasks.md
+    - 99_System/Dashboards/Weekly_Review.md
+    - 99_System/Schemas/Property_Dictionary.md
+    - 99_System/Scripts/QuickAdd/PrepareTitle.js
+    - 99_System/CSS/dashboard.css
+    transport:
+    - .vault-bridge/protocol
+    - .vault-bridge/requests
+    - .vault-bridge/responses
+    device_config_roots:
+    - .obsidian-mac
+    - .obsidian-phone
+    - .obsidian-tablet
+    runtime:
+    - staging
+    - queue
+    - quarantine
+    - awaiting_remote_authorization
+    - running
+    - review
+    - approved
+    - applying
+    - done
+    - rejected
+    - expired
+    - failed
+    - conflict
+    - runs
+    - receipts
+    - locks
+    - index
+    - cache
+    - logs

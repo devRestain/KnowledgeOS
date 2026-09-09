@@ -1,0 +1,39 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+artifact_kind: privacy_policy
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /privacy
+  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+privacy:
+  sensitivity_values:
+  - public
+  - personal
+  - confidential
+  ai_policy_values:
+  - remote_ok
+  - ask
+  - local_only
+  - deny
+  defaults:
+    general:
+      sensitivity: personal
+      ai_policy: ask
+    person:
+      sensitivity: personal
+      ai_policy: deny
+    meeting:
+      sensitivity: personal
+      ai_policy: deny
+  forbidden_combinations:
+  - sensitivity: confidential
+    ai_policy: remote_ok
+  multi_source_rule: every_source_must_pass_and_output_inherits_strictest
+  github_is_separate_remote_boundary: true
+  github_notes_profile:
+    confidential_notes_allowed: false
+    regulated_or_institution_restricted_data_allowed: false
+    working_copy_ai_commit_message: disabled
+    local_only_material_destination: separate_vault

@@ -2,11 +2,11 @@
 
 기준일: 2026-09-09
 
-현재 stage: `s03b_semantic_gate2`
+현재 stage: `s03c_generated_artifact_gate`
 
 canonical contract: `knowledgeos-blueprint-v2`
 execution plan: `docs/IMPLEMENTATION_PLAN.md`
-next session: `S03C — Generated artifact ownership과 zero-diff`
+next session: `S04 — Operational policy, strict schema, note engine`
 
 ## 이전 세션에서 만든 기반
 
@@ -78,6 +78,22 @@ S03A도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 
 S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정하지 않았다.
 
+## S03C 완료
+
+상태: `complete` (2026-09-09)
+
+- `ops/config/generated-artifacts.yaml`: explicit artifact ownership contract. 각 path의 authoritative input/selector, generator, deployed-copy 여부, 최초 capability를 기록하고 executable allowlist와 exact match를 검사
+- `ops/src/vaultops/schema_export.py`: `contract_validated` profile 소유 범위의 deterministic generator와 byte-for-byte `--check`; wildcard/unsafe path, ownership drift, invalid Blueprint에서 fail closed
+- `ops/policies/properties.yaml`, `paths.yaml`, `relations.yaml`, `privacy.yaml`, `retrieval.yaml`: Blueprint-derived control policy 산출물
+- `ops/schemas/blueprint.schema.json`: canonical `blueprint/blueprint.schema.json`의 trusted control copy
+- `ops/expected/Property_Dictionary.md`: 76개 common/registry property의 temporary expected rendering. production Vault 배포는 S04 소유
+- `vaultctl schema export` / `vaultctl schema export --check`와 `make schema-check` 추가
+- 뒤 세션의 note/bridge/job/proposal/projection schema, prompt, action registry는 파일을 만들지 않고 `NOT_APPLICABLE_FOR_PROFILE`로 명시 보고
+- `make verify`가 generated validator를 `AVAILABLE via make schema-check (S03C)`로 보고하도록 갱신
+- test: owned output one-byte mutation, ownership wildcard/drift, deterministic re-run, no Vault/runtime write, future profile N/A negative fixture
+
+S03C도 production `vault/`와 `runtime/`을 생성·수정하지 않았다.
+
 ## 의도적으로 비워 둔 구현
 
 다음 항목은 존재 표시용 빈 파일도 만들지 않았다.
@@ -86,9 +102,9 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 - `Home.md`, `Mobile.md`
 - 16개 note template
 - 8개 Base와 Tasks/Weekly Review
-- Property Dictionary와 note/action/bridge/projection schema
-- `ops/config`, `ops/actions`, `ops/prompts`, `ops/policies`의 실제 계약 파일
-- portable Vault용 `ops/config`, `ops/actions`, `ops/prompts`, `ops/policies` 계약 파일과 실제 mutation command
+- production Property Dictionary와 note/action/bridge/projection schema
+- `ops/actions`, `ops/prompts` 및 뒤 세션이 소유하는 `ops/schemas` 계약 파일
+- portable Vault용 production schema/template/Base/dashboard 파일과 실제 mutation command
 - `.obsidian-*` 내부 앱 설정
 - QuickAdd script와 dashboard CSS
 - plugin 설치와 version lock
@@ -98,7 +114,7 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 ## 환경 관찰
 
 - workspace: 새 빈 디렉터리에서 시작
-- control Git: local `main`, HEAD `ef014b09f215`, remote 없음; 현재 S00/S01/S02/S03A/S03B 작업 변경은 미커밋 상태
+- control Git: local `main`, HEAD `ef014b09f215`, remote 없음; 현재 S00/S01/S02/S03A/S03B/S03C 작업 변경은 미커밋 상태
 - Vault Git: local `main`, HEAD `9a217884f735`, clean, remote 없음
 - OS architecture: `arm64`
 - macOS: `26.6.2`
@@ -119,7 +135,7 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 
 ## 다음 세션
 
-상태: `S03C ready`
+상태: `S04 ready`
 
 범위:
 
@@ -127,6 +143,8 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 - 현재 capability profile이 소유한 property/path/relation/privacy/retrieval registry 및 trusted schema만 생성·검증
 - `vaultctl schema export`와 `--check`, authoritative input/generator/deployed-copy 계약
 - 뒤 세션이 소유하는 note/bridge/job/proposal/projection schema는 `NOT_APPLICABLE_FOR_PROFILE`로 명시
+
+S03C acceptance가 완료되어 다음 세션은 S04로 진행한다. `ops/expected/Property_Dictionary.md`는 production Vault artifact가 아니며, `ops/actions`, `ops/prompts`, 뒤 세션 schema도 여전히 생성하지 않는다.
 
 호스트 Python/`uv`는 선택적 직접 실행 경로로 허용하지만 canonical test/release evidence는 container 경로를 우선한다. 기본적으로 host 전용 `.venv`를 만들지 않으며, 사용자가 직접 실행을 선택한 경우에도 동일 lockfile에서만 분리 환경을 만들고 non-canonical로 기록한다.
 
@@ -145,7 +163,7 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 
 ## 완료 정의
 
-현재 foundation과 S02 JSON Schema 및 S03A/S03B semantic gate는 다음 명령이 통과하면 확인할 수 있다.
+현재 foundation과 S02 JSON Schema, S03A/S03B semantic gate, S03C generated artifact gate는 다음 명령이 통과하면 확인할 수 있다.
 
 ```bash
 make source-check
@@ -153,15 +171,16 @@ make verify
 make container-source-check
 make container-verify
 make blueprint-check
+make schema-check
 make test
 make lint
 git status --short --branch
 git -C vault status --short --branch
 ```
 
-`make verify`는 bootstrap 무결성, `make blueprint-check`는 JSON Schema와 S03A/S03B semantic gate를 담당한다. `make blueprint-check`의 PASS는 generated artifact zero-diff가 완료됐다는 뜻이 아니다. 이 항목은 `S03C`에서 executable gate로 구현한다.
+`make verify`는 bootstrap 무결성, `make blueprint-check`는 JSON Schema와 S03A/S03B semantic gate, `make schema-check`는 S03C ownership/zero-diff를 담당한다. `make schema-check`의 PASS는 현재 profile의 control artifact만 의미하며 production Vault 배포나 뒤 세션 schema 완료를 의미하지 않는다.
 
-이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. 다음 세션은 S03B의 JSON Schema/semantic PASS와 generated artifact 미실행 상태를 이어받아야 하며, 실제 파일을 구현하면 이 문서의 상태와 검증 범위를 함께 갱신한다.
+이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. 다음 세션은 S03C의 JSON Schema/semantic/zero-diff PASS와 명시적 future-profile N/A 상태를 이어받아 S04 note schema와 production Property Dictionary 범위를 구현해야 한다.
 
 ## S02 인수인계 기록
 
@@ -212,4 +231,21 @@ remaining_user_actions: 없음; 다음 세션 진입 전 S03B PASS와 현재 dir
 inactive_opt_ins: root sentinel, remote identity, expected branch, mobile/Obsidian/plugin, LLM/provider, background worker
 next_session: S03C — Generated artifact ownership과 zero-diff
 next_entry_conditions: S03B canonical JSON Schema 및 semantic gate 1/2 PASS를 유지하고, generated artifact ownership과 profile 경계를 먼저 확정
+```
+
+## S03C 인수인계 기록
+
+```text
+session: S03C
+status: complete
+created_or_changed: ops/config/generated-artifacts.yaml, ops/src/vaultops/schema_export.py, ops/src/vaultops/cli.py, ops/src/vaultops/blueprint.py, ops/src/vaultops/foundation.py, ops/check-foundation.sh, Makefile, ops/policies/properties.yaml, ops/policies/paths.yaml, ops/policies/relations.yaml, ops/policies/privacy.yaml, ops/policies/retrieval.yaml, ops/schemas/blueprint.schema.json, ops/expected/Property_Dictionary.md, ops/tests/test_schema_export.py, docs/README/operations/source-contract/plan/decision/status 문서
+acceptance_passed: explicit ownership contract; Blueprint-derived policy/property rendering; trusted schema copy; schema export and --check; owned one-byte mismatch; wildcard/ownership drift rejection; future profile NOT_APPLICABLE_FOR_PROFILE; no production Vault/runtime mutation
+acceptance_failed_or_skipped: S04 note schema and production Property Dictionary deployment; S08A bridge schema; S15/S16B job/proposal/action/output schema; S17 projection/retrieval schema
+commands_and_evidence: make source-check PASS; make verify PASS; make container-source-check PASS; make container-verify PASS; make blueprint-check PASS; make schema-check PASS; make test 38 passed; make lint PASS; make contract-check PASS; git diff --check PASS
+external_effects_performed: 없음; production Vault, runtime, remote, push, plugin, device, provider, LaunchAgent 변경 없음
+approvals_received: canonical container 검증을 위한 Colima Docker socket 접근
+remaining_user_actions: 없음; S04 진입 시 S03C PASS와 control/Vault dirty 상태를 재확인
+inactive_opt_ins: root sentinel, remote identity, expected branch, mobile/Obsidian/plugin, LLM/provider, background worker
+next_session: S04 — Operational policy, strict schema, note engine
+next_entry_conditions: S03C `make schema-check` PASS, owned policy/trusted schema copy를 read-only 입력으로 사용, production Vault 배포는 S04 범위에서만 수행
 ```

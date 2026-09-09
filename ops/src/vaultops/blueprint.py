@@ -275,7 +275,7 @@ def validate_blueprint(root: str | Path) -> BlueprintValidation:
             "draft": JSON_SCHEMA_DRAFT,
             "json_schema": "NOT_RUN",
             "semantic_validation": "NOT_RUN:blocked:json_schema",
-            "generated_artifact_validation": "NOT_RUN:deferred:S03C",
+            "generated_artifact_validation": "NOT_RUN:separate:vaultctl schema export --check",
         },
         "contract_id": {
             "expected": DEFAULT_CONTRACT_ID,

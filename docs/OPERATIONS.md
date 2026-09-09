@@ -9,7 +9,7 @@ make source-check   # 현재 foundation: host built-in으로 고정한 설계 �
 make verify         # 현재 foundation: host built-in foundation acceptance
 ```
 
-`make verify`는 현재 고정 namespace와 설계 원본의 bootstrap 무결성만 확인한다. JSON Schema와 S03A/S03B semantic gate는 `make blueprint-check`가 수행하며, 이 command는 S03C generated artifact 검증을 수행한다고 주장하지 않는다.
+`make verify`는 현재 고정 namespace와 설계 원본의 bootstrap 무결성을 확인하고 generated validator가 사용 가능함을 보고한다. JSON Schema와 S03A/S03B semantic gate는 `make blueprint-check`가, S03C ownership/zero-diff는 `make schema-check`가 수행한다. 두 검사는 모두 production Vault를 수정하지 않는다.
 
 `S01` 이후 일상적인 canonical 경로는 `make container-source-check`, `make container-verify`, `make test`, `make vaultctl`로 전환한다. 기존 `make source-check`/`make verify`는 추가 설치가 필요 없는 bootstrap 진단으로 계속 보존한다.
 
@@ -21,7 +21,7 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 - container: Python/`uv`, locked dependency, `vaultctl`, worker, test/lint, projection, retrieval, synthetic Git
 - bind mount: control root, 독립 `vault/`, durable `runtime/`
 - named volume: uv/build cache만 Colima 내부에 보관; receipt·queue·journal은 bind mount에 보존
-- 기본 실행: `make test`, `make vaultctl`, `make worker`, `make blueprint-check`가 Compose wrapper를 호출
+- 기본 실행: `make test`, `make vaultctl`, `make worker`, `make blueprint-check`, `make schema-check`가 Compose wrapper를 호출
 - 기본 격리: Docker socket, host secret/keychain, SSH agent, provider network는 비활성
 - `mise`: host Python/`uv`/필요 시 Node의 버전 shim을 관리하는 선택적 도구. `mise.toml`과 image version parity를 확인하고 global `pip`/`npm` 설치는 사용하지 않는다.
 
@@ -33,7 +33,7 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 |---|---|---|---|
 | Inventory | 기존 Vault, Git, sync, property, plugin 조사 | target read-only 접근 | 빈 target 확인 완료; device·remote·sync 전체 preflight 미완료 |
 | Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 두 독립 local `main` repository와 initial commit까지 완료; remote 없음 |
-| Blueprint contract | JSON Schema 및 S03A/S03B semantic gate | `make blueprint-check`, negative mutation fixture | S03B 완료; S03C generated zero-diff 미착수 |
+| Blueprint contract | JSON Schema, S03A/S03B semantic gate, generated ownership/zero-diff | `make blueprint-check`, `make schema-check`, negative mutation fixture | S03C 완료 |
 | Portable Vault | schema, 16 templates, 8 Bases, Home/Mobile, fixture | containerized blueprint full validation 도구 | 미착수 |
 | Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | 미착수 |
 | Mac plugin profile | Core + 최소 community plugins | 실제 Obsidian smoke 가능 | 미착수 |
@@ -94,7 +94,8 @@ notes:   KnowledgeOS/vault/.git
 2. `make verify`
 3. `S01` 이후에는 `make container-source-check`, `make container-verify`를 canonical container surface에서 실행
 4. S02 이후에는 `make blueprint-check`와 변경한 unit/negative fixture를 실행
-5. 두 repository의 `git status --short --branch`
-6. 해당 단계에서만 필요한 실제 앱·device smoke
+5. S03C 이후에는 `make schema-check`를 실행
+6. 두 repository의 `git status --short --branch`
+7. 해당 단계에서만 필요한 실제 앱·device smoke
 
 Obsidian/Working Copy/plugin/Codex CLI 세부 동작은 변할 수 있으므로 해당 단계에서 공식 문서와 실제 설치본을 다시 확인한다.

@@ -1,0 +1,302 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+generator: vaultops.schema_export
+artifacts:
+  - path: ops/policies/properties.yaml
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/common_properties, /property_registry]
+    generator: vaultops.schema_export:properties
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/policies/paths.yaml
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/path_namespaces, /path_match_semantics, /fixed_paths]
+    generator: vaultops.schema_export:paths
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/policies/relations.yaml
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/property_registry, /relation_registry]
+    generator: vaultops.schema_export:relations
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/policies/privacy.yaml
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/privacy]
+    generator: vaultops.schema_export:privacy
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/policies/retrieval.yaml
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/retrieval]
+    generator: vaultops.schema_export:retrieval
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/schemas/blueprint.schema.json
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.schema.json
+        selectors: [/]
+    generator: vaultops.schema_export:trusted_blueprint_schema
+    deployed_copy: true
+    first_capability: contract_validated
+  - path: ops/expected/Property_Dictionary.md
+    owner: contract_validated
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/common_properties, /property_registry]
+    generator: vaultops.schema_export:property_dictionary_expected
+    deployed_copy: false
+    first_capability: contract_validated
+  - path: ops/schemas/note.schema.json
+    owner: S04
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/common_properties, /property_registry, /note_types, /privacy]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S04
+  - path: ops/policies/generated-sections.yaml
+    owner: S04
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S04
+  - path: ops/policies/redaction-patterns.yaml
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/actions/triage.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/actions/draft-note.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/actions/summarize.json
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/actions/link-suggestions.json
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/actions/normalize.json
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/actions/answer.json
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/actions]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/prompts/system.md
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/prompts/triage.md
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/prompts/draft-note.md
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/prompts/summarize.md
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/prompts/link-suggestions.md
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/prompts/normalize.md
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/prompts/answer.md
+    owner: S16B
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: OBSIDIAN_VAULT_WHITEPAPER.md
+        selectors: [/]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S16B
+  - path: ops/schemas/job.schema.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm, /privacy]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/schemas/proposal.schema.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm, /privacy]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/schemas/receipt.schema.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm, /privacy]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/schemas/triage-result.schema.json
+    owner: S15
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S15
+  - path: ops/schemas/bridge-request.schema.json
+    owner: S08A
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S08A
+  - path: ops/schemas/bridge-response.schema.json
+    owner: S08A
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S08A
+  - path: ops/schemas/note-record.schema.json
+    owner: S17
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S17
+  - path: ops/schemas/edge-record.schema.json
+    owner: S17
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S17
+  - path: ops/schemas/retrieval-candidate.schema.json
+    owner: S17
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection, /retrieval]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S17
+  - path: ops/schemas/answer.schema.json
+    owner: S17
+    status: NOT_APPLICABLE_FOR_PROFILE
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection, /retrieval]
+    generator: deferred_to_owner_session
+    deployed_copy: false
+    first_capability: S17

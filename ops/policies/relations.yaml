@@ -1,0 +1,128 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+artifact_kind: relation_policy
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /property_registry
+  - /relation_registry
+  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+relations:
+  property_registry:
+    supports:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge
+    contradicts:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge
+    explains:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge_or_question
+    applies_to:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: project_or_idea
+    derived_from:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: provenance_source
+    implements:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: idea
+    raises:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: question
+  registry:
+    canonical_predicates:
+      supports:
+        allowed_subject_types:
+        - source
+        - knowledge
+        allowed_object_types:
+        - knowledge
+      contradicts:
+        allowed_subject_types:
+        - source
+        - knowledge
+        allowed_object_types:
+        - knowledge
+      explains:
+        allowed_subject_types:
+        - knowledge
+        allowed_object_types:
+        - knowledge
+        - question
+      applies_to:
+        allowed_subject_types:
+        - knowledge
+        allowed_object_types:
+        - project
+        - idea
+      derived_from:
+        allowed_subject_types:
+        - idea
+        - question
+        - knowledge
+        - project
+        - artifact
+        - source
+        allowed_object_types:
+        - capture
+        - daily
+        - weekly
+        - monthly
+        - source
+        - idea
+        - meeting
+      implements:
+        allowed_subject_types:
+        - project
+        allowed_object_types:
+        - idea
+      raises:
+        allowed_subject_types:
+        - idea
+        - knowledge
+        - project
+        allowed_object_types:
+        - question
+    inverse_aliases:
+      supported_by: invert_to_supports
+      raised_by: invert_to_raises
+    unknown_predicate_policy: propose_related_or_reject
+    context_predicates:
+      projects:
+        allowed_object_types:
+        - project
+      areas:
+        allowed_object_types:
+        - area
+      topics:
+        allowed_object_types:
+        - moc
+      sources:
+        allowed_object_types:
+        - source
+      people:
+        allowed_object_types:
+        - person
+      related:
+        allowed_object_types:
+        - any_note
+    edge_kinds:
+      semantic: canonical_predicates
+      context: context_predicates
+      wikilink: notes_jsonl_only
+    inverse_materialization: false
+    proposal_provenance: ai_proposed
+    canonical_projection_provenance: canonical_property
+    canonical_source_locator: frontmatter_predicate_index
+    canonical_object_locator: wikilink_fragment_or_null
+    proposal_confidence_is_not_canonical: true
+    receipt_provenance_is_local_audit_overlay: true

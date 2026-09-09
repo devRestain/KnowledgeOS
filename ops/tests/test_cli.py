@@ -11,13 +11,13 @@ def test_version_command(capsys) -> None:
     assert capsys.readouterr().out.strip() == "0.1.0"
 
 
-def test_blueprint_status_is_explicit_about_deferred_work(capsys) -> None:
+def test_blueprint_status_reports_the_implemented_contract_profile(capsys) -> None:
     assert main(["blueprint", "status"]) == 0
     output = capsys.readouterr().out
-    assert "capability_profile=blueprint_semantic_gate2" in output
+    assert "capability_profile=contract_validated" in output
     assert "implemented:S02" in output
     assert "implemented:S03A-S03B" in output
-    assert "generated_zero_diff=deferred:S03C" in output
+    assert "generated_zero_diff=implemented:S03C" in output
 
 
 def test_help_is_a_real_package_entrypoint(capsys) -> None:
@@ -39,6 +39,7 @@ def test_blueprint_validate_reports_json_schema_pass_without_writing(capsys) -> 
     assert report["validation"]["draft"] == "2020-12"
     assert report["validation"]["json_schema"] == "PASS"
     assert report["validation"]["semantic_validation"] == "PASS"
+    assert report["validation"]["generated_artifact_validation"] == "NOT_RUN:separate:vaultctl schema export --check"
     assert report["contract_id"] == {
         "expected": "knowledgeos-blueprint-v2",
         "matches": True,

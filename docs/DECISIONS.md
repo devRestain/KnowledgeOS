@@ -87,6 +87,14 @@
 - 이유: Base와 dashboard가 서로 다른 query를 소비하거나 projection/transaction 단계가 조용히 바뀌면 JSON Schema만으로는 감지할 수 없다. artifact 생성 전 선언된 소비자·수명주기 계약을 닫아야 다음 generation 세션이 안전하게 authoritative input을 가질 수 있다.
 - 영향: `make blueprint-check`의 semantic PASS는 S03A/S03B 선언 계약까지를 의미하고, `generated_artifact_validation`은 S03C까지 deferred로 유지한다. S03B negative fixture는 JSON Schema PASS 후 Base/query, dashboard source/view, projection hash/order, bundle cardinality, transaction order drift를 각각 실패시킨다.
 
+### D-012 — S03C explicit artifact ownership과 profile-scoped zero-diff
+
+- 상태: accepted
+- 날짜: 2026-09-09
+- 결정: generated artifact ownership을 `ops/config/generated-artifacts.yaml`의 explicit allowlist로 고정한다. `contract_validated` profile은 Blueprint가 완전히 결정하는 `properties`, `paths`, `relations`, `privacy`, `retrieval` policy, trusted `blueprint.schema.json` copy, `ops/expected/Property_Dictionary.md`만 소유한다. `vault/` 배포본과 note/bridge/job/proposal/projection schema, prompt, action registry는 owner session 전까지 `NOT_APPLICABLE_FOR_PROFILE`로 보고한다.
+- 이유: 하나의 wildcard policy directory나 Whitepaper 예시를 기계 원본으로 오인하면 뒤 단계의 소유권과 생성 입력이 섞인다. explicit path별 source selector와 generator를 고정하면 한 바이트 drift를 재현 가능한 check에서 잡으면서도 아직 승인·구현하지 않은 Vault mutation과 provider/bridge artifact를 만들지 않을 수 있다.
+- 영향: `vaultctl schema export`는 Blueprint/semantic validation 후 owned control artifact만 atomic write하고, `vaultctl schema export --check`는 byte-for-byte zero-diff와 future profile의 명시적 N/A 상태를 출력한다. `make blueprint-check`는 Blueprint semantic, `make schema-check`는 generated artifact gate, `make verify`는 bootstrap integrity를 각각 담당한다. S04는 이 policy와 trusted schema copy를 입력으로 note schema와 production Property Dictionary를 소유한다.
+
 ## 열려 있는 결정
 
 | ID | 결정할 내용 | 필요한 시점 | 보수적 기본값 |

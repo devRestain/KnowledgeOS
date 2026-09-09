@@ -31,6 +31,7 @@ docs/DECISIONS.md
 docs/IMPLEMENTATION_STATUS.md
 docs/SOURCE_CONTRACT.md
 ops/check-foundation.sh
+ops/config/generated-artifacts.yaml
 vault/.gitignore
 vault/.gitattributes
 '
@@ -193,4 +194,4 @@ fi
 printf '%s\n' 'Foundation checksum/path checks: PASS'
 printf '%s\n' 'Blueprint JSON Schema validation: AVAILABLE via make blueprint-check'
 printf '%s\n' 'Cross-document semantic validation: AVAILABLE via make blueprint-check (S03A-S03B gates)'
-printf '%s\n' 'Generated artifact zero-diff validation: NOT IMPLEMENTED'
+printf '%s\n' 'Generated artifact zero-diff validation: AVAILABLE via make schema-check (S03C)'

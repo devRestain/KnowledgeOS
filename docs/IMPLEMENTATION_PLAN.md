@@ -4,9 +4,9 @@
 
 계획 상태: active
 
-현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2` 완료
+현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff` 완료
 
-다음 기본 세션: `S03C — Generated artifact ownership과 zero-diff`
+다음 기본 세션: `S04 — Operational policy, strict schema, note engine`
 
 ## 1. 이 문서의 역할
 
@@ -33,7 +33,7 @@
 | root sentinel | remote fingerprint, expected branch, Vault UUID 미확정으로 미생성 |
 | host toolchain | Python `3.9.6`; `uv`는 PATH에 없음; `mise` `2026.9.1` 설치됨 |
 | Colima/Docker | Colima `0.10.3` 설치됐지만 현재 VM은 실행 중이 아님; Docker `29.5.3`/Compose `5.1.4`는 있으나 현재 `default` context의 daemon에 연결되지 않음 |
-| executable contract | S02 JSON Schema와 S03A/S03B semantic gate 완료; S03C generated zero-diff 미구현 |
+| executable contract | S02 JSON Schema, S03A/S03B semantic gate, S03C generated ownership/zero-diff 완료 |
 | portable Vault | 고정 directory만 존재; schema, template, Base, dashboard, 실제 note는 미구현 |
 | runtime/mobile/AI/retrieval | 계약 문서와 빈 namespace만 있고 기능은 미구현 |
 
@@ -50,7 +50,7 @@
 3. 생성된 schema/policy/Property Dictionary/protocol 사본의 zero-diff 검사
 4. 각 invariant를 하나씩 깨는 negative mutation fixture
 
-현재 `make blueprint-check`가 JSON Schema와 S03A/S03B semantic gate를 담당하고, `make verify`는 bootstrap 무결성을 담당한다. S03C generated zero-diff가 닫히기 전에는 portable Vault 파일을 생성하지 않는다.
+현재 `make blueprint-check`가 JSON Schema와 S03A/S03B semantic gate를, `make schema-check`가 S03C generated ownership/zero-diff를, `make verify`가 bootstrap 무결성을 담당한다. S03C는 production Vault 파일을 생성하지 않으며, 그 배포는 S04부터 시작한다.
 
 ### 3.2 순환 의존성 해소
 
@@ -400,6 +400,8 @@ Acceptance:
 
 Canonical mapping: Phase 1 mutation 전 generation gate
 
+상태: `complete` (2026-09-09)
+
 선행조건: `S03B`
 
 목표:
@@ -427,6 +429,22 @@ Acceptance:
 - 아직 뒤 profile이 소유한 artifact는 PASS가 아니라 명시적 `NOT_APPLICABLE_FOR_PROFILE`로 보고
 - 새 artifact owner를 추가하지 않고 wildcard `ops/policies/*.yaml` 전체를 생성 완료로 주장하지 않음
 - `make verify`가 기존 세 validator를 더 이상 `NOT IMPLEMENTED`로 보고하지 않음
+
+완료 evidence:
+
+- `ops/config/generated-artifacts.yaml`가 각 owned/N/A artifact의 authoritative input, generator, deployed-copy 여부와 최초 capability를 명시하고, executable allowlist와 exact match를 검사함
+- `vaultctl schema export`가 Blueprint-derived `properties.yaml`, `paths.yaml`, `relations.yaml`, `privacy.yaml`, `retrieval.yaml`, trusted Blueprint schema copy, 임시 `Property_Dictionary.md`를 atomic write함
+- `vaultctl schema export --check`가 owned artifact의 SHA-256/byte zero-diff를 검사하고 뒤 세션 산출물을 `NOT_APPLICABLE_FOR_PROFILE`로 보고함
+- ownership wildcard/drift, owned artifact one-byte mutation, deterministic re-run, Vault/runtime 비생성 negative fixture가 통과함
+- `make test`: 38 passed; `make lint`: All checks passed; `make schema-check`: PASS; `make verify`의 generated validator 상태가 AVAILABLE로 갱신됨
+
+### S03C 이후 인수인계
+
+상태: `S04 ready`
+
+- S03C generated policy와 trusted Blueprint schema copy를 S04 note/path/property/relation engine의 read-only 입력으로 사용한다.
+- `ops/expected/Property_Dictionary.md`는 expected rendering이며 production `vault/99_System/Schemas/Property_Dictionary.md`가 아니다.
+- `ops/actions`, `ops/prompts`, 뒤 세션 schema와 bridge/projection artifact는 여전히 ownership report의 `NOT_APPLICABLE_FOR_PROFILE` 상태다.
 
 ### S04 — Operational policy, strict schema, note engine
 

@@ -1,0 +1,127 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+artifact_kind: retrieval_policy
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /retrieval
+  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+retrieval:
+  phases:
+  - native_exact_and_links
+  - lexical_fts
+  - local_vectors
+  - reciprocal_rank_fusion
+  - bounded_typed_graph_expansion
+  graph_expansion:
+    default_hops: 1
+    maximum_hops: 2
+    per_hop_node_cap: 20
+    total_edge_cap: 60
+    total_candidate_cap: 50
+    one_hop_allowlist:
+      predicates:
+      - supports
+      - contradicts
+      - explains
+      - applies_to
+      - derived_from
+      - implements
+      - raises
+      - projects
+      - areas
+      - topics
+      - sources
+      - people
+      - related
+      directions:
+      - outgoing
+      - incoming
+    two_hop_sequence_allowlist:
+    - - direction: incoming
+        predicate: applies_to
+      - direction: incoming
+        predicate: supports
+    - - direction: incoming
+        predicate: applies_to
+      - direction: incoming
+        predicate: contradicts
+    - - direction: outgoing
+        predicate: implements
+      - direction: outgoing
+        predicate: derived_from
+    - - direction: outgoing
+        predicate: raises
+      - direction: incoming
+        predicate: explains
+    - - direction: incoming
+        predicate: projects
+      - direction: outgoing
+        predicate: sources
+    unknown_sequence_policy: reject
+  corpus:
+    default_include_types:
+    - knowledge
+    - source
+    - project
+    - project_note
+    - artifact
+    - idea
+    - question
+    journal_requires_explicit_scope: true
+    exclude_paths:
+    - .vault-bridge/**
+    - .obsidian-*/**
+    - 99_System/**
+    - 01_AI_Review/Rejected/**
+    - 01_AI_Review/Expired/**
+    review_corpus_separate:
+    - 01_AI_Review/Pending/**
+    - 01_AI_Review/Conflict/**
+  policy_gate_points:
+  - before_remote_embedding_or_indexing
+  - during_candidate_fusion_and_graph_expansion
+  - immediately_before_model_context
+  remote_embedding:
+    allowed_ai_policy:
+    - remote_ok
+    ask_requires_digest_bound_interactive_authorization: true
+    local_only_and_deny_forbidden: true
+  local_embedding:
+    deny_forbidden: true
+  filter_before_model:
+  - scope
+  - path
+  - type
+  - sensitivity
+  - ai_policy
+  frozen_candidate_fields:
+  - query_sha256
+  - policy_decision_sha256
+  - index_generation_id
+  - note_id
+  - path
+  - content_hash
+  - chunk_id
+  - chunk_hash
+  - chunk_locator
+  - retrieval_reason
+  - lexical_score_and_rank
+  - vector_score_and_rank
+  - rrf_parameter_and_rank
+  - graph_path
+  - parser_and_chunker_version
+  - embedding_provider_model_dimension_and_artifact_digest
+  - indexer_version
+  - retrieval_config_sha256
+  staleness:
+    default: fail_closed_and_require_rebuild
+    running_query_pins_generation: true
+  answer_requires:
+  - note_id
+  - path
+  - locator
+  - evidence_hash
+  - uncertainty
+  graphrag_default: deferred

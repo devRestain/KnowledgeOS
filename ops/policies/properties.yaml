@@ -1,0 +1,365 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: contract_validated
+artifact_kind: property_policy
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /common_properties
+  - /property_registry
+  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+properties:
+  common:
+    required:
+      schema_version:
+        obsidian_type: number
+        const: 1
+      id:
+        obsidian_type: text
+        format: uuid_v4_or_approved_deterministic_id
+        immutable: true
+        approved_deterministic_id_classes:
+        - proposal_from_job_uuid
+        - periodic_from_period_id
+        - system_fixed_id
+      type:
+        obsidian_type: text
+        enum:
+        - capture
+        - proposal
+        - daily
+        - weekly
+        - monthly
+        - project
+        - project_note
+        - idea
+        - question
+        - artifact
+        - area
+        - knowledge
+        - source
+        - person
+        - moc
+        - meeting
+        - home
+        - system
+      title:
+        obsidian_type: text
+        min_length: 1
+        equals_filename_stem: true
+      status:
+        obsidian_type: text
+        enum_from: note_types.TYPE.statuses
+      created:
+        obsidian_type: datetime
+        require_timezone: true
+      modified:
+        obsidian_type: datetime
+        require_timezone: true
+        semantics: schema_writer_time
+      aliases:
+        obsidian_type: list
+        item_type: text
+      tags:
+        obsidian_type: tags
+      sensitivity:
+        obsidian_type: text
+        enum:
+        - public
+        - personal
+        - confidential
+      ai_policy:
+        obsidian_type: text
+        enum:
+        - remote_ok
+        - ask
+        - local_only
+        - deny
+      ai_status:
+        obsidian_type: text
+        enum:
+        - idle
+        - queued
+        - proposed
+        - approved
+        - applied
+        - rejected
+        - conflict
+        - expired
+        - error
+    optional_context_lists:
+    - projects
+    - areas
+    - topics
+    - sources
+    - people
+    - related
+    optional_relation_lists:
+    - supports
+    - contradicts
+    - explains
+    - applies_to
+    - derived_from
+    - implements
+    - raises
+    invariants:
+    - title_equals_file_basename
+    - id_is_immutable
+    - wikilinks_in_yaml_are_quoted
+    - modified_is_schema_writer_time
+    - freshness_uses_file_mtime
+  registry:
+    projects:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: project
+    areas:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: area
+    topics:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: moc
+    sources:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: source
+    people:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: person
+    related:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: any_note
+    supports:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge
+    contradicts:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge
+    explains:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: knowledge_or_question
+    applies_to:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: project_or_idea
+    derived_from:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: provenance_source
+    implements:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: idea
+    raises:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: question
+    priority:
+      obsidian_type: text
+      enum:
+      - high
+      - medium
+      - low
+    focus_rank:
+      obsidian_type: number
+      integer: true
+      minimum: 1
+    next_action:
+      obsidian_type: text
+      min_length: 1
+    outcome:
+      obsidian_type: text
+      min_length: 1
+    target_date:
+      obsidian_type: date
+    question_kind:
+      obsidian_type: text
+      enum:
+      - decision
+      - research
+      - problem
+    decision:
+      obsidian_type: text
+    decision_by:
+      obsidian_type: date
+    confidence:
+      obsidian_type: text
+      enum:
+      - low
+      - medium
+      - high
+      - unknown
+    artifact_kind:
+      obsidian_type: text
+      enum:
+      - specification
+      - prototype
+      - report
+      - presentation
+      - code
+      - dataset
+      - other
+    artifact_uri:
+      obsidian_type: text
+    artifact_hash:
+      obsidian_type: text
+    artifact_repo:
+      obsidian_type: text
+    capture_kind:
+      obsidian_type: text
+      enum:
+      - thought
+      - url
+      - quote
+      - voice
+      - file
+      - other
+    capture_label:
+      obsidian_type: text
+    captured_from:
+      obsidian_type: text
+      enum:
+      - mac_quickadd
+      - mac_cli
+      - ios_shortcut
+      - ipad_shortcut
+      - ios_share_sheet
+      - ipad_share_sheet
+      - import
+    capture_device:
+      obsidian_type: text
+      enum:
+      - mac
+      - iphone
+      - ipad
+    triage_projects:
+      obsidian_type: list
+      item_type: quoted_wikilink
+      object_type: project
+    needs_desktop_review:
+      obsidian_type: checkbox
+    device_timezone:
+      obsidian_type: text
+      format: iana_timezone
+    canonical_date:
+      obsidian_type: date
+    canonical_timezone:
+      obsidian_type: text
+      format: iana_timezone
+    possibility:
+      obsidian_type: text
+      min_length: 1
+    proposal_id:
+      obsidian_type: text
+      format: uuid_v4
+    source_hashes:
+      obsidian_type: list
+      item_type: text
+      item_format: vault_relative_path|sha256:64hex
+    period_start:
+      obsidian_type: date
+    period_end:
+      obsidian_type: date
+    standard:
+      obsidian_type: text
+      min_length: 1
+    review_cadence:
+      obsidian_type: text
+      enum:
+      - weekly
+      - monthly
+      - quarterly
+      - semiannual
+      - annual
+    next_review:
+      obsidian_type: date
+    claim:
+      obsidian_type: text
+      min_length: 1
+    last_reviewed:
+      obsidian_type: date
+    source_kind:
+      obsidian_type: text
+      enum:
+      - paper
+      - book
+      - article
+      - web
+      - video
+      - podcast
+      - course
+      - document
+      - dataset
+      - other
+    source_url:
+      obsidian_type: text
+      format: uri
+    authors:
+      obsidian_type: list
+      item_type: text
+    published_date:
+      obsidian_type: date
+    citation_key:
+      obsidian_type: text
+    asset:
+      obsidian_type: text
+      format: quoted_wikilink_to_80_assets
+    asset_hash:
+      obsidian_type: text
+      format: sha256
+    extractor:
+      obsidian_type: text
+    extractor_version:
+      obsidian_type: text
+    page_locator_scheme:
+      obsidian_type: text
+    organization:
+      obsidian_type: text
+    note_kind:
+      obsidian_type: text
+      enum:
+      - exploration
+      - draft
+      - research
+      - plan
+      - log
+      - other
+    scope:
+      obsidian_type: text
+      min_length: 1
+    meeting_at:
+      obsidian_type: datetime
+      require_timezone: true
+    attendees:
+      obsidian_type: list
+      item_type: quoted_wikilink_or_text
+    purpose:
+      obsidian_type: text
+      min_length: 1
+    audience:
+      obsidian_type: text
+      enum:
+      - desktop
+      - mobile
+      - system
+    today_focus:
+      obsidian_type: text
+    triage_hint:
+      obsidian_type: text
+      enum:
+      - none
+      - discard
+      - hold
+      - task
+      - project
+      - idea
+      - question
+      - knowledge
+      - source

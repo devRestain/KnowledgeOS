@@ -32,6 +32,7 @@ REQUIRED_FILES = (
     "docs/IMPLEMENTATION_STATUS.md",
     "docs/SOURCE_CONTRACT.md",
     "ops/check-foundation.sh",
+    "ops/config/generated-artifacts.yaml",
     "vault/.gitignore",
     "vault/.gitattributes",
 )
@@ -45,6 +46,7 @@ REQUIRED_DIRECTORIES = (
     "ops/schemas",
     "ops/prompts",
     "ops/policies",
+    "ops/expected",
     "ops/src/vaultops",
     "ops/launchd",
     "ops/tests",

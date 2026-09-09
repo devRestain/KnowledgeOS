@@ -44,11 +44,12 @@ Checksum manifest 자체의 SHA-256은 `c5b2ce4408337a5bda9b8dc686c49c3e8df2b331
 - YAML top-level key 42개와 JSON Schema top-level required key 42개 존재 확인
 - `contract_id`: `knowledgeos-blueprint-v2` 확인
 
-`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. 이 command는 safe YAML parse와 Draft 2020-12 JSON Schema를 먼저 실행한 뒤 registry/path/action/bridge 및 Base/dashboard/projection/transaction semantic 결과를 별도 보고한다. 현재는 generated artifact gate가 남아 있으므로 “blueprint 전체 의미 검증 완료” 또는 generated output 완료라고 주장할 수 없다. portable Vault 구현 전에 다음을 코드와 negative fixture로 검증해야 한다.
+`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. `vaultctl schema export`와 `--check`는 S03C ownership contract에 등록된 control artifact만 생성·검증하며, safe Blueprint validation을 통과하기 전에는 쓰지 않는다. `blueprint validate`와 generated artifact zero-diff는 서로 독립된 보고 surface다. S03C 이후에도 이를 production Vault 생성 완료로 해석하지 않는다.
 
 - CLI 진단은 canonical source/schema/manifest SHA-256, contract ID, schema `$id`와 draft를 provenance로 포함한다.
 - 오류는 `code`, JSON Pointer `locator`, schema Pointer `schema_locator`를 포함하고 stable 순서로 출력한다.
-- JSON Schema와 S03A/S03B semantic gate가 PASS해도 `generated_artifact_validation`은 S03C deferred 상태다.
+- JSON Schema와 S03A/S03B semantic gate가 PASS해도 `generated_artifact_validation`은 별도 `vaultctl schema export --check`에서 확인한다.
+- ownership contract는 exact allowlist이므로 wildcard 경로를 허용하지 않고, 현재 profile이 소유하지 않은 artifact는 `NOT_APPLICABLE_FOR_PROFILE`로만 보고한다.
 
 - path ↔ type ↔ template 일치
 - action ↔ command ↔ output schema 일치
