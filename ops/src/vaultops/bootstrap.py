@@ -71,7 +71,7 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         }
     try:
         blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
-        vault_root = workspace / "vault"
+        vault_root = workspace / "KnowledgeHub"
         if vault_root.is_symlink():
             raise BootstrapConflict("Vault root is a symlink")
         directory_relatives = _directory_targets(blueprint)

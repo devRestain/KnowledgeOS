@@ -7,7 +7,7 @@ authoritative_inputs:
   selectors:
   - /property_registry
   - /relation_registry
-  sha256: 88a81716474d2698454ba6e28f329865c5b07146a38510359a9c941ffc9c797c
+  sha256: 3a2bf72734bdd75b8f5bfd859a5b27f62f5104a1c902234391b4b8d85aae808b
 relations:
   property_registry:
     supports:

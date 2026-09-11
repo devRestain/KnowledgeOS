@@ -1,0 +1,16 @@
+{
+  "completed_at": "2026-09-07T16:02:10+09:00",
+  "event_at": "2026-09-07T16:02:10+09:00",
+  "job_id": "8b18f63f-6ca2-4b84-b5d8-8c3d85cfa2b1",
+  "job_receipt_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "output_schema_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "proposal_id": "e2a1d660-3e18-4a92-bf2b-f8c2480a8861",
+  "proposal_path": "01_AI_Review/Pending/2026/09/AI proposal.md",
+  "proposal_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "request_commit": "0123456789abcdef0123456789abcdef01234567",
+  "request_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "schema_version": 1,
+  "sequence": 1,
+  "status": "needs_review",
+  "warnings": []
+}

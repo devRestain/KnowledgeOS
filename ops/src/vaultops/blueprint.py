@@ -257,7 +257,7 @@ def validate_blueprint(root: str | Path) -> BlueprintValidation:
     """Validate Blueprint YAML against its Draft 2020-12 JSON Schema.
 
     The function reads only the two source documents and the checksum manifest.
-    It never creates directories, writes reports, or touches ``vault/`` or
+    It never creates directories, writes reports, or touches ``KnowledgeHub/`` or
     ``runtime/``. Source hashes and manifest comparison are provenance data;
     JSON Schema validity is reported independently so a schema pass cannot be
     mistaken for the later semantic or generated-artifact gates.

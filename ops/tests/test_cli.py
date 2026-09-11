@@ -14,9 +14,9 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     shutil.copytree(
         CONTROL_ROOT,
         root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "vault", "runtime"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
     )
-    (root / "vault").mkdir()
+    (root / "KnowledgeHub").mkdir()
     return root
 
 

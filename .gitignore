@@ -11,6 +11,6 @@ __pycache__/
 *.log
 
 # Independent repositories and device-local state.
-/vault/
+/KnowledgeHub/
 /runtime/
 

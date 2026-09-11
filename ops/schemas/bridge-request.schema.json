@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/bridge-request.schema.json",
+  "title": "KnowledgeOS bridge request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "job_id",
+    "created_at",
+    "device_id",
+    "pipeline_kind",
+    "source",
+    "target",
+    "parameters",
+    "route_id",
+    "mode"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "maxLength": 128
+    },
+    "pipeline_kind": {
+      "type": "string",
+      "enum": [
+        "triage",
+        "draft_note",
+        "summarize",
+        "link_suggestions",
+        "answer"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "blob_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\r\\n\\x00]+$"
+        },
+        "blob_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "fragment_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "expected_sha256",
+            "type"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\r\\n\\x00]+$"
+            },
+            "expected_sha256": {
+              "type": "string",
+              "pattern": "^$|^[0-9a-f]{64}$"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "idea",
+                "question",
+                "knowledge",
+                "project",
+                "source"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selected_candidate_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "selected_candidate_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "validated_title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "bounded_summary_mode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "retrieval_profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "route_id": {
+      "type": "string",
+      "pattern": "^(?:codex_chatgpt_login|openai_api_relay|local:[a-z0-9][a-z0-9._-]{0,63})$"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "proposal",
+        "ask",
+        "local_only",
+        "remote_ok",
+        "deny"
+      ]
+    }
+  }
+}

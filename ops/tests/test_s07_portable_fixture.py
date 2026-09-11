@@ -76,7 +76,7 @@ def test_s06_surface_remains_blueprint_exact_inside_the_s07_gate() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected_bases = render_base_documents(blueprint)
     for relative, expected in expected_bases.items():
-        assert yaml.safe_load((CONTROL_ROOT / "vault" / relative).read_text(encoding="utf-8")) == yaml.safe_load(expected)
+        assert yaml.safe_load((CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8")) == yaml.safe_load(expected)
     sources = dashboard_sources()
     assert tuple(sorted(sources)) == tuple(sorted(DASHBOARD_PATHS))
 

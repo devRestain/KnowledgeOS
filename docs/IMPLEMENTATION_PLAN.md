@@ -1,12 +1,12 @@
 # KnowledgeOS 실제 구현 다중 세션 계획
 
-기준일: 2026-09-09
+기준일: 2026-09-11
 
 계획 상태: active
 
-현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards` 완료
+현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards`, `S07 portable_fixture_gate`, `S08A offline_bridge_contract` 완료; S08B deployment overlay는 사용자 입력 대기
 
-다음 기본 세션: `S07 — Portable Vault 통합 fixture와 restricted-mode smoke`
+다음 기본 세션: `S08B — Configure, remote identity, production sentinel (사용자 입력 gate)`
 
 ## 1. 이 문서의 역할
 
@@ -28,13 +28,14 @@
 |---|---|
 | 설계 원본 | `knowledgeos-blueprint-v2` checksum 고정 및 `make source-check` 통과 |
 | foundation 검증 | `make verify` 통과 |
-| control repository | 독립 Git root, local `main`, HEAD `ef014b09f215`, remote 없음; 현재 S00/S01/S02/S03A/S03B 변경은 미커밋 |
-| Vault repository | `vault/`의 독립 Git root, local `main`, HEAD `9a217884f735`, clean, remote 없음 |
-| root sentinel | remote fingerprint, expected branch, Vault UUID 미확정으로 미생성 |
-| host toolchain | Python `3.9.6`; `uv`는 PATH에 없음; `mise` `2026.9.1` 설치됨 |
-| Colima/Docker | Colima `0.10.3` 설치됐지만 현재 VM은 실행 중이 아님; Docker `29.5.3`/Compose `5.1.4`는 있으나 현재 `default` context의 daemon에 연결되지 않음 |
+| control repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `1d7d16fa0737`; `AGENTS.md`와 expected documentation update set이 dirty, remote 없음 |
+| Vault repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `6e449dd51122`, S08A protocol schema copy가 working tree에 있음, remote 없음 |
+| root sentinel | remote fingerprint·expected branch 미확정으로 미생성; Vault UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2`는 생성·확정했지만 sentinel에는 미기록 |
+| host toolchain | `mise` `2026.9.1` shims exist, but project `mise.toml` pins Python `3.12.8`/uv `0.8.14` that are not currently installed; host auto-install fails `Operation not permitted`, so canonical evidence stays container-only |
+| Colima/Docker | Colima `0.10.3` 실행 중; Docker Compose `dev` service가 host UID/GID `501:20`으로 canonical gate를 수행 |
 | executable contract | S02 JSON Schema, S03A/S03B semantic gate, S03C generated ownership/zero-diff 완료 |
-| portable Vault | S04 schema/Property Dictionary, S05 template/bootstrap/project create, S06 Base/dashboard가 구현됨; S07 통합 fixture/smoke 미착수 |
+| portable Vault | S04 schema/Property Dictionary, S05 template/bootstrap/project create, S06 Base/dashboard, S07 fixed fixture/contract와 disposable app smoke가 complete |
+| Obsidian baseline | Codex 작업으로 `KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`이 생성되어 존재; `.obsidian-mac`/phone/tablet는 profile 파일 없이 namespace만 존재 |
 | runtime/mobile/AI/retrieval | 계약 문서와 빈 namespace만 있고 기능은 미구현 |
 
 두 repository의 현재 local branch 이름이 `main`이라는 사실은 notes remote의 canonical `expected_branch`가 확정되었다는 뜻이 아니다. remote identity와 expected branch는 `S08B`의 사용자 입력 gate까지 열린 결정으로 남긴다.
@@ -113,7 +114,7 @@ capability profile은 순차 누적하지만 deployment overlay는 독립적으�
 프로젝트 runtime을 소유하는 container:
 
 - Python `>=3.12`, `uv`, 모든 Python dependency, `vaultctl`, test/lint, worker, projection, retrieval, synthetic Git fixture
-- control root와 독립 `vault/` Git root를 각각 bind mount로 연결하고 두 `.git` 경계를 보존
+- control root와 독립 `KnowledgeHub/` Git root를 각각 bind mount로 연결하고 두 `.git` 경계를 보존
 - `runtime/`은 durable receipt·queue·journal이므로 workspace bind mount로 보존하며 image layer나 ephemeral container에 두지 않음
 - uv/build cache는 Colima 내부 named volume으로 분리하고 runtime evidence와 섞지 않음
 - 기본 network, Docker socket, host secret/keychain, SSH agent mount는 비활성; provider/remote lane에서만 명시적으로 연다
@@ -129,7 +130,7 @@ macOS host: colima/docker/make orchestration
         ▼
 Colima VM: knowledgeos-dev / worker container
         ├── /workspace/control  ← control root bind mount
-        ├── /workspace/vault    ← 독립 Vault root bind mount
+        ├── /workspace/KnowledgeHub  ← 독립 Vault root bind mount
         └── /workspace/runtime  ← durable runtime bind mount
 ```
 
@@ -137,7 +138,7 @@ Colima VM: knowledgeos-dev / worker container
 
 이미지 재빌드는 Dockerfile, `pyproject.toml`, `uv.lock`이 바뀔 때만 한다. 일상적인 테스트·CLI 실행은 현재 workspace를 bind mount한 일회성 container로 수행하고, dependency/build cache는 Colima 내부에서만 누적되도록 별도 정리 절차를 둔다.
 
-물리적 예외도 실행 주체를 혼동하지 않는다. 설계상 Obsidian과 device smoke는 macOS/iOS 앱에서 수행하고, LaunchAgent는 호스트의 `docker compose run` wrapper를 호출해 기본 worker를 container에서 실행한다. 다만 현재 Codex 실행 세션의 직접 접근 surface는 Codex 앱, workspace, Colima/Docker 개발 환경으로 제한하며, Obsidian·device·Working Copy·브라우저·기타 외부 앱은 직접 열거나 조작하지 않는다. 해당 작업이 필요하면 앱·행동·범위를 사용자에게 확인할 수 있도록 남긴다. 사용자가 host Python으로 경량 command를 직접 실행하는 것은 허용하지만, LaunchAgent의 canonical 경로는 container worker이며 host `.venv/bin/vaultctl`을 유일한 실행 환경으로 고정하지 않는다.
+물리적 예외도 실행 주체를 혼동하지 않는다. 설계상 Obsidian과 device smoke는 macOS/iOS 앱에서 수행하고, LaunchAgent는 호스트의 `docker compose run` wrapper를 호출해 기본 worker를 container에서 실행한다. 다만 현재 Codex 실행 세션의 직접 접근 surface는 Codex 앱, workspace, Colima/Docker 개발 환경으로 제한하며, Obsidian·device·Working Copy·브라우저·기타 외부 앱은 사용자가 명시적으로 허용한 정확한 앱·대상·효과 범위에서만 접근한다. 해당 작업이 필요하면 앱·행동·범위를 사용자에게 확인할 수 있도록 남긴다. 사용자가 host Python으로 경량 command를 직접 실행하는 것은 허용하지만, LaunchAgent의 canonical 경로는 container worker이며 host `.venv/bin/vaultctl`을 유일한 실행 환경으로 고정하지 않는다.
 
 ### 3.5 mise와 Docker의 역할 분리
 
@@ -209,7 +210,7 @@ flowchart LR
 
 - 세션 ID 하나의 산출물과 acceptance만 구현한다.
 - canonical 47개 CLI command를 빈 stub로 한꺼번에 만들지 않는다.
-- production `vault/`에 테스트 설명문, `.gitkeep`, 빈 template, 추측한 `.obsidian` JSON을 넣지 않는다.
+- production `KnowledgeHub/`에 테스트 설명문, `.gitkeep`, 빈 template, 추측한 `.obsidian` JSON을 넣지 않는다. 현재 `KnowledgeHub/.obsidian`의 네 baseline JSON은 Codex 작업으로 생성된 관리 대상이며, 실제 app smoke evidence와 별도로 기록한다.
 - fixture는 기본적으로 `ops/tests/fixtures/` 안의 synthetic data를 사용한다.
 - 실제 note content, credential, secret, provider payload는 test fixture나 Git에 넣지 않는다.
 - 구현 중 다음 단계가 쉬워 보여도 그 단계의 외부 효과나 opt-in을 함께 활성화하지 않는다.
@@ -281,7 +282,7 @@ Canonical mapping: Phase 1 진입 기반, Whitepaper development runtime
 - 호스트 convenience와 container parity를 위한 concrete `mise.toml` toolchain 선언(Python/uv, Node는 필요 시에만)
 - 실제 동작하는 `ops/pyproject.toml`, `ops/uv.lock`
 - pinned base image와 container 내부에서만 동작하는 `ops/Dockerfile`, Compose/service 정의, `.dockerignore`
-- workspace/control, workspace/vault, workspace/runtime bind mount와 non-root UID/GID 계약
+- workspace/control, workspace/KnowledgeHub, workspace/runtime bind mount와 non-root UID/GID 계약
 - `ops/src/vaultops/` package entry point와 최소 CLI/test layout
 - `make test`, `make vaultctl`, `make blueprint-check`의 Docker Compose wrapper
 - safe YAML loader의 duplicate-key/implicit timestamp 방어 시험 기반
@@ -332,7 +333,7 @@ Acceptance:
 
 - canonical Blueprint 통과
 - schema 구조를 하나씩 깨는 fixture가 안정된 reason code와 locator로 실패
-- invalid Blueprint에서도 `vault/`와 `runtime/` bytes 변화 0개
+- invalid Blueprint에서도 `KnowledgeHub/`와 `runtime/` bytes 변화 0개
 - JSON Schema pass를 semantic pass로 잘못 보고하지 않음
 
 ### S03A — Registry, path, action, bridge semantic validator
@@ -360,7 +361,7 @@ Acceptance:
 - registry item의 rename/delete/add, relation reverse, path/type/template mismatch가 각각 고유 reason code로 실패
 - action 전체 집합과 bridge가 의도적으로 허용한 action 부분집합을 혼동하지 않음
 - canonical command 이름을 인식하는 것과 executable command 구현 여부를 별도 결과로 보고
-- invalid semantic contract에서도 production `vault/` bytes 변화 0개
+- invalid semantic contract에서도 production `KnowledgeHub/` bytes 변화 0개
 
 ### S03B — Base, dashboard, projection, transaction semantic validator
 
@@ -396,7 +397,7 @@ Acceptance:
 - project bundle의 `Working`/`Artifacts` sibling과 단일 parent project cardinality, capture-finalize 8단계의 순서·완전성을 검사함
 - Base limit·sort·status, dashboard source/view, projection hash/order, bundle cardinality, transaction reorder를 JSON Schema PASS + semantic FAIL fixture로 검증함
 - `make test`: 33 passed; `make lint`: All checks passed
-- S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정하지 않음
+- S03B도 `KnowledgeHub/`, `runtime/`과 generated/production artifact를 생성·수정하지 않음
 
 ### S03C — Generated artifact ownership과 zero-diff
 
@@ -445,8 +446,8 @@ Acceptance:
 상태: `S04 complete`
 
 - S04는 S03C generated policy와 trusted Blueprint schema copy를 note/path/property/relation engine의 read-only 입력으로 사용했다.
-- `ops/expected/Property_Dictionary.md`와 production `vault/99_System/Schemas/Property_Dictionary.md`는 동일 generator bytes이며, 후자는 S04에서 검증된 system artifact다.
-- `ops/actions`, `ops/prompts`, 뒤 세션 schema와 bridge/projection artifact는 여전히 ownership report의 `NOT_APPLICABLE_FOR_PROFILE` 상태다.
+- `ops/expected/Property_Dictionary.md`와 production `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`는 동일 generator bytes이며, 후자는 S04에서 검증된 system artifact다.
+- `ops/actions`, `ops/prompts`, 뒤 세션 schema와 projection artifact는 여전히 ownership report의 `NOT_APPLICABLE_FOR_PROFILE` 상태이며, S08A bridge/root-sentinel schema와 protocol copy는 S08A ownership으로 승격했다.
 
 ### S04 — Operational policy, strict schema, note engine
 
@@ -464,7 +465,7 @@ Canonical mapping: Phase 1 portable Vault data contract
 - type/status/conditional property, path capability, relation 방향을 강제하는 runtime validator
 - filename/title, UUID/datetime, wikilink, Unicode/path collision 검증 API
 - 같은 registry를 이후 proposal validator와 projection에 재사용하는 typed model boundary
-- 검증된 generator가 배포한 `vault/99_System/Schemas/Property_Dictionary.md`
+- 검증된 generator가 배포한 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`
 - 18개 note type의 positive/negative fixture
 
 Acceptance:
@@ -480,7 +481,7 @@ Acceptance:
 
 - `NoteEngine`이 18개 note type의 positive fixture와 duplicate YAML, title/basename, timezone/UUID/status/conditional, path/unicode/symlink, relation/provenance negative fixture를 fail closed로 검증함
 - `ops/schemas/note.schema.json`의 per-type strict `oneOf`와 Property Dictionary가 Blueprint registry의 key/type/enum과 exact하게 생성됨
-- `vaultctl schema export`가 control artifact와 `vault/99_System/Schemas/Property_Dictionary.md`를 생성하고, differing deployed copy는 덮어쓰지 않음
+- `vaultctl schema export`가 control artifact와 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`를 생성하고, differing deployed copy는 덮어쓰지 않음
 - `vaultctl note validate`와 `make schema-check`가 read-only 검증 surface를 제공함
 - `make test`: 71 passed; `make lint`: All checks passed
 
@@ -522,7 +523,7 @@ Acceptance:
 
 Gate / non-goal:
 
-- live `vault/` mutation 전 dry-run exact path 목록을 검토한다.
+- live `KnowledgeHub/` mutation 전 dry-run exact path 목록을 검토한다.
 - remote/branch/UUID가 없으므로 sentinel은 만들지 않는다.
 
 완료 evidence:
@@ -585,7 +586,7 @@ Acceptance:
 
 비범위:
 
-- `schema-export` ownership profile 확장, sentinel/remote/device/plugin, 실제 Obsidian smoke와 S07 통합 fixture
+- sentinel/remote/device/plugin, actual device sync, live bridge ingest/publish, and later projection/action artifacts
 
 ### S07 — Portable Vault 통합 fixture와 restricted-mode smoke
 
@@ -593,7 +594,7 @@ Canonical mapping: Blueprint Phase 1 exit gate
 
 선행조건: `S06`
 
-상태: `blocked` (2026-09-09; fixture/contract gate complete, Obsidian UI approval unavailable)
+상태: `complete` (2026-09-11; fixture/contract와 disposable Obsidian smoke 통과)
 
 목표:
 
@@ -604,7 +605,7 @@ Canonical mapping: Blueprint Phase 1 exit gate
 - `guestbook-horror`의 Phase 1 input/expected Vault와 hash/mtime manifest
 - Idea, Question, Knowledge, Source, Project, Project Note/MOC, Artifact fixture
 - archive, capture-finalize, asset provenance의 golden expected bytes
-- 실제 Obsidian desktop과 narrow/mobile-width restricted-mode smoke evidence
+- 실제 Obsidian desktop과 narrow/mobile-width disposable Vault smoke evidence
 
 이번 세션의 일괄 완료 범위:
 
@@ -612,7 +613,7 @@ Canonical mapping: Blueprint Phase 1 exit gate
 - NoteEngine·Base evaluator를 재사용한 path/property/link/query 검증
 - archive/capture-finalize/asset provenance는 후속 mutation command의 expected bytes만 fixture로 고정
 - invalid relation, duplicate ID, missing locator negative fixture
-- disposable smoke Vault materializer와 plugin/config 비생성 경계
+- disposable smoke Vault materializer와 disposable output의 plugin/config 비생성 경계; workspace의 Codex-generated `.obsidian` baseline은 별도로 보존
 
 실제 archive·capture finalize·asset import mutation command는 Blueprint 후속 command owner인 S13C 범위이므로 이 세션에서 구현하지 않는다.
 
@@ -628,35 +629,37 @@ Acceptance:
 
 - `ops/tests/fixtures/s07_portable_vault/guestbook-horror/`에 10개 input note/asset, expected archive/finalize/provenance output, SHA-256/mtime manifest를 고정했다.
 - `portable_fixture`가 exact file set/bytes, optional fixed mtime, duplicate ID, relation direction, wikilink locator와 8개 canonical Base query를 read-only로 검증한다.
-- disposable phase-1 smoke Vault는 현재 S06 core surface와 fixture note를 합성하고 `.obsidian-*`와 `.vault-bridge`를 만들지 않는다.
-- `make test`: 94 passed; `make lint`: All checks passed; `make blueprint-check`: JSON Schema/semantic PASS; `make schema-check`: owned artifact zero-diff PASS; `make container-source-check`/`make container-verify`: PASS.
+- disposable phase-1 smoke Vault는 현재 S06 core surface와 fixture note를 합성한다. Obsidian이 해당 disposable Vault에 만든 일반 `.obsidian` 설정은 disposable 범위에 남고, workspace의 Codex-generated baseline과 분리한다.
+- `make test`: 95 passed; `make lint`: All checks passed; `make blueprint-check`: JSON Schema/semantic PASS; `make schema-check`: owned artifact zero-diff PASS; `make container-source-check`/`make container-verify`: PASS.
 - `git diff --check`: PASS. Host direct Python은 mise shim의 runtime auto-install permission error 때문에 canonical evidence로 사용하지 않았다.
 
-미완료/차단 evidence:
+앱 smoke evidence:
 
-- Obsidian desktop의 disposable test Vault 선택과 Home/Bases/Daily 실제 렌더링은 CUA가 Obsidian 사용을 승인하지 않아 수행하지 못했다. 앱 설정·plugin·workspace Vault는 변경하지 않았다.
+- Obsidian v1.9.14에서 `/private/tmp/knowledgeos-s07-guestbook-horror`를 열어 Home의 Today Focus 0, Now 1, Needs a decision 1, Next actions 1, Knowledge radar 2, Inbox 1, AI review 0 결과와 fallback link를 확인했다. 8개 Base도 각각 오류 없이 열렸고 Decisions 1, Ideas 1, Inbox 1, Journal 0, Knowledge 2, Projects 1, Review 0, Sources 1 결과를 확인했다.
+- Daily `2026-09-09`은 `id=daily-2026-09-09`, `type=daily`, `today_focus`가 보이는 실제 note surface로 열렸고, Mobile은 단일 화면 폭에서 sync 안내·Today·Projects·Mobile Review·Mobile Results·Core 탐색을 렌더링했다.
+- disposable Vault의 앱 설정 inventory에는 `.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`만 있었고 community plugin 파일은 없었다. workspace `KnowledgeHub/.obsidian` baseline과 profile namespace는 변경하지 않았다.
 
 상태 해석:
 
-- S07의 offline fixture/contract 범위는 complete다.
-- S07 전체 acceptance는 실제 앱 smoke가 남아 `blocked`이며, 다음 세션은 S07 smoke 계속 작업이다. 통과한 offline gate만으로 `portable local Vault` 전체 완료나 mobile/automation 완료를 주장하지 않는다.
+- S07 전체 acceptance는 complete이며 완료 명칭은 `portable local Vault`다. 이 결과로 mobile sync, bridge round-trip, automation 완료를 주장하지 않는다.
 
 Gate:
 
-- 실제 Obsidian을 열거나 test Vault를 선택하는 동작이 필요할 수 있다.
+- S07 app smoke가 통과했으므로 S08A offline contract를 진행할 수 있다.
 - production `.obsidian-*` 설정을 추측해 작성하지 않는다.
 
 S07 이후 인수인계:
 
 - fixed fixture, golden output, negative gate와 disposable smoke Vault materializer는 완료했다.
-- 실제 Obsidian UI가 승인되면 `/private/tmp` disposable Vault에서 Home, 8개 Base, Daily와 plugin-free fallback만 확인하고 workspace `vault/`에는 `.obsidian-*`를 만들지 않는다.
-- 이 smoke가 통과하기 전에는 `S08A`로 진행하지 않는다.
+- 실제 Obsidian UI smoke가 통과했으므로 S08A의 offline contract slice로 진행한다. workspace의 Codex-generated `.obsidian` baseline과 profile-specific 설정은 보존한다.
 
 ### S08A — Offline bridge와 sentinel schema
 
 Canonical mapping: Blueprint Phase 2 control-side
 
 선행조건: `S07`
+
+상태: `complete` (2026-09-11; control-side only, no remote or production sentinel)
 
 목표:
 
@@ -681,6 +684,19 @@ Acceptance:
 - credential/token/query/fragment가 remote identity나 protocol artifact에 들어가지 않음
 - production sentinel, remote, credential, push 변화 0개
 
+완료 evidence:
+
+- `ops/src/vaultops/bridge_contract.py`가 Blueprint에서 request/response/root-sentinel schema를 결정론적으로 만들고, 17개 state·허용 전이·runtime/public mapping·append-only history·fixture renderer를 read-only 경계로 제공한다.
+- `canonicalize_github_remote()`는 SSH/HTTPS 표기를 `github.com/<lowercase-owner>/<lowercase-repository>.git\n`으로 통합하고 credential, token 형태의 userinfo, query, fragment, 비-GitHub host를 거부한다. 해시는 canonical UTF-8 bytes에 대해서만 계산한다.
+- `ops/schemas/bridge-request.schema.json`, `bridge-response.schema.json`, `root-sentinel.schema.json` 및 `KnowledgeHub/.vault-bridge/protocol/{request,response}.schema.json`을 `vaultctl schema export`가 생성하며 trusted/protocol bytes가 일치한다.
+- `ops/tests/fixtures/s08a_bridge_contract/`의 synthetic request/response/sentinel과 negative tests가 schema strictness, terminal fields, binding mismatch, create-only/quarantine, deterministic bytes, production response path 거부를 검증한다.
+- canonical evidence: `make test` 101 passed, `make lint` PASS, `make schema-export` PASS, `make schema-check` PASS, `make blueprint-check` PASS, `make source-check` PASS, `make verify` PASS, `make container-source-check` PASS, `make container-verify` PASS.
+
+유지하는 비범위:
+
+- `.knowledgeos-root.json` 생성, 실제 remote 등록/검증, Working Copy·Shortcut·plugin 설정, Git history ingest/publish, commit/push, device round-trip은 S08B 이후 별도 gate다.
+- protocol schema 외 production `.vault-bridge/requests`와 `.vault-bridge/responses`에는 fixture 또는 runtime event를 쓰지 않았다.
+
 ### S08B — Configure, remote identity, production sentinel
 
 Canonical mapping: Blueprint Phase 2 deployment overlay
@@ -695,9 +711,12 @@ Canonical mapping: Blueprint Phase 2 deployment overlay
 
 - notes repository remote와 canonical fingerprint
 - expected branch
-- canonical Vault name
-- 새 Vault UUID
 - 이 Vault에 넣지 않을 민감 자료 경계
+
+확정된 값:
+
+- canonical Vault name: `KnowledgeHub`
+- Vault UUID: `411602c1-5278-4a8b-8b96-9183fb6ef8c2`
 
 주요 산출물:
 
@@ -1341,7 +1360,7 @@ plugin을 제거해도 CLI, JSONL, index, ask가 그대로 동작해야 한다.
 | G1 Toolchain | `S01` | Colima start/config, image dependency download, 또는 host `mise` runtime download 필요 | 설치·VM·cache 범위와 방식 |
 | G2 Migration | 모든 세션 | 기존 사용자 파일 이동·병합·재작성 필요 | 대상, backup, rollback을 포함한 migration plan |
 | G3 Git history | 변경 후 | user-owned control/Vault commit 또는 push 직전 | repository별 exact staged set; push는 별도; 임시 test repository 제외 |
-| G4 Remote identity | `S08B` | sentinel/Working Copy 연결 전 | remote, expected branch, Vault name, UUID |
+| G4 Remote identity | `S08B` | sentinel/Working Copy 연결 전 | remote, expected branch; Vault name/UUID는 현재 workspace에서 확정 |
 | G5 Device/sync | `S10` | Working Copy, credential, sync transport 변경 | 장치별 범위와 각 push/revoke drill |
 | G6 Settings/plugin | `S10`/`S11`/`S12*` | `.obsidian-*` 변경 또는 plugin download/enable/update | 장치별 exact 설정 diff 또는 plugin별 승인 |
 | G7 Remote LLM transmission | `S16C` 이후 | remote provider가 source bytes를 받기 전 | job/source/route/model/policy/expiry-bound authorization |

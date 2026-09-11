@@ -29,11 +29,11 @@ def _control_copy(tmp_path: Path, *, fresh_vault: bool = False) -> Path:
     shutil.copytree(
         CONTROL_ROOT,
         root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "vault", "runtime"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
     )
-    (root / "vault").mkdir()
+    (root / "KnowledgeHub").mkdir()
     if not fresh_vault:
-        shutil.copytree(CONTROL_ROOT / "vault", root / "vault", dirs_exist_ok=True)
+        shutil.copytree(CONTROL_ROOT / "KnowledgeHub", root / "KnowledgeHub", dirs_exist_ok=True)
     return root
 
 
@@ -93,14 +93,14 @@ def test_exact_s05_template_allowlist_is_present_and_no_placeholder_directories_
     expected = tuple(f"99_System/Templates/{name}" for name in blueprint["templates"]["required"])
     assert template_paths() == expected
     assert tuple(spec.filename for spec in TEMPLATE_SPECS) == tuple(blueprint["templates"]["required"])
-    assert tuple(sorted(path.name for path in (CONTROL_ROOT / "vault/99_System/Templates").glob("*.md"))) == tuple(
+    assert tuple(sorted(path.name for path in (CONTROL_ROOT / "KnowledgeHub/99_System/Templates").glob("*.md"))) == tuple(
         sorted(blueprint["templates"]["required"])
     )
     for spec in TEMPLATE_SPECS:
-        assert (CONTROL_ROOT / "vault" / spec.relative_path).read_bytes() == template_source(spec.filename).encode("utf-8")
+        assert (CONTROL_ROOT / "KnowledgeHub" / spec.relative_path).read_bytes() == template_source(spec.filename).encode("utf-8")
     assert not any(
         path.is_dir() and path.name in {"YYYY", "MM", "GGGG", "WWW", "PROJECT_NAME", "JOB_ID"}
-        for path in (CONTROL_ROOT / "vault").rglob("*")
+        for path in (CONTROL_ROOT / "KnowledgeHub").rglob("*")
     )
 
 
@@ -183,7 +183,7 @@ def test_bootstrap_dry_run_apply_and_second_apply_are_additive(tmp_path: Path) -
     planned = bootstrap(root, dry_run=True)
     assert planned["status"] == "PASS"
     assert planned["would_create"]
-    assert not list((root / "vault/99_System/Templates").glob("*.md"))
+    assert not list((root / "KnowledgeHub/99_System/Templates").glob("*.md"))
 
     applied = bootstrap(root)
     assert applied["status"] == "PASS"
@@ -193,30 +193,30 @@ def test_bootstrap_dry_run_apply_and_second_apply_are_additive(tmp_path: Path) -
     assert second["created"] == []
     second_preview = bootstrap(root, dry_run=True)
     assert second_preview["would_create"] == []
-    assert all((root / "vault" / relative).exists() for relative in template_paths())
+    assert all((root / "KnowledgeHub" / relative).exists() for relative in template_paths())
 
 
 def test_bootstrap_conflict_is_preflighted_without_creating_other_templates(tmp_path: Path) -> None:
     root = _control_copy(tmp_path, fresh_vault=True)
-    conflict = root / "vault/99_System/Templates/T00_Capture.md"
+    conflict = root / "KnowledgeHub/99_System/Templates/T00_Capture.md"
     conflict.parent.mkdir(parents=True)
     conflict.write_text("user-owned\n", encoding="utf-8")
     result = bootstrap(root)
     assert result["status"] == "CONFLICT"
     assert result["conflicts"] == ["99_System/Templates/T00_Capture.md"]
-    assert not (root / "vault/99_System/Templates/T20_Project.md").exists()
+    assert not (root / "KnowledgeHub/99_System/Templates/T20_Project.md").exists()
     assert conflict.read_text(encoding="utf-8") == "user-owned\n"
 
 
 def test_bootstrap_treats_a_directory_at_a_template_target_as_conflict(tmp_path: Path) -> None:
     root = _control_copy(tmp_path, fresh_vault=True)
-    conflict = root / "vault/99_System/Templates/T00_Capture.md"
+    conflict = root / "KnowledgeHub/99_System/Templates/T00_Capture.md"
     conflict.parent.mkdir(parents=True)
     conflict.mkdir()
     result = bootstrap(root)
     assert result["status"] == "CONFLICT"
     assert result["conflicts"] == ["99_System/Templates/T00_Capture.md"]
-    assert not (root / "vault/99_System/Templates/T20_Project.md").exists()
+    assert not (root / "KnowledgeHub/99_System/Templates/T20_Project.md").exists()
 
 
 def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_path: Path) -> None:
@@ -242,9 +242,9 @@ def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_pat
         created_at="2026-09-09T09:00:00+09:00",
     )
     assert applied["status"] == "PASS", applied
-    assert (root / "vault/20_Projects/Demo Project/Demo Project.md").is_file()
-    assert (root / "vault/20_Projects/Demo Project/Working").is_dir()
-    assert (root / "vault/20_Projects/Demo Project/Artifacts").is_dir()
+    assert (root / "KnowledgeHub/20_Projects/Demo Project/Demo Project.md").is_file()
+    assert (root / "KnowledgeHub/20_Projects/Demo Project/Working").is_dir()
+    assert (root / "KnowledgeHub/20_Projects/Demo Project/Artifacts").is_dir()
     second = create_project_bundle(root, title="Demo Project", created_at="2026-09-09T09:00:00+09:00")
     assert second["status"] == "CONFLICT"
     assert second["created"] == []
@@ -252,7 +252,7 @@ def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_pat
 
 def test_project_bundle_refuses_an_existing_project_root(tmp_path: Path) -> None:
     root = _control_copy(tmp_path, fresh_vault=True)
-    project_dir = root / "vault/20_Projects/Existing Project"
+    project_dir = root / "KnowledgeHub/20_Projects/Existing Project"
     project_dir.mkdir(parents=True)
     result = create_project_bundle(root, title="Existing Project")
     assert result["status"] == "CONFLICT"

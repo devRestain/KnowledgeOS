@@ -37,7 +37,7 @@ conflict_precedence:
 
 defaults:
   workspace_name: KnowledgeOS
-  vault_name: KnowledgeOS
+  vault_name: KnowledgeHub
   language: ko
   canonical_timezone: Asia/Seoul
   notes_remote_visibility: private
@@ -57,10 +57,10 @@ repositories:
       - ops
       - automation_tests
     excludes:
-      - vault
+      - KnowledgeHub
       - runtime
   vault:
-    root: vault
+    root: KnowledgeHub
     independent_git_repository: true
     remote_role: github_notes_repository
     obsidian_vault_root: true
@@ -129,14 +129,14 @@ mobile_install_gate:
   requires_working_copy_pro:
     - push
     - linked_external_repository
-  external_worktree_location: on_my_device/Obsidian/KnowledgeOS
+  external_worktree_location: on_my_device/Obsidian/KnowledgeHub
   forbidden_parallel_sync: [icloud_drive, obsidian_sync, dropbox, onedrive]
   expected_root_sentinel: .knowledgeos-root.json
   root_sentinel_contract:
     required_fields: [schema_version, contract_id, vault_uuid, canonical_vault_name, remote_identity_sha256, expected_branch]
     schema_version: 1
     contract_id: knowledgeos-vault-root-v1
-    canonical_vault_name: KnowledgeOS
+    canonical_vault_name: KnowledgeHub
     remote_identity_canonical_form: "github.com/<lowercase-owner>/<lowercase-repository>.git\\n"
     remote_identity_sha256: sha256_of_utf8_canonical_form
     forbid_in_remote_identity: [credentials, token, query, fragment]
@@ -991,7 +991,7 @@ shortcut_contracts:
     after_fast_forward: validate_and_quicklook_latest_bridge_response_for_this_device
 
 mobile_recovery_outbox:
-  root: on_my_device/KnowledgeOS-Recovery/Outbox
+  root: on_my_device/KnowledgeHub-Recovery/Outbox
   outside_notes_repository: true
   payload_path: JOB_ID/input.json
   event_path: JOB_ID/events/NNNN-event.json

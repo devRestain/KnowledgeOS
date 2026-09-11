@@ -101,7 +101,7 @@ def create_project_bundle(
     try:
         title = validate_title(title)
         workspace = _workspace(root)
-        vault_root = workspace / "vault"
+        vault_root = workspace / "KnowledgeHub"
         if vault_root.is_symlink() or not vault_root.is_dir():
             raise ValueError("Vault root is missing or is a symlink")
         targets = _project_targets(title)
@@ -241,7 +241,7 @@ def create_period_note(root: str | Path, *, kind: str, selected_date: str | date
         )
         relative, start, end, label = _period_target(kind, selected)
         workspace = _workspace(root)
-        vault_root = workspace / "vault"
+        vault_root = workspace / "KnowledgeHub"
         if vault_root.is_symlink() or not vault_root.is_dir():
             raise ValueError("Vault root is missing or is a symlink")
         target = _safe_target(vault_root, relative)

@@ -7,7 +7,7 @@
 **/.pytest_cache
 **/.mypy_cache
 **/.ruff_cache
-vault
+KnowledgeHub
 runtime
 *.pyc
 *.pyo

@@ -42,7 +42,7 @@
 모바일 연결은 아직 수행하지 않았다. 구현할 때 다음을 모두 실제 장치에서 확인한다.
 
 1. Working Copy의 Push와 linked external repository 기능 사용 가능 여부
-2. `On My iPhone` 또는 `On My iPad/Obsidian/KnowledgeOS`의 local Vault
+2. `On My iPhone` 또는 `On My iPad/Obsidian/KnowledgeHub`의 local Vault
 3. linked external worktree root와 Obsidian Vault root의 동일성
 4. remote fingerprint, branch, `.knowledgeos-root.json` bytes의 일치
 5. `.obsidian-phone` 또는 `.obsidian-tablet` config override와 앱 재실행

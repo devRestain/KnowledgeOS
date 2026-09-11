@@ -32,8 +32,8 @@ docs/IMPLEMENTATION_STATUS.md
 docs/SOURCE_CONTRACT.md
 ops/check-foundation.sh
 ops/config/generated-artifacts.yaml
-vault/.gitignore
-vault/.gitattributes
+KnowledgeHub/.gitignore
+KnowledgeHub/.gitattributes
 '
 
 foundation_required_directories='
@@ -49,46 +49,46 @@ ops/src/vaultops
 ops/launchd
 ops/tests
 ops/tests/fixtures
-vault
-vault/.vault-bridge
-vault/.vault-bridge/protocol
-vault/.vault-bridge/requests
-vault/.vault-bridge/responses
-vault/00_Inbox/Captures
-vault/00_Inbox/Imports
-vault/01_AI_Review/Pending
-vault/01_AI_Review/Resolved
-vault/01_AI_Review/Rejected
-vault/01_AI_Review/Expired
-vault/01_AI_Review/Conflict
-vault/10_Journal/Daily
-vault/10_Journal/Weekly
-vault/10_Journal/Monthly
-vault/20_Projects
-vault/30_Areas
-vault/40_Knowledge/Notes
-vault/40_Knowledge/Ideas
-vault/40_Knowledge/Questions
-vault/40_Knowledge/Sources
-vault/40_Knowledge/People
-vault/50_Maps
-vault/60_Meetings
-vault/80_Assets/Inbox
-vault/80_Assets/Images
-vault/80_Assets/Documents
-vault/80_Assets/Audio
-vault/90_Archive/Projects
-vault/90_Archive/Captures
-vault/90_Archive/Other
-vault/99_System/Templates
-vault/99_System/Bases
-vault/99_System/Dashboards
-vault/99_System/Schemas
-vault/99_System/Scripts/QuickAdd
-vault/99_System/CSS
-vault/.obsidian-mac
-vault/.obsidian-phone
-vault/.obsidian-tablet
+KnowledgeHub
+KnowledgeHub/.vault-bridge
+KnowledgeHub/.vault-bridge/protocol
+KnowledgeHub/.vault-bridge/requests
+KnowledgeHub/.vault-bridge/responses
+KnowledgeHub/00_Inbox/Captures
+KnowledgeHub/00_Inbox/Imports
+KnowledgeHub/01_AI_Review/Pending
+KnowledgeHub/01_AI_Review/Resolved
+KnowledgeHub/01_AI_Review/Rejected
+KnowledgeHub/01_AI_Review/Expired
+KnowledgeHub/01_AI_Review/Conflict
+KnowledgeHub/10_Journal/Daily
+KnowledgeHub/10_Journal/Weekly
+KnowledgeHub/10_Journal/Monthly
+KnowledgeHub/20_Projects
+KnowledgeHub/30_Areas
+KnowledgeHub/40_Knowledge/Notes
+KnowledgeHub/40_Knowledge/Ideas
+KnowledgeHub/40_Knowledge/Questions
+KnowledgeHub/40_Knowledge/Sources
+KnowledgeHub/40_Knowledge/People
+KnowledgeHub/50_Maps
+KnowledgeHub/60_Meetings
+KnowledgeHub/80_Assets/Inbox
+KnowledgeHub/80_Assets/Images
+KnowledgeHub/80_Assets/Documents
+KnowledgeHub/80_Assets/Audio
+KnowledgeHub/90_Archive/Projects
+KnowledgeHub/90_Archive/Captures
+KnowledgeHub/90_Archive/Other
+KnowledgeHub/99_System/Templates
+KnowledgeHub/99_System/Bases
+KnowledgeHub/99_System/Dashboards
+KnowledgeHub/99_System/Schemas
+KnowledgeHub/99_System/Scripts/QuickAdd
+KnowledgeHub/99_System/CSS
+KnowledgeHub/.obsidian-mac
+KnowledgeHub/.obsidian-phone
+KnowledgeHub/.obsidian-tablet
 runtime
 runtime/staging
 runtime/queue
@@ -130,11 +130,11 @@ for foundation_path in runtime $foundation_required_directories; do
     esac
 done
 
-[ ! -e bridge ] || foundation_fail 'obsolete top-level bridge/ exists; canonical transport is vault/.vault-bridge/'
-grep -Fqx '/vault/' .gitignore || foundation_fail 'control .gitignore must contain /vault/'
+[ ! -e bridge ] || foundation_fail 'obsolete top-level bridge/ exists; canonical transport is KnowledgeHub/.vault-bridge/'
+grep -Fqx '/KnowledgeHub/' .gitignore || foundation_fail 'control .gitignore must contain /KnowledgeHub/'
 grep -Fqx '/runtime/' .gitignore || foundation_fail 'control .gitignore must contain /runtime/'
 
-foundation_gitkeep_matches=$(find vault -name .gitkeep -print)
+foundation_gitkeep_matches=$(find KnowledgeHub -name .gitkeep -print)
 [ -z "$foundation_gitkeep_matches" ] || foundation_fail "Vault filler .gitkeep files found: $foundation_gitkeep_matches"
 
 for foundation_pattern in \
@@ -145,13 +145,13 @@ for foundation_pattern in \
     '.obsidian-phone/plugins/' \
     '.obsidian-tablet/plugins/'
 do
-    grep -Fqx "$foundation_pattern" vault/.gitignore || foundation_fail "Vault profile deny rule missing: $foundation_pattern"
+    grep -Fqx "$foundation_pattern" KnowledgeHub/.gitignore || foundation_fail "Vault profile deny rule missing: $foundation_pattern"
 done
 
 foundation_bad_runtime_files=$(find runtime -type f ! -perm 600 -print)
 [ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
-foundation_manifest_expected='a3b458bcf10dbf525ed59fd76ae8e5e814ecadea8a7a6035cb53416a458c0322'
+foundation_manifest_expected='47746572534e8b905aeb9b2b0f5eaf15d1407765f18e879ad108d37c6bb2080a'
 foundation_manifest_actual=$(shasum -a 256 blueprint/CHECKSUMS.sha256 | awk '{print $1}')
 [ "$foundation_manifest_actual" = "$foundation_manifest_expected" ] || foundation_fail "checksum manifest hash mismatch: expected=$foundation_manifest_expected actual=$foundation_manifest_actual"
 
@@ -165,26 +165,26 @@ ruby -ryaml -rjson -e '
   abort "top-level required/key count mismatch" unless Array(schema["required"]).length == blueprint.keys.length
 '
 
-foundation_literal_matches=$(find vault ops runtime -type d \( \
+foundation_literal_matches=$(find KnowledgeHub ops runtime -type d \( \
     -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \
     -name PROJECT_NAME -o -name JOB_ID \
 \) -print)
 [ -z "$foundation_literal_matches" ] || foundation_fail "literal placeholder directories found: $foundation_literal_matches"
 
-foundation_symlink_matches=$(find vault ops runtime -type l -print)
+foundation_symlink_matches=$(find KnowledgeHub ops runtime -type l -print)
 [ -z "$foundation_symlink_matches" ] || foundation_fail "unexpected symlinks found: $foundation_symlink_matches"
 
 foundation_control_git=$(git -C "$foundation_root" rev-parse --show-toplevel 2>/dev/null || true)
-foundation_vault_git=$(git -C "$foundation_root/vault" rev-parse --show-toplevel 2>/dev/null || true)
+foundation_vault_git=$(git -C "$foundation_root/KnowledgeHub" rev-parse --show-toplevel 2>/dev/null || true)
 
 if [ -z "$foundation_control_git" ] && [ -z "$foundation_vault_git" ]; then
     printf '%s\n' 'Git boundary: DEFERRED (neither repository has been initialized)'
 elif [ -n "$foundation_control_git" ] && [ -n "$foundation_vault_git" ]; then
     [ "$foundation_control_git" = "$foundation_root" ] || foundation_fail "wrong control Git root: $foundation_control_git"
-    [ "$foundation_vault_git" = "$foundation_root/vault" ] || foundation_fail "wrong Vault Git root: $foundation_vault_git"
-    git -C "$foundation_root" check-ignore --no-index --quiet -- vault || foundation_fail 'control repository must ignore vault/'
+    [ "$foundation_vault_git" = "$foundation_root/KnowledgeHub" ] || foundation_fail "wrong Vault Git root: $foundation_vault_git"
+    git -C "$foundation_root" check-ignore --no-index --quiet -- KnowledgeHub || foundation_fail 'control repository must ignore KnowledgeHub/'
     git -C "$foundation_root" check-ignore --no-index --quiet -- runtime || foundation_fail 'control repository must ignore runtime/'
-    foundation_tracked_boundaries=$(git -C "$foundation_root" ls-files --stage -- vault runtime)
+    foundation_tracked_boundaries=$(git -C "$foundation_root" ls-files --stage -- KnowledgeHub runtime)
     [ -z "$foundation_tracked_boundaries" ] || foundation_fail "control index tracks forbidden boundaries: $foundation_tracked_boundaries"
     printf '%s\n' 'Git boundary: PASS (independent control and Vault roots)'
 else

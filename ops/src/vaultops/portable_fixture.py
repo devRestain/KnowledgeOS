@@ -444,7 +444,7 @@ def materialize_phase1_smoke_vault(
     target = Path(destination).resolve()
     if target.exists():
         raise FileExistsError(f"refusing to materialize over an existing path: {target}")
-    source_vault = workspace / "vault"
+    source_vault = workspace / "KnowledgeHub"
     if source_vault.is_symlink() or not source_vault.is_dir():
         raise ValueError("workspace Vault root is missing or symlinked")
     target.mkdir(parents=True)

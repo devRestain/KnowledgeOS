@@ -10,7 +10,7 @@ from pathlib import Path
 from .runtime import RuntimeLayout
 from .yaml_safe import load_yaml_file
 
-MANIFEST_SHA256 = "a3b458bcf10dbf525ed59fd76ae8e5e814ecadea8a7a6035cb53416a458c0322"
+MANIFEST_SHA256 = "47746572534e8b905aeb9b2b0f5eaf15d1407765f18e879ad108d37c6bb2080a"
 
 REQUIRED_FILES = (
     ".gitignore",
@@ -33,8 +33,8 @@ REQUIRED_FILES = (
     "docs/SOURCE_CONTRACT.md",
     "ops/check-foundation.sh",
     "ops/config/generated-artifacts.yaml",
-    "vault/.gitignore",
-    "vault/.gitattributes",
+    "KnowledgeHub/.gitignore",
+    "KnowledgeHub/.gitattributes",
 )
 
 REQUIRED_DIRECTORIES = (
@@ -51,47 +51,47 @@ REQUIRED_DIRECTORIES = (
     "ops/launchd",
     "ops/tests",
     "ops/tests/fixtures",
-    "vault",
-    "vault/.vault-bridge",
-    "vault/.vault-bridge/protocol",
-    "vault/.vault-bridge/requests",
-    "vault/.vault-bridge/responses",
+    "KnowledgeHub",
+    "KnowledgeHub/.vault-bridge",
+    "KnowledgeHub/.vault-bridge/protocol",
+    "KnowledgeHub/.vault-bridge/requests",
+    "KnowledgeHub/.vault-bridge/responses",
     "runtime",
-    "vault/00_Inbox/Captures",
-    "vault/00_Inbox/Imports",
-    "vault/01_AI_Review/Pending",
-    "vault/01_AI_Review/Resolved",
-    "vault/01_AI_Review/Rejected",
-    "vault/01_AI_Review/Expired",
-    "vault/01_AI_Review/Conflict",
-    "vault/10_Journal/Daily",
-    "vault/10_Journal/Weekly",
-    "vault/10_Journal/Monthly",
-    "vault/20_Projects",
-    "vault/30_Areas",
-    "vault/40_Knowledge/Notes",
-    "vault/40_Knowledge/Ideas",
-    "vault/40_Knowledge/Questions",
-    "vault/40_Knowledge/Sources",
-    "vault/40_Knowledge/People",
-    "vault/50_Maps",
-    "vault/60_Meetings",
-    "vault/80_Assets/Inbox",
-    "vault/80_Assets/Images",
-    "vault/80_Assets/Documents",
-    "vault/80_Assets/Audio",
-    "vault/90_Archive/Projects",
-    "vault/90_Archive/Captures",
-    "vault/90_Archive/Other",
-    "vault/99_System/Templates",
-    "vault/99_System/Bases",
-    "vault/99_System/Dashboards",
-    "vault/99_System/Schemas",
-    "vault/99_System/Scripts/QuickAdd",
-    "vault/99_System/CSS",
-    "vault/.obsidian-mac",
-    "vault/.obsidian-phone",
-    "vault/.obsidian-tablet",
+    "KnowledgeHub/00_Inbox/Captures",
+    "KnowledgeHub/00_Inbox/Imports",
+    "KnowledgeHub/01_AI_Review/Pending",
+    "KnowledgeHub/01_AI_Review/Resolved",
+    "KnowledgeHub/01_AI_Review/Rejected",
+    "KnowledgeHub/01_AI_Review/Expired",
+    "KnowledgeHub/01_AI_Review/Conflict",
+    "KnowledgeHub/10_Journal/Daily",
+    "KnowledgeHub/10_Journal/Weekly",
+    "KnowledgeHub/10_Journal/Monthly",
+    "KnowledgeHub/20_Projects",
+    "KnowledgeHub/30_Areas",
+    "KnowledgeHub/40_Knowledge/Notes",
+    "KnowledgeHub/40_Knowledge/Ideas",
+    "KnowledgeHub/40_Knowledge/Questions",
+    "KnowledgeHub/40_Knowledge/Sources",
+    "KnowledgeHub/40_Knowledge/People",
+    "KnowledgeHub/50_Maps",
+    "KnowledgeHub/60_Meetings",
+    "KnowledgeHub/80_Assets/Inbox",
+    "KnowledgeHub/80_Assets/Images",
+    "KnowledgeHub/80_Assets/Documents",
+    "KnowledgeHub/80_Assets/Audio",
+    "KnowledgeHub/90_Archive/Projects",
+    "KnowledgeHub/90_Archive/Captures",
+    "KnowledgeHub/90_Archive/Other",
+    "KnowledgeHub/99_System/Templates",
+    "KnowledgeHub/99_System/Bases",
+    "KnowledgeHub/99_System/Dashboards",
+    "KnowledgeHub/99_System/Schemas",
+    "KnowledgeHub/99_System/Scripts/QuickAdd",
+    "KnowledgeHub/99_System/CSS",
+    "KnowledgeHub/.obsidian-mac",
+    "KnowledgeHub/.obsidian-phone",
+    "KnowledgeHub/.obsidian-tablet",
 )
 
 
@@ -156,12 +156,12 @@ def check_foundation(root: str | Path) -> list[str]:
     problems.extend(RuntimeLayout(workspace / "runtime").check())
     if (workspace / "bridge").exists():
         problems.append("obsolete top-level bridge/ exists")
-    for expected in ("/vault/", "/runtime/"):
+    for expected in ("/KnowledgeHub/", "/runtime/"):
         if expected not in (workspace / ".gitignore").read_text(encoding="utf-8").splitlines():
             problems.append(f"control .gitignore is missing {expected}")
-    if list((workspace / "vault").rglob(".gitkeep")):
+    if list((workspace / "KnowledgeHub").rglob(".gitkeep")):
         problems.append("Vault filler .gitkeep files found")
-    for path in (workspace / "vault").rglob("*"):
+    for path in (workspace / "KnowledgeHub").rglob("*"):
         if path.is_symlink():
             problems.append(f"unexpected Vault symlink: {path.relative_to(workspace)}")
     for path in (workspace / "ops").rglob("*"):
@@ -183,19 +183,19 @@ def check_foundation(root: str | Path) -> list[str]:
         problems.append(f"blueprint bootstrap parse failed: {error}")
 
     control_root_code, control_root = _git_output(workspace, "rev-parse", "--show-toplevel")
-    vault_root_code, vault_root = _git_output(workspace / "vault", "rev-parse", "--show-toplevel")
+    vault_root_code, vault_root = _git_output(workspace / "KnowledgeHub", "rev-parse", "--show-toplevel")
     if control_root_code != 0 or vault_root_code != 0:
         problems.append("both control and Vault Git roots must be initialized")
     else:
         if Path(control_root).resolve() != workspace:
             problems.append(f"wrong control Git root: {control_root}")
-        if Path(vault_root).resolve() != workspace / "vault":
+        if Path(vault_root).resolve() != workspace / "KnowledgeHub":
             problems.append(f"wrong Vault Git root: {vault_root}")
-        for boundary in ("vault", "runtime"):
+        for boundary in ("KnowledgeHub", "runtime"):
             ignored_code, _ = _git_output(workspace, "check-ignore", "--no-index", "--", boundary)
             if ignored_code != 0:
                 problems.append(f"control repository must ignore {boundary}/")
-        tracked_code, tracked = _git_output(workspace, "ls-files", "--stage", "--", "vault", "runtime")
+        tracked_code, tracked = _git_output(workspace, "ls-files", "--stage", "--", "KnowledgeHub", "runtime")
         if tracked_code != 0 or tracked:
             problems.append("control index tracks a forbidden boundary")
     return problems

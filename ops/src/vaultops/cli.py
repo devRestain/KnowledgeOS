@@ -202,7 +202,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.note_command == "validate":
             try:
                 relative = args.path.as_posix()
-                note_path = resolve_vault_relative_path(root / "vault", relative)
+                note_path = resolve_vault_relative_path(root / "KnowledgeHub", relative)
                 result = NoteEngine.from_root(root).validate_text(relative, note_path.read_text(encoding="utf-8"))
                 print(json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
                 return 0 if result.passed else 1

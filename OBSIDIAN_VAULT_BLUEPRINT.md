@@ -115,7 +115,7 @@ flowchart LR
 
 ## 5. 물리적 저장소 경계
 
-Vault notes repository의 tracked root와 Obsidian Vault root는 논리적으로 같게 둔다. Mac에서는 `vault/.git`이 이 root에 직접 있다. iPhone/iPad에서는 Working Copy가 Git metadata를 자체 container에 보관할 수 있으므로, 반드시 같아야 하는 것은 **Working Copy의 linked external worktree root와 Obsidian Vault root**다. Mac 전용 자동화와 runtime은 별도의 control workspace에 둔다.
+Vault notes repository의 tracked root와 Obsidian Vault root는 논리적으로 같게 둔다. Mac에서는 `KnowledgeHub/.git`이 이 root에 직접 있다. iPhone/iPad에서는 Working Copy가 Git metadata를 자체 container에 보관할 수 있으므로, 반드시 같아야 하는 것은 **Working Copy의 linked external worktree root와 Obsidian Vault root**다. Mac 전용 자동화와 runtime은 별도의 control workspace에 둔다.
 
 ```text
 KnowledgeOS/                       # Mac의 Codex control workspace
@@ -125,14 +125,14 @@ KnowledgeOS/                       # Mac의 Codex control workspace
 ├── docs/                          # 사람이 읽는 운영·결정 문서
 ├── ops/                           # 자동화 코드·정책·schema·prompt·test
 ├── runtime/                       # Mac 장치 로컬 queue·receipt·index·log
-└── vault/                         # 별도 Git repository; 실제 Obsidian Vault
+└── KnowledgeHub/                         # 별도 Git repository; 실제 Obsidian Vault
     ├── .git/                      # Mac clone에만 보임; mobile metadata는 Working Copy 내부일 수 있음
     ├── .vault-bridge/             # Git으로 장치 사이를 오가는 불변 메시지
     ├── Home.md
     └── ...
 ```
 
-Mac control repository는 nested `vault/` repository를 일반 파일로 추적하지 않는다. submodule은 두 저장소의 commit을 함께 pin해야 할 명확한 필요가 생길 때만 도입한다. 기본은 nested independent repository이고, receipt가 `control_git_head`와 `vault_git_head`를 각각 기록한다.
+Mac control repository는 nested `KnowledgeHub/` repository를 일반 파일로 추적하지 않는다. submodule은 두 저장소의 commit을 함께 pin해야 할 명확한 필요가 생길 때만 도입한다. 기본은 nested independent repository이고, receipt가 `control_git_head`와 `vault_git_head`를 각각 기록한다.
 
 이 경계를 택하는 이유는 다음과 같다.
 
@@ -149,7 +149,7 @@ Mac control repository는 nested `vault/` repository를 일반 파일로 추적�
 각 iPhone/iPad에서 다음 순서를 한 번만 대화형으로 수행한다.
 
 1. Working Copy의 Push와 Linked external repository를 사용할 수 있는 Pro unlock 상태를 확인한다.
-2. iCloud Drive가 아닌 `On My iPhone` 또는 `On My iPad/Obsidian/KnowledgeOS`에 빈 local Vault를 만든다.
+2. iCloud Drive가 아닌 `On My iPhone` 또는 `On My iPad/Obsidian/KnowledgeHub`에 빈 local Vault를 만든다.
 3. Working Copy에서 expected GitHub remote의 notes repository를 clone한다.
 4. `Link Repository to Folder`로 clone의 external worktree root를 위 빈 Vault root에 연결한다. 외부 폴더 안에 `.git`이 보일 필요는 없다.
 5. tracked sentinel `.knowledgeos-root.json`, expected remote fingerprint, branch를 확인한다.
@@ -158,7 +158,7 @@ Mac control repository는 nested `vault/` repository를 일반 파일로 추적�
 
 같은 live Vault에 iCloud, Obsidian Sync, Dropbox류 file sync를 겹치지 않는다. Working Copy가 외부 파일 변경으로 혼란스러울 수 있으므로 Pull/Merge 전에는 Obsidian을 닫고, 완료 뒤 다시 열어 sentinel과 index를 확인한다. link가 끊기면 새 저장소를 만들거나 force sync하지 말고 동일 폴더를 다시 연결해 remote·branch·sentinel을 재검증한다.
 
-`.knowledgeos-root.json`은 `schema_version: 1`, `contract_id: knowledgeos-vault-root-v1`, UUID v4 `vault_uuid`, `canonical_vault_name: KnowledgeOS`, `remote_identity_sha256`, `expected_branch`만 허용한다. GitHub remote는 credential·token·query·fragment를 제거한 뒤 SSH/HTTPS 표기를 모두 `github.com/<lowercase-owner>/<lowercase-repository>.git\n` UTF-8 bytes로 정규화하고 SHA-256한다. `vaultctl configure --interactive`가 사용자가 확인한 remote와 branch에서 이를 원자적으로 만들며, Mac과 각 mobile 장치가 같은 tracked bytes를 검증한다.
+`.knowledgeos-root.json`은 `schema_version: 1`, `contract_id: knowledgeos-vault-root-v1`, UUID v4 `vault_uuid`, `canonical_vault_name: KnowledgeHub`, `remote_identity_sha256`, `expected_branch`만 허용한다. GitHub remote는 credential·token·query·fragment를 제거한 뒤 SSH/HTTPS 표기를 모두 `github.com/<lowercase-owner>/<lowercase-repository>.git\n` UTF-8 bytes로 정규화하고 SHA-256한다. `vaultctl configure --interactive`가 사용자가 확인한 remote와 branch에서 이를 원자적으로 만들며, Mac과 각 mobile 장치가 같은 tracked bytes를 검증한다.
 
 ## 6. 전체 기준 트리
 
@@ -176,7 +176,7 @@ KnowledgeOS/
 │   ├── MOBILE.md
 │   ├── RUNTIME.md
 │   └── DECISIONS.md
-├── vault/
+├── KnowledgeHub/
 │   ├── .git/
 │   ├── .gitignore
 │   ├── .gitattributes
@@ -415,7 +415,7 @@ KnowledgeOS/
 | 경계 | namespace | 예 |
 |---|---|---|
 | Obsidian, Working Copy, `.vault-bridge` | Vault-relative | `00_Inbox/Captures/x.md` |
-| Mac control workspace의 internal job/policy | control-root-relative | `vault/00_Inbox/Captures/x.md` |
+| Mac control workspace의 internal job/policy | control-root-relative | `KnowledgeHub/00_Inbox/Captures/x.md` |
 | runtime artifact | runtime-relative | `runs/JOB_ID/proposal.json` |
 
 bridge ingest가 Vault-relative path를 검증한 뒤 control-root-relative path로 한 번만 변환한다. 문자열 prefix를 단순 연결하지 않고 resolved root containment, symlink, NFC, case-fold collision을 다시 검사한다. receipt에는 원래 transport path와 normalized internal path를 모두 기록한다.
@@ -974,7 +974,7 @@ ai_status: idle
 
 ## 오늘
 
-- [오늘 Daily 열기](obsidian://daily?vault=KnowledgeOS)
+- [오늘 Daily 열기](obsidian://daily?vault=KnowledgeHub)
 
 ![[99_System/Bases/Projects.base#Mobile]]
 
@@ -987,10 +987,10 @@ ai_status: idle
 - [[99_System/Bases/Projects.base|프로젝트 전체]]
 - [[99_System/Bases/Inbox.base|Inbox 전체]]
 - [[99_System/Bases/Review.base|AI Review 전체]]
-- [MOC 검색](obsidian://search?vault=KnowledgeOS&query=path%3A50_Maps)
+- [MOC 검색](obsidian://search?vault=KnowledgeHub&query=path%3A50_Maps)
 ```
 
-공유되는 `Mobile.md`에는 장치별 ID를 쓰지 않고 모든 장치에서 같아야 하는 canonical Vault 이름 `KnowledgeOS`를 percent-encoded URI 매개변수로 사용한다. 이름이 다른 기존 Vault를 migration할 때는 먼저 모든 장치의 Vault 이름을 동일하게 바꾸거나 URI를 장치 로컬 Shortcut/Bookmark로 옮겨야 하며, Mac bootstrap이 한 장치의 Vault ID를 공유 파일에 주입해서는 안 된다. bootstrap은 iPhone과 iPad에서 Daily·search URI를 각각 smoke test한다. Base embed가 비활성·오류이면 `.base` 확장자를 포함한 plain wikilink가 fallback이다. `Projects.base#Mobile`은 `focus_rank` 상위 3개의 `next_action` Property를 보여 주며 Community Tasks를 요구하지 않는다. 세부 Tasks query는 Mac enhancement다.
+공유되는 `Mobile.md`에는 장치별 ID를 쓰지 않고 모든 장치에서 같아야 하는 canonical Vault 이름 `KnowledgeHub`를 percent-encoded URI 매개변수로 사용한다. 이름이 다른 기존 Vault를 migration할 때는 먼저 모든 장치의 Vault 이름을 동일하게 바꾸거나 URI를 장치 로컬 Shortcut/Bookmark로 옮겨야 하며, Mac bootstrap이 한 장치의 Vault ID를 공유 파일에 주입해서는 안 된다. bootstrap은 iPhone과 iPad에서 Daily·search URI를 각각 smoke test한다. Base embed가 비활성·오류이면 `.base` 확장자를 포함한 plain wikilink가 fallback이다. `Projects.base#Mobile`은 `focus_rank` 상위 3개의 `next_action` Property를 보여 주며 Community Tasks를 요구하지 않는다. 세부 Tasks query는 Mac enhancement다.
 
 모바일 화면에는 다음을 넣지 않는다.
 
@@ -1319,7 +1319,7 @@ flowchart LR
 규칙:
 
 - `job_id`는 lowercase UUID v4이고 filename과 같다.
-- path는 vault-repository-relative POSIX path이며 `00_Inbox/...`처럼 `vault/` prefix 없이 기록한다.
+- path는 vault-repository-relative POSIX path이며 `00_Inbox/...`처럼 `KnowledgeHub/` prefix 없이 기록한다.
 - request는 source content나 prompt를 담지 않는다.
 - `device_id`는 개인 이름이 아닌 등록된 opaque label이다. self-asserted label은 인증 수단이 아니며, baseline의 control-plane 신뢰 경계는 notes repository write access다. 더 강한 경계가 필요하면 별도 ADR로 device signature를 도입한다.
 - `pipeline_kind`는 `triage`, `draft_note`, `summarize`, `link_suggestions`, `answer` 중 하나다. 사용자가 누르는 상위 action(`organize`, `extract` 등)은 고정 router가 하나 이상의 pipeline job으로 변환하며 bridge protocol과 output schema는 pipeline kind를 기준으로 선택한다.
@@ -1422,8 +1422,8 @@ response status enum은 `awaiting_remote_authorization`, `queued`, `rejected`, `
 Shortcut 변수는 내구 저장소가 아니다. 모든 write Shortcut은 입력을 받은 직후 notes repository 밖의 다음 folder에 먼저 create-only로 저장한다.
 
 ```text
-On My iPhone/KnowledgeOS-Recovery/Outbox/JOB_ID/input.json
-On My iPad/KnowledgeOS-Recovery/Outbox/JOB_ID/input.json
+On My iPhone/KnowledgeHub-Recovery/Outbox/JOB_ID/input.json
+On My iPad/KnowledgeHub-Recovery/Outbox/JOB_ID/input.json
 ```
 
 `input.json`은 schema version, UUID, deterministic target path, created time, input kind, sensitivity choice, UTF-8 원문, byte count, SHA-256만 가진다. UUID는 생성될 note의 `id`와 같아야 한다. UUID folder와 파일은 “이미 있으면 실패”로 만들고 다시 읽어 hash를 확인한다. 상태는 payload를 수정하지 않고 `events/NNNN-event.json` create-only 기록으로 남긴다. 정상 GitHub capture는 `KO · Sync`가 expected remote branch에서 exact target blob SHA-256를 확인한 `remote_observed` event를 acknowledgment로 사용한다. 또는 별도 local-only Vault 이관 receipt를 사용한다. 둘 중 하나가 확인되고 최소 7일이 지난 항목만 대화형 cleanup이 지울 수 있다.
@@ -1462,7 +1462,7 @@ URL + selected text + one-line comment
 
 ### 24.3 `KO · Today`
 
-공유 canonical Vault 이름 `KnowledgeOS`가 percent-encoding된 `obsidian://daily`로 Daily를 열거나 `Mobile.md`를 연다. 장치별 Vault ID는 공유 파일에 저장하지 않는다. 조회만 하며 Git write를 만들지 않는다. “이 기기의 마지막 sync snapshot”이라는 notification을 표시하며 신선도가 필요하면 별도 `KO · Sync`를 제안한다.
+공유 canonical Vault 이름 `KnowledgeHub`가 percent-encoding된 `obsidian://daily`로 Daily를 열거나 `Mobile.md`를 연다. 장치별 Vault ID는 공유 파일에 저장하지 않는다. 조회만 하며 Git write를 만들지 않는다. “이 기기의 마지막 sync snapshot”이라는 notification을 표시하며 신선도가 필요하면 별도 `KO · Sync`를 제안한다.
 
 ### 24.4 `KO · Defer to Mac`
 
@@ -1814,7 +1814,7 @@ plugin은 자체 index를 만들거나 provider key를 저장하지 않는다. �
 
 - Working Copy가 동일 repository root를 여는지 확인
 - Working Copy Pro, Push, linked external repository 사용 가능 여부 확인
-- `On My iPhone|iPad/Obsidian/KnowledgeOS` external worktree와 root sentinel을 실제로 연결
+- `On My iPhone|iPad/Obsidian/KnowledgeHub` external worktree와 root sentinel을 실제로 연결
 - 다섯 Shortcut과 durable recovery outbox를 export 가능한 문서로 정의
 - overwrite-off unique capture smoke
 - exact-file commit/push와 conflict-fail smoke
@@ -1997,7 +1997,7 @@ Daily의 섞인 raw fragment와 고정 block locator
 
 | 항목 | 기본값 |
 |---|---|
-| 저장소/Vault 표시 이름 | KnowledgeOS |
+| 저장소/Vault 표시 이름 | KnowledgeHub |
 | repository visibility | private, 그러나 기밀정보 금지 |
 | Mac Git | Obsidian Git 수동 |
 | mobile Git | Working Copy Pro의 linked external repository; external worktree root = Obsidian Vault root |

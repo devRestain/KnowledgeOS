@@ -26,20 +26,20 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     shutil.copytree(
         CONTROL_ROOT,
         root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "vault", "runtime"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
     )
-    (root / "vault").mkdir()
+    (root / "KnowledgeHub").mkdir()
     return root
 
 
 def test_all_eight_base_files_match_the_blueprint_compiler() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected = render_base_documents(blueprint)
-    actual_paths = tuple(sorted(path.relative_to(CONTROL_ROOT / "vault").as_posix() for path in (CONTROL_ROOT / "vault/99_System/Bases").glob("*.base")))
+    actual_paths = tuple(sorted(path.relative_to(CONTROL_ROOT / "KnowledgeHub").as_posix() for path in (CONTROL_ROOT / "KnowledgeHub/99_System/Bases").glob("*.base")))
     assert actual_paths == tuple(sorted(expected))
     assert tuple(path.rsplit("/", 1)[-1] for path in actual_paths) == tuple(sorted(BASE_NAMES))
     for relative, expected_text in expected.items():
-        actual = yaml.safe_load((CONTROL_ROOT / "vault" / relative).read_text(encoding="utf-8"))
+        actual = yaml.safe_load((CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8"))
         assert actual == yaml.safe_load(expected_text), relative
 
 
@@ -94,7 +94,7 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
     sources = dashboard_sources()
     assert tuple(sorted(sources)) == tuple(sorted(DASHBOARD_PATHS))
     for relative, expected in sources.items():
-        assert (CONTROL_ROOT / "vault" / relative).read_text(encoding="utf-8") == expected
+        assert (CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8") == expected
 
     home = sources["Home.md"]
     mobile = sources["Mobile.md"]
@@ -103,7 +103,7 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
     assert "shortcuts://run-shortcut?name=KO%20%C2%B7%20Defer%20to%20Mac" in mobile
     assert "Projects.base#Mobile|프로젝트 전체 보기" in mobile
     assert "snapshot" in mobile
-    assert "modified" not in (CONTROL_ROOT / "vault/99_System/Bases/Knowledge.base").read_text(encoding="utf-8")
+    assert "modified" not in (CONTROL_ROOT / "KnowledgeHub/99_System/Bases/Knowledge.base").read_text(encoding="utf-8")
 
     engine = NoteEngine.from_root(CONTROL_ROOT)
     for relative in ("Home.md", "Mobile.md", "99_System/Dashboards/Tasks.md", "99_System/Dashboards/Weekly_Review.md"):
@@ -122,10 +122,10 @@ def test_bootstrap_includes_s06_surface_without_overwriting_or_creating_sentinel
 
     applied = bootstrap(root)
     assert applied["status"] == "PASS", applied
-    assert (root / "vault/Home.md").is_file()
-    assert (root / "vault/99_System/Bases/Inbox.base").is_file()
-    assert (root / "vault/99_System/Dashboards/Tasks.md").is_file()
-    assert (root / "vault/99_System/CSS/dashboard.css").is_file()
-    assert not (root / "vault/.knowledgeos-root.json").exists()
-    assert not (root / "vault/99_System/Schemas/Property_Dictionary.md").exists()
+    assert (root / "KnowledgeHub/Home.md").is_file()
+    assert (root / "KnowledgeHub/99_System/Bases/Inbox.base").is_file()
+    assert (root / "KnowledgeHub/99_System/Dashboards/Tasks.md").is_file()
+    assert (root / "KnowledgeHub/99_System/CSS/dashboard.css").is_file()
+    assert not (root / "KnowledgeHub/.knowledgeos-root.json").exists()
+    assert not (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").exists()
     assert bootstrap(root)["created"] == []

@@ -23,7 +23,7 @@ def _control_copy(tmp_path: Path) -> Path:
             ".git",
             ".pytest_cache",
             ".ruff_cache",
-            "vault",
+            "KnowledgeHub",
             "runtime",
         ),
     )
@@ -43,14 +43,20 @@ def test_schema_export_writes_only_explicit_owned_artifacts(tmp_path: Path) -> N
         item["status"] == "NOT_APPLICABLE_FOR_PROFILE"
         for item in result.report["artifacts"][len(OWNED_ARTIFACTS) :]
     )
-    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").exists()
-    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
+    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").exists()
+    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
         root / "ops/expected/Property_Dictionary.md"
     ).read_bytes()
     assert not (root / "runtime").exists()
     assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"
     )
+    assert (root / "ops/schemas/bridge-request.schema.json").read_bytes() == (
+        root / "KnowledgeHub/.vault-bridge/protocol/request.schema.json"
+    ).read_bytes()
+    assert (root / "ops/schemas/bridge-response.schema.json").read_bytes() == (
+        root / "KnowledgeHub/.vault-bridge/protocol/response.schema.json"
+    ).read_bytes()
 
 
 def test_schema_export_check_is_deterministic_and_reports_future_profiles(tmp_path: Path) -> None:
@@ -121,7 +127,7 @@ def test_note_schema_and_dictionary_share_the_registry_contract(tmp_path: Path) 
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert len(schema["oneOf"]) == 18
     assert all(branch["additionalProperties"] is False for branch in schema["oneOf"])
-    assert (root / "vault/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
+    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
         root / "ops/expected/Property_Dictionary.md"
     ).read_bytes()
     assert blueprint["$schema"] == "https://json-schema.org/draft/2020-12/schema"
@@ -129,7 +135,7 @@ def test_note_schema_and_dictionary_share_the_registry_contract(tmp_path: Path) 
 
 def test_schema_export_refuses_to_overwrite_differing_deployed_vault_artifact(tmp_path: Path) -> None:
     root = _control_copy(tmp_path)
-    deployed = root / "vault/99_System/Schemas/Property_Dictionary.md"
+    deployed = root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
     deployed.parent.mkdir(parents=True)
     deployed.write_text("# User file\n", encoding="utf-8")
 

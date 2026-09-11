@@ -211,7 +211,7 @@
       "required": ["workspace_name", "vault_name", "language", "canonical_timezone", "notes_remote_visibility", "mobile_git_client", "mac_git_client", "remote_unattended", "mobile_immediate_api", "always_on_git_roundtrip", "query_engine", "retrieval_phase"],
       "properties": {
         "workspace_name": {"const": "KnowledgeOS"},
-        "vault_name": {"const": "KnowledgeOS"},
+        "vault_name": {"const": "KnowledgeHub"},
         "language": {"const": "ko"},
         "canonical_timezone": {"const": "Asia/Seoul"},
         "notes_remote_visibility": {"const": "private"},
@@ -230,7 +230,7 @@
           "type": "object",
           "required": ["root", "independent_git_repository", "obsidian_vault_root", "mobile_invariant", "tracked_transport_root"],
           "properties": {
-            "root": {"const": "vault"},
+            "root": {"const": "KnowledgeHub"},
             "independent_git_repository": {"const": true},
             "obsidian_vault_root": {"const": true},
             "mobile_invariant": {"const": "linked_external_worktree_root_equals_obsidian_vault_root"},

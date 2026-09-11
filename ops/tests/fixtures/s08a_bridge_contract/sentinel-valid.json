@@ -1,0 +1,8 @@
+{
+  "canonical_vault_name": "KnowledgeHub",
+  "contract_id": "knowledgeos-vault-root-v1",
+  "expected_branch": "main",
+  "remote_identity_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "schema_version": 1,
+  "vault_uuid": "8b18f63f-6ca2-4b84-b5d8-8c3d85cfa2b1"
+}

@@ -82,7 +82,7 @@ def dashboard_sources() -> dict[str, str]:
             ![[99_System/Bases/Journal.base#Today Focus]]
 
             - [[99_System/Bases/Journal.base#Today Focus|오늘의 Daily 전체 보기]]
-            - [Daily에 방향 적기](obsidian://daily?vault=KnowledgeOS)
+            - [Daily에 방향 적기](obsidian://daily?vault=KnowledgeHub)
 
             ## 빠른 캡처
 
@@ -180,7 +180,7 @@ def dashboard_sources() -> dict[str, str]:
 
             ## 오늘
 
-            - [오늘 Daily 열기](obsidian://daily?vault=KnowledgeOS)
+            - [오늘 Daily 열기](obsidian://daily?vault=KnowledgeHub)
 
             ![[99_System/Bases/Projects.base#Mobile]]
 
@@ -201,7 +201,7 @@ def dashboard_sources() -> dict[str, str]:
             - [[99_System/Bases/Projects.base|프로젝트 전체]]
             - [[99_System/Bases/Inbox.base|Inbox 전체]]
             - [[99_System/Bases/Review.base|AI Review 전체]]
-            - [MOC 검색](obsidian://search?vault=KnowledgeOS&query=path%3A50_Maps)
+            - [MOC 검색](obsidian://search?vault=KnowledgeHub&query=path%3A50_Maps)
             """
         ),
         "99_System/Dashboards/Tasks.md": _dashboard_source(
@@ -823,13 +823,13 @@ def evaluate_base_view(
     workspace = Path(root).resolve()
     blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
     expected = render_base_documents(blueprint)
-    base_path = resolve_vault_relative_path(workspace / "vault", f"{BASE_DIRECTORY}/{base_name}")
+    base_path = resolve_vault_relative_path(workspace / "KnowledgeHub", f"{BASE_DIRECTORY}/{base_name}")
     if not base_path.is_file() or base_path.is_symlink():
         raise BaseContractError(f"Base file is missing or unsafe: {BASE_DIRECTORY}/{base_name}")
     actual = base_path.read_text(encoding="utf-8")
     if yaml.safe_load(actual) != yaml.safe_load(expected[f"{BASE_DIRECTORY}/{base_name}"]):
         raise BaseContractError(f"Base file differs from canonical S06 compiler: {base_name}")
-    return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(workspace / "vault"), today=today)
+    return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(workspace / "KnowledgeHub"), today=today)
 
 
 def evaluator_report(rows: Iterable[Mapping[str, Any]]) -> str:

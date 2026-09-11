@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/root-sentinel.schema.json",
+  "title": "KnowledgeOS Vault root sentinel",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "vault_uuid",
+    "canonical_vault_name",
+    "remote_identity_sha256",
+    "expected_branch"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "knowledgeos-vault-root-v1"
+    },
+    "vault_uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "canonical_vault_name": {
+      "const": "KnowledgeHub"
+    },
+    "remote_identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expected_branch": {
+      "type": "string",
+      "pattern": "^(?!-)(?!.*\\.\\.)(?!.*[ ~^:?*\\[\\\\])[^\\r\\n]{1,255}$"
+    }
+  }
+}

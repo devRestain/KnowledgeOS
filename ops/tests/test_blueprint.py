@@ -321,7 +321,7 @@ def test_invalid_blueprint_does_not_create_vault_or_runtime_bytes(tmp_path: Path
     result = validate_blueprint(root)
 
     assert not result.passed
-    assert not (root / "vault").exists()
+    assert not (root / "KnowledgeHub").exists()
     assert not (root / "runtime").exists()
     assert {
         relative: (root / relative).read_bytes()

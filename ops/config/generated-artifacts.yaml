@@ -75,7 +75,7 @@ artifacts:
     generator: vaultops.schema_export:note_schema
     deployed_copy: true
     first_capability: portable_core
-  - path: vault/99_System/Schemas/Property_Dictionary.md
+  - path: KnowledgeHub/99_System/Schemas/Property_Dictionary.md
     owner: portable_core
     status: OWNED
     authoritative_inputs:
@@ -84,6 +84,51 @@ artifacts:
     generator: vaultops.schema_export:property_dictionary_deployed
     deployed_copy: true
     first_capability: portable_core
+  - path: ops/schemas/bridge-request.schema.json
+    owner: S08A
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: vaultops.bridge_contract:bridge_request_schema
+    deployed_copy: false
+    first_capability: S08A
+  - path: ops/schemas/bridge-response.schema.json
+    owner: S08A
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: vaultops.bridge_contract:bridge_response_schema
+    deployed_copy: false
+    first_capability: S08A
+  - path: ops/schemas/root-sentinel.schema.json
+    owner: S08A
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/mobile_install_gate/root_sentinel_contract]
+    generator: vaultops.bridge_contract:root_sentinel_schema
+    deployed_copy: false
+    first_capability: S08A
+  - path: KnowledgeHub/.vault-bridge/protocol/request.schema.json
+    owner: S08A
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: vaultops.bridge_contract:bridge_request_protocol_copy
+    deployed_copy: true
+    first_capability: S08A
+  - path: KnowledgeHub/.vault-bridge/protocol/response.schema.json
+    owner: S08A
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/bridge]
+    generator: vaultops.bridge_contract:bridge_response_protocol_copy
+    deployed_copy: true
+    first_capability: S08A
   - path: ops/policies/generated-sections.yaml
     owner: S04
     status: NOT_APPLICABLE_FOR_PROFILE
@@ -255,24 +300,6 @@ artifacts:
     generator: deferred_to_owner_session
     deployed_copy: false
     first_capability: S15
-  - path: ops/schemas/bridge-request.schema.json
-    owner: S08A
-    status: NOT_APPLICABLE_FOR_PROFILE
-    authoritative_inputs:
-      - path: blueprint/blueprint.yaml
-        selectors: [/bridge]
-    generator: deferred_to_owner_session
-    deployed_copy: false
-    first_capability: S08A
-  - path: ops/schemas/bridge-response.schema.json
-    owner: S08A
-    status: NOT_APPLICABLE_FOR_PROFILE
-    authoritative_inputs:
-      - path: blueprint/blueprint.yaml
-        selectors: [/bridge]
-    generator: deferred_to_owner_session
-    deployed_copy: false
-    first_capability: S08A
   - path: ops/schemas/note-record.schema.json
     owner: S17
     status: NOT_APPLICABLE_FOR_PROFILE

@@ -1,20 +1,24 @@
 # 구현 상태와 다음 세션 인수인계
 
-기준일: 2026-09-09
+기준일: 2026-09-11
 
-현재 stage: `s07_portable_fixture_gate`
+현재 stage: `s08a_offline_bridge_contract` (S07 complete; S08A complete; `KnowledgeHub` rename and UUID complete; S08B awaits user-confirmed topology)
 
 canonical contract: `knowledgeos-blueprint-v2`
 execution plan: `docs/IMPLEMENTATION_PLAN.md`
-next session: `S07 — Portable Vault restricted-mode smoke 계속 (UI approval blocker)`
+next session: `S08B — Configure, remote identity, production sentinel (user-input gate)`
+
+current Vault identity: canonical name `KnowledgeHub`; generated UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2`; notes remote and expected branch remain unconfigured
 
 ## 이번 세션의 실행 경계와 기초 설정 보강
 
-- Codex 실행 세션에서 직접 접근하는 surface는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container로 제한한다. Obsidian, 브라우저, Finder, Mail, Calendar, Slack, Teams, Working Copy, Shortcuts와 기타 외부 애플리케이션에는 직접 접근하지 않고, 필요한 작업은 사용자에게 가능 여부와 정확한 범위를 확인할 수 있도록 남긴다.
+- Codex 실행 세션의 기본 surface는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container다. 이번 세션에는 사용자가 명시적으로 승인한 범위 안에서 Obsidian을 `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault에만 열었고, 브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 및 기타 외부 surface에는 접근하지 않았다.
 - 2026-09-09 현재 macOS 계정은 `501:20`이었다. 기존 Compose의 `1000:1000` fallback이 host bind mount와 Colima tmpfs cache의 실제 소유권과 어긋나 permission 오류를 일으켰다.
 - `Makefile`은 `id -u`/`id -g`를 `KNOWLEDGEOS_UID`/`KNOWLEDGEOS_GID`로 export하고, `ops/compose.yaml`은 누락 시 fail closed하며 `ops/Dockerfile`도 UID/GID 기본값을 제거했다. cache는 삭제·재생성하지 않았다.
-- 정합성 수정 후 `make source-check`, `make verify`, `git diff --check`, `KNOWLEDGEOS_UID=501 KNOWLEDGEOS_GID=20 docker compose ... config`, `make image-build`, `make container-source-check`, `make container-verify`, `make lint`, `make blueprint-check`, `make schema-check`가 PASS했다. UID/GID를 생략한 Compose config는 의도대로 required-variable 오류로 fail closed했다.
-- 최종 canonical container test는 Python `3.12.8` image에서 `95 passed in 10.81s`였다. `blueprint-check`는 JSON Schema/semantic PASS와 `generated_artifact_validation=NOT_RUN:separate:vaultctl schema export --check`를 분리해 보고했고, `schema-check`는 owned artifact zero-diff와 future profile `NOT_APPLICABLE_FOR_PROFILE`을 확인했다.
+- 현재 canonical 재검증에서 `make source-check`, `make verify`, `git diff --check`, `make container-source-check`, `make container-verify`, `make lint`, `make blueprint-check`, `make schema-export`, `make schema-check`가 PASS했다. `make test`는 Python `3.12.8` image에서 순차 실행 기준 `101 passed`였다. UID/GID를 생략한 직접 Compose config는 required-variable 오류로 fail closed하고, `make` wrapper 또는 현재 host 숫자형 UID/GID 경로는 `501:20`으로 실행된다.
+- `blueprint-check`는 JSON Schema/semantic PASS와 `generated_artifact_validation=NOT_RUN:separate:vaultctl schema export --check`를 분리해 보고했고, `schema-check`는 S04와 S08A owned artifact zero-diff 및 future profile `NOT_APPLICABLE_FOR_PROFILE`을 확인했다. `make test`와 `make lint`를 동시에 실행하면 shared disposable uv cache 초기화 경쟁으로 일시적인 permission 오류가 날 수 있으므로 canonical test/lint는 순차 실행한다.
+- 2026-09-11 status-consistency audit: session completion now requires re-inventorying both Git roots with `find` (including ignored and empty namespaces), comparing README and authoritative status/plan/operations/source/architecture/runtime documents, and treating mismatches as incomplete or blocked. The audit found the four-file Codex-generated `KnowledgeHub/.obsidian` baseline, empty profile namespaces, S08A protocol schema copies under `KnowledgeHub/.vault-bridge/protocol`, and no request/response event files.
+- Inventory classification: `.git` and `KnowledgeHub/.git` are independent repository metadata; `.codex/rules` is project policy; `ops/.pytest_cache` and `ops/.ruff_cache` are ignored tooling caches; all `runtime/` namespaces are currently empty.
 
 ## 이전 세션에서 만든 기반
 
@@ -55,7 +59,7 @@ S01은 portable Vault artifact, sentinel, remote, Obsidian/plugin, LLM/provider,
 - `ops/tests/test_blueprint.py`와 CLI 회귀 테스트: canonical pass, missing/extra key, const, cardinality, type mutation, deterministic read-only/경계 검증
 - `Makefile`의 `blueprint-check`가 S01 container에서 실제 validator를 실행하며, foundation bootstrap check는 이 command가 사용 가능함을 표시
 
-S02는 `vault/`, `runtime/`과 production artifact를 생성·수정하지 않았다. S03A/S03B semantic cross-validator와 generated artifact zero-diff는 별도 단계로 유지했다.
+S02는 `KnowledgeHub/`, `runtime/`과 production artifact를 생성·수정하지 않았다. S03A/S03B semantic cross-validator와 generated artifact zero-diff는 별도 단계로 유지했다.
 
 ## S03A 완료
 
@@ -69,7 +73,7 @@ S02는 `vault/`, `runtime/`과 production artifact를 생성·수정하지 않�
 - JSON Schema를 통과하지만 path, property, relation, action, command, transition, runtime mapping만 변조한 semantic negative fixture 추가
 - `vaultctl blueprint validate`가 JSON Schema PASS 후 semantic gate를 실행하고, `json_schema`, `semantic_validation`, `semantic_errors`를 분리해 출력
 
-S03A도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정하지 않았다. Base/dashboard/projection/transaction semantic gate는 S03B에서 구현했고 generated artifact zero-diff는 아직 구현하지 않았다.
+S03A도 `KnowledgeHub/`, `runtime/`과 generated/production artifact를 생성·수정하지 않았다. Base/dashboard/projection/transaction semantic gate는 S03B에서 구현했고 generated artifact zero-diff는 아직 구현하지 않았다.
 
 ## S03B 완료
 
@@ -84,7 +88,7 @@ S03A도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 - `vaultctl blueprint validate` status를 `blueprint_semantic_gate2`와 `implemented:S03A-S03B`로 갱신; generated zero-diff는 `deferred:S03C`로 유지
 - `make test`: 33 passed; `make lint`: All checks passed
 
-S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정하지 않았다.
+S03B도 `KnowledgeHub/`, `runtime/`과 generated/production artifact를 생성·수정하지 않았다.
 
 ## S03C 완료
 
@@ -100,7 +104,7 @@ S03B도 `vault/`, `runtime/`과 generated/production artifact를 생성·수정�
 - `make verify`가 generated validator를 `AVAILABLE via make schema-check (S03C)`로 보고하도록 갱신
 - test: owned output one-byte mutation, ownership wildcard/drift, deterministic re-run, no Vault/runtime write, future profile N/A negative fixture
 
-S03C도 production `vault/`와 `runtime/`을 생성·수정하지 않았다.
+S03C도 production `KnowledgeHub/`와 `runtime/`을 생성·수정하지 않았다.
 
 ## S04 완료
 
@@ -111,16 +115,16 @@ S03C도 production `vault/`와 `runtime/`을 생성·수정하지 않았다.
 - UUID v4 또는 승인된 periodic/system ID, offset 포함 datetime, title↔filename stem, flat list/wikilink, privacy, source/artifact provenance invariant를 runtime에서 재검증
 - NFC/NFD·case-fold collision, absolute/traversal/NUL/hidden path, symlink escape와 7개 semantic/6개 context relation 방향을 fail closed; AI proposal relation은 명시적 승인·`canonical_property` provenance 없이는 정본에 들어가지 않음
 - `vaultctl note validate` read-only CLI와 `make schema-export` 추가; differing deployed Vault artifact를 조용히 덮어쓰지 않는 guard 포함
-- `ops/schemas/note.schema.json`, `ops/expected/Property_Dictionary.md`, `vault/99_System/Schemas/Property_Dictionary.md`를 `portable_core` generator로 생성하고 byte-for-byte zero-diff를 확인
+- `ops/schemas/note.schema.json`, `ops/expected/Property_Dictionary.md`, `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`를 `portable_core` generator로 생성하고 byte-for-byte zero-diff를 확인
 - 18개 positive note fixture와 duplicate YAML, title/basename, timezone/UUID/status/conditional, Unicode/case-fold, unsafe path/symlink, relation direction/proposal provenance negative fixture 추가
 
-S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt, template, Base/dashboard, plugin, LLM/provider를 생성·활성화하지 않았다. `vault/99_System/Schemas/Property_Dictionary.md`는 S04 당시 허용된 유일한 production Vault 배포 artifact였다.
+S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt, template, Base/dashboard, plugin, LLM/provider를 생성·활성화하지 않았다. `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`는 S04 당시 허용된 유일한 production Vault 배포 artifact였다.
 
 ## S05 구현 범위
 
 상태: `complete` (2026-09-09)
 
-- Blueprint에 등록된 정확한 16개 template source를 `vault/99_System/Templates/`에 추가하고, source fixture와 구조화된 renderer를 `vaultops.template_engine`에 구현했다.
+- Blueprint에 등록된 정확한 16개 template source를 `KnowledgeHub/99_System/Templates/`에 추가하고, source fixture와 구조화된 renderer를 `vaultops.template_engine`에 구현했다.
 - `vaultctl bootstrap --dry-run` 및 additive/idempotent bootstrap을 구현했다. 기존 파일·symlink·불일치 template이 있으면 preflight에서 중단하며, sentinel·remote·`.obsidian-*`·plugin·runtime receipt는 생성하지 않는다.
 - `vaultctl project create`를 구현했다. concrete project title에 대해 project root note와 `Working`/`Artifacts` sibling을 create-only로 묶고, dry-run과 second-run conflict를 지원한다.
 - `vaultctl period create --kind daily|weekly|monthly`를 구현했다. Seoul timezone 기준 날짜와 ISO week/month 경계, deterministic path, create-only collision guard를 포함한다.
@@ -139,59 +143,72 @@ S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt,
 상태: `complete` (2026-09-09)
 
 - `ops/src/vaultops/base_dashboard.py`에 Blueprint의 8개 Base와 canonical 14개 view를 Obsidian 공식 YAML 문법으로 결정론적으로 컴파일하는 renderer를 추가했다. `file.link`는 클릭 가능한 `file.name` column으로 보존하고, priority/date null ordering은 formula로 명시했다.
-- `vault/99_System/Bases/`에 `Journal.base`, `Projects.base`, `Decisions.base`, `Ideas.base`, `Knowledge.base`, `Sources.base`, `Review.base`, `Inbox.base`를 추가했다. 정적 bytes는 compiler output과 exact match한다.
+- `KnowledgeHub/99_System/Bases/`에 `Journal.base`, `Projects.base`, `Decisions.base`, `Ideas.base`, `Knowledge.base`, `Sources.base`, `Review.base`, `Inbox.base`를 추가했다. 정적 bytes는 compiler output과 exact match한다.
 - frozen fixture와 read-only evaluator를 추가해 Home 요구 limit/order, `file.mtime` freshness, Mobile Results와 null-last 정렬을 검증했다. frontmatter `modified` 변경은 Knowledge Radar ordering을 바꾸지 않는다.
-- `vault/Home.md`, `vault/Mobile.md`, `vault/99_System/Dashboards/Tasks.md`, `vault/99_System/Dashboards/Weekly_Review.md`, `vault/99_System/CSS/dashboard.css`를 추가했다. Base embed가 열리지 않아도 plain Markdown/wikilink capture/defer/navigation fallback이 남으며 Mobile은 single-column·Core-only·stale sync snapshot 안내를 포함한다.
+- `KnowledgeHub/Home.md`, `KnowledgeHub/Mobile.md`, `KnowledgeHub/99_System/Dashboards/Tasks.md`, `KnowledgeHub/99_System/Dashboards/Weekly_Review.md`, `KnowledgeHub/99_System/CSS/dashboard.css`를 추가했다. Base embed가 열리지 않아도 plain Markdown/wikilink capture/defer/navigation fallback이 남으며 Mobile은 single-column·Core-only·stale sync snapshot 안내를 포함한다.
 - S05 additive bootstrap이 S06 Base/dashboard artifact도 dry-run/apply에서 no-overwrite로 다루도록 확장했다. sentinel, `.obsidian-*`, plugin, runtime receipt는 생성하지 않는다.
 - canonical 최종 `make test`: 88개 수집, 88 passed. `make lint`, `make blueprint-check`, `make schema-check`, `make container-source-check`, `make container-verify`도 PASS했다.
 - `make schema-check`의 generated artifact zero-diff는 기존 `portable_core` 소유 범위에 대해 별도로 PASS했다. S06 Base/dashboard ownership은 `base_dashboard` compiler와 `test_s06_dashboard.py` exact-byte/evaluator gate로 검증하며 schema-export profile을 임의로 확장하지 않았다.
 
 ## S07 구현 범위
 
-상태: `blocked` (2026-09-09; offline fixture/contract complete, Obsidian UI approval unavailable)
+상태: `complete` (2026-09-11; fixture/contract와 disposable Obsidian smoke 통과)
 
 - `ops/src/vaultops/portable_fixture.py`에 S07 read-only fixture report, exact file/hash/mtime verifier, note/link/locator/duplicate-ID/relation gate, canonical Base query replay와 disposable phase-1 smoke Vault materializer를 추가했다.
 - `ops/tests/fixtures/s07_portable_vault/guestbook-horror/`에 fixed input Vault note·asset, expected archive/capture-finalize/asset-provenance golden bytes, manifest와 invalid relation/duplicate ID/missing locator negative fixture를 추가했다.
 - input fixture에는 Idea, Question, Knowledge, Source, Project, Project Note, project MOC, Artifact와 Capture/Daily를 포함해 project-local link와 derived locator을 함께 검증한다.
 - expected fixture는 실제 mutation writer가 아니라 후속 S13C command가 만족해야 할 immutable IDs, archive path, related link, asset SHA-256의 golden bytes만 소유한다.
-- `materialize_phase1_smoke_vault()`는 current S06 core surface와 fixed input을 disposable directory에 합성하며 `.obsidian-*`, `.vault-bridge`, sentinel, runtime receipt를 만들지 않는다.
+- `materialize_phase1_smoke_vault()`는 current S06 core surface와 fixed input을 disposable directory에 합성하며 disposable output에는 `.obsidian-*`, `.vault-bridge`, sentinel, runtime receipt를 만들지 않는다.
 - S07 negative gate는 invalid relation(`RELATION_SUBJECT_TYPE`), duplicate ID(`FIXTURE_DUPLICATE_ID`), missing block locator(`FIXTURE_LOCATOR_UNRESOLVED`)를 각각 fail closed한다.
-- canonical 최종 `make test`: 94개 수집, 94 passed. `make lint`: All checks passed. `make blueprint-check`: JSON Schema/semantic PASS. `make schema-check`: owned artifact zero-diff PASS. `make container-source-check`/`make container-verify`: PASS.
+- canonical 최종 `make test`: 95개 수집, 95 passed. `make lint`: All checks passed. `make blueprint-check`: JSON Schema/semantic PASS. `make schema-check`: owned artifact zero-diff PASS. `make container-source-check`/`make container-verify`: PASS.
 - host `make source-check`/`make verify`와 `git diff --check`는 PASS했다. Host Python은 mise shim auto-install permission error가 있어 canonical test evidence로 사용하지 않았다.
-- Obsidian desktop smoke는 `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault를 준비했으나 CUA가 Obsidian 사용을 승인하지 않아 Home/Bases/Daily 실제 렌더링 증거를 만들지 못했다. 앱 설정, plugin, workspace `vault/`는 변경하지 않았다.
-- 따라서 S07 offline fixture/contract slice는 complete지만 실제 앱 acceptance가 남아 전체 상태는 `blocked`다. 다음 세션도 S07 restricted-mode smoke부터 재개한다.
+- `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault를 Obsidian v1.9.14에서 열어 Home의 Today Focus 0, Now 1, Needs a decision 1, Next actions 1, Knowledge radar 2, Inbox 1, AI review 0 결과와 fallback link를 확인했다. 8개 Base도 오류 없이 열렸고 Decisions 1, Ideas 1, Inbox 1, Journal 0, Knowledge 2, Projects 1, Review 0, Sources 1 결과를 확인했다.
+- Daily `2026-09-09`은 `id=daily-2026-09-09`, `type=daily`, `today_focus`가 보이는 실제 note surface로 열렸고, Mobile은 단일 화면 폭에서 sync 안내·Today·Projects·Mobile Review·Mobile Results·Core 탐색을 렌더링했다.
+- disposable Vault inventory에는 `.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`만 있었고 community plugin 파일은 없었다. workspace `KnowledgeHub/.obsidian` baseline과 profile namespace는 변경하지 않았다.
+- 따라서 S07 전체 acceptance는 `portable local Vault`로 complete다. mobile sync, bridge round-trip, automation 완료를 의미하지 않는다.
 
 ## 의도적으로 비워 둔 구현
 
 다음 항목은 존재 표시용 빈 파일도 만들지 않았다.
 
 - `.knowledgeos-root.json`
-- note/action/bridge/projection schema
+- note/action/projection schema; S08A bridge와 root-sentinel schema는 아래 S08A 범위에서 소유한다.
 - `ops/actions`, `ops/prompts` 및 뒤 세션이 소유하는 `ops/schemas` 계약 파일
 - 뒤 단계의 실제 mutation command와 asset import/archive writer
-- `.obsidian-*` 내부 앱 설정
+- `.obsidian-mac`, `.obsidian-phone`, `.obsidian-tablet`의 profile-specific 앱 설정
 - QuickAdd script
 - plugin 설치와 version lock
 - Working Copy·Shortcut·credential 설정
 - launchd, LLM provider, retrieval index
 
+## S08A 구현 범위
+
+상태: `complete` (2026-09-11; control-side offline contract only)
+
+- `ops/src/vaultops/bridge_contract.py`가 Blueprint에서 bridge request/response/root-sentinel schema를 결정론적으로 만들고 17개 state, allowed transition, runtime/public status mapping, append-only history, fixture renderer를 제공한다.
+- `canonicalize_github_remote()`는 SSH/HTTPS GitHub 표기를 `github.com/<lowercase-owner>/<lowercase-repository>.git\\n`으로 정규화하고 credential/userinfo, query, fragment, 비-GitHub host를 거부한다. remote network I/O는 수행하지 않았다.
+- `ops/schemas/bridge-request.schema.json`, `bridge-response.schema.json`, `root-sentinel.schema.json`과 `KnowledgeHub/.vault-bridge/protocol/{request,response}.schema.json`은 하나의 generator로 만들며 trusted/protocol bytes digest가 일치한다.
+- `ops/tests/fixtures/s08a_bridge_contract/`는 synthetic request/response/sentinel만 포함하고, fixture renderer는 caller가 지정한 fixture root 밖과 production `.vault-bridge/responses/`에 쓰기를 거부한다.
+- canonical evidence: `make schema-export` PASS; `make test` 101 passed; `make lint` PASS; `make source-check` PASS; `make verify` PASS; `make blueprint-check` PASS; `make schema-check` PASS; `make container-source-check` PASS; `make container-verify` PASS.
+- S08B에 필요한 `.knowledgeos-root.json`, actual remote/branch, Working Copy·Shortcut·device config, request/response event, commit/push는 생성·활성화하지 않았다. canonical Vault name과 UUID는 각각 `KnowledgeHub`, `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 확정했다.
+
 ## 환경 관찰
 
-- workspace: 새 빈 디렉터리에서 시작
-- control Git: local `main`, HEAD `ef014b09f215`, remote 없음; 현재 S00/S01/S02/S03A/S03B/S03C/S04/S05/S06 작업 변경은 미커밋 상태
-- Vault Git: local `main`, HEAD `9a217884f735`, remote 없음; S05 template 16개와 S06 Base/dashboard/navigation artifact가 의도된 untracked production artifact
+- 초기 baseline: 새 빈 디렉터리에서 시작; 현재 workspace Vault에는 Codex-generated `KnowledgeHub/.obsidian` baseline과 empty bridge/profile namespace가 존재
+- physical Vault root: 기존 `vault` 디렉터리를 `KnowledgeHub`로 rename했고, `KnowledgeHub/.git` 독립 Git metadata와 Vault content를 보존했다. canonical Vault 표시 이름도 `KnowledgeHub`로 맞췄으며, UUID v4 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`를 생성했지만 remote/branch가 없어 sentinel에는 아직 기록하지 않았다.
+- control Git: 사용자가 초기화한 독립 local `main`, HEAD `1d7d16fa0737`, S08A code/schema/fixture/documentation update set과 기존 `AGENTS.md` 변경이 working tree에 보존되어 있음, remote 없음
+- Vault Git: 사용자가 초기화한 독립 local `main`, S08A protocol schema copies가 추가된 working tree, remote 없음
 - OS architecture: `arm64`
 - macOS: `26.6.2`
 - timezone: `Asia/Seoul`
 - Git: `2.50.1 (Apple Git-155)`
-- Python: `3.9.6` (host convenience runtime; canonical project runtime 아님)
+- host Python/uv: project `mise.toml` requests Python `3.12.8`/uv `0.8.14`; current mise shims resolve, but invoking the missing project-pinned host runtime attempts an auto-install and fails `Operation not permitted`. Host direct execution is not canonical; container image remains Python `3.12.8`/uv `0.8.14`.
 - Codex CLI: `0.153.0`
-- `uv`: PATH에서 발견되지 않음
-- `mise`: `2026.9.1` 설치됨
-- Colima: `0.10.3`; unprivileged `colima list/status`는 `default Broken`/not running을 보고했지만, current-user UID/GID를 명시한 escalated Docker Compose run에서 S07 canonical test/lint/Blueprint/schema/container gate를 통과함. cache 삭제·재생성은 하지 않음
+- `mise`: `2026.9.1` 설치됨; installed host versions include Python `3.13.15`/uv `0.12.10`, which do not replace the project-pinned canonical versions
+- Colima: `0.10.3`, 현재 실행 중; Docker Compose `dev` service는 current-user UID/GID `501:20`으로 실행된다. S07/S08A canonical test/lint/Blueprint/schema/container gate를 통과했으며 cache 삭제·재생성은 하지 않음
 - Docker/Compose: Docker `29.5.3`, Compose `5.1.4`; `colima` context daemon에서 image build/run 검증 완료
 - canonical image: Python `3.12.8`, uv `0.8.14`; `uv sync --locked`로 31개 resolution / 30개 package 설치
-- Obsidian app: `/Applications/Obsidian.app` 존재, bundle version `1.9.14` 관찰; 실제 실행 smoke는 하지 않음
+- Obsidian app: `/Applications/Obsidian.app` 존재, bundle version `1.9.14` 관찰; 사용자 승인으로 `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault를 실제 실행 smoke했고 production/workspace Vault는 열지 않음
 - Obsidian CLI: PATH에서 확인되지 않음
 - Working Copy macOS app: `/Applications`에서 확인되지 않음; iOS/iPadOS 상태는 조사하지 않음
 
@@ -199,21 +216,22 @@ S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt,
 
 ## 다음 세션
 
-상태: `S07 blocked`
+상태: `S08A complete` (S07 app smoke, `KnowledgeHub` rename/UUID와 S08A offline bridge contract complete; S08B user-input gate pending)
 
-S06의 구현과 S07 offline fixture/contract 검증은 완료되었다. 다음 세션은 S07 — Portable Vault restricted-mode smoke를 계속한다. 현재 blocker는 CUA의 Obsidian 사용 승인 부재다.
+S06의 구현, S07 offline fixture/contract와 disposable Obsidian smoke, `KnowledgeHub` root rename/UUID, S08A offline bridge contract 검증이 완료되었다. 다음 세션은 S08B — 확인된 notes remote·branch와 민감자료 경계로 production sentinel을 구성하는 사용자 입력 gate다.
 
-S07은 S06 compiler/evaluator가 닫은 Base/dashboard 계약을 실제 fixed input Vault와 Obsidian restricted-mode에서 증명하는 exit gate다. `guestbook-horror` input/expected Vault, hash/mtime manifest, archive/capture-finalize/asset provenance golden bytes는 고정했으며 실제 앱 smoke만 남았다.
+S07은 S06 compiler/evaluator가 닫은 Base/dashboard 계약을 실제 fixed input Vault와 Obsidian disposable app surface에서 증명하는 exit gate였다. `guestbook-horror` input/expected Vault, hash/mtime manifest, archive/capture-finalize/asset provenance golden bytes와 Home/Base/Daily/Mobile smoke를 확인했다. S08A는 이 결과 위에서 실제 remote 없이 bridge contract를 닫았다.
 
 진입 시 다시 확인할 것:
 
-- `make source-check`, `make verify`, `make test`, `make lint`, `make blueprint-check`, `make schema-check`와 S06/S07 tests가 현재 checkout에서 재현되는지
-- control dirty set이 S00–S06의 의도한 작업 범위와 일치하는지, Vault에는 S05/S06 산출물 외 예상 밖 사용자 파일·remote 변경이 없는지
+- `make source-check`, `make verify`, `make test`, `make lint`, `make blueprint-check`, `make schema-export`, `make schema-check`, `make container-source-check`, `make container-verify`가 현재 checkout에서 재현되는지. `make test`와 `make lint`는 shared uv cache 경쟁을 피하기 위해 순차 실행한다.
+- control/Vault 두 root가 각각 local `main`이고 remote가 없는지; control dirty set에는 rename/S08A code/schema/fixture/docs와 기존 `AGENTS.md` 변경이, Vault dirty set에는 rename 후 `KnowledgeHub`의 S08A protocol schema copies만 있는지
+- Codex-generated `KnowledgeHub/.obsidian` baseline과 empty `.obsidian-{mac,phone,tablet}` profile namespace를 보존하며, `.vault-bridge/protocol` 외 request/response/sentinel 파일이 없는지
 - S06에서 생성한 Base/dashboard 정적 파일이 Blueprint compiler output과 계속 exact match하는지
 
 명시적 비범위:
 
-- sentinel, remote, Working Copy, `.obsidian-*`, plugin 설치 또는 version lock
+- sentinel, remote, Working Copy, 추가 `.obsidian-*` profile 설정, plugin 설치 또는 version lock
 - 실제 mobile sync/bridge round-trip, Git push, LLM/provider와 background worker, S13C mutation command 자체
 
 전체 후속 순서와 세션별 acceptance는 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)를 따른다. 실제 장치·remote·sync topology는 아직 미확인이며 `S08B`–`S10` 진입 gate에서 반드시 갱신한다.
@@ -233,12 +251,12 @@ make schema-check
 make test
 make lint
 git status --short --branch
-git -C vault status --short --branch
+git -C KnowledgeHub status --short --branch
 ```
 
-`make verify`는 bootstrap 무결성, `make blueprint-check`는 JSON Schema와 S03A/S03B semantic gate, `make schema-export`는 현재 profile의 artifact 생성, `make schema-check`는 S04 ownership/zero-diff를 담당한다. `make schema-check`의 PASS는 `portable_core`가 소유한 note contract와 Property Dictionary까지를 의미하며 뒤 세션 schema·template·Base/dashboard 완료를 의미하지 않는다.
+`make verify`는 bootstrap 무결성, `make blueprint-check`는 JSON Schema와 S03A/S03B semantic gate, `make schema-export`는 현재 profile의 artifact 생성, `make schema-check`는 S04/S08A ownership/zero-diff를 담당한다. `make schema-check`의 PASS는 note contract, Property Dictionary, S08A bridge/root-sentinel schema와 protocol copy까지를 의미하며 뒤 세션 schema·template·Base/dashboard 완료를 의미하지 않는다.
 
-이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. 다음 세션은 S04의 JSON Schema/semantic/zero-diff, S05 template/bootstrap/project create, S06 Base/dashboard compiler/evaluator의 canonical evidence를 이어받아 S07 Portable Vault exit gate를 구현한다.
+이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. S04의 JSON Schema/semantic/zero-diff, S05 template/bootstrap/project create, S06 Base/dashboard compiler/evaluator, S07 disposable app smoke와 S08A offline bridge contract의 canonical evidence는 닫혔으며, 다음 세션은 S08B deployment overlay 사용자 입력 gate다.
 
 ## S02 인수인계 기록
 
@@ -246,7 +264,7 @@ git -C vault status --short --branch
 session: S02
 status: complete
 created_or_changed: ops/src/vaultops/blueprint.py, ops/src/vaultops/cli.py, ops/tests/test_blueprint.py, ops/tests/test_cli.py, Makefile, ops/check-foundation.sh, 관련 상태·운영·계획·결정 문서
-acceptance_passed: canonical Blueprint JSON Schema PASS; safe YAML; Draft 2020-12; provenance diagnostic; missing/extra/const/cardinality/type negative fixture; deterministic output; vault/runtime 비변경
+acceptance_passed: canonical Blueprint JSON Schema PASS; safe YAML; Draft 2020-12; provenance diagnostic; missing/extra/const/cardinality/type negative fixture; deterministic output; KnowledgeHub/runtime 비변경
 acceptance_failed_or_skipped: S03A-S03B semantic validation; S03C generated artifact zero-diff
 commands_and_evidence: make source-check PASS; make verify PASS; make container-source-check PASS; make container-verify PASS; make blueprint-check PASS; make test 19 passed; make lint PASS; git diff --check PASS
 external_effects_performed: 없음; production Vault, remote, push, plugin, device, provider, LaunchAgent 변경 없음
@@ -313,7 +331,7 @@ next_entry_conditions: S03C `make schema-check` PASS, owned policy/trusted schem
 ```text
 session: S04
 status: complete
-created_or_changed: ops/src/vaultops/note_engine.py, ops/src/vaultops/cli.py, ops/src/vaultops/schema_export.py, ops/schemas/note.schema.json, ops/config/generated-artifacts.yaml, ops/policies/*.yaml, ops/expected/Property_Dictionary.md, vault/99_System/Schemas/Property_Dictionary.md, ops/tests/test_note_engine.py, ops/tests/test_schema_export.py, Makefile, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md
+created_or_changed: ops/src/vaultops/note_engine.py, ops/src/vaultops/cli.py, ops/src/vaultops/schema_export.py, ops/schemas/note.schema.json, ops/config/generated-artifacts.yaml, ops/policies/*.yaml, ops/expected/Property_Dictionary.md, KnowledgeHub/99_System/Schemas/Property_Dictionary.md, ops/tests/test_note_engine.py, ops/tests/test_schema_export.py, Makefile, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md
 acceptance_passed: duplicate-key-safe frontmatter parse; schema-aware write boundary; 18 note types; strict machine schema; type/status/conditional/property validation; title/UUID/datetime; path traversal/NUL/hidden/symlink/NFC-casefold guard; 7 semantic and 6 context relation direction; canonical provenance approval; generated note schema and Property Dictionary deployment/zero-diff
 acceptance_failed_or_skipped: S05 templates/bootstrap/project create; S06 Base/dashboard; S07 Obsidian smoke; S08A bridge schema; S15/S16B job/proposal/action/output schema; S17 projection/retrieval schema
 commands_and_evidence: make source-check PASS; make verify PASS; make container-source-check PASS; make container-verify PASS; make blueprint-check PASS; make schema-export PASS; make schema-check PASS; make test 71 passed; make lint PASS; git diff --check PASS
@@ -330,7 +348,7 @@ next_entry_conditions: S04 `make schema-check`와 18개 note fixture PASS를 유
 ```text
 session: S05
 status: complete (2026-09-09)
-created_or_changed: ops/src/vaultops/template_engine.py, ops/src/vaultops/bootstrap.py, ops/src/vaultops/workflows.py, ops/src/vaultops/note_engine.py, ops/src/vaultops/cli.py, ops/tests/test_cli.py, ops/tests/test_s05_templates.py, vault/99_System/Templates/T00_Capture.md through T60_Meeting.md, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md, docs/SOURCE_CONTRACT.md
+created_or_changed: ops/src/vaultops/template_engine.py, ops/src/vaultops/bootstrap.py, ops/src/vaultops/workflows.py, ops/src/vaultops/note_engine.py, ops/src/vaultops/cli.py, ops/tests/test_cli.py, ops/tests/test_s05_templates.py, KnowledgeHub/99_System/Templates/T00_Capture.md through T60_Meeting.md, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md, docs/SOURCE_CONTRACT.md
 acceptance_implemented: exact 16 template allowlist and source bytes; bounded source renderer; strict-schema render fixtures; additive/idempotent bootstrap; symlink/conflict preflight; create-only project bundle with Project/Working/Artifacts; deterministic Daily/Weekly/Monthly path and ISO/calendar boundary renderer; project-local parent-link validation
 acceptance_evidence: make source-check PASS; make verify PASS; git diff --check PASS; bundled Python 3.12 syntax compile PASS; canonical make test 84 passed; make lint PASS; make blueprint-check PASS; make schema-check PASS; make container-source-check PASS; make container-verify PASS
 acceptance_failed_or_skipped: S06 Base/dashboard; S07 Obsidian smoke; S08A bridge schema; S15/S16B job/proposal/action/output schema; S17 projection/retrieval schema
@@ -347,7 +365,7 @@ next_entry_conditions: preserve the S05 implementation and Vault template files;
 ```text
 session: S06
 status: complete (2026-09-09)
-created_or_changed: ops/src/vaultops/base_dashboard.py, ops/src/vaultops/bootstrap.py, ops/tests/fixtures/s06_dashboard/fixture.yaml, ops/tests/test_s06_dashboard.py, vault/99_System/Bases/*.base, vault/Home.md, vault/Mobile.md, vault/99_System/Dashboards/Tasks.md, vault/99_System/Dashboards/Weekly_Review.md, vault/99_System/CSS/dashboard.css, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md, docs/SOURCE_CONTRACT.md
+created_or_changed: ops/src/vaultops/base_dashboard.py, ops/src/vaultops/bootstrap.py, ops/tests/fixtures/s06_dashboard/fixture.yaml, ops/tests/test_s06_dashboard.py, KnowledgeHub/99_System/Bases/*.base, KnowledgeHub/Home.md, KnowledgeHub/Mobile.md, KnowledgeHub/99_System/Dashboards/Tasks.md, KnowledgeHub/99_System/Dashboards/Weekly_Review.md, KnowledgeHub/99_System/CSS/dashboard.css, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md, docs/SOURCE_CONTRACT.md
 acceptance_implemented: exact 8 Base and 14 view compiler; deterministic official Bases YAML; frozen fixture evaluator; Home/Mobile exact limits and freshness; single-column Core-only Mobile notice; plain Markdown/wikilink fallback; additive bootstrap/no-overwrite for S06 artifacts
 acceptance_evidence: make source-check PASS; make verify PASS; git diff --check PASS; make test 88 passed; make lint PASS; make blueprint-check PASS; make schema-check PASS; make container-source-check PASS; make container-verify PASS
 acceptance_failed_or_skipped: S07 fixed input/expected Vault and actual Obsidian restricted-mode smoke; sentinel/remote/device/plugin/LLM/background worker
@@ -356,22 +374,39 @@ approvals_received: user authorized canonical container verification after confi
 remaining_user_actions: none for S06; next session should inspect the current dirty set and Vault boundary before S07 fixture/smoke work
 inactive_opt_ins: root sentinel, remote identity, expected branch, device/sync topology, Working Copy, Obsidian/plugin, LLM/provider, background worker
 next_session: S07 — Portable Vault restricted-mode smoke 계속
-next_entry_conditions: preserve S05/S06/S07 fixture artifacts; request/obtain Obsidian UI approval before opening disposable smoke Vault; do not create `.obsidian-*` in workspace `vault/`
+next_entry_conditions: preserve S05/S06/S07 fixture artifacts and existing Codex-generated `.obsidian` baseline; request/obtain Obsidian UI approval before opening disposable smoke Vault; do not add profile-specific `.obsidian-*`, plugin, sentinel, or bridge response files
 ```
 
 ## S07 인수인계 기록
 
 ```text
 session: S07
-status: blocked (offline fixture/contract slice complete; actual Obsidian restricted-mode smoke not run)
+status: complete (2026-09-11; offline fixture/contract와 disposable Obsidian smoke 통과)
 created_or_changed: ops/src/vaultops/portable_fixture.py, ops/tests/fixtures/s07_portable_vault/guestbook-horror/, ops/tests/test_s07_portable_fixture.py, README.md, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md, docs/DECISIONS.md, docs/OPERATIONS.md
 acceptance_implemented: fixed input/expected Vault bytes; SHA-256/mtime manifest; Idea/Question/Knowledge/Source/Project/Project Note/MOC/Artifact plus Capture/Daily fixture; archive/capture-finalize/asset-provenance golden outputs; Base query replay; invalid relation/duplicate ID/missing locator negative gate; disposable smoke Vault materializer without .obsidian-* or .vault-bridge
-acceptance_evidence: make source-check PASS; make verify PASS; make container-source-check PASS; make container-verify PASS; make test 94 passed; make lint PASS; make blueprint-check PASS with json_schema=PASS and semantic_validation=PASS; make schema-check PASS with owned zero-diff and future profile NOT_APPLICABLE_FOR_PROFILE; git diff --check PASS
-acceptance_failed_or_skipped: Obsidian desktop disposable Vault selection and Home/Bases/Daily restricted-mode render smoke blocked because CUA Obsidian approval was unavailable
-external_effects_performed: existing Colima/Docker verification containers and disposable /private/tmp smoke Vault preparation only; no production Vault note overwrite, .obsidian-* workspace config, sentinel, plugin, remote, runtime receipt, or mutation command
-approvals_received: Colima/Docker canonical verification allowed; Obsidian UI operation was not approved
-remaining_user_actions: allow Obsidian UI use in a follow-up session, then open only the disposable smoke Vault and record Home/Bases/Daily plus plugin-free fallback evidence
+acceptance_evidence: make source-check PASS; make verify PASS; make container-source-check PASS; make container-verify PASS; make test 95 passed; make lint PASS; make blueprint-check PASS with json_schema=PASS and semantic_validation=PASS; make schema-check PASS with owned zero-diff and future profile NOT_APPLICABLE_FOR_PROFILE; git diff --check PASS
+acceptance_failed_or_skipped: sentinel/remote/device/plugin/LLM/background worker; S07 archive/finalize mutation writer는 S13C 범위
+external_effects_performed: existing Colima/Docker verification containers, disposable /private/tmp smoke Vault, and Obsidian opening that disposable Vault only; no workspace note overwrite, profile config, sentinel, plugin, remote, runtime receipt, or mutation command
+approvals_received: Colima/Docker canonical verification and user-approved Obsidian access restricted to `/private/tmp/knowledgeos-s07-guestbook-horror`
+remaining_user_actions: none for S07; retain the Codex-generated workspace `.obsidian` baseline and do not treat this smoke as mobile/automation completion
 inactive_opt_ins: sentinel, remote identity, expected branch, Working Copy, mobile sync, plugin installation, LLM/provider, background worker, S13C archive/finalize/asset mutation
-next_session: S07 — Portable Vault restricted-mode smoke 계속
-next_entry_conditions: preserve the fixed fixture and S06 artifacts; obtain Obsidian UI approval; keep workspace vault free of .obsidian-* and .vault-bridge files
+next_session: S08A — Offline bridge와 sentinel schema
+next_entry_conditions: preserve S07 app evidence and Codex-generated workspace `.obsidian` baseline; do not add profile-specific config, plugin, sentinel, remote, or bridge response event files
+```
+
+## S08A 인수인계 기록
+
+```text
+session: S08A
+status: complete (2026-09-11; offline control-side bridge contract)
+created_or_changed: ops/src/vaultops/bridge_contract.py, ops/schemas/bridge-request.schema.json, ops/schemas/bridge-response.schema.json, ops/schemas/root-sentinel.schema.json, KnowledgeHub/.vault-bridge/protocol/request.schema.json, KnowledgeHub/.vault-bridge/protocol/response.schema.json, ops/tests/fixtures/s08a_bridge_contract/, ops/tests/test_s08a_bridge_contract.py, ops/config/generated-artifacts.yaml, ops/src/vaultops/schema_export.py, docs/IMPLEMENTATION_STATUS.md, docs/IMPLEMENTATION_PLAN.md
+acceptance_implemented: strict request/response/root-sentinel schemas; trusted/protocol digest equality; 17 bridge states and transition closure; runtime/public mapping; GitHub remote canonicalization/hash; append-only create-only/quarantine fixture; deterministic response renderer with production response path guard
+acceptance_evidence: make schema-export PASS; make schema-check PASS; make test 101 passed; make lint PASS; make source-check PASS; make verify PASS; make blueprint-check PASS; make container-source-check PASS; make container-verify PASS; git diff --check PASS
+acceptance_failed_or_skipped: Git history ingest/publish, actual remote/branch preflight, production sentinel, device transport, commit, push, and response events remain outside S08A; the KnowledgeHub UUID is selected but not yet written to sentinel
+external_effects_performed: generated trusted control schemas and two protocol schema copies under the independent Vault Git root; no remote/network request, production sentinel, request/response event, credential, plugin, device, or push
+approvals_received: user-approved Obsidian access was used only for the disposable S07 smoke Vault; S08A itself used local container execution only
+remaining_user_actions: provide and confirm notes remote/fingerprint, expected branch, and sensitive-data boundary before S08B configure; canonical Vault name and UUID are already `KnowledgeHub` / `411602c1-5278-4a8b-8b96-9183fb6ef8c2`
+inactive_opt_ins: Working Copy, Shortcut, plugin, actual mobile sync, LLM/provider, background worker, remote registration, Git commit/push
+next_session: S08B — Configure, remote identity, production sentinel
+next_entry_conditions: inspect both Git roots; keep `.knowledgeos-root.json` absent until the user confirms remote, branch, and sensitive-data boundary; preserve S08A protocol schema digests and the generated KnowledgeHub UUID
 ```

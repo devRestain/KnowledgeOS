@@ -1,10 +1,10 @@
 """Deterministic generation and zero-diff validation for owned artifacts.
 
-The current ``portable_core`` profile owns only artifacts whose bytes are
-fully determined by the canonical Blueprint and the S04 note contract. Later
-schemas, prompts, action registries, and Vault files remain visible in the
-ownership manifest but are reported as ``NOT_APPLICABLE_FOR_PROFILE`` until
-their owner session starts.
+The cumulative ``portable_core`` profile now includes the S08A control-side
+bridge and root-sentinel schemas.  Their first capability remains recorded as
+``S08A`` so the ownership manifest preserves the implementation boundary.
+Later prompts, action registries, and projection files remain visible but are
+reported as ``NOT_APPLICABLE_FOR_PROFILE`` until their owner session starts.
 """
 
 from __future__ import annotations
@@ -24,6 +24,17 @@ import yaml
 from yaml import YAMLError
 
 from .blueprint import validate_blueprint
+from .bridge_contract import (
+    BRIDGE_REQUEST_SCHEMA_PATH,
+    BRIDGE_RESPONSE_SCHEMA_PATH,
+    PROTOCOL_REQUEST_SCHEMA_PATH,
+    PROTOCOL_RESPONSE_SCHEMA_PATH,
+    ROOT_SENTINEL_SCHEMA_PATH,
+    build_bridge_request_schema,
+    build_bridge_response_schema,
+    build_root_sentinel_schema,
+    schema_bytes,
+)
 from .note_engine import build_note_json_schema
 from .yaml_safe import load_yaml_file
 
@@ -31,7 +42,7 @@ OWNERSHIP_CONTRACT_PATH = "ops/config/generated-artifacts.yaml"
 CAPABILITY_PROFILE = "portable_core"
 GENERATOR_ID = "vaultops.schema_export"
 PROPERTY_DICTIONARY_PATH = "ops/expected/Property_Dictionary.md"
-DEPLOYED_PROPERTY_DICTIONARY_PATH = "vault/99_System/Schemas/Property_Dictionary.md"
+DEPLOYED_PROPERTY_DICTIONARY_PATH = "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
 
 
 @dataclass(frozen=True)
@@ -54,15 +65,18 @@ def _owned(
     *,
     deployed_copy: bool = True,
     inputs_path: str = "blueprint/blueprint.yaml",
+    owner: str = CAPABILITY_PROFILE,
+    first_capability: str = CAPABILITY_PROFILE,
+    generator_id: str = GENERATOR_ID,
 ) -> ArtifactSpec:
     return ArtifactSpec(
         path=path,
-        owner=CAPABILITY_PROFILE,
+        owner=owner,
         status="OWNED",
         authoritative_inputs=((inputs_path, selectors),),
-        generator=f"{GENERATOR_ID}:{kind}",
+        generator=f"{generator_id}:{kind}",
         deployed_copy=deployed_copy,
-        first_capability=CAPABILITY_PROFILE,
+        first_capability=first_capability,
     )
 
 
@@ -126,6 +140,51 @@ OWNED_ARTIFACTS = (
         ("/common_properties", "/property_registry", "/note_types"),
         deployed_copy=True,
     ),
+    _owned(
+        BRIDGE_REQUEST_SCHEMA_PATH,
+        "bridge_request_schema",
+        ("/bridge",),
+        deployed_copy=False,
+        owner="S08A",
+        first_capability="S08A",
+        generator_id="vaultops.bridge_contract",
+    ),
+    _owned(
+        BRIDGE_RESPONSE_SCHEMA_PATH,
+        "bridge_response_schema",
+        ("/bridge",),
+        deployed_copy=False,
+        owner="S08A",
+        first_capability="S08A",
+        generator_id="vaultops.bridge_contract",
+    ),
+    _owned(
+        ROOT_SENTINEL_SCHEMA_PATH,
+        "root_sentinel_schema",
+        ("/mobile_install_gate/root_sentinel_contract",),
+        deployed_copy=False,
+        owner="S08A",
+        first_capability="S08A",
+        generator_id="vaultops.bridge_contract",
+    ),
+    _owned(
+        PROTOCOL_REQUEST_SCHEMA_PATH,
+        "bridge_request_protocol_copy",
+        ("/bridge",),
+        deployed_copy=True,
+        owner="S08A",
+        first_capability="S08A",
+        generator_id="vaultops.bridge_contract",
+    ),
+    _owned(
+        PROTOCOL_RESPONSE_SCHEMA_PATH,
+        "bridge_response_protocol_copy",
+        ("/bridge",),
+        deployed_copy=True,
+        owner="S08A",
+        first_capability="S08A",
+        generator_id="vaultops.bridge_contract",
+    ),
 )
 
 
@@ -173,8 +232,6 @@ NOT_APPLICABLE_ARTIFACTS = (
     _not_applicable("ops/schemas/proposal.schema.json", "S15", ("/llm", "/privacy")),
     _not_applicable("ops/schemas/receipt.schema.json", "S15", ("/llm", "/privacy")),
     _not_applicable("ops/schemas/triage-result.schema.json", "S15", ("/llm",)),
-    _not_applicable("ops/schemas/bridge-request.schema.json", "S08A", ("/bridge",)),
-    _not_applicable("ops/schemas/bridge-response.schema.json", "S08A", ("/bridge",)),
     _not_applicable("ops/schemas/note-record.schema.json", "S17", ("/projection",)),
     _not_applicable("ops/schemas/edge-record.schema.json", "S17", ("/projection",)),
     _not_applicable(
@@ -416,6 +473,16 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
     if spec.path == "ops/schemas/blueprint.schema.json":
         source = workspace / "blueprint/blueprint.schema.json"
         return source.read_bytes()
+    if spec.path == BRIDGE_REQUEST_SCHEMA_PATH:
+        return schema_bytes(build_bridge_request_schema(blueprint))
+    if spec.path == BRIDGE_RESPONSE_SCHEMA_PATH:
+        return schema_bytes(build_bridge_response_schema(blueprint))
+    if spec.path == ROOT_SENTINEL_SCHEMA_PATH:
+        return schema_bytes(build_root_sentinel_schema(blueprint))
+    if spec.path == PROTOCOL_REQUEST_SCHEMA_PATH:
+        return schema_bytes(build_bridge_request_schema(blueprint))
+    if spec.path == PROTOCOL_RESPONSE_SCHEMA_PATH:
+        return schema_bytes(build_bridge_response_schema(blueprint))
     if spec.path in {PROPERTY_DICTIONARY_PATH, DEPLOYED_PROPERTY_DICTIONARY_PATH}:
         return _property_dictionary_bytes(blueprint, spec, workspace)
     if spec.path == "ops/schemas/note.schema.json":
@@ -614,7 +681,7 @@ def export_schema_artifacts(root: str | Path, *, check: bool = False) -> SchemaE
     # differing file merely because the current generator owns the path.
     if not check and not errors:
         for spec in OWNED_ARTIFACTS:
-            if not spec.deployed_copy or not spec.path.startswith("vault/"):
+            if not spec.deployed_copy or not spec.path.startswith("KnowledgeHub/"):
                 continue
             path, path_error = _target_path(workspace, spec.path)
             expected = expected_bytes.get(spec.path)

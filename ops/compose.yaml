@@ -16,7 +16,7 @@ services:
       UV_CACHE_DIR: /home/vaultops/.cache/uv
     volumes:
       - ..:/workspace/control
-      - ../vault:/workspace/vault
+      - ../KnowledgeHub:/workspace/KnowledgeHub
       - ../runtime:/workspace/runtime
       - knowledgeos-uv-cache:/home/vaultops/.cache/uv
     network_mode: none
