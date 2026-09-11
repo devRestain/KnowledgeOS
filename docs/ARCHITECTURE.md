@@ -51,6 +51,7 @@ Compose wrapper를 사용하면 host dependency를 추가하지 않고 동일 im
 
 ```text
 KnowledgeHub/
+├── .knowledgeos-root.json       검증된 Vault identity sentinel (S08B)
 ├── .vault-bridge/{protocol,requests,responses}
 ├── 00_Inbox/{Captures,Imports}
 ├── 01_AI_Review/{Pending,Resolved,Rejected,Expired,Conflict}
@@ -69,6 +70,8 @@ KnowledgeHub/
 ```
 
 `YYYY`, `MM`, `GGGG`, `PROJECT_NAME`, `JOB_ID`는 문서 표기용 변수이며 literal directory가 아니다.
+
+S08B에서 `KnowledgeHub/.knowledgeos-root.json`은 canonical Vault name `KnowledgeHub`, UUID, expected branch `main`, 그리고 credential이 없는 canonical notes remote identity hash를 고정하는 6개 필드 sentinel로 create-only 생성되었다. 민감자료 경계 확인은 sentinel bytes에 저장하지 않고 configure evidence로만 남긴다. 이 sentinel의 존재는 Working Copy/device sync, plugin, bridge round-trip, commit 또는 push 완료를 뜻하지 않는다.
 
 ## 폴더 책임
 

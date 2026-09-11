@@ -4,9 +4,9 @@
 
 계획 상태: active
 
-현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards`, `S07 portable_fixture_gate`, `S08A offline_bridge_contract` 완료; S08B deployment overlay는 사용자 입력 대기
+현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards`, `S07 portable_fixture_gate`, `S08A offline_bridge_contract`, `S08B git_identity_configured` 완료
 
-다음 기본 세션: `S08B — Configure, remote identity, production sentinel (사용자 입력 gate)`
+다음 기본 세션: `S09 — 다섯 Shortcut과 durable outbox의 offline 구현`
 
 ## 1. 이 문서의 역할
 
@@ -28,9 +28,9 @@
 |---|---|
 | 설계 원본 | `knowledgeos-blueprint-v2` checksum 고정 및 `make source-check` 통과 |
 | foundation 검증 | `make verify` 통과 |
-| control repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `1d7d16fa0737`; `AGENTS.md`와 expected documentation update set이 dirty, remote 없음 |
-| Vault repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `6e449dd51122`, S08A protocol schema copy가 working tree에 있음, remote 없음 |
-| root sentinel | remote fingerprint·expected branch 미확정으로 미생성; Vault UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2`는 생성·확정했지만 sentinel에는 미기록 |
+| control repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `2c2fd80`; `https://github.com/devRestain/KnowledgeOS.git`을 추적하며 S08B 구현·문서가 working tree에 있음 |
+| Vault repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `440829f`; `https://github.com/devRestain/KnowledgeHub.git`의 `origin/main`을 추적하며 S08B sentinel이 working tree에 있음 |
+| root sentinel | `KnowledgeHub/.knowledgeos-root.json` 생성·schema 검증 완료; remote identity `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`, expected branch `main`, UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2` |
 | host toolchain | `mise` `2026.9.1` shims exist, but project `mise.toml` pins Python `3.12.8`/uv `0.8.14` that are not currently installed; host auto-install fails `Operation not permitted`, so canonical evidence stays container-only |
 | Colima/Docker | Colima `0.10.3` 실행 중; Docker Compose `dev` service가 host UID/GID `501:20`으로 canonical gate를 수행 |
 | executable contract | S02 JSON Schema, S03A/S03B semantic gate, S03C generated ownership/zero-diff 완료 |
@@ -38,7 +38,7 @@
 | Obsidian baseline | Codex 작업으로 `KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`이 생성되어 존재; `.obsidian-mac`/phone/tablet는 profile 파일 없이 namespace만 존재 |
 | runtime/mobile/AI/retrieval | 계약 문서와 빈 namespace만 있고 기능은 미구현 |
 
-두 repository의 현재 local branch 이름이 `main`이라는 사실은 notes remote의 canonical `expected_branch`가 확정되었다는 뜻이 아니다. remote identity와 expected branch는 `S08B`의 사용자 입력 gate까지 열린 결정으로 남긴다.
+두 repository의 현재 local branch 이름과 Vault의 `origin/main` tracking ref, GitHub `main` remote ref는 S08B read-only preflight에서 확인되었다. notes canonical identity는 `github.com/devrestain/knowledgehub.git`이며 SHA-256은 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`이다.
 
 ## 3. 실행 전략
 
@@ -703,6 +703,8 @@ Canonical mapping: Blueprint Phase 2 deployment overlay
 
 선행조건: `S08A`
 
+상태: `complete` (2026-09-11; `git_identity_configured` overlay)
+
 목표:
 
 - 확인된 실제 topology로 `git_identity_configured` overlay를 만든다.
@@ -720,8 +722,8 @@ Canonical mapping: Blueprint Phase 2 deployment overlay
 
 주요 산출물:
 
-- `configure --interactive`
-- 확정값으로만 생성한 `.knowledgeos-root.json`
+- `ops/src/vaultops/configure.py`와 `vaultctl configure --interactive`
+- 확정값으로만 생성한 `KnowledgeHub/.knowledgeos-root.json`
 - wrong root/remote/branch/sentinel 진단
 
 Acceptance:
@@ -731,11 +733,18 @@ Acceptance:
 - wrong repository/remote/branch/sentinel에서 configure/live bridge preflight 실패
 - `git_identity_configured: verified` evidence와 rollback 절차 기록
 
+완료 evidence:
+
+- `git -C KnowledgeHub ls-remote --heads origin main` read-only preflight가 `440829fa8d1c01aaaced54d9469dd692910ab10d refs/heads/main`을 반환했고 local `HEAD` 및 `refs/remotes/origin/main`과 일치했다.
+- `vaultctl configure --interactive`가 configured origin과 사용자가 확인한 remote를 canonicalize한 뒤 remote identity `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`을 계산했다.
+- `KnowledgeHub/.knowledgeos-root.json`은 6개 allowlisted field만 가진 canonical JSON으로 O_EXCL/create-only 생성되었고, `validate_root_sentinel()` 검증을 통과했다. 민감자료 경계는 사용자 확인으로 기록하되 sentinel에는 저장하지 않았다.
+- `make test` 105 passed, `make lint` PASS; S08B wrong root/remote/branch/sentinel, missing confirmation, idempotent existing bytes, overwrite conflict fixture를 포함한다.
+
 Gate / non-goal:
 
 - remote 등록은 사용자 선택 후에만 한다.
 - commit과 push는 configure 승인과 별개다.
-- 입력값이 없으면 `S08B`만 `deferred`로 기록하고 sentinel을 추측하지 않는다. 완료된 `S08A`를 되돌리거나 `S09` offline 구현을 막지 않는다.
+- Working Copy·Shortcut·device transport, bridge history ingest/publish, commit/push는 S08B 범위 밖이다. 완료된 `S08A`를 되돌리거나 `S09` offline 구현을 막지 않는다.
 
 ### S09 — 다섯 Shortcut과 durable outbox의 offline 구현
 

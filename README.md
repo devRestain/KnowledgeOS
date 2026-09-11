@@ -24,20 +24,20 @@ KnowledgeOS는 메모를 많이 쌓는 저장소가 아니라, 다음 세 질문
 - S05 canonical acceptance를 84개 test, lint, Blueprint JSON Schema+semantic, generated artifact zero-diff, container source/foundation gate로 최종 검증했다.
 - S06 8개 Base와 canonical 14개 view, Home/Mobile 및 Tasks/Weekly Review navigation surface, CSS/plain-Markdown fallback, frozen fixture evaluator를 추가했다. canonical acceptance는 88개 test와 lint, Blueprint/schema/container gate로 검증했다.
 - S07 `guestbook-horror` fixed input/expected Vault, SHA-256/mtime manifest, archive/capture-finalize/asset-provenance golden bytes와 read-only negative fixture gate를 추가했다. S07 전용 canonical acceptance는 당시 95개 test와 lint, Blueprint/schema/container gate로 검증되었고, 현재 누적 acceptance는 S08A를 포함해 101개 test다.
-- S07 disposable Vault를 Obsidian v1.9.14에서 열어 Home, 8개 Base, Daily, Mobile과 plugin-free fallback을 확인했고 `portable local Vault` acceptance를 닫았다. S08A는 bridge request/response/root-sentinel schema, 17-state transition, GitHub remote canonicalization/hash, trusted/protocol digest equality와 fixture-only renderer를 추가했다. 현재 canonical acceptance는 101개 test와 lint, Blueprint/schema/container gate로 검증된다.
+- S07 disposable Vault를 Obsidian v1.9.14에서 열어 Home, 8개 Base, Daily, Mobile과 plugin-free fallback을 확인했고 `portable local Vault` acceptance를 닫았다. S08A는 bridge request/response/root-sentinel schema, 17-state transition, GitHub remote canonicalization/hash, trusted/protocol digest equality와 fixture-only renderer를 추가했고, S08B는 확인된 notes remote/branch preflight와 create-only production sentinel을 추가했다. 현재 canonical acceptance는 105개 test와 lint, Blueprint/schema/container gate로 검증된다.
 - 2026-09-09 실행에서 macOS host UID/GID `501:20`과 Compose의 `1000:1000` fallback 불일치로 bind mount/cache permission 오류가 드러났다. `Makefile`은 `id -u`/`id -g`를 자동 export하고 Compose/Dockerfile은 UID/GID 누락을 fail closed하도록 보강했다.
 - Codex 실행 세션의 직접 접근 범위는 Codex 앱, 이 workspace, Colima/Docker 개발 환경으로 제한한다. Obsidian·브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 등 외부 애플리케이션은 사용자가 명시적으로 허용한 정확한 앱·대상·효과 범위에서만 접근하며, 그 밖의 작업은 사용자에게 가능 여부와 범위를 확인할 수 있도록 남긴다.
-- 사용자가 control repository와 Vault repository를 각각 독립 Git root로 초기화했다. 현재 control은 local `main`의 `1d7d16f`이며 S08A 구현·검증 문서 변경이 working tree에 있고, Vault는 local `main`의 `6e449dd`에서 S08A protocol schema copy가 working tree에 있다. 두 repository 모두 remote는 없다.
-- Codex 작업으로 `KnowledgeHub/.obsidian/app.json`, `appearance.json`, `core-plugins.json`, `workspace.json` baseline이 생성되어 현재 Vault에 존재한다. 이 ignored app-config baseline은 disposable Obsidian smoke evidence와 분리하며, `.obsidian-mac`/`.obsidian-phone`/`.obsidian-tablet` profile 파일과 community plugin은 활성화하지 않았다. canonical Vault 이름은 `KnowledgeHub`로 확정했으며, S08A protocol schema copy는 `KnowledgeHub/.vault-bridge/protocol/`에만 있고 sentinel, request/response event, remote/expected branch 계약, LLM 및 background worker는 아직 활성화하지 않았다. `vaultctl blueprint validate`는 JSON Schema + S03A/S03B semantic을, `vaultctl schema export --check`는 `portable_core`와 S08A generated artifact zero-diff를, `vaultctl note validate`는 개별 Markdown note contract를, S06 compiler/evaluator와 S07 portable fixture test는 Base/dashboard 및 통합 fixture를, S08A bridge contract test는 상태·schema·remote identity·fixture 경계를 각각 검증한다.
+- 사용자가 control repository와 Vault repository를 각각 독립 Git root로 초기화했다. control은 local `main`의 `2c2fd80`에서 `https://github.com/devRestain/KnowledgeOS.git`을 추적하고, Vault는 local `main`의 `440829f`에서 `https://github.com/devRestain/KnowledgeHub.git`의 `origin/main`을 추적한다. S08B 코드·문서와 `KnowledgeHub/.knowledgeos-root.json`은 현재 working tree에 있으며 commit/push는 하지 않았다.
+- Codex 작업으로 `KnowledgeHub/.obsidian/app.json`, `appearance.json`, `core-plugins.json`, `workspace.json` baseline이 생성되어 현재 Vault에 존재한다. 이 ignored app-config baseline은 disposable Obsidian smoke evidence와 분리하며, `.obsidian-mac`/`.obsidian-phone`/`.obsidian-tablet` profile 파일과 community plugin은 활성화하지 않았다. canonical Vault 이름은 `KnowledgeHub`, UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 확정했고, S08A protocol schema copy와 S08B production sentinel은 `KnowledgeHub/.vault-bridge/protocol/` 및 `KnowledgeHub/.knowledgeos-root.json`에 있다. S08B에서 `main`의 원격 branch와 canonical identity hash `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`을 확인했으며, request/response event, Working Copy/device config, LLM 및 background worker는 아직 활성화하지 않았다. `vaultctl blueprint validate`는 JSON Schema + S03A/S03B semantic을, `vaultctl schema export --check`는 `portable_core`와 S08A generated artifact zero-diff를, `vaultctl note validate`는 개별 Markdown note contract를, S06 compiler/evaluator와 S07 portable fixture test는 Base/dashboard 및 통합 fixture를, S08A bridge contract와 S08B configure test는 상태·schema·remote identity·sentinel 경계를 각각 검증한다.
 - 실제 구현은 [다중 세션 구현 계획](docs/IMPLEMENTATION_PLAN.md)의 acceptance gate에 따라 진행한다.
 
 단계 이름은 두 기준 문서에서 다르게 사용된다. 현재 상태는 다음처럼 해석한다.
 
-- Blueprint §36의 `Phase 0: inventory`: 빈 target의 충돌 검사는 완료했지만 device·remote·sync를 포함한 전체 preflight는 미완료
+- Blueprint §36의 `Phase 0: inventory`: control/notes remote와 expected `main` branch의 identity preflight는 완료했지만 device·sync preflight는 미완료
 - Whitepaper §36의 `Phase 1: repository scaffold`: 독립 local Git 초기화를 포함한 기반 완료
-- Blueprint §36의 `Phase 1: portable Vault`: S06 Base/dashboard, S07 fixed fixture/portable contract와 disposable app smoke까지 완료; S08A offline bridge contract도 완료했지만 Phase 1 전체 또는 live mobile 완료로 부르지 않음
+- Blueprint §36의 `Phase 1: portable Vault`: S06 Base/dashboard, S07 fixed fixture/portable contract와 disposable app smoke까지 완료; S08A offline bridge contract와 S08B Git identity/sentinel도 완료했지만 Phase 1 전체 또는 live mobile 완료로 부르지 않음
 
-따라서 이 저장소를 “사용 가능한 Vault” 또는 “Phase 1 전체 완료”라고 부르면 안 된다. S07의 `portable local Vault`와 S08A의 오프라인 bridge contract만 완료되었다.
+따라서 이 저장소를 “완성된 자동화 제품” 또는 “Phase 1 전체 완료”라고 부르면 안 된다. S07의 `portable local Vault`, S08A의 오프라인 bridge contract, S08B의 Git identity/sentinel overlay만 완료되었다.
 
 ## 먼저 읽을 문서
 
@@ -94,6 +94,6 @@ make schema-check
 
 ## 다음 구현 단위
 
-다음 진입은 [구현 계획의 `S08B`](docs/IMPLEMENTATION_PLAN.md) deployment overlay 작업이다. S07 fixed input/expected Vault와 Home/Bases/Daily/Mobile app smoke, S08A bridge contract와 protocol digest gate는 닫혔다. canonical Vault 이름은 `KnowledgeHub`, UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 확정했다. S08B는 사용자가 확인한 notes remote/fingerprint, expected branch와 민감자료 경계를 받은 뒤에만 `.knowledgeos-root.json`과 실제 topology preflight를 진행한다.
+다음 진입은 [구현 계획의 `S09`](docs/IMPLEMENTATION_PLAN.md) offline Shortcut과 durable outbox 작업이다. S07 fixed input/expected Vault와 Home/Bases/Daily/Mobile app smoke, S08A bridge contract와 protocol digest gate, S08B notes remote/branch preflight와 production sentinel은 닫혔다. canonical Vault 이름은 `KnowledgeHub`, UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`이며 remote identity hash는 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`로 확정했다.
 
-실제 remote URL과 expected branch가 확정되기 전에는 `.knowledgeos-root.json`을 만들지 않는다. 확정된 Vault UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`다.
+`.knowledgeos-root.json`은 `KnowledgeHub`에 create-only로 생성되어 있으며, 실제 commit/push는 수행하지 않았다. Working Copy/device transport와 mobile round-trip은 여전히 후속 단계다.

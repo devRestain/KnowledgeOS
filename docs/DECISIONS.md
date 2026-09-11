@@ -175,17 +175,25 @@
 - 이유: 물리 디렉터리 이름과 Obsidian/모바일에서 사용하는 canonical Vault 표시 이름이 다르면 URI와 Working Copy external worktree가 다른 대상을 가리킬 수 있다. root rename을 generator와 검증기까지 함께 반영해야 수동 rename으로 인한 경로 drift를 막을 수 있다.
 - 영향: 두 Git root는 계속 독립이며 remote, commit, push, device, plugin, request/response event는 활성화하지 않는다. `KnowledgeHub` rename 후 `make schema-export`, `make schema-check`, foundation/source/Blueprint/container/test/lint gate로 새 경계를 재검증한다.
 
+### D-023 — S08B 확인된 notes identity와 create-only production sentinel
+
+- 상태: accepted
+- 날짜: 2026-09-11
+- 결정: 사용자가 `KnowledgeHub` notes remote를 `https://github.com/devRestain/KnowledgeHub.git`, expected branch를 `main`으로 확인했고, 민감자료 경계도 전체 Vault 동기화 허용으로 확인했다. canonical identity는 `github.com/devrestain/knowledgehub.git\n`, SHA-256은 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`이다. local `main`, `origin/main` tracking ref와 GitHub `main` remote ref가 같은 commit `440829fa8d1c01aaaced54d9469dd692910ab10d`임을 read-only preflight했다. 이 값으로 `KnowledgeHub/.knowledgeos-root.json`을 6개 allowlisted field만 가진 canonical JSON으로 create-only 기록했다.
+- 이유: Working Copy와 이후 bridge가 control workspace나 다른 GitHub repository를 notes repository로 오인하지 않도록 remote identity, branch, canonical name, UUID를 같은 tracked sentinel bytes에 고정해야 한다. 민감자료 경계는 sentinel schema에 넣지 않고 사용자 확인 evidence로만 남겨 secret·정책 문자열의 transport를 늘리지 않는다.
+- 영향: `git_identity_configured` overlay는 verified다. sentinel은 working tree에 추가되었지만 commit/push는 수행하지 않았고, 기존 sentinel의 다른 bytes는 configure가 덮어쓰지 않는다. Working Copy, device credential/sync, Shortcut, plugin, live bridge round-trip은 후속 단계다.
+
 ## 열려 있는 결정
 
 | ID | 결정할 내용 | 필요한 시점 | 보수적 기본값 |
 |---|---|---|---|
-| O-001 | notes repository remote와 expected branch | root sentinel / mobile 연결 전 | remote 없음, sentinel 생성 안 함 |
+| O-001 | notes repository remote와 expected branch | S08B 완료 | `KnowledgeHub.git`, `main`, canonical identity hash `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146` 검증 완료 |
 | O-002 | Vault 표시 이름 | URI와 mobile Shortcut 생성 전 | `KnowledgeHub`로 확정 |
 | O-003 | 상시 실행 Mac 사용 | LaunchAgent·round-trip 설계 전 | 비활성 |
 | O-004 | mobile immediate API relay | API/credential 설계 전 | 비활성 |
 | O-005 | 의료·직장·기관 제한 자료의 별도 Vault | 실제 자료 import 전 | 이 Vault에 저장하지 않음 |
 | O-006 | vector/RRF 도입 | lexical 평가 이후 | lexical + typed-link만 사용 |
 | O-007 | 큰 binary를 위한 Git LFS 도입 | 실제 asset 크기와 remote 정책 확인 후 | 도입하지 않음 |
-| O-008 | tracked root sentinel의 Vault UUID | sentinel 생성 전 | `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 선택; remote/branch 확인 전 sentinel 생성 안 함 |
+| O-008 | tracked root sentinel의 Vault UUID | S08B 완료 | `411602c1-5278-4a8b-8b96-9183fb6ef8c2`를 `KnowledgeHub/.knowledgeos-root.json`에 기록 완료 |
 
 열린 결정을 추측해 config나 sentinel에 먼저 기록하지 않는다.

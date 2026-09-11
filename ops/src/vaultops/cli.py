@@ -13,6 +13,7 @@ from pathlib import Path
 from . import __version__
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
+from .configure import configure
 from .foundation import check_foundation, check_source_manifest
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
 from .runtime import RuntimeLayout
@@ -39,6 +40,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bootstrap_command.add_argument("--dry-run", action="store_true", help="plan without writing")
     bootstrap_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    configure_command = commands.add_parser(
+        "configure", help="verify the confirmed notes identity and create the root sentinel"
+    )
+    configure_command.add_argument("--interactive", action="store_true", help="allow prompts for missing identity values")
+    configure_command.add_argument("--remote", "--notes-remote-url", dest="remote", default=None)
+    configure_command.add_argument("--branch", dest="branch", default=None)
+    configure_command.add_argument("--vault-uuid", dest="vault_uuid", default=None)
+    configure_command.add_argument("--canonical-vault-name", dest="canonical_vault_name", default=None)
+    configure_command.add_argument(
+        "--confirm-sensitive-data-boundary",
+        action="store_true",
+        help="confirm that the Vault contents may be synchronized to the configured notes repository",
+    )
+    configure_command.add_argument("--dry-run", action="store_true", help="verify without creating the sentinel")
+    configure_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     project = commands.add_parser("project", help="create-only project bundle workflows")
     project_commands = project.add_subparsers(dest="project_command", required=True)
@@ -137,6 +154,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "bootstrap":
         report = bootstrap(args.root or _control_root(), dry_run=args.dry_run)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 1
+    if args.command == "configure":
+        report = configure(
+            args.root or _control_root(),
+            remote=args.remote,
+            branch=args.branch,
+            vault_uuid=args.vault_uuid,
+            canonical_vault_name=args.canonical_vault_name,
+            sensitive_data_confirmed=args.confirm_sensitive_data_boundary,
+            interactive=args.interactive,
+            dry_run=args.dry_run,
+        )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if report["status"] == "PASS" else 1
     if args.command == "project" and args.project_command == "create":

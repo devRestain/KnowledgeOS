@@ -37,11 +37,11 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 
 | 단계 | 산출물 | 진입 조건 | 현재 |
 |---|---|---|---|
-| Inventory | 기존 Vault, Git, sync, property, plugin 조사 | target read-only 접근 | 빈 target 확인 완료; device·remote·sync 전체 preflight 미완료 |
-| Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 사용자가 초기화한 두 독립 local `main` repository; control과 `KnowledgeHub`에는 expected rename/S08A update set이 working tree에 있음; remote 없음 |
+| Inventory | 기존 Vault, Git, sync, property, plugin 조사 | target read-only 접근 | 빈 target 확인 완료; device·sync 전체 preflight 미완료 |
+| Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 사용자가 초기화한 두 독립 local `main` repository; control은 `KnowledgeOS.git`, notes는 `KnowledgeHub.git`을 추적하며 S08B update set이 working tree에 있음 |
 | Blueprint contract | JSON Schema, S03A/S03B semantic gate, generated ownership/zero-diff | `make blueprint-check`, `make schema-check`, negative mutation fixture | S03C 완료 |
 | Portable Vault | strict note schema, Property Dictionary, 16 templates, create-only project/period workflow, 8 Bases/Home/Mobile, S07 fixed integration fixture, disposable Obsidian smoke, Codex-generated `.obsidian` baseline | S04-S07 offline contract와 containerized/app validation | S07 `portable local Vault` complete |
-| Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | S08A protocol schema only; S08B topology/sentinel 미착수 |
+| Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | S08B Git identity/sentinel complete; Working Copy·Shortcuts·device transport는 미착수 |
 | Mac plugin profile | Core + 최소 community plugins | 실제 Obsidian smoke 가능 | 미착수 |
 | `vaultctl` non-LLM | doctor, create, period, ingest, reconcile | container image와 path/schema/transaction tests | 미착수 |
 | Read-only LLM | triage proposal, review/apply receipts | privacy·hash·candidate tests | 미착수 |
@@ -61,10 +61,10 @@ notes:   KnowledgeOS/KnowledgeHub/.git
 
 - control은 `KnowledgeHub/`와 `runtime/`을 추적하지 않는다.
 - notes repository는 Vault 내용만 추적한다.
-- 두 repository 모두 local `main` initial commit이 있다. 현재 working tree 상태는 `docs/IMPLEMENTATION_STATUS.md`와 각 세션의 종료 증거에서 별도로 기록한다.
-- 두 repository 모두 remote/upstream이 없다. local `main`은 notes `expected_branch` 계약을 자동 확정하지 않는다.
-- 후속 commit, remote 추가, push, submodule 등록은 아직 승인되거나 수행되지 않았다.
-- notes remote와 expected branch를 확인하기 전에는 임의 branch를 계약으로 고정하지 않는다.
+- 두 repository 모두 local `main` initial commit이 있다. control은 `https://github.com/devRestain/KnowledgeOS.git`, notes는 `https://github.com/devRestain/KnowledgeHub.git`을 추적한다.
+- S08B read-only preflight에서 notes `main` remote ref가 존재하고 local `HEAD` 및 `origin/main`과 `440829fa8d1c01aaaced54d9469dd692910ab10d`로 일치함을 확인했다.
+- 후속 commit, push, submodule 등록은 아직 수행되지 않았다. S08B sentinel만 notes working tree에 create-only로 추가되었다.
+- notes canonical remote identity는 `github.com/devrestain/knowledgehub.git\n`이며 SHA-256은 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`이다.
 - 두 repository를 commit할 때는 exact staged set을 각각 보여 주고 별도로 승인받는다.
 - 기존 Git history가 들어오면 재초기화하거나 force push하지 않고 additive migration plan을 먼저 작성한다.
 
@@ -113,15 +113,28 @@ S08A는 실제 remote·Git history·device를 읽지 않는 control-side slice�
 
 ## 별도 사용자 입력이 필요한 값
 
-- notes repository remote URL과 canonical fingerprint
-- expected branch
+- S08B notes repository remote URL, canonical fingerprint, expected branch와 민감자료 경계는 사용자 확인 및 sentinel 생성으로 완료됨
 - canonical Vault 표시 이름은 `KnowledgeHub`로 확정됨
 - tracked sentinel에 넣을 Vault UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 생성됨
 - 상시 실행 Mac 사용 여부
 - mobile relay 또는 immediate API 사용 여부
 - 의료·직장·기관 제한 자료를 별도 Vault로 분리할지 여부
 
-이 값이 정해지기 전에도 local schema와 fixture 개발은 가능하지만 root sentinel, mobile round-trip, remote automation 완료를 주장할 수 없다.
+S08B 이후에도 Working Copy/device credential, mobile round-trip, remote automation, LLM/provider와 background worker는 별도 사용자 입력 및 acceptance로 남는다.
+
+## S08B Git identity와 production sentinel
+
+S08B는 사용자가 확인한 `KnowledgeHub` notes remote와 branch를 control-side configure 구현에 바인딩했다.
+
+- configured origin: `https://github.com/devRestain/KnowledgeHub.git`
+- canonical remote: `github.com/devrestain/knowledgehub.git\n`
+- `remote_identity_sha256`: `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`
+- current/expected branch: `main`
+- remote `main` commit: `440829fa8d1c01aaaced54d9469dd692910ab10d`
+- sentinel: `KnowledgeHub/.knowledgeos-root.json`
+- sentinel write: create-only, no overwrite; no commit/push
+
+`vaultctl configure --interactive`는 control/Vault 독립 Git root, configured `origin`, canonical remote identity, current branch, local `origin/main` tracking ref, UUID, canonical name과 민감자료 경계 확인을 모두 통과해야 sentinel을 쓴다. 이미 다른 bytes의 sentinel이 있으면 conflict로 종료한다.
 
 ## 검증 순서
 
