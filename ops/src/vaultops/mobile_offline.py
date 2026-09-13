@@ -67,7 +67,7 @@ STORAGE_POLICIES = frozenset({"github_allowed", "local_only"})
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _TARGET_RE = re.compile(
-    r"^00_Inbox/(?:Captures|Imports)/[0-9]{4}/[0-9]{2}/[A-Za-z0-9._-]+\.md$"
+    r"^00_Inbox/Captures/[0-9]{4}/[0-9]{2}/[A-Za-z0-9._-]+\.md$"
 )
 
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (

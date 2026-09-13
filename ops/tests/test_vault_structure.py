@@ -32,6 +32,13 @@ def test_blueprint_required_vault_files_are_real_files() -> None:
         assert not path.is_symlink(), relative
 
 
+def test_retrospective_removed_placeholder_and_duplicate_surfaces() -> None:
+    assert not (VAULT_ROOT / "00_Inbox/Imports").exists()
+    assert not (VAULT_ROOT / "99_System/Bases/Ideas.base").exists()
+    for profile in (".obsidian-mac", ".obsidian-phone", ".obsidian-tablet"):
+        assert not (VAULT_ROOT / profile).exists()
+
+
 def test_structural_markers_do_not_enter_device_bridge_or_runtime_namespaces() -> None:
     forbidden_roots = (
         VAULT_ROOT / ".obsidian-mac",

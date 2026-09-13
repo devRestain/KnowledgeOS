@@ -28,7 +28,7 @@ shortcuts:
   - id: ko_save_source
     display_name: KO · Save Source
     input: [url, selected_text, comment]
-    output: unique_import_capture
+    output: unique_capture_note
     overwrites_existing: false
     durable_outbox_first: true
     steps:
@@ -36,7 +36,7 @@ shortcuts:
       - require_github_allowed_or_local_only_choice
       - validate_selected_text_and_secret_policy
       - persist_outbox_create_only_and_verify_hash
-      - create_immutable_import_capture_under_00_Inbox_Imports
+      - create_immutable_capture_under_00_Inbox_Captures
       - use_capture_exact_file_commit_gate
       - open_mobile_note
     forbidden_steps: [webpage_scrape, binary_download, ocr, pull, include_all_modified]

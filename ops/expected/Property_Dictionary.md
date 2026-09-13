@@ -5,7 +5,7 @@
 
 - contract: `knowledgeos-blueprint-v2`
 - capability profile: `portable_core`
-- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `3a2bf72734bdd75b8f5bfd859a5b27f62f5104a1c902234391b4b8d85aae808b`)
+- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `a7d51a38589c4815ac4e99817d3fe9897b0277afdee5f26db74ec9b47960e759`)
 - property count: `76`
 
 | Property | Obsidian type | Constraints | Owner |

@@ -98,8 +98,8 @@ queries:
     view: Open
     expected_paths:
       - 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
-  - base: Ideas.base
-    view: Incubating
+  - base: Knowledge.base
+    view: Ideas
     expected_paths:
       - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
   - base: Knowledge.base

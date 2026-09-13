@@ -2,45 +2,40 @@
 
 ## Project Scope
 
-- Treat `/Users/yuk/DevFolder/CodePractice/WorkingProject/KnowledgeOS` as the control workspace.
-- Treat user-initialized control and `KnowledgeHub/` Git roots as independent repositories.
-- Keep Docker work within Compose project `ops` and service `dev`.
+- Treat this checkout as the KnowledgeOS control boundary.
+- Treat `KnowledgeHub/` as an independent Vault Git root.
+- Keep `runtime/` outside Git and sync roots.
+- Use Compose project `ops` and service `dev` for canonical container work.
 
 ## Project Structure
 
-- Keep control documents, policies, source, and tests in root, `docs/`, and `ops/`.
-- Keep Vault content in `KnowledgeHub/`; keep `runtime/` outside Git.
-- Resolve conflicts in Blueprint Markdown, then `blueprint/blueprint.yaml`, then Whitepaper.
-- Preserve `KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`; separate profile and bridge namespaces.
-- Align generated artifacts with their generators and tests.
+- Read `PROJECT_STATE.md` as the sole machine-state source for goals, evidence, blockers, and handoff.
+- Resolve design conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md`.
+- Keep executable contracts in manifests, schemas, source, tests, and commands.
+- Treat `docs/*.md` as compact agent contract indexes, not authoritative state.
+- Keep machine state only in `PROJECT_STATE.md`; update root and nested `README.md` files only for human-facing information at close.
+- Exclude every `README.md` from startup and in-task state reads.
 
 ## Development Workflow
 
-- Use `Makefile` targets as canonical entrypoint.
-- Use pinned container Python `3.12.8` and uv `0.8.14` for canonical evidence.
-- Derive `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID` from host `id -u` and `id -g`.
-- Reject UID/GID fallbacks; fail closed when Compose runs lack numeric values.
-- Use `docker compose -f ops/compose.yaml run --rm dev ...` for disposable commands.
-- Run `make test` and `make lint` sequentially for acceptance evidence.
-- Keep `.knowledgeos-root.json` create-only; validate it against the root-sentinel schema.
+- Use `Makefile` targets and container Python `3.12.8` with uv `0.8.14` for canonical work.
+- Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID`; fail closed when Compose values are missing.
+- Keep create-only writes inside validated targets.
+- Preserve control and Vault worktrees during every slice.
 
 ## Verification
 
-- Run `make source-check` and `make verify` before implementation.
-- Run `make container-source-check` and `make container-verify` for canonical container evidence.
-- Run `make blueprint-check` for schema/semantic evidence.
-- Run `make schema-check` for generated-artifact evidence.
-- Run `git diff --check` before handoff.
-- Separate evidence layers; mark unrun, deferred, blocked, and permission-limited checks explicitly.
+- Before implementation or resumed work, compare the last handoff with live state and rerun `make source-check` and `make verify`.
+- Run required container, blueprint, schema, test, and lint checks; run test and lint sequentially.
+- Validate `PROJECT_STATE.md` with `scripts/validate_state.py` after every write.
+- Separate static, semantic, runtime, artifact, deployment, external, and device evidence.
+- Record unrun, deferred, blocked, and permission-limited checks with controlled result states.
+- Run `git diff --check` in every changed Git root before handoff.
 
 ## Handoff
 
-- Define `README.md` and `docs/{IMPLEMENTATION_STATUS,IMPLEMENTATION_PLAN,OPERATIONS,DECISIONS}.md` as time-sensitive state documents.
-- Define `docs/{SOURCE_CONTRACT,ARCHITECTURE,RUNTIME,MOBILE}.md` as dependent state documents.
-- Read applicable state documents before each session.
-- Record date, stage, active slice, Git roots, dirty sets, blockers, and deferred opt-ins at session start.
-- Inventory both roots with `find` and `git status --short --branch`; include ignored paths and empty namespaces.
-- Compare state documents with live files, manifests, tests, and runtime evidence at session boundaries.
-- Reconcile stale, missing, or unexpected paths; report unresolved mismatches as incomplete or blocked.
-- Refresh every applicable state document before final verification and after final verification.
-- Record Git state, evidence, blockers, deferred opt-ins, next slice, and structural decisions in status and decisions.
+- Inventory control and Vault Git roots with dirty sets, ignored paths, and empty namespaces before handoff.
+- Keep exactly one current goal and at most one next goal; preserve action-constraining decisions in `PROJECT_STATE.md`.
+- Compare `PROJECT_STATE.md` and indexes with live paths, manifests, tests, and runtime evidence at boundaries.
+- Reconcile stale, missing, or unexpected paths; record unresolved mismatches as incomplete or blocked.
+- Refresh `PROJECT_STATE.md` after verification; read relevant `README.md` files only at close; confirm requested changes.

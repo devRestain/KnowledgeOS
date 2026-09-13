@@ -113,6 +113,19 @@ def test_all_rendered_templates_pass_the_strict_note_schema() -> None:
         assert result.passed, {"template": spec.filename, "errors": result.as_dict()}
 
 
+def test_optional_empty_context_lists_are_not_emitted() -> None:
+    rendered = render_note_template(
+        "T40_Knowledge.md",
+        {
+            "title": "Minimal Knowledge",
+            "id": str(uuid.uuid4()),
+            "created": "2026-09-09T09:00:00+09:00",
+            "modified": "2026-09-09T09:01:00+09:00",
+        },
+    )
+    assert not set(rendered.properties) & {"areas", "projects", "topics", "sources", "related"}
+
+
 def test_proposal_template_binds_a_job_uuid_to_the_deterministic_note_id() -> None:
     identifier = str(uuid.uuid4())
     rendered = render_note_template(

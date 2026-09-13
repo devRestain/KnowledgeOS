@@ -8,7 +8,7 @@ authoritative_inputs:
   - /path_namespaces
   - /path_match_semantics
   - /fixed_paths
-  sha256: 3a2bf72734bdd75b8f5bfd859a5b27f62f5104a1c902234391b4b8d85aae808b
+  sha256: a7d51a38589c4815ac4e99817d3fe9897b0277afdee5f26db74ec9b47960e759
 paths:
   namespaces:
     obsidian_working_copy_bridge: vault_relative_posix
@@ -22,7 +22,6 @@ paths:
     - Home.md
     - Mobile.md
     - 00_Inbox/Captures
-    - 00_Inbox/Imports
     - 01_AI_Review/Pending
     - 01_AI_Review/Resolved
     - 01_AI_Review/Rejected
@@ -78,7 +77,6 @@ paths:
     - 99_System/Bases/Inbox.base
     - 99_System/Bases/Projects.base
     - 99_System/Bases/Decisions.base
-    - 99_System/Bases/Ideas.base
     - 99_System/Bases/Knowledge.base
     - 99_System/Bases/Sources.base
     - 99_System/Bases/Review.base

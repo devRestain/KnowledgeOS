@@ -55,7 +55,6 @@ KnowledgeHub/.vault-bridge/protocol
 KnowledgeHub/.vault-bridge/requests
 KnowledgeHub/.vault-bridge/responses
 KnowledgeHub/00_Inbox/Captures
-KnowledgeHub/00_Inbox/Imports
 KnowledgeHub/01_AI_Review/Pending
 KnowledgeHub/01_AI_Review/Resolved
 KnowledgeHub/01_AI_Review/Rejected
@@ -86,9 +85,6 @@ KnowledgeHub/99_System/Dashboards
 KnowledgeHub/99_System/Schemas
 KnowledgeHub/99_System/Scripts/QuickAdd
 KnowledgeHub/99_System/CSS
-KnowledgeHub/.obsidian-mac
-KnowledgeHub/.obsidian-phone
-KnowledgeHub/.obsidian-tablet
 runtime
 runtime/staging
 runtime/queue
@@ -139,7 +135,6 @@ foundation_gitkeep_matches=$(find KnowledgeHub -name .gitkeep -print)
 
 foundation_structural_marker_allowlist='
 KnowledgeHub/00_Inbox/Captures/.knowledgeos-directory
-KnowledgeHub/00_Inbox/Imports/.knowledgeos-directory
 KnowledgeHub/01_AI_Review/Conflict/.knowledgeos-directory
 KnowledgeHub/01_AI_Review/Expired/.knowledgeos-directory
 KnowledgeHub/01_AI_Review/Pending/.knowledgeos-directory
@@ -190,7 +185,7 @@ done
 foundation_bad_runtime_files=$(find runtime -type f ! -perm 600 -print)
 [ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
-foundation_manifest_expected='47746572534e8b905aeb9b2b0f5eaf15d1407765f18e879ad108d37c6bb2080a'
+foundation_manifest_expected='9eddf8ce3cd70394c0136d4619e99445c0101faece0c5deaa8bcfa7de50c8d12'
 foundation_manifest_actual=$(shasum -a 256 blueprint/CHECKSUMS.sha256 | awk '{print $1}')
 [ "$foundation_manifest_actual" = "$foundation_manifest_expected" ] || foundation_fail "checksum manifest hash mismatch: expected=$foundation_manifest_expected actual=$foundation_manifest_actual"
 

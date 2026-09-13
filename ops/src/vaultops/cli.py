@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import sys
-import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -14,10 +13,18 @@ from . import __version__
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
 from .configure import configure
+from .diagnostics import (
+    EXIT_INPUT_INVALID,
+    EXIT_VALIDATION_FAILED,
+    doctor_report,
+    git_status_report,
+    plugins_audit_report,
+)
 from .foundation import check_foundation, check_source_manifest
+from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
-from .runtime import RuntimeLayout
 from .schema_export import export_schema_artifacts
+from .transactions import archive_project, finalize_capture, import_asset
 from .workflows import create_period_note, create_project_bundle
 from .yaml_safe import load_yaml_file
 
@@ -82,8 +89,41 @@ def build_parser() -> argparse.ArgumentParser:
     period_create.add_argument("--dry-run", action="store_true", help="plan without writing")
     period_create.add_argument("--root", type=Path, default=None, help="mounted control root")
 
+    capture = commands.add_parser("capture", help="create one capture note without overwriting")
+    capture_commands = capture.add_subparsers(dest="capture_command", required=True)
+    capture_text_command = capture_commands.add_parser("text", help="capture bounded text from stdin")
+    capture_text_command.add_argument("--stdin", action="store_true", required=True)
+    capture_text_command.add_argument("--device", choices=("mac", "iphone", "ipad"), required=True)
+    capture_text_command.add_argument("--title", default=None, help="optional bounded filename title")
+    capture_text_command.add_argument("--created-at", default=None, help="ISO datetime with timezone")
+    capture_text_command.add_argument("--dry-run", action="store_true", help="plan without writing")
+    capture_text_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+    capture_url_command = capture_commands.add_parser("url", help="capture one URL from stdin or a file")
+    url_input = capture_url_command.add_mutually_exclusive_group(required=True)
+    url_input.add_argument("--url-stdin", action="store_true")
+    url_input.add_argument("--url-file", type=Path)
+    comment_input = capture_url_command.add_mutually_exclusive_group()
+    comment_input.add_argument("--comment-stdin", action="store_true")
+    comment_input.add_argument("--comment-file", type=Path)
+    capture_url_command.add_argument("--title", default=None, help="optional bounded filename title")
+    capture_url_command.add_argument("--created-at", default=None, help="ISO datetime with timezone")
+    capture_url_command.add_argument("--dry-run", action="store_true", help="plan without writing")
+    capture_url_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
     doctor = commands.add_parser("doctor", help="run read-only runtime diagnostics")
     doctor.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    git = commands.add_parser("git", help="read-only Git diagnostics")
+    git_commands = git.add_subparsers(dest="git_command", required=True)
+    git_status = git_commands.add_parser("status", help="show independent control/Vault Git state")
+    git_status.add_argument("--repo", choices=("control", "vault", "both"), default="both")
+    git_status.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    plugins = commands.add_parser("plugins", help="read-only plugin diagnostics")
+    plugins_commands = plugins.add_subparsers(dest="plugins_command", required=True)
+    plugins_audit = plugins_commands.add_parser("audit", help="audit the configured Mac plugin profile")
+    plugins_audit.add_argument("--profile", choices=("mac",), default="mac")
+    plugins_audit.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     foundation = commands.add_parser("foundation", help="run portable foundation checks")
     foundation_commands = foundation.add_subparsers(dest="foundation_command", required=True)
@@ -117,30 +157,67 @@ def build_parser() -> argparse.ArgumentParser:
     note_validate = note_commands.add_parser("validate", help="read and validate a Vault-relative Markdown note")
     note_validate.add_argument("path", type=Path, help="Vault-relative Markdown path")
     note_validate.add_argument("--root", type=Path, default=None, help="mounted control root")
+    note_create = note_commands.add_parser("create", help="create one typed note without overwriting")
+    note_create.add_argument("--type", dest="note_type", required=True)
+    note_create.add_argument("--title", required=True, help="bounded note title / filename stem")
+    body_input = note_create.add_mutually_exclusive_group()
+    body_input.add_argument("--body-stdin", action="store_true")
+    body_input.add_argument("--body-file", type=Path)
+    note_create.add_argument("--project", default=None, help="validated Vault-relative project root")
+    note_create.add_argument("--date", dest="selected_date", default=None, help="YYYY-MM-DD for meetings")
+    note_create.add_argument("--id", dest="identifier", default=None, help="lowercase UUID v4")
+    note_create.add_argument("--created-at", default=None, help="ISO datetime with timezone")
+    note_create.add_argument("--status", default=None)
+    note_create.add_argument("--source-kind", default=None)
+    note_create.add_argument("--dry-run", action="store_true", help="plan without writing")
+    note_create.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    fmt = commands.add_parser("fmt", help="check or guarded-format one canonical Markdown note")
+    fmt.add_argument("--check", action="store_true", help="check without writing")
+    fmt.add_argument("--path", type=Path, default=None, help="explicit Vault-relative Markdown path")
+    fmt.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    asset = commands.add_parser("asset", help="explicit binary asset transactions")
+    asset_commands = asset.add_subparsers(dest="asset_command", required=True)
+    asset_import = asset_commands.add_parser("import", help="copy one absolute regular file into 80_Assets")
+    asset_import.add_argument("--source", "--path", dest="source_path", type=Path, required=True)
+    asset_import.add_argument("--target-directory", choices=("Inbox", "Images", "Documents", "Audio"), default="Inbox")
+    asset_import.add_argument("--filename", default=None, help="optional destination filename")
+    asset_import.add_argument("--mime-type", default=None)
+    asset_import.add_argument("--expected-sha256", "--sha256", dest="expected_sha256", default=None)
+    asset_import.add_argument("--dry-run", action="store_true", help="plan without writing")
+    asset_import.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    capture_finalize_command = capture_commands.add_parser(
+        "finalize", help="hash-guard and archive one capture after interactive triage"
+    )
+    capture_finalize_command.add_argument("--path", dest="capture_path", type=str, required=True)
+    capture_finalize_command.add_argument("--expected-sha256", "--sha256", dest="expected_sha256", required=True)
+    capture_finalize_command.add_argument("--outcome", choices=("triaged", "discarded"), required=True)
+    capture_finalize_command.add_argument("--related", default=None, help="Vault-relative note path or wikilink")
+    capture_finalize_command.add_argument("--modified-at", default=None, help="ISO datetime with timezone")
+    capture_finalize_command.add_argument("--dry-run", action="store_true", help="plan without writing")
+    capture_finalize_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    project_archive = project_commands.add_parser(
+        "archive", help="hash-guard and move one complete project bundle into 90_Archive"
+    )
+    project_archive.add_argument("--project", "--path", dest="project_path", required=True)
+    project_archive.add_argument(
+        "--hash",
+        dest="expected_hashes",
+        action="append",
+        required=True,
+        metavar="PATH=SHA256",
+        help="repeat once for every project bundle file",
+    )
+    project_archive.add_argument("--archive-year", type=int, default=None)
+    project_archive.add_argument("--dry-run", action="store_true", help="plan without writing")
+    project_archive.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
     return parser
-
-
-def _doctor(root: Path) -> int:
-    ops_root = root / "ops"
-    runtime_root = root / "runtime"
-    config_path = ops_root / "vaultops.toml"
-    checks: dict[str, object] = {
-        "control_root": str(root),
-        "runtime_root": str(runtime_root),
-        "config_exists": config_path.is_file(),
-        "runtime_problems": RuntimeLayout(runtime_root).check(),
-    }
-    if config_path.is_file():
-        with config_path.open("rb") as handle:
-            config = tomllib.load(handle)
-        checks["config_schema_version"] = config.get("schema_version")
-        checks["config_project_name"] = config.get("project_name")
-    checks["status"] = "ok" if checks["config_exists"] and not checks["runtime_problems"] else "error"
-    print(json.dumps(checks, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if checks["status"] == "ok" else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -194,8 +271,109 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if report["status"] == "PASS" else 1
+    if args.command == "capture" and args.capture_command == "text":
+        report, exit_code = capture_text(
+            args.root or _control_root(),
+            stdin=args.stdin,
+            device=args.device,
+            title=args.title,
+            created_at=args.created_at,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "capture" and args.capture_command == "url":
+        report, exit_code = capture_url(
+            args.root or _control_root(),
+            url_stdin=args.url_stdin,
+            url_file=args.url_file,
+            comment_stdin=args.comment_stdin,
+            comment_file=args.comment_file,
+            title=args.title,
+            created_at=args.created_at,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "note" and args.note_command == "create":
+        report, exit_code = create_note(
+            args.root or _control_root(),
+            note_type=args.note_type,
+            title=args.title,
+            body_stdin=args.body_stdin,
+            body_file=args.body_file,
+            project=args.project,
+            selected_date=args.selected_date,
+            identifier=args.identifier,
+            created_at=args.created_at,
+            status=args.status,
+            source_kind=args.source_kind,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "fmt":
+        report, exit_code = format_notes(
+            args.root or _control_root(),
+            check=args.check,
+            relative=args.path.as_posix() if args.path is not None else None,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "asset" and args.asset_command == "import":
+        report, exit_code = import_asset(
+            args.root or _control_root(),
+            source_path=args.source_path,
+            target_directory=args.target_directory,
+            filename=args.filename,
+            mime_type=args.mime_type,
+            expected_sha256=args.expected_sha256,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "capture" and args.capture_command == "finalize":
+        report, exit_code = finalize_capture(
+            args.root or _control_root(),
+            capture_path=args.capture_path,
+            expected_sha256=args.expected_sha256,
+            outcome=args.outcome,
+            related=args.related,
+            modified_at=args.modified_at,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "project" and args.project_command == "archive":
+        expected_hashes: dict[str, str] = {}
+        for item in args.expected_hashes:
+            if "=" not in item:
+                parser.error("--hash must use PATH=SHA256")
+            relative, digest = item.rsplit("=", 1)
+            if not relative or not digest:
+                parser.error("--hash must use PATH=SHA256")
+            expected_hashes[relative] = digest
+        report, exit_code = archive_project(
+            args.root or _control_root(),
+            project_path=args.project_path,
+            expected_hashes=expected_hashes,
+            archive_year=args.archive_year,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "doctor":
-        return _doctor(args.root or _control_root())
+        report, exit_code = doctor_report(args.root or _control_root())
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "git" and args.git_command == "status":
+        report, exit_code = git_status_report(args.root or _control_root(), args.repo)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "plugins" and args.plugins_command == "audit":
+        report, exit_code = plugins_audit_report(args.root or _control_root(), args.profile)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "foundation":
         root = args.root or _control_root()
         if args.foundation_command == "source-check":
@@ -203,7 +381,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if problems:
                 for problem in problems:
                     print(f"ERROR: {problem}", file=sys.stderr)
-                return 1
+                return EXIT_INPUT_INVALID
             print("Source checksum checks: PASS")
             return 0
         problems = check_foundation(root)
@@ -235,7 +413,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 note_path = resolve_vault_relative_path(root / "KnowledgeHub", relative)
                 result = NoteEngine.from_root(root).validate_text(relative, note_path.read_text(encoding="utf-8"))
                 print(json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
-                return 0 if result.passed else 1
+                return 0 if result.passed else EXIT_VALIDATION_FAILED
             except (OSError, UnicodeError, UnsafePathError, ValueError) as error:
                 print(
                     json.dumps(
@@ -249,7 +427,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         sort_keys=True,
                     )
                 )
-                return 1
+                return EXIT_INPUT_INVALID
     if args.command == "yaml":
         value = load_yaml_file(args.path)
         print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))

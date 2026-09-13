@@ -28,7 +28,6 @@ BASE_NAMES = (
     "Inbox.base",
     "Projects.base",
     "Decisions.base",
-    "Ideas.base",
     "Knowledge.base",
     "Sources.base",
     "Review.base",
@@ -143,7 +142,7 @@ def dashboard_sources() -> dict[str, str]:
 
             - [[99_System/Dashboards/Tasks]]
             - [[99_System/Dashboards/Weekly_Review]]
-            - [[99_System/Bases/Ideas.base#Incubating|Ideas]]
+            - [[99_System/Bases/Knowledge.base#Ideas|Ideas]]
             - [[99_System/Bases/Sources.base#Reading queue|Sources]]
             """
         ),
@@ -380,7 +379,6 @@ def _path_prefix(base_name: str) -> str:
         "Journal.base": "10_Journal/",
         "Projects.base": "20_Projects/",
         "Decisions.base": "40_Knowledge/Questions/",
-        "Ideas.base": "40_Knowledge/Ideas/",
         "Knowledge.base": "40_Knowledge/",
         "Sources.base": "40_Knowledge/Sources/",
         "Inbox.base": "00_Inbox/",
@@ -404,11 +402,6 @@ def _global_filters(base_name: str) -> list[Any]:
             'file.ext == "md"',
             'file.inFolder("40_Knowledge/Questions")',
             'type == "question"',
-        ],
-        "Ideas.base": [
-            'file.ext == "md"',
-            'file.inFolder("40_Knowledge/Ideas")',
-            'type == "idea"',
         ],
         "Knowledge.base": [
             'file.ext == "md"',
@@ -567,8 +560,7 @@ _BASE_FILE_DISPLAY_NAMES = {
     "Journal.base": "파일",
     "Projects.base": "프로젝트",
     "Decisions.base": "질문",
-    "Ideas.base": "아이디어",
-    "Knowledge.base": "지식 노트",
+    "Knowledge.base": "노트",
     "Sources.base": "출처",
     "Inbox.base": "제목",
     "Review.base": "항목",

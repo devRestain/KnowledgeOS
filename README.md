@@ -1,102 +1,97 @@
 # KnowledgeOS
 
-KnowledgeOS는 메모를 많이 쌓는 저장소가 아니라, 다음 세 질문에 매일 답하기 위한 개인 지식 운영체제다.
+KnowledgeOS는 개인 지식을 안전하게 포착하고, 검토하고, 연결하고, 다시 찾아보기 위한 개인용 Obsidian 작업공간입니다. 단순한 메모 저장소가 아니라, 포착한 생각을 검토 가능한 지식과 실행 가능한 프로젝트로 바꾸는 작은 운영체제를 목표로 합니다.
 
-1. 지금 가장 밀어야 할 프로젝트는 무엇인가?
-2. 무엇을 결정하지 못해 진행이 멈춰 있는가?
-3. 오늘 포착하거나 정리해야 할 것은 무엇인가?
+## 이 프로젝트가 하는 일
 
-현재 저장소는 완성된 Obsidian Vault나 자동화 제품이 아니다. 여러 후속 개발 세션이 같은 구조와 안전 경계를 공유할 수 있도록 만든 **contract-first portable-core scaffold**다.
+자료와 생각은 다음 흐름을 거칩니다.
 
-## 현재 상태
+1. 휴대폰이나 Mac에서 메모·음성·URL·첨부 자료를 포착합니다.
+2. 포착물은 원본을 보존한 채 Inbox에 쌓이고, 필요하면 AI 검토 대기열로 보냅니다.
+3. 사람이 분류·연결·수정 제안을 확인하고 승인합니다.
+4. 승인된 내용만 정식 Markdown 노트와 YAML 속성으로 확정됩니다.
+5. 확정된 노트에서 Home 화면, Bases, 검색 색인 같은 파생 화면을 다시 만듭니다.
+6. 나중에 검색하거나 질문할 때는 원본 노트와 근거 링크를 따라 답을 확인합니다.
 
-- 2026-09-08: 빈 작업공간에 대한 read-only inventory를 완료했다.
-- 체크섬이 확인된 설계 기준안 `knowledgeos-blueprint-v2`를 이 control workspace에 고정했다.
-- `docs/`, `ops/`, `KnowledgeHub/`, `runtime/`의 책임과 고정 namespace를 만들었다.
-- 현재 구조와 설계 원본의 무결성을 검사하는 얇은 도구를 추가했다.
-- S01 개발 runtime과 검증 harness를 추가하고, Colima/Docker의 Python 3.12.8 + uv 0.8.14 image에서 locked sync, test, lint, foundation check를 검증했다.
-- S02 Blueprint JSON Schema validator를 추가하고, safe YAML parse와 Draft 2020-12 검증, checksum/contract/schema provenance, deterministic reason code·JSON Pointer 진단을 검증했다.
-- S03A semantic validator를 추가하고, registry exactness, path/type/template, relation direction, action/command/output-schema 선언, bridge state/transition/runtime closure를 검증했다.
-- S03B semantic validator를 추가하고, 8개 Base/14개 view query, Home/Mobile dashboard 연결, projection serialization 계약, project bundle cardinality와 capture-finalize transaction 순서를 검증했다.
-- S03C generated artifact ownership과 zero-diff gate를 추가하고, 당시 `contract_validated` profile이 소유한 5개 policy, trusted Blueprint schema copy, 임시 Property Dictionary를 결정론적으로 생성·검증했다. 뒤 세션 산출물은 명시적으로 `NOT_APPLICABLE_FOR_PROFILE`로 보고했다.
-- S04 strict note engine을 추가하고, `portable_core` profile에서 duplicate-key-safe frontmatter, schema-aware writer, 18개 note type, path/property/relation invariant를 검증한다. 동일 generator가 `ops/schemas/note.schema.json`과 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`를 배포·zero-diff 검증한다.
-- S05 exact 16개 template과 비실행 token renderer, additive/idempotent `bootstrap`, atomic create-only project bundle, ISO week·calendar month를 처리하는 Daily/Weekly/Monthly renderer를 추가했다.
-- S05 canonical acceptance를 84개 test, lint, Blueprint JSON Schema+semantic, generated artifact zero-diff, container source/foundation gate로 최종 검증했다.
-- S06 8개 Base와 canonical 14개 view, Home/Mobile 및 Tasks/Weekly Review navigation surface, CSS/plain-Markdown fallback, frozen fixture evaluator를 추가했다. canonical acceptance는 88개 test와 lint, Blueprint/schema/container gate로 검증했다.
-- S07 `guestbook-horror` fixed input/expected Vault, SHA-256/mtime manifest, archive/capture-finalize/asset-provenance golden bytes와 read-only negative fixture gate를 추가했다. S07 전용 canonical acceptance는 당시 95개 test와 lint, Blueprint/schema/container gate로 검증되었고, 현재 누적 acceptance는 S09와 구조 가시성 회귀 테스트를 포함해 119개 test다.
-- S07 disposable Vault를 Obsidian v1.9.14에서 열어 Home, 8개 Base, Daily, Mobile과 plugin-free fallback을 확인했고 `portable local Vault` acceptance를 닫았다. S08A는 bridge request/response/root-sentinel schema, 17-state transition, GitHub remote canonicalization/hash, trusted/protocol digest equality와 fixture-only renderer를 추가했고, S08B는 확인된 notes remote/branch preflight와 create-only production sentinel을 추가했다. 현재 canonical acceptance는 S09와 구조 가시성 회귀 테스트를 포함해 119개 test와 lint, Blueprint/schema/container gate로 검증된다.
-- S09는 다섯 mobile Shortcut의 exportable definition, device-local create-only recovery outbox, append-only event, size/MIME/HEIC/privacy/secret gate, exact-file Git gate와 synthetic offline/auth/push/cancel/reboot recovery fixture를 추가했다. 실제 iPhone/iPad Working Copy 연동은 S10에서 사용자 확인되었고, 이번 GitHub visibility commit/push도 별도 기록했으며, 장치별 credential/profile·round-trip acceptance는 계속 분리한다.
-- 2026-09-13 iPhone/iPad Working Copy 연동 중 Git은 빈 디렉토리를 저장하지 않아 원격 tree에서 파일이 있는 `99_System`만 보이는 문제가 확인됐다. exact allowlist의 `.knowledgeos-directory` 구조 표식 26개와 Blueprint required Vault files인 `.vault-bridge/README.md`, `99_System/Scripts/QuickAdd/PrepareTitle.js`를 추가해 `KnowledgeHub` commit `a44c70c`로 GitHub `origin/main`에 push했다. `.gitkeep`, device/profile/bridge/runtime marker와 사용자 note 더미는 사용하지 않는다.
-- 2026-09-09 실행에서 macOS host UID/GID `501:20`과 Compose의 `1000:1000` fallback 불일치로 bind mount/cache permission 오류가 드러났다. `Makefile`은 `id -u`/`id -g`를 자동 export하고 Compose/Dockerfile은 UID/GID 누락을 fail closed하도록 보강했다.
-- Codex 실행 세션의 직접 접근 범위는 Codex 앱, 이 workspace, Colima/Docker 개발 환경으로 제한한다. Obsidian·브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 등 외부 애플리케이션은 사용자가 명시적으로 허용한 정확한 앱·대상·효과 범위에서만 접근하며, 그 밖의 작업은 사용자에게 가능 여부와 범위를 확인할 수 있도록 남긴다.
-- 사용자가 control repository와 Vault repository를 각각 독립 Git root로 초기화했다. control은 local `main`의 `c038ab9`에서 `https://github.com/devRestain/KnowledgeOS.git`의 `origin/main`을 추적하고, Vault는 local `main`의 `a44c70c`에서 `https://github.com/devRestain/KnowledgeHub.git`의 `origin/main`을 추적한다. S09/S10 control 변경은 control working tree에 남아 있으며, 이번 Vault visibility 변경은 `a44c70c`로 별도 commit/push했다.
-- Codex 작업으로 `KnowledgeHub/.obsidian/app.json`, `appearance.json`, `core-plugins.json`, `workspace.json` baseline이 생성되어 현재 Vault에 존재한다. 이 ignored app-config baseline은 disposable Obsidian smoke evidence와 분리하며, `.obsidian-mac`/`.obsidian-phone`/`.obsidian-tablet` profile 파일과 community plugin은 활성화하지 않았다. canonical Vault 이름은 `KnowledgeHub`, UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`로 확정했고, S08A protocol schema copy와 S08B production sentinel은 `KnowledgeHub/.vault-bridge/protocol/` 및 `KnowledgeHub/.knowledgeos-root.json`에 있다. S08B에서 `main`의 원격 branch와 canonical identity hash `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`을 확인했으며, S09의 Shortcut/outbox 정의는 control에만 있고 request/response event, Working Copy/device config, LLM 및 background worker는 아직 활성화하지 않았다. `vaultctl blueprint validate`는 JSON Schema + S03A/S03B semantic을, `vaultctl schema export --check`는 `portable_core`와 S08A generated artifact zero-diff를, `vaultctl note validate`는 개별 Markdown note contract를, S06 compiler/evaluator와 S07 portable fixture test는 Base/dashboard 및 통합 fixture를, S08A bridge contract와 S08B configure test는 상태·schema·remote identity·sentinel 경계를, S09 mobile offline test는 payload/event/gate/recovery 경계를 각각 검증한다.
-- 실제 구현은 [다중 세션 구현 계획](docs/IMPLEMENTATION_PLAN.md)의 acceptance gate에 따라 진행한다.
+AI는 정식 노트를 대신 결정하지 않습니다. AI가 만든 분류·요약·링크·수정은 제안으로만 남고, 사람의 승인이 있어야 정본에 반영됩니다.
 
-단계 이름은 두 기준 문서에서 다르게 사용된다. 현재 상태는 다음처럼 해석한다.
+## 현재 위치
 
-- Blueprint §36의 `Phase 0: inventory`: control/notes remote와 expected `main` branch의 identity preflight는 완료했지만 device·sync preflight는 미완료
-- Whitepaper §36의 `Phase 1: repository scaffold`: 독립 local Git 초기화를 포함한 기반 완료
-- Blueprint §36의 `Phase 1: portable Vault`: S06 Base/dashboard, S07 fixed fixture/portable contract와 disposable app smoke까지 완료; S08A offline bridge contract와 S08B Git identity/sentinel도 완료했지만 Phase 1 전체 또는 live mobile 완료로 부르지 않음
-- Blueprint §36의 `Phase 2: Git와 mobile baseline`: S09 control-side offline Shortcut/outbox contract는 완료했고 실제 iPhone/iPad Working Copy 연동은 사용자가 확인했지만, 장치별 profile·credential·sync round-trip acceptance는 미완료
+S13A(provider-free 진단), S13B(create-only 로컬 명령), S13C(asset import, capture finalize, project archive transaction)가 완료되었습니다. 다음 개발 단위는 S13D(fsynced transaction recovery journal)입니다. 그 뒤에 bridge/Git publish, MacBook Obsidian·plugin 통합, 모바일 왕복 검증을 순서대로 진행합니다.
 
-따라서 이 저장소를 “완성된 자동화 제품”, “Phase 1 전체 완료”, 또는 “live mobile 완료”라고 부르면 안 된다. S07의 `portable local Vault`, S08A의 오프라인 bridge contract, S08B의 Git identity/sentinel overlay, S09의 device-independent offline Shortcut/outbox contract와 S10의 GitHub directory visibility slice만 완료되었으며, 장치별 S10 acceptance는 남아 있다.
+Blueprint 검증, generated artifact zero-diff, strict note engine, 16개 template, portable Vault fixture, Base/dashboard, offline bridge·recovery outbox, remote identity sentinel, GitHub directory visibility 기반은 이미 마련되어 있습니다. 무엇이 실제로 완료되었는지와 어떤 검증이 미실행인지에 대한 최신 기록은 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다.
 
-## 먼저 읽을 문서
+## Vault를 이해하는 방법
 
-후속 세션은 아래 순서로 시작한다.
+`KnowledgeHub/`가 Obsidian에서 여는 실제 Vault입니다. 폴더는 정보의 수명과 관리 맥락을 나타내고, 노트의 `type`과 링크는 그 노트가 하는 일과 다른 노트와의 관계를 나타냅니다.
 
-1. [AGENTS.md](AGENTS.md)
-2. [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
-3. [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
-4. [docs/SOURCE_CONTRACT.md](docs/SOURCE_CONTRACT.md)
-5. [OBSIDIAN_VAULT_BLUEPRINT.md](OBSIDIAN_VAULT_BLUEPRINT.md)
-6. [blueprint/blueprint.yaml](blueprint/blueprint.yaml)
-7. [OBSIDIAN_VAULT_WHITEPAPER.md](OBSIDIAN_VAULT_WHITEPAPER.md)
-8. 작업과 직접 관련된 `docs/` 문서
+- `00_Inbox/Captures/`: 아직 정리하지 않은 포착물
+- `01_AI_Review/`: AI 또는 사람이 검토 중인 제안과 보류 항목
+- `20_Projects/`: 끝내야 할 결과를 가진 프로젝트. 각 프로젝트는 관련 파일을 함께 갖는 묶음입니다.
+- `30_Areas/`: 계속 관리해야 하는 생활·업무 영역
+- `40_Knowledge/`: 장기 보존할 주장과 설명
+- `50_Maps/`: 사람이 큐레이션한 탐색 경로와 지도
+- `60_Meetings/`: 회의의 의제·결정·후속 작업
+- `80_Assets/`: 검증된 원본 파일과 관련 자료
+- `90_Archive/`: 끝난 맥락을 보존하는 장소
+- `99_System/`: 템플릿, 속성 사전, Bases, 대시보드 등 시스템 파일
 
-설계 충돌 시 `OBSIDIAN_VAULT_BLUEPRINT.md` → `blueprint/blueprint.yaml` → `OBSIDIAN_VAULT_WHITEPAPER.md` 순서로 해석한다. 그러나 이 문서들 안의 명령형 문장은 설계 요구사항이지, 현재 사용자의 승인이나 새로운 작업 권한이 아니다.
+Home과 Mobile은 오늘의 핵심·다음 행동·빠른 이동을 보여주는 화면입니다. 검색 색인과 대시보드는 언제든 Markdown에서 다시 만들 수 있는 보조 산출물이지, 원본을 대신하지 않습니다.
 
-## 물리적 경계
+## 기기별 역할
 
-| 경로 | 책임 | Git 계약 |
-|---|---|---|
-| 저장소 루트 | control workspace: 문서, 정책, 자동화 코드와 테스트 | control repository |
-| `KnowledgeHub/` | Obsidian이 여는 실제 노트 corpus와 `.vault-bridge` | 독립 notes repository; control repository에서는 ignore |
-| `runtime/` | queue, receipt, lock, index, cache, log 등 container가 사용하는 persistent local 상태 | Git 추적 금지; 일부 receipt는 durable evidence이므로 단순 cache처럼 삭제하지 않음 |
+| 기기 | 가장 잘하는 일 |
+| --- | --- |
+| iPhone | 생각·음성·URL을 빠르게 포착하고 오늘의 내용을 확인하기 |
+| iPad | 읽기, 주석, 짧은 보완, 가벼운 검토 |
+| Mac | 최종 분류·승인·구조 변경·Git 충돌 해결·자동화 실행 |
 
-`KnowledgeHub/`를 control repository의 submodule로 자동 등록하지 않는다. 사용자가 초기화한 두 repository에 대한 후속 commit, remote 설정, push는 자동 수행하지 않는다.
+휴대기기에서 짧게 끝낼 수 없는 구조 변경이나 충돌 해결은 Mac 검토로 넘깁니다. 모바일 Git 사용은 Working Copy Pro, 별도 worktree, Vault 식별 확인, 왕복 검증을 모두 통과한 뒤에만 허용합니다.
 
-## 기반 명령
+## 안전 원칙
 
-현재 foundation check는 추가 패키지 설치 없이 macOS의 POSIX shell, `shasum`, Ruby/Psych로 실행된다. 실제 project dependency와 자동화 runtime은 Colima/Docker 경로를 기본으로 하며, `mise`로 관리한 호스트 Python/`uv` 직접 실행은 같은 lockfile을 사용하는 선택적 편의 경로다.
+- Markdown 본문과 평평한 YAML 속성이 지식의 정본입니다.
+- 한 파일을 동시에 쓰는 주체는 하나뿐이며, 기존 파일 수정은 해시 확인과 명시적 승인에 묶입니다.
+- AI·plugin·외부 서비스는 선택 사항이며, 정본을 몰래 바꾸거나 비밀을 저장하지 않습니다.
+- 사람·회의·기밀 자료는 AI 기본 거부 또는 별도 Vault 경계를 적용합니다.
+- iCloud, Obsidian Sync, Dropbox, OneDrive를 canonical 모바일 경로와 병렬 writer로 사용하지 않습니다.
+- Control 저장소와 Vault 저장소의 Git 기록은 독립적으로 보존합니다.
+
+## 저장소 경계
+
+| 위치 | 용도 |
+| --- | --- |
+| 프로젝트 루트 | 정책, 설계 계약, 실행 코드, 테스트를 보관하는 control repository |
+| `KnowledgeHub/` | Obsidian 노트와 bridge transport를 보관하는 독립 Vault repository |
+| `runtime/` | queue, lock, receipt, journal, index, cache, log를 보관하는 Git 비추적 로컬 상태 |
+
+세 영역은 서로 자동으로 합쳐지지 않습니다. 원격 저장소, plugin, provider, 백그라운드 worker, 기존 자료 이관은 별도의 검토와 승인이 필요한 선택 기능입니다.
+
+## 문서 안내
+
+- [`OBSIDIAN_VAULT_BLUEPRINT.md`](OBSIDIAN_VAULT_BLUEPRINT.md): 에이전트가 읽는 상위 제품·구조·파이프라인 계약 색인
+- [`OBSIDIAN_VAULT_WHITEPAPER.md`](OBSIDIAN_VAULT_WHITEPAPER.md): 에이전트가 읽는 저수준 실행·트랜잭션·검증 부속서 색인
+- [`AGENTS.md`](AGENTS.md): 이 프로젝트에서 작업할 때 지켜야 할 짧은 실행 계약
+- [`docs/`](docs/): architecture, runtime, operations, mobile, decisions, source contract의 간결한 참조 문서
+- [`PROJECT_STATE.md`](PROJECT_STATE.md): 현재 단계, 실제 검증 결과, blocker, 다음 작업을 기록하는 에이전트용 상태 문서
+
+Blueprint와 Whitepaper는 사람을 위한 긴 설명서가 아니라, 구조화된 계약을 빠르게 찾기 위한 인덱스입니다. 사용자에게 필요한 배경과 사용법은 이 README에 남깁니다.
+
+## 확인 명령
+
+프로젝트의 기본 구조와 계약을 확인할 때는 다음 명령을 사용합니다.
 
 ```bash
-make verify
 make source-check
+make verify
 make blueprint-check
-make schema-export
 make schema-check
+make test
+make lint
 ```
 
-- `make verify`: 고정 경로, 설계 산출물 hash, 금지된 literal placeholder와 symlink를 검사한다. Git이 초기화된 뒤에는 두 root와 control ignore 경계도 검사한다.
-- `make source-check`: 고정한 설계 패키지의 원래 checksum manifest를 다시 검사한다.
-- `make blueprint-check`: S01 container에서 canonical `blueprint.yaml`을 Draft 2020-12 JSON Schema와 S03A/S03B semantic gate로 read-only 검증한다.
-- `make schema-export`: Blueprint 검증 뒤 현재 profile이 소유한 control artifact와 검증된 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`, S08A protocol schema copy를 생성한다. differing deployed copy는 덮어쓰지 않는다.
-- `make schema-check`: 현재 `portable_core`가 소유한 S04/S08A artifact만 `vaultctl schema export --check`로 byte-for-byte 검증하고, 뒤 세션 산출물은 `NOT_APPLICABLE_FOR_PROFILE`로 보고한다. 이 명령은 sentinel, request/response event, `runtime/`을 생성하지 않는다.
+각 명령은 서로 다른 범위를 검사합니다. 구조·의미·생성 산출물·실행·장치·배포 결과를 하나의 성공으로 합치지 않으며, 실제 실행 여부는 `PROJECT_STATE.md`에 따로 기록합니다.
 
-## 변하지 않는 원칙
+## 다음에 작업을 시작할 때
 
-- Markdown 본문과 평평한 YAML Properties가 지식의 정본이다.
-- 검색 index, embedding, graph projection은 Markdown에서 재생성 가능한 파생물이다.
-- 폴더는 주 수명주기, `type`은 노트의 역할, typed relation은 여러 맥락의 연결을 나타낸다.
-- iPhone은 포착, iPad는 읽기·보완, Mac은 의미 결정과 충돌 해결을 담당한다.
-- 한 장치에는 한 writer만 둔다.
-- LLM은 live Vault를 직접 수정하지 않고 schema-constrained proposal을 만든다.
-- 원격 실행, 플러그인 설치, LaunchAgent 등록, Git push, 기존 자료 migration은 각각 별도 승인과 해당 단계 검증이 필요하다.
-
-## 다음 구현 단위
-
-다음 진입은 [구현 계획의 `S10`](docs/IMPLEMENTATION_PLAN.md)에서 남은 장치별 profile/capture/edit, Mac visibility, offline/auth/conflict/revoke 증거와 local result renderer 작업이다. S07 fixed input/expected Vault와 Home/Bases/Daily/Mobile app smoke, S08A bridge contract와 protocol digest gate, S08B notes remote/branch preflight와 production sentinel, S09 offline Shortcut/outbox contract, S10 GitHub directory visibility slice는 닫혔다. canonical Vault 이름은 `KnowledgeHub`, UUID는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`이며 remote identity hash는 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`로 확정했다.
-
-`.knowledgeos-root.json`은 `KnowledgeHub`에 create-only로 생성되어 `a44c70c`에 포함되어 GitHub `origin/main`에 push됐다. S09의 outbox는 실제 장치에 생성하지 않고 synthetic temporary root에서만 시험했으며, 장치별 profile·credential과 mobile round-trip acceptance는 여전히 후속 단계다.
+먼저 `PROJECT_STATE.md`에서 현재 목표와 증거를 확인하고, 한 번에 하나의 작은 작업 단위를 끝까지 수행합니다. 설계 문서에 적힌 미래 기능을 이미 구현된 것으로 간주하지 말고, Vault 파일·소스·테스트·실행 결과를 함께 확인합니다.

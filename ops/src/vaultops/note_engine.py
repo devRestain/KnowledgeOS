@@ -9,7 +9,9 @@ the writer only emits bytes after the caller has supplied a concrete path.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import os
 import re
 import unicodedata
 import uuid
@@ -812,17 +814,48 @@ def write_note_file(
     text: str,
     *,
     overwrite: bool = False,
+    expected_sha256: str | None = None,
 ) -> None:
-    """Write already-validated note bytes without following a destination symlink."""
+    """Write already-validated note bytes without following a destination symlink.
+
+    Create-only callers use ``O_EXCL`` so a concurrent creator cannot be
+    overwritten after preflight. Guarded replace callers may provide the
+    digest observed during validation; a changed file then fails closed.
+    """
 
     destination = Path(path)
     if destination.is_symlink():
         raise UnsafePathError("refusing to write through a symlink")
-    if destination.exists() and not overwrite:
-        raise FileExistsError(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    payload = text.encode("utf-8")
+    if not overwrite:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(destination, flags, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return
+    if not destination.is_file():
+        raise FileNotFoundError(destination)
+    if expected_sha256 is not None:
+        observed = hashlib.sha256(destination.read_bytes()).hexdigest()
+        if observed != expected_sha256:
+            raise FileExistsError(f"guarded target changed: {destination}")
     temporary = destination.with_name(f".{destination.name}.tmp")
-    if temporary.exists() or temporary.is_symlink():
-        raise FileExistsError(temporary)
-    temporary.write_text(text, encoding="utf-8", newline="")
-    temporary.replace(destination)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(temporary, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = -1
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    finally:
+        if descriptor != -1:
+            os.close(descriptor)

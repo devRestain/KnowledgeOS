@@ -10,7 +10,7 @@ from pathlib import Path
 from .runtime import RuntimeLayout
 from .yaml_safe import load_yaml_file
 
-MANIFEST_SHA256 = "47746572534e8b905aeb9b2b0f5eaf15d1407765f18e879ad108d37c6bb2080a"
+MANIFEST_SHA256 = "9eddf8ce3cd70394c0136d4619e99445c0101faece0c5deaa8bcfa7de50c8d12"
 
 REQUIRED_FILES = (
     ".gitignore",
@@ -58,7 +58,6 @@ REQUIRED_DIRECTORIES = (
     "KnowledgeHub/.vault-bridge/responses",
     "runtime",
     "KnowledgeHub/00_Inbox/Captures",
-    "KnowledgeHub/00_Inbox/Imports",
     "KnowledgeHub/01_AI_Review/Pending",
     "KnowledgeHub/01_AI_Review/Resolved",
     "KnowledgeHub/01_AI_Review/Rejected",
@@ -89,9 +88,6 @@ REQUIRED_DIRECTORIES = (
     "KnowledgeHub/99_System/Schemas",
     "KnowledgeHub/99_System/Scripts/QuickAdd",
     "KnowledgeHub/99_System/CSS",
-    "KnowledgeHub/.obsidian-mac",
-    "KnowledgeHub/.obsidian-phone",
-    "KnowledgeHub/.obsidian-tablet",
 )
 
 # Git does not version empty directories.  These markers are intentionally
@@ -104,7 +100,6 @@ STRUCTURAL_MARKER_TEXT = "KnowledgeOS canonical directory marker; Git has no emp
 STRUCTURAL_MARKER_DIRECTORIES = frozenset(
     {
         "KnowledgeHub/00_Inbox/Captures",
-        "KnowledgeHub/00_Inbox/Imports",
         "KnowledgeHub/01_AI_Review/Conflict",
         "KnowledgeHub/01_AI_Review/Expired",
         "KnowledgeHub/01_AI_Review/Pending",

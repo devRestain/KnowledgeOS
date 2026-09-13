@@ -154,7 +154,6 @@ fixed_paths:
     - Home.md
     - Mobile.md
     - 00_Inbox/Captures
-    - 00_Inbox/Imports
     - 01_AI_Review/Pending
     - 01_AI_Review/Resolved
     - 01_AI_Review/Rejected
@@ -210,7 +209,6 @@ fixed_paths:
     - 99_System/Bases/Inbox.base
     - 99_System/Bases/Projects.base
     - 99_System/Bases/Decisions.base
-    - 99_System/Bases/Ideas.base
     - 99_System/Bases/Knowledge.base
     - 99_System/Bases/Sources.base
     - 99_System/Bases/Review.base
@@ -416,7 +414,6 @@ note_types:
   capture:
     path_globs:
       - 00_Inbox/Captures/**/*.md
-      - 00_Inbox/Imports/**/*.md
       - 90_Archive/Captures/**/*.md
     statuses: [unprocessed, triaged, discarded]
     required_extra: [captured_from, capture_device, capture_kind, triage_hint, needs_desktop_review]
@@ -680,7 +677,6 @@ bases:
     - Inbox.base
     - Projects.base
     - Decisions.base
-    - Ideas.base
     - Knowledge.base
     - Sources.base
     - Review.base
@@ -730,15 +726,14 @@ bases:
         sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
         limit: 5
         columns: [file.link, decision, decision_by, projects, priority]
-    Ideas.base:
-      Incubating:
+    Knowledge.base:
+      Ideas:
         filters:
           type: idea
           status_in: [seed, incubating, testing]
         sort: [file_mtime_desc, file_name_asc]
         limit: 10
         columns: [file.link, status, possibility, projects, file.mtime]
-    Knowledge.base:
       Radar:
         filters:
           type_in: [knowledge, idea]
@@ -966,7 +961,7 @@ shortcut_contracts:
   - id: ko_save_source
     display_name: KO · Save Source
     input: [url, selected_text, comment]
-    output: unique_import_capture
+    output: unique_capture_note
     overwrites_existing: false
   - id: ko_today
     display_name: KO · Today

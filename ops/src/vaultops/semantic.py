@@ -135,7 +135,6 @@ EXPECTED_NOTE_CONTRACTS: dict[str, dict[str, Any]] = {
     "capture": {
         "path_globs": (
             "00_Inbox/Captures/**/*.md",
-            "00_Inbox/Imports/**/*.md",
             "90_Archive/Captures/**/*.md",
         ),
         "template": "T00_Capture.md",
@@ -481,15 +480,13 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
             "columns": ["file.link", "decision", "decision_by", "projects", "priority"],
         }
     },
-    "Ideas.base": {
-        "Incubating": {
+    "Knowledge.base": {
+        "Ideas": {
             "filters": {"type": "idea", "status_in": ["seed", "incubating", "testing"]},
             "sort": ["file_mtime_desc", "file_name_asc"],
             "limit": 10,
             "columns": ["file.link", "status", "possibility", "projects", "file.mtime"],
-        }
-    },
-    "Knowledge.base": {
+        },
         "Radar": {
             "filters": {"type_in": ["knowledge", "idea"]},
             "sort": ["file_mtime_desc", "file_name_asc"],

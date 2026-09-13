@@ -32,7 +32,7 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     return root
 
 
-def test_all_eight_base_files_match_the_blueprint_compiler() -> None:
+def test_all_canonical_base_files_match_the_blueprint_compiler() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected = render_base_documents(blueprint)
     actual_paths = tuple(sorted(path.relative_to(CONTROL_ROOT / "KnowledgeHub").as_posix() for path in (CONTROL_ROOT / "KnowledgeHub/99_System/Bases").glob("*.base")))
@@ -100,6 +100,7 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
     mobile = sources["Mobile.md"]
     assert "Projects.base#Now" in home
     assert "Projects.base#Now|프로젝트 전체 보기" in home
+    assert "Knowledge.base#Ideas|Ideas" in home
     assert "shortcuts://run-shortcut?name=KO%20%C2%B7%20Defer%20to%20Mac" in mobile
     assert "Projects.base#Mobile|프로젝트 전체 보기" in mobile
     assert "snapshot" in mobile

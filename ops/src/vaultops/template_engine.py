@@ -325,9 +325,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        areas: []
-        topics: []
-        people: []
         outcome: '<% yamlTitle %>의 완료 조건을 정의한다.'
         priority: medium
         ---
@@ -387,10 +384,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_policy: ask
         ai_status: idle
         possibility: '<% yamlTitle %>'
-        projects: []
-        areas: []
-        topics: []
-        related: []
         ---
         # <% title %>
 
@@ -427,10 +420,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_policy: ask
         ai_status: idle
         question_kind: research
-        projects: []
-        areas: []
-        sources: []
-        related: []
         ---
         # <% title %>
 
@@ -536,8 +525,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        topics: []
-        people: []
         review_cadence: monthly
         next_review: <% tp.date.now("YYYY-MM-DD", 30) %>
         standard: '<% yamlTitle %>에서 유지할 기준을 정의한다.'
@@ -583,11 +570,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        areas: []
-        projects: []
-        topics: []
-        sources: []
-        related: []
         claim: '<% yamlTitle %>'
         confidence: unknown
         ---
@@ -635,12 +617,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        areas: []
-        projects: []
-        topics: []
-        related: []
         source_kind: web
-        authors: []
         ---
         # <% title %>
 
@@ -690,10 +667,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         sensitivity: personal
         ai_policy: deny
         ai_status: idle
-        organization: ""
-        areas: []
-        projects: []
-        related: []
         ---
         # <% title %>
 
@@ -735,7 +708,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_policy: ask
         ai_status: idle
         scope: '<% yamlTitle %>'
-        related: []
         ---
         # <% title %>
 
@@ -781,9 +753,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_status: idle
         meeting_at: <% now %>
         attendees: []
-        projects: []
-        areas: []
-        related: []
         ---
         # <% title %>
 
@@ -879,6 +848,17 @@ def _list(context: Mapping[str, object], name: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise TemplateRenderError(f"{name} must be a flat string list")
     return list(value)
+
+
+def _optional_lists(
+    properties: dict[str, object], context: Mapping[str, object], names: tuple[str, ...]
+) -> None:
+    """Add optional context lists only when they contain user data."""
+
+    for name in names:
+        values = _list(context, name)
+        if values:
+            properties[name] = values
 
 
 def _common(context: Mapping[str, object], note_type: str, title: str) -> dict[str, object]:
@@ -1001,13 +981,11 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
         properties.update(
             {
                 "status": context.get("status", "planned"),
-                "areas": _list(context, "areas"),
-                "topics": _list(context, "topics"),
-                "people": _list(context, "people"),
                 "outcome": context.get("outcome", f"{title}의 완료 조건을 정의한다."),
                 "priority": context.get("priority", "medium"),
             }
         )
+        _optional_lists(properties, context, ("areas", "topics", "people"))
         for key in ("focus_rank", "next_action", "target_date"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
@@ -1016,10 +994,12 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
         properties.update({"status": context.get("status", "active"), "projects": [_project_link(context)], "note_kind": context.get("note_kind", "exploration")})
         body = _body(context, f"# {title}\n\n## 목적\n\n## 현재 초안\n\n## 열린 쟁점\n\n## 정본으로 승격할 후보\n")
     elif note_type == "idea":
-        properties.update({"status": context.get("status", "seed"), "possibility": context.get("possibility", title), "projects": _list(context, "projects"), "areas": _list(context, "areas"), "topics": _list(context, "topics"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "seed"), "possibility": context.get("possibility", title)})
+        _optional_lists(properties, context, ("projects", "areas", "topics", "related"))
         body = _body(context, f"# {title}\n\n## 가능성\n\n## 왜 흥미로운가\n\n## 검증할 가정\n\n## 다음 실험\n\n## 연결\n")
     elif note_type == "question":
-        properties.update({"status": context.get("status", "open"), "question_kind": context.get("question_kind", "research"), "projects": _list(context, "projects"), "areas": _list(context, "areas"), "sources": _list(context, "sources"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "open"), "question_kind": context.get("question_kind", "research")})
+        _optional_lists(properties, context, ("projects", "areas", "sources", "related"))
         for key in ("decision", "decision_by", "priority"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
@@ -1031,27 +1011,36 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
                 properties[key] = context[key]
         body = _body(context, f"# {title}\n\n## 목적과 독자\n\n## 산출물 또는 위치\n\n## 검토 기준\n\n## 결정 기록\n\n## 변경 이력\n")
     elif note_type == "area":
-        properties.update({"status": context.get("status", "active"), "standard": context.get("standard", f"{title}에서 유지할 기준을 정의한다."), "review_cadence": context.get("review_cadence", "monthly"), "next_review": context.get("next_review", (_now(context.get("created")).date() + timedelta(days=30)).isoformat()), "topics": _list(context, "topics"), "people": _list(context, "people")})
+        properties.update({"status": context.get("status", "active"), "standard": context.get("standard", f"{title}에서 유지할 기준을 정의한다."), "review_cadence": context.get("review_cadence", "monthly"), "next_review": context.get("next_review", (_now(context.get("created")).date() + timedelta(days=30)).isoformat())})
+        _optional_lists(properties, context, ("topics", "people"))
         body = _body(context, f"# {title}\n\n## 책임 범위\n\n## 유지할 기준\n\n## 현재 프로젝트\n\n## 루틴과 점검표\n\n## 참고 자료\n\n## Review 기록\n")
     elif note_type == "knowledge":
-        properties.update({"status": context.get("status", "seed"), "claim": context.get("claim", title), "confidence": context.get("confidence", "unknown"), "areas": _list(context, "areas"), "projects": _list(context, "projects"), "topics": _list(context, "topics"), "sources": _list(context, "sources"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "seed"), "claim": context.get("claim", title), "confidence": context.get("confidence", "unknown")})
+        _optional_lists(properties, context, ("areas", "projects", "topics", "sources", "related"))
         if "last_reviewed" in context:
             properties["last_reviewed"] = context["last_reviewed"]
         body = _body(context, f"# {title}\n\n## 핵심 주장\n\n## 설명\n\n## 근거\n\n## 한계와 반례\n\n## 적용\n\n## 연결\n")
     elif note_type == "source":
-        properties.update({"status": context.get("status", "queued"), "source_kind": context.get("source_kind", "web"), "authors": _list(context, "authors"), "areas": _list(context, "areas"), "projects": _list(context, "projects"), "topics": _list(context, "topics"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "queued"), "source_kind": context.get("source_kind", "web")})
+        _optional_lists(properties, context, ("authors", "areas", "projects", "topics", "related"))
         for key in ("source_url", "published_date", "citation_key", "asset", "asset_hash", "extractor", "extractor_version", "page_locator_scheme", "derived_from"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
         body = _body(context, f"# {title}\n\n## 서지정보\n\n## 한 문단 요약\n\n## 핵심 주장과 근거\n\n## 인용\n\n## 내 해석\n\n## 파생 지식 노트\n")
     elif note_type == "person":
-        properties.update({"status": context.get("status", "active"), "ai_policy": "deny", "organization": context.get("organization", ""), "areas": _list(context, "areas"), "projects": _list(context, "projects"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "active"), "ai_policy": "deny"})
+        organization = context.get("organization")
+        if organization not in (None, ""):
+            properties["organization"] = organization
+        _optional_lists(properties, context, ("areas", "projects", "related"))
         body = _body(context, f"# {title}\n\n## 맥락\n\n## 함께 하는 일\n\n## 최근 대화\n\n## 다음 연락\n\n- [ ] #task\n")
     elif note_type == "moc":
-        properties.update({"status": context.get("status", "active"), "scope": context.get("scope", title), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "active"), "scope": context.get("scope", title)})
+        _optional_lists(properties, context, ("related",))
         body = _body(context, f"# {title}\n\n## 이 지도가 답하는 질문\n\n## 시작점\n\n## 핵심 노트\n\n## 논쟁과 대안\n\n## 아직 비어 있는 부분\n")
     elif note_type == "meeting":
-        properties.update({"status": context.get("status", "scheduled"), "ai_policy": "deny", "meeting_at": context.get("meeting_at", properties["created"]), "attendees": _list(context, "attendees"), "projects": _list(context, "projects"), "areas": _list(context, "areas"), "related": _list(context, "related")})
+        properties.update({"status": context.get("status", "scheduled"), "ai_policy": "deny", "meeting_at": context.get("meeting_at", properties["created"]), "attendees": _list(context, "attendees")})
+        _optional_lists(properties, context, ("projects", "areas", "related"))
         body = _body(context, f"# {title}\n\n## 목적\n\n## 의제\n\n1.\n\n## 메모\n\n## 결정\n\n| 결정 | 책임자 | 근거 |\n|---|---|---|\n\n## 후속 작업\n\n- [ ] #task\n")
     else:
         raise TemplateRenderError(f"renderer is missing note type: {note_type}")
