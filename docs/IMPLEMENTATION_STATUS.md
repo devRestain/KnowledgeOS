@@ -1,12 +1,12 @@
 # 구현 상태와 다음 세션 인수인계
 
-기준일: 2026-09-11
+기준일: 2026-09-13
 
-현재 stage: `s08b_git_identity_configured` (S07 complete; S08A complete; `KnowledgeHub` rename/UUID and S08B remote identity/sentinel complete)
+현재 stage: `s10_github_directory_visibility` (S07 complete; S08A complete; `KnowledgeHub` rename/UUID and S08B remote identity/sentinel complete; S09 control-side offline contract complete; this S10 visibility slice resolved)
 
 canonical contract: `knowledgeos-blueprint-v2`
 execution plan: `docs/IMPLEMENTATION_PLAN.md`
-next session: `S09 — 다섯 Shortcut과 durable outbox의 offline 구현`
+next session: `S10 — iPhone/iPad Working Copy 실제 transport와 local result renderer`
 
 current Vault identity: canonical name `KnowledgeHub`; UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2`; notes remote `github.com/devrestain/knowledgehub.git`; expected branch `main`; identity SHA-256 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`
 
@@ -15,7 +15,7 @@ current Vault identity: canonical name `KnowledgeHub`; UUID `411602c1-5278-4a8b-
 - Codex 실행 세션의 기본 surface는 Codex 앱, 이 workspace, Colima/Docker CLI·Compose·container다. 이번 세션에는 사용자가 명시적으로 승인한 범위 안에서 Obsidian을 `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault에만 열었고, 브라우저·Finder·Mail·Calendar·Slack·Teams·Working Copy·Shortcuts 및 기타 외부 surface에는 접근하지 않았다.
 - 2026-09-09 현재 macOS 계정은 `501:20`이었다. 기존 Compose의 `1000:1000` fallback이 host bind mount와 Colima tmpfs cache의 실제 소유권과 어긋나 permission 오류를 일으켰다.
 - `Makefile`은 `id -u`/`id -g`를 `KNOWLEDGEOS_UID`/`KNOWLEDGEOS_GID`로 export하고, `ops/compose.yaml`은 누락 시 fail closed하며 `ops/Dockerfile`도 UID/GID 기본값을 제거했다. cache는 삭제·재생성하지 않았다.
-- 현재 canonical 재검증에서 `make source-check`, `make verify`, `git diff --check`, `make container-source-check`, `make container-verify`, `make lint`, `make blueprint-check`, `make schema-export`, `make schema-check`가 PASS했다. `make test`는 Python `3.12.8` image에서 순차 실행 기준 `105 passed`였다. S08B에서는 host read-only `git ls-remote`로 `KnowledgeHub` remote `main`을 확인하고 canonical container에서 `vaultctl configure --interactive`를 실행했다. UID/GID를 생략한 직접 Compose config는 required-variable 오류로 fail closed하고, `make` wrapper 또는 현재 host 숫자형 UID/GID 경로는 `501:20`으로 실행된다.
+- S09 final canonical revalidation: `make source-check`, `make verify`, `make container-source-check`, `make container-verify`, `make blueprint-check`, `make schema-check`, `make lint`가 PASS했고, Python `3.12.8` image의 `make test`는 `116 passed`였다. S09 전용 변경은 현재 `501:20`을 명시한 disposable Compose dev 실행으로 검증했다. S08B에서는 host read-only `git ls-remote`로 `KnowledgeHub` remote `main`을 확인하고 canonical container에서 `vaultctl configure --interactive`를 실행했다. UID/GID를 생략한 직접 Compose config는 required-variable 오류로 fail closed하고, `make` wrapper 또는 현재 host 숫자형 UID/GID 경로는 `501:20`으로 실행된다.
 - `blueprint-check`는 JSON Schema/semantic PASS와 `generated_artifact_validation=NOT_RUN:separate:vaultctl schema export --check`를 분리해 보고했고, `schema-check`는 S04와 S08A owned artifact zero-diff 및 future profile `NOT_APPLICABLE_FOR_PROFILE`을 확인했다. `make test`와 `make lint`를 동시에 실행하면 shared disposable uv cache 초기화 경쟁으로 일시적인 permission 오류가 날 수 있으므로 canonical test/lint는 순차 실행한다.
 - 2026-09-11 status-consistency audit: session completion now requires re-inventorying both Git roots with `find` (including ignored and empty namespaces), comparing README and authoritative status/plan/operations/source/architecture/runtime documents, and treating mismatches as incomplete or blocked. The audit found the four-file Codex-generated `KnowledgeHub/.obsidian` baseline, empty profile namespaces, S08A protocol schema copies under `KnowledgeHub/.vault-bridge/protocol`, the S08B root sentinel, and no request/response event files.
 - Inventory classification: `.git` and `KnowledgeHub/.git` are independent repository metadata; `.codex/rules` is project policy; `ops/.pytest_cache` and `ops/.ruff_cache` are ignored tooling caches; all `runtime/` namespaces are currently empty.
@@ -195,7 +195,7 @@ S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt,
 
 - 초기 baseline: 새 빈 디렉터리에서 시작; 현재 workspace Vault에는 Codex-generated `KnowledgeHub/.obsidian` baseline과 empty bridge/profile namespace가 존재
 - physical Vault root: 기존 `vault` 디렉터리를 `KnowledgeHub`로 rename했고, `KnowledgeHub/.git` 독립 Git metadata와 Vault content를 보존했다. canonical Vault 표시 이름은 `KnowledgeHub`, UUID v4는 `411602c1-5278-4a8b-8b96-9183fb6ef8c2`이며, S08B에서 확인된 notes remote/branch identity를 `KnowledgeHub/.knowledgeos-root.json`에 create-only로 기록했다.
-- control Git: 사용자가 초기화한 독립 local `main`, HEAD `2c2fd80`, `https://github.com/devRestain/KnowledgeOS.git` remote를 추적하며 S08B code/docs update set이 working tree에 보존되어 있음
+- control Git: 사용자가 초기화한 독립 local `main`, HEAD `c038ab9`, `https://github.com/devRestain/KnowledgeOS.git`의 `origin/main`을 추적하며 S09 code/config/test/docs/rules update set이 working tree에 보존되어 있음
 - Vault Git: 사용자가 초기화한 독립 local `main`, HEAD `440829f`, `https://github.com/devRestain/KnowledgeHub.git`의 `origin/main`을 추적하며 S08B `.knowledgeos-root.json`이 working tree에 추가되어 있음
 - OS architecture: `arm64`
 - macOS: `26.6.2`
@@ -204,7 +204,7 @@ S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt,
 - host Python/uv: project `mise.toml` requests Python `3.12.8`/uv `0.8.14`; current mise shims resolve, but invoking the missing project-pinned host runtime attempts an auto-install and fails `Operation not permitted`. Host direct execution is not canonical; container image remains Python `3.12.8`/uv `0.8.14`.
 - Codex CLI: `0.153.0`
 - `mise`: `2026.9.1` 설치됨; installed host versions include Python `3.13.15`/uv `0.12.10`, which do not replace the project-pinned canonical versions
-- Colima: `0.10.3`, 현재 실행 중; Docker Compose `dev` service는 current-user UID/GID `501:20`으로 실행된다. S07/S08A canonical test/lint/Blueprint/schema/container gate를 통과했으며 cache 삭제·재생성은 하지 않음
+- Colima: `0.10.3`, 현재 실행 중; Docker Compose `dev` service는 current-user UID/GID `501:20`으로 실행된다. S07/S08A/S09 canonical gate를 통과했으며 cache 삭제·재생성은 하지 않음
 - Docker/Compose: Docker `29.5.3`, Compose `5.1.4`; `colima` context daemon에서 image build/run 검증 완료
 - canonical image: Python `3.12.8`, uv `0.8.14`; `uv sync --locked`로 31개 resolution / 30개 package 설치
 - Obsidian app: `/Applications/Obsidian.app` 존재, bundle version `1.9.14` 관찰; 사용자 승인으로 `/private/tmp/knowledgeos-s07-guestbook-horror` disposable Vault를 실제 실행 smoke했고 production/workspace Vault는 열지 않음
@@ -215,25 +215,61 @@ S04도 실제 사용자 note, `.knowledgeos-root.json`, remote, runtime receipt,
 
 ## 다음 세션
 
-상태: `S08B complete` (S07 app smoke, `KnowledgeHub` rename/UUID, S08A offline bridge contract, verified notes identity와 production sentinel complete)
+상태: `S09 complete` (S07 app smoke, `KnowledgeHub` rename/UUID, S08A offline bridge contract, verified notes identity와 production sentinel, S09 control-side offline Shortcut/outbox contract complete)
 
-S06의 구현, S07 offline fixture/contract와 disposable Obsidian smoke, `KnowledgeHub` root rename/UUID, S08A offline bridge contract, S08B notes remote/branch read-only preflight와 production sentinel 구성이 완료되었다. 다음 세션은 S09 — 다섯 Shortcut과 durable outbox의 offline 구현이다.
+### S10 진입 preflight (2026-09-11; 2026-09-13 update)
 
-S07은 S06 compiler/evaluator가 닫은 Base/dashboard 계약을 실제 fixed input Vault와 Obsidian disposable app surface에서 증명하는 exit gate였다. `guestbook-horror` input/expected Vault, hash/mtime manifest, archive/capture-finalize/asset provenance golden bytes와 Home/Base/Daily/Mobile smoke를 확인했다. S08A는 이 결과 위에서 실제 remote 없이 bridge contract를 닫았고, S08B는 사용자가 확인한 `KnowledgeHub` remote/`main` branch를 검증해 sentinel에 고정했다.
+상태: `in_progress` (사용자가 실제 iPhone/iPad Working Copy 연동 성공을 확인했고, GitHub visibility issue slice는 resolved; 전체 S10 acceptance 증거는 계속 수집 중)
+
+- 현재 checkout에서 `make source-check`, `make verify`, `make container-source-check`, `make container-verify`, `make blueprint-check`, `make schema-check`, `git diff --check`를 다시 실행해 PASS를 확인했다.
+- canonical container의 `make test`는 Python `3.12.8`에서 `119 passed in 12.37s`, `make lint`는 `All checks passed!`였다. test와 lint는 shared disposable uv cache 경쟁을 피하도록 순차 실행했다.
+- S10의 남은 완료 증거(phone/tablet profile exact diff, device capture/edit, Mac visibility, offline/auth/conflict/revoke drill)는 아직 이 상태 기록에 제출되지 않았다. 실제 iPhone/iPad와 Working Copy를 대상으로 하는 각 credential·sync topology 변경·revoke는 사용자 참여 및 개별 승인이 필요하다. 이번 visibility slice의 exact-file commit/push는 아래 기록처럼 완료했다.
+- 사용자는 Working Copy Pro를 유일한 mobile Git writer로 사용한 Obsidian `KnowledgeHub` 연동 성공을 확인했다. `mobile_transport_verified`와 `obsidian_mobile_profiles_verified` overlay는 위 증거가 장치별로 기록될 때까지 최종 `verified`로 올리지 않는다.
+
+### S10 GitHub directory visibility issue (2026-09-13)
+
+상태: `resolved` (2026-09-13; `KnowledgeHub` commit `a44c70c`를 `origin/main`에 push 완료. 전체 S10 acceptance는 `in_progress`)
+
+- 사용자 확인: Working Copy Pro를 유일한 mobile Git writer로 사용해 iPhone/iPad의 Obsidian `KnowledgeHub` 연동에 성공했다.
+- 관찰된 문제: 원격 GitHub tree에는 실제 파일이 있는 `99_System`만 나타났고, 빈 canonical namespace와 `99_System/Scripts/QuickAdd`가 보이지 않았다. `KnowledgeHub/.gitignore`는 일반 namespace를 무시하지 않으며, 원인은 Git의 빈 디렉토리 비추적 동작으로 분류했다.
+- 수정 범위: 현재 비어 있는 일반 canonical namespace에 exact `.knowledgeos-directory` marker를 추가하고, Blueprint required Vault files인 `.vault-bridge/README.md`와 `99_System/Scripts/QuickAdd/PrepareTitle.js`를 배포했다. `.gitkeep`, `.obsidian-*` profile, `.vault-bridge/{requests,responses}`, runtime marker와 사용자 note 더미는 생성하지 않는다.
+- foundation 검증기는 marker 경로/bytes 및 Blueprint required Vault file 존재를 검사하도록 보강했다. control-side canonical 게이트와 Vault exact staged set을 통과한 29개 파일만 `a44c70c0ce4c41491195e0e721bfbb718ce17c4c`로 커밋해 `origin/main`에 push했고, `git ls-remote`와 `git ls-tree`로 원격 ref와 tracked tree를 확인했다.
+- post-push inventory에서 26개 marker와 `.knowledgeos-root.json`, `.vault-bridge/README.md`, `99_System/Scripts/QuickAdd/PrepareTitle.js`가 확인되었다. physical empty namespace는 `.obsidian-{mac,phone,tablet}`와 `.vault-bridge/{requests,responses}`뿐이며 모두 의도된 비대상이다.
+
+S06의 구현, S07 offline fixture/contract와 disposable Obsidian smoke, `KnowledgeHub` root rename/UUID, S08A offline bridge contract, S08B notes remote/branch read-only preflight와 production sentinel, S09 control-side offline Shortcut/outbox contract 구성이 완료되었다. 이번 S10 visibility slice는 완료했으며, 다음 S10 작업은 장치별 profile/capture/edit, Mac visibility와 offline/auth/conflict/revoke 증거 및 local result renderer다.
+
+S07은 S06 compiler/evaluator가 닫은 Base/dashboard 계약을 실제 fixed input Vault와 Obsidian disposable app surface에서 증명하는 exit gate였다. `guestbook-horror` input/expected Vault, hash/mtime manifest, archive/capture-finalize/asset provenance golden bytes와 Home/Base/Daily/Mobile smoke를 확인했다. S08A는 이 결과 위에서 실제 remote 없이 bridge contract를 닫았고, S08B는 사용자가 확인한 `KnowledgeHub` remote/`main` branch를 검증해 sentinel에 고정했다. S09는 실제 장치 없이 다섯 Shortcut의 exportable definition과 durable outbox의 payload/event/gate/recovery contract를 닫았다.
 
 진입 시 다시 확인할 것:
 
 - `make source-check`, `make verify`, `make test`, `make lint`, `make blueprint-check`, `make schema-export`, `make schema-check`, `make container-source-check`, `make container-verify`가 현재 checkout에서 재현되는지. `make test`와 `make lint`는 shared uv cache 경쟁을 피하기 위해 순차 실행한다.
-- control/Vault 두 root가 각각 local `main`이고 control은 `KnowledgeOS.git`, Vault는 `KnowledgeHub.git`의 `origin/main`을 추적하는지; S08B code/docs와 sentinel의 expected dirty set을 구분하는지
+- control/Vault 두 root가 각각 local `main`이고 control은 `KnowledgeOS.git`, Vault는 `KnowledgeHub.git`의 `origin/main`을 추적하는지; S09 code/config/test/docs/rules와 sentinel의 expected dirty set을 구분하는지
 - Codex-generated `KnowledgeHub/.obsidian` baseline과 empty `.obsidian-{mac,phone,tablet}` profile namespace를 보존하며, `.vault-bridge/protocol`과 `.knowledgeos-root.json` 외 request/response event 파일이 없는지
 - S06에서 생성한 Base/dashboard 정적 파일이 Blueprint compiler output과 계속 exact match하는지
 
 명시적 비범위:
 
-- Working Copy, 추가 `.obsidian-*` profile 설정, plugin 설치 또는 version lock
-- 실제 mobile sync/bridge round-trip, Git push, LLM/provider와 background worker, S13C mutation command 자체
+- 실제 Working Copy, 추가 `.obsidian-*` profile 설정, plugin 설치 또는 version lock
+- 실제 mobile sync/bridge round-trip, device credential, LLM/provider와 background worker, S13C mutation command 자체
 
-전체 후속 순서와 세션별 acceptance는 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)를 따른다. notes Git remote identity와 `main` branch는 S08B에서 확인했지만, 실제 장치·Working Copy·mobile sync topology는 아직 미확인이며 후속 `S09`–`S10` 진입 gate에서 갱신한다.
+전체 후속 순서와 세션별 acceptance는 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)를 따른다. notes Git remote identity와 `main` branch는 S08B에서 확인했고 S09 offline contract와 S10 GitHub visibility slice는 닫았지만, 장치별 profile·credential·mobile sync topology와 round-trip acceptance는 아직 미확인이며 후속 `S10` gate에서 갱신한다.
+
+## S09 인수인계 기록
+
+```text
+session: S09
+status: complete
+scope: control-side synthetic mobile offline contract; no device, Working Copy, credential, remote write, commit, or push
+created_or_changed: ops/src/vaultops/mobile_offline.py, ops/config/shortcuts.yaml, ops/config/mobile.yaml, ops/tests/fixtures/s09_mobile_offline/recovery-cases.yaml, ops/tests/test_s09_mobile_offline.py, .codex/rules/knowledgeos.rules, 관련 상태·운영·계획·결정 문서
+acceptance_passed: five exact Blueprint Shortcut IDs; strict UTF-8/byte/hash payload; create-only O_EXCL/fsync outbox; append-only event transitions; same-ID/same-digest NO_OP; different-digest conflict; MIME/HEIC/size/privacy/secret gates; exact-file Git and committed-blob Defer gates; seven-day acknowledged cleanup gate; offline/auth/push rejection/cancel/reboot synthetic recovery fixture
+commands_and_evidence: make test 116 passed; make lint PASS; make source-check, make verify, make container-source-check, make container-verify, make blueprint-check, make schema-check PASS; git diff --check PASS; direct project-local policy checks allow both exact 501:20 Compose forms
+external_effects_performed: 없음; 실제 device outbox, Working Copy, device credential, mobile profile, request/response event, remote write, commit/push, plugin, provider, worker 없음
+approvals_received: current project-local rules permit exact UID/GID 501:20 disposable Compose dev invocation
+remaining_user_actions: S10에서 실제 iPhone/iPad와 Working Copy capability, linked external worktree, credential, sync topology를 별도 확인·승인
+inactive_opt_ins: device transport, `.obsidian-phone`/`.obsidian-tablet` profile, mobile round-trip, remote automation, LLM/provider, background worker
+next_session: S10 — iPhone/iPad Working Copy 실제 transport와 local result renderer
+next_entry_conditions: S09 canonical gates PASS; actual device and user participation; no second live sync transport; preserve exact-file/no-overwrite/sentinel checks
+```
 
 ## 완료 정의
 
@@ -255,7 +291,7 @@ git -C KnowledgeHub status --short --branch
 
 `make verify`는 bootstrap 무결성, `make blueprint-check`는 JSON Schema와 S03A/S03B semantic gate, `make schema-export`는 현재 profile의 artifact 생성, `make schema-check`는 S04/S08A ownership/zero-diff를 담당한다. S08B의 production sentinel은 `vaultctl configure --interactive`가 소유하며 `make schema-check`가 sentinel bytes 자체를 생성하지는 않는다. `make schema-check`의 PASS는 note contract, Property Dictionary, S08A bridge/root-sentinel schema와 protocol copy까지를 의미하며 뒤 세션 schema·template·Base/dashboard 완료를 의미하지 않는다.
 
-이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. S04의 JSON Schema/semantic/zero-diff, S05 template/bootstrap/project create, S06 Base/dashboard compiler/evaluator, S07 disposable app smoke, S08A offline bridge contract와 S08B `git_identity_configured` overlay의 canonical evidence는 닫혔으며, 다음 세션은 S09 offline Shortcut/outbox 구현이다.
+이 완료 정의는 전체 KnowledgeOS 완료 정의가 아니다. S04의 JSON Schema/semantic/zero-diff, S05 template/bootstrap/project create, S06 Base/dashboard compiler/evaluator, S07 disposable app smoke, S08A offline bridge contract, S08B `git_identity_configured` overlay, S09 control-side offline Shortcut/outbox contract, S10 GitHub directory visibility slice의 canonical evidence는 닫혔으며, 다음 세션은 S10 잔여 device transport evidence다.
 
 ## S02 인수인계 기록
 

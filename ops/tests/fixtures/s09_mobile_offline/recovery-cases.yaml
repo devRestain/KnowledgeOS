@@ -1,0 +1,26 @@
+schema_version: 1
+cases:
+  - id: offline_after_outbox_persist
+    initial_events: [captured]
+    failure_reason: offline
+    recovery: same_id_same_digest_no_op
+  - id: auth_failure_after_vault_write
+    initial_events: [captured, vault_written]
+    failure_reason: auth_failure
+    recovery: payload_and_events_survive
+  - id: push_rejection_after_commit
+    initial_events: [captured, vault_written, committed]
+    failure_reason: push_rejected
+    recovery: local_commit_and_outbox_survive
+  - id: shortcut_cancel_after_persist
+    initial_events: [captured]
+    failure_reason: shortcut_cancelled
+    recovery: payload_and_event_survive
+  - id: reboot_after_vault_write
+    initial_events: [captured, vault_written]
+    failure_reason: reboot_recovery
+    recovery: same_id_same_digest_no_op
+  - id: changed_retry
+    initial_events: [captured]
+    failure_reason: conflict
+    recovery: same_id_different_digest_conflict

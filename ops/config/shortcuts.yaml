@@ -1,0 +1,83 @@
+schema_version: 1
+contract_id: knowledgeos-mobile-shortcuts-v1
+canonical_vault_name: KnowledgeHub
+export_kind: device_local_definition
+external_effects: none
+shortcuts:
+  - id: ko_capture
+    display_name: KO · Capture
+    input: [share_sheet, dictation, text]
+    output: unique_capture_note
+    overwrites_existing: false
+    pull_before_capture: false
+    durable_outbox_first: true
+    automatic_commit_requires_exact_staged_set_visibility: true
+    steps:
+      - collect_share_sheet_dictation_or_text
+      - require_github_allowed_or_local_only_choice
+      - validate_utf8_control_characters_and_size
+      - persist_outbox_create_only_and_verify_hash
+      - verify_repository_remote_branch_and_root_sentinel
+      - create_ascii_timestamp_device_uuid8_capture_path
+      - assemble_complete_t00_capture_markdown
+      - write_unique_repository_file_overwrite_off
+      - allow_exact_file_commit_only_when_staged_set_is_visible
+      - keep_outbox_on_offline_auth_or_push_failure
+      - open_new_note_with_obsidian_uri
+    forbidden_steps: [pull, merge, include_all_modified, force_push]
+  - id: ko_save_source
+    display_name: KO · Save Source
+    input: [url, selected_text, comment]
+    output: unique_import_capture
+    overwrites_existing: false
+    durable_outbox_first: true
+    steps:
+      - collect_url_selected_text_and_one_line_comment
+      - require_github_allowed_or_local_only_choice
+      - validate_selected_text_and_secret_policy
+      - persist_outbox_create_only_and_verify_hash
+      - create_immutable_import_capture_under_00_Inbox_Imports
+      - use_capture_exact_file_commit_gate
+      - open_mobile_note
+    forbidden_steps: [webpage_scrape, binary_download, ocr, pull, include_all_modified]
+  - id: ko_today
+    display_name: KO · Today
+    input: []
+    output: open_daily_or_mobile
+    writes_files: false
+    steps:
+      - open_canonical_knowledgehub_daily_or_mobile_uri
+      - show_last_sync_snapshot_disclosure
+    forbidden_steps: [git_write, pull, commit, push]
+  - id: ko_defer_to_mac
+    display_name: KO · Defer to Mac
+    input: [source_path, action_id]
+    output: immutable_bridge_request
+    overwrites_existing: false
+    hash_domain: sha256_of_committed_git_blob_bytes
+    requires_source: [tracked, byte_identical_to_expected_head_blob, no_index_or_worktree_drift]
+    capability_gate: working_copy_exact_committed_blob_access_verified
+    unavailable_or_dirty_fallback: show_status_and_do_not_publish_request
+    steps:
+      - select_source_path_and_allowlisted_pipeline
+      - verify_expected_head_index_and_worktree_clean
+      - read_committed_blob_and_verify_sha256
+      - create_one_immutable_request_without_source_content
+      - show_status_when_capability_or_clean_state_is_unknown
+    forbidden_steps: [pull, merge, raw_prompt, unverified_blob_request]
+  - id: ko_sync
+    display_name: KO · Sync
+    input: []
+    output: safe_sync_or_status_ui
+    requires_obsidian_closed: true
+    automatic_merge_only_if_fast_forward_proven: true
+    after_fast_forward: validate_and_quicklook_latest_bridge_response_for_this_device
+    steps:
+      - require_obsidian_closed
+      - verify_repository_remote_branch_and_root_sentinel
+      - inspect_index_and_worktree
+      - fetch_and_fast_forward_only_when_clean_and_behind_only
+      - show_status_without_mutation_for_dirty_detached_diverged_or_unknown
+      - validate_latest_response_schema_and_digest_after_success
+      - reopen_obsidian_and_verify_sentinel
+    forbidden_steps: [force_push, reset, stash, rebase, conflict_resolution]

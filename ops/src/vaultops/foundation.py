@@ -94,6 +94,44 @@ REQUIRED_DIRECTORIES = (
     "KnowledgeHub/.obsidian-tablet",
 )
 
+# Git does not version empty directories.  These markers are intentionally
+# project-specific (rather than generic ``.gitkeep`` fillers) and are allowed
+# only in currently empty canonical Vault namespaces.  They are hidden from
+# the normal Obsidian note surface and must never appear in device/profile,
+# bridge transport, or runtime directories.
+STRUCTURAL_MARKER_NAME = ".knowledgeos-directory"
+STRUCTURAL_MARKER_TEXT = "KnowledgeOS canonical directory marker; Git has no empty-directory entries.\n"
+STRUCTURAL_MARKER_DIRECTORIES = frozenset(
+    {
+        "KnowledgeHub/00_Inbox/Captures",
+        "KnowledgeHub/00_Inbox/Imports",
+        "KnowledgeHub/01_AI_Review/Conflict",
+        "KnowledgeHub/01_AI_Review/Expired",
+        "KnowledgeHub/01_AI_Review/Pending",
+        "KnowledgeHub/01_AI_Review/Rejected",
+        "KnowledgeHub/01_AI_Review/Resolved",
+        "KnowledgeHub/10_Journal/Daily",
+        "KnowledgeHub/10_Journal/Monthly",
+        "KnowledgeHub/10_Journal/Weekly",
+        "KnowledgeHub/20_Projects",
+        "KnowledgeHub/30_Areas",
+        "KnowledgeHub/40_Knowledge/Ideas",
+        "KnowledgeHub/40_Knowledge/Notes",
+        "KnowledgeHub/40_Knowledge/People",
+        "KnowledgeHub/40_Knowledge/Questions",
+        "KnowledgeHub/40_Knowledge/Sources",
+        "KnowledgeHub/50_Maps",
+        "KnowledgeHub/60_Meetings",
+        "KnowledgeHub/80_Assets/Audio",
+        "KnowledgeHub/80_Assets/Documents",
+        "KnowledgeHub/80_Assets/Images",
+        "KnowledgeHub/80_Assets/Inbox",
+        "KnowledgeHub/90_Archive/Captures",
+        "KnowledgeHub/90_Archive/Other",
+        "KnowledgeHub/90_Archive/Projects",
+    }
+)
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -161,6 +199,19 @@ def check_foundation(root: str | Path) -> list[str]:
             problems.append(f"control .gitignore is missing {expected}")
     if list((workspace / "KnowledgeHub").rglob(".gitkeep")):
         problems.append("Vault filler .gitkeep files found")
+    for marker in (workspace / "KnowledgeHub").rglob(STRUCTURAL_MARKER_NAME):
+        relative = marker.relative_to(workspace).as_posix()
+        if marker.is_symlink():
+            problems.append(f"structural marker is a symlink: {relative}")
+            continue
+        if marker.parent.relative_to(workspace).as_posix() not in STRUCTURAL_MARKER_DIRECTORIES:
+            problems.append(f"structural marker is outside the canonical allowlist: {relative}")
+        else:
+            try:
+                if marker.read_text(encoding="utf-8") != STRUCTURAL_MARKER_TEXT:
+                    problems.append(f"structural marker has unexpected bytes: {relative}")
+            except (OSError, UnicodeError) as error:
+                problems.append(f"structural marker cannot be read: {relative}: {error}")
     for path in (workspace / "KnowledgeHub").rglob("*"):
         if path.is_symlink():
             problems.append(f"unexpected Vault symlink: {path.relative_to(workspace)}")
@@ -179,6 +230,13 @@ def check_foundation(root: str | Path) -> list[str]:
             problems.append("blueprint schema root must be an object")
         elif len(schema.get("required", [])) != len(blueprint):
             problems.append("blueprint schema required/key count mismatch")
+        fixed_paths = blueprint.get("fixed_paths", {})
+        for relative in fixed_paths.get("required_vault_files", ()):
+            path = workspace / "KnowledgeHub" / str(relative)
+            if path.is_symlink():
+                problems.append(f"required Vault file is a symlink: {relative}")
+            elif not path.is_file():
+                problems.append(f"missing required Vault file: {relative}")
     except (OSError, TypeError, ValueError, KeyError) as error:
         problems.append(f"blueprint bootstrap parse failed: {error}")
 

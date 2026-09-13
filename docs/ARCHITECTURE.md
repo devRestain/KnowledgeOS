@@ -71,7 +71,15 @@ KnowledgeHub/
 
 `YYYY`, `MM`, `GGGG`, `PROJECT_NAME`, `JOB_ID`는 문서 표기용 변수이며 literal directory가 아니다.
 
+Git은 빈 디렉토리를 저장하지 않으므로, 현재 비어 있는 일반 canonical namespace에는
+`.knowledgeos-directory` 한 줄 구조 표식을 둔다. 표식은 정확한 allowlist의 경로에서만
+허용하며 `.gitkeep`, 사용자 note를 가장한 Markdown, `.obsidian-*` profile,
+`.vault-bridge` transport, `runtime`에는 사용하지 않는다. 실제 파일이 생기면 그 파일과
+함께 디렉토리를 계속 보존하고, 표식은 구조 보조 파일로만 취급한다.
+
 S08B에서 `KnowledgeHub/.knowledgeos-root.json`은 canonical Vault name `KnowledgeHub`, UUID, expected branch `main`, 그리고 credential이 없는 canonical notes remote identity hash를 고정하는 6개 필드 sentinel로 create-only 생성되었다. 민감자료 경계 확인은 sentinel bytes에 저장하지 않고 configure evidence로만 남긴다. 이 sentinel의 존재는 Working Copy/device sync, plugin, bridge round-trip, commit 또는 push 완료를 뜻하지 않는다.
+
+S09의 mobile capture 경로는 control workspace의 `runtime/`이나 production Vault가 아니라 장치 로컬 `On My iPhone/KnowledgeHub-Recovery/Outbox/JOB_ID/` 또는 iPad 대응 경로에 놓이는 recovery outbox를 계약으로만 정의한다. `input.json`은 durable payload hash에 묶이고 event는 append-only이며, remote 관찰 또는 local-only 이관 receipt가 생기기 전에는 삭제하지 않는다. 실제 장치 outbox와 Working Copy transport는 S10 범위이므로 현재 checkout에는 생성하지 않았다.
 
 ## 폴더 책임
 

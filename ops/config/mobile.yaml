@@ -1,0 +1,52 @@
+schema_version: 1
+contract_id: knowledgeos-mobile-offline-v1
+canonical_vault_name: KnowledgeHub
+recovery_outbox:
+  root: on_my_device/KnowledgeHub-Recovery/Outbox
+  outside_notes_repository: true
+  payload_path: JOB_ID/input.json
+  event_path: JOB_ID/events/NNNN-event.json
+  create_only: true
+  payload_hash: sha256
+  states: [captured, vault_written, committed, pushed, remote_observed, local_vault_transferred]
+  retry_idempotency: job_id_plus_payload_sha256
+  identity_binding: job_id_equals_note_id_and_deterministic_target_path_is_in_payload
+  remote_observed: expected_remote_branch_contains_exact_target_blob_sha256
+  cleanup_requires: [remote_observed_or_local_vault_transfer_receipt, minimum_age_7_days, interactive_confirmation]
+  pre_persist_cancel_guarantee: none
+  post_persist_failure_guarantee: payload_and_event_survive_cancel_reboot_retry
+  stale_warning_days: 30
+  encrypted_device_backup_required: true
+input_limits:
+  markdown_bytes: 65536
+  selected_text_bytes: 20480
+  reject_nul_and_invalid_utf8: true
+  forbidden_ascii_controls: [nul, c0_except_tab_newline, del]
+  long_dictation: local_outbox_then_mac_import
+asset_policy:
+  allowed_mime: [image/jpeg, image/png, application/pdf]
+  heic_behavior: convert_to_jpeg_and_revalidate_or_create_metadata_placeholder
+  max_image_bytes: 5242880
+  max_pdf_bytes: 10485760
+  forbidden: [audio, video, executable]
+  oversize_behavior: url_filename_size_sha256_placeholder
+git_transaction:
+  capture_runs_pull: false
+  include_all_modified: false
+  auto_commit_requires:
+    - preexisting_staged_set_empty
+    - staged_set_equals_exact_new_paths
+    - installed_action_exposes_staged_set
+  fallback: open_single_file_commit_ui_and_keep_outbox
+  push_failure: keep_local_commit_and_outbox
+  if_bytes_or_staged_set_cannot_be_inspected: no_automatic_commit_or_push
+defer_gate:
+  hash_domain: sha256_of_committed_git_blob_bytes
+  request_contains_content: false
+  requires: [tracked, expected_head, index_clean, worktree_clean, readable_committed_blob, matching_blob_sha256]
+device_boundary:
+  implementation_surface: synthetic_control_contract_only
+  actual_device_install: deferred_to_S10
+  working_copy: deferred_to_S10
+  credentials: deferred_to_S10
+  remote_push: deferred_to_S10

@@ -44,7 +44,7 @@ Checksum manifest 자체의 SHA-256은 `a3b458bcf10dbf525ed59fd76ae8e5e814ecadea
 - YAML top-level key 42개와 JSON Schema top-level required key 42개 존재 확인
 - `contract_id`: `knowledgeos-blueprint-v2` 확인
 
-`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. S04에서는 `portable_core` ownership contract에 `ops/schemas/note.schema.json`과 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`를 추가했고, S05에서는 exact 16개 template과 create-only workflow를 추가했다. S06에서는 Blueprint `bases` registry를 authoritative input으로 삼는 별도 `base_dashboard` compiler/evaluator와 static Base/dashboard surface를 추가했다. S07에서는 `guestbook-horror` fixed input/expected Vault, SHA-256/mtime manifest, golden output, negative fixture, disposable smoke-Vault materializer와 실제 disposable Obsidian surface evidence를 추가했다. S08A에서는 bridge request/response/root-sentinel trusted schema, 동일 digest의 protocol copy, 상태 전이·remote identity·fixture-only renderer를 추가했다. S08B에서는 사용자 확인을 받은 `KnowledgeHub` notes remote/`main` branch의 read-only preflight와 canonical identity hash를 바탕으로 `KnowledgeHub/.knowledgeos-root.json`을 create-only로 생성하고 strict sentinel validation을 추가했다. `KnowledgeHub/.obsidian`의 Codex-generated baseline은 ignored app configuration으로 존재하며 disposable app evidence와 별도다. `vaultctl schema export`와 `--check`는 명시된 schema 소유 artifact만 생성·검증하며, safe Blueprint validation을 통과하기 전에는 쓰지 않는다. `blueprint validate`, schema zero-diff, Base/dashboard compiler exactness, S07 portable-fixture/app gate, S08A bridge contract gate, S08B configure/identity gate는 서로 독립된 보고 surface다. S08A gate는 production sentinel, remote, device sync, bridge publish 또는 Git push를 의미하지 않았으며, S08B도 commit/push나 device sync를 수행하지 않는다.
+`vaultctl blueprint validate`와 Blueprint JSON Schema validator는 S02에서, S03A/S03B semantic gate는 각각 해당 세션에서 구현했다. S04에서는 `portable_core` ownership contract에 `ops/schemas/note.schema.json`과 `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`를 추가했고, S05에서는 exact 16개 template과 create-only workflow를 추가했다. S06에서는 Blueprint `bases` registry를 authoritative input으로 삼는 별도 `base_dashboard` compiler/evaluator와 static Base/dashboard surface를 추가했다. S07에서는 `guestbook-horror` fixed input/expected Vault, SHA-256/mtime manifest, golden output, negative fixture, disposable smoke-Vault materializer와 실제 disposable Obsidian surface evidence를 추가했다. S08A에서는 bridge request/response/root-sentinel trusted schema, 동일 digest의 protocol copy, 상태 전이·remote identity·fixture-only renderer를 추가했다. S08B에서는 사용자 확인을 받은 `KnowledgeHub` notes remote/`main` branch의 read-only preflight와 canonical identity hash를 바탕으로 `KnowledgeHub/.knowledgeos-root.json`을 create-only로 생성하고 strict sentinel validation을 추가했다. S09에서는 Blueprint 다섯 Shortcut contract와 exact catalog, device-local create-only recovery outbox, append-only event, payload hash, input/asset/privacy/secret gate, exact-file Git/Defer gate와 synthetic recovery fixture를 추가했다. `KnowledgeHub/.obsidian`의 Codex-generated baseline은 ignored app configuration으로 존재하며 disposable app evidence와 별도다. `vaultctl schema export`와 `--check`는 명시된 schema 소유 artifact만 생성·검증하며, safe Blueprint validation을 통과하기 전에는 쓰지 않는다. `blueprint validate`, schema zero-diff, Base/dashboard compiler exactness, S07 portable-fixture/app gate, S08A bridge contract gate, S08B configure/identity gate, S09 mobile offline gate는 서로 독립된 보고 surface다. S08A gate는 production sentinel, remote, device sync, bridge publish 또는 Git push를 의미하지 않았으며, S08B도 commit/push나 device sync를 수행하지 않는다. S09도 실제 device/Working Copy/credential/remote write를 수행하지 않는다.
 
 - CLI 진단은 canonical source/schema/manifest SHA-256, contract ID, schema `$id`와 draft를 provenance로 포함한다.
 - 오류는 `code`, JSON Pointer `locator`, schema Pointer `schema_locator`를 포함하고 stable 순서로 출력한다.
@@ -58,6 +58,12 @@ Checksum manifest 자체의 SHA-256은 `a3b458bcf10dbf525ed59fd76ae8e5e814ecadea
 - registry enum과 relation 방향의 정확성
 - projection serialization, hash domain, ordering
 - capture finalize와 project bundle transaction
+
+현재 비어 있는 canonical Vault namespace의 GitHub 가시성은 일반 `.gitkeep`가 아니라
+exact allowlist의 `.knowledgeos-directory` 구조 표식으로 보존한다. 이 표식은 note
+schema나 transport event가 아니며, `.obsidian-*`, `.vault-bridge/{requests,responses}`와
+`runtime/`에는 배포하지 않는다. Blueprint `fixed_paths.required_vault_files`의 실제
+파일은 marker로 대체하지 않는다.
 
 ## 기준안 변경 절차
 

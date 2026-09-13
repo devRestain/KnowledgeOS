@@ -4,9 +4,9 @@
 
 계획 상태: active
 
-현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards`, `S07 portable_fixture_gate`, `S08A offline_bridge_contract`, `S08B git_identity_configured` 완료
+현재 기술 단계: `foundation_scaffold`, `S01 runtime_harness`, `S02 blueprint_json_schema`, `S03A semantic_gate1`, `S03B semantic_gate2`, `S03C generated_artifact_zero_diff`, `S04 portable_core_note_engine`, `S05 templates_bootstrap_project_create`, `S06 bases_dashboards`, `S07 portable_fixture_gate`, `S08A offline_bridge_contract`, `S08B git_identity_configured`, `S09 mobile_offline_shortcuts_outbox` 완료
 
-다음 기본 세션: `S09 — 다섯 Shortcut과 durable outbox의 offline 구현`
+다음 기본 세션: `S10 — iPhone/iPad Working Copy 실제 transport와 local result renderer`
 
 ## 1. 이 문서의 역할
 
@@ -28,7 +28,7 @@
 |---|---|
 | 설계 원본 | `knowledgeos-blueprint-v2` checksum 고정 및 `make source-check` 통과 |
 | foundation 검증 | `make verify` 통과 |
-| control repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `2c2fd80`; `https://github.com/devRestain/KnowledgeOS.git`을 추적하며 S08B 구현·문서가 working tree에 있음 |
+| control repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `c038ab9`; `https://github.com/devRestain/KnowledgeOS.git`의 `origin/main`을 추적하며 S09 구현·문서가 working tree에 있음 |
 | Vault repository | 사용자가 초기화한 독립 Git root, local `main`, HEAD `440829f`; `https://github.com/devRestain/KnowledgeHub.git`의 `origin/main`을 추적하며 S08B sentinel이 working tree에 있음 |
 | root sentinel | `KnowledgeHub/.knowledgeos-root.json` 생성·schema 검증 완료; remote identity `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`, expected branch `main`, UUID `411602c1-5278-4a8b-8b96-9183fb6ef8c2` |
 | host toolchain | `mise` `2026.9.1` shims exist, but project `mise.toml` pins Python `3.12.8`/uv `0.8.14` that are not currently installed; host auto-install fails `Operation not permitted`, so canonical evidence stays container-only |
@@ -36,7 +36,7 @@
 | executable contract | S02 JSON Schema, S03A/S03B semantic gate, S03C generated ownership/zero-diff 완료 |
 | portable Vault | S04 schema/Property Dictionary, S05 template/bootstrap/project create, S06 Base/dashboard, S07 fixed fixture/contract와 disposable app smoke가 complete |
 | Obsidian baseline | Codex 작업으로 `KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}`이 생성되어 존재; `.obsidian-mac`/phone/tablet는 profile 파일 없이 namespace만 존재 |
-| runtime/mobile/AI/retrieval | 계약 문서와 빈 namespace만 있고 기능은 미구현 |
+| runtime/mobile/AI/retrieval | runtime worker와 실제 mobile transport는 미구현; S09 control-side offline contract와 synthetic recovery만 완료 |
 
 두 repository의 현재 local branch 이름과 Vault의 `origin/main` tracking ref, GitHub `main` remote ref는 S08B read-only preflight에서 확인되었다. notes canonical identity는 `github.com/devrestain/knowledgehub.git`이며 SHA-256은 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`이다.
 
@@ -750,6 +750,8 @@ Gate / non-goal:
 
 Canonical mapping: Blueprint Phase 2
 
+상태: complete (2026-09-11; control-side synthetic offline contract)
+
 선행조건: `S08A`; 실제 remote 활성은 불필요
 
 목표:
@@ -775,6 +777,20 @@ Acceptance:
 Gate:
 
 - 이 세션은 실제 장치 설치, credential 발급, push를 하지 않는다.
+
+완료 evidence:
+
+- `ops/src/vaultops/mobile_offline.py`가 device adapter 없이 payload validation, create-only outbox, append-only event, recovery idempotence/conflict, Git/Defer safety gate와 cleanup gate를 소유한다.
+- `ops/config/shortcuts.yaml`은 Blueprint의 다섯 ID와 필드를 exact하게 반영하는 exportable definition이며, `ops/config/mobile.yaml`은 outbox·입력·asset·Git 정책을 기록한다. 둘 다 실제 장치나 외부 앱에 쓰지 않는다.
+- `ops/tests/fixtures/s09_mobile_offline/recovery-cases.yaml`과 `ops/tests/test_s09_mobile_offline.py`가 offline, auth failure, push rejection, Shortcut cancellation, reboot recovery, changed retry를 synthetic temporary root에서 검증한다.
+- payload와 event는 O_EXCL·fsync·mode `0600`으로 보존하고, UTF-8 byte/hash, 64 KiB Markdown·20 KiB selected text, MIME/HEIC/size, confidential/secret gate, exact staged set, committed blob hash, 7일 cleanup 조건을 검사한다.
+- 같은 ID·같은 digest는 `NO_OP`, 다른 digest는 conflict이며, dirty/detached/diverged/conflict/pre-existing staged path 또는 exact staged set 미확인에서는 자동 Pull/Commit/Push를 허용하지 않는다.
+- canonical container test는 `116 passed`, Ruff lint는 PASS이며, 실제 device·Working Copy·credential·remote write·commit/push는 수행하지 않았다.
+
+S09 이후 인수인계:
+
+- 다음 bounded slice는 `S10`의 실제 iPhone/iPad Working Copy transport와 local result renderer이다.
+- 실제 장치 outbox, `.obsidian-phone`/`.obsidian-tablet` profile, credential, sync topology는 S10 사용자 참여와 별도 승인이 있기 전까지 생성하거나 변경하지 않는다.
 
 ### S10 — iPhone/iPad Working Copy 실제 transport와 local result renderer
 

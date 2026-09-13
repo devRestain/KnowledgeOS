@@ -102,6 +102,40 @@ prefix_rule(
     decision="allow",
     justification="Run a disposable KnowledgeOS development container with mandatory cleanup",
 )
+# The Compose file intentionally requires numeric bind-mount ownership.  Keep
+# this allowance exact to the current host UID/GID and disposable dev service;
+# it does not authorize a different identity, service, or persistent lifecycle.
+prefix_rule(
+    pattern=[
+        "KNOWLEDGEOS_UID=501",
+        "KNOWLEDGEOS_GID=20",
+        "docker",
+        "compose",
+        "-f",
+        "ops/compose.yaml",
+        "run",
+        "--rm",
+        "dev",
+    ],
+    decision="allow",
+    justification="Run a disposable KnowledgeOS container with the verified host UID/GID 501:20",
+)
+prefix_rule(
+    pattern=[
+        "env",
+        "KNOWLEDGEOS_UID=501",
+        "KNOWLEDGEOS_GID=20",
+        "docker",
+        "compose",
+        "-f",
+        "ops/compose.yaml",
+        "run",
+        "--rm",
+        "dev",
+    ],
+    decision="allow",
+    justification="Run a disposable KnowledgeOS container with the verified host UID/GID 501:20",
+)
 prefix_rule(
     pattern=["docker", "compose", "-f", "ops/compose.yaml", "exec", "dev"],
     decision="allow",

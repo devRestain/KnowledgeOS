@@ -38,10 +38,10 @@ make verify         # 현재 foundation: host built-in foundation acceptance
 | 단계 | 산출물 | 진입 조건 | 현재 |
 |---|---|---|---|
 | Inventory | 기존 Vault, Git, sync, property, plugin 조사 | target read-only 접근 | 빈 target 확인 완료; device·sync 전체 preflight 미완료 |
-| Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 사용자가 초기화한 두 독립 local `main` repository; control은 `KnowledgeOS.git`, notes는 `KnowledgeHub.git`을 추적하며 S08B update set이 working tree에 있음 |
+| Repository foundation | docs, namespace, 독립 Git boundary | inventory에 충돌 없음 | 사용자가 초기화한 두 독립 local `main` repository; control은 `KnowledgeOS.git`, notes는 `KnowledgeHub.git`을 추적하며 S09 update set이 working tree에 있음 |
 | Blueprint contract | JSON Schema, S03A/S03B semantic gate, generated ownership/zero-diff | `make blueprint-check`, `make schema-check`, negative mutation fixture | S03C 완료 |
 | Portable Vault | strict note schema, Property Dictionary, 16 templates, create-only project/period workflow, 8 Bases/Home/Mobile, S07 fixed integration fixture, disposable Obsidian smoke, Codex-generated `.obsidian` baseline | S04-S07 offline contract와 containerized/app validation | S07 `portable local Vault` complete |
-| Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | S08B Git identity/sentinel complete; Working Copy·Shortcuts·device transport는 미착수 |
+| Git/mobile baseline | root sentinel, Working Copy, Shortcuts, bridge protocol | remote·branch·device 확인 | S08B Git identity/sentinel과 S09 control-side Shortcut/outbox contract complete; Working Copy 연동은 사용자 확인, GitHub visibility slice `a44c70c` 완료; 장치별 acceptance는 진행 중 |
 | Mac plugin profile | Core + 최소 community plugins | 실제 Obsidian smoke 가능 | 미착수 |
 | `vaultctl` non-LLM | doctor, create, period, ingest, reconcile | container image와 path/schema/transaction tests | 미착수 |
 | Read-only LLM | triage proposal, review/apply receipts | privacy·hash·candidate tests | 미착수 |
@@ -62,8 +62,8 @@ notes:   KnowledgeOS/KnowledgeHub/.git
 - control은 `KnowledgeHub/`와 `runtime/`을 추적하지 않는다.
 - notes repository는 Vault 내용만 추적한다.
 - 두 repository 모두 local `main` initial commit이 있다. control은 `https://github.com/devRestain/KnowledgeOS.git`, notes는 `https://github.com/devRestain/KnowledgeHub.git`을 추적한다.
-- S08B read-only preflight에서 notes `main` remote ref가 존재하고 local `HEAD` 및 `origin/main`과 `440829fa8d1c01aaaced54d9469dd692910ab10d`로 일치함을 확인했다.
-- 후속 commit, push, submodule 등록은 아직 수행되지 않았다. S08B sentinel만 notes working tree에 create-only로 추가되었다.
+- S08B read-only preflight에서 notes `main` remote ref가 존재하고 local `HEAD` 및 `origin/main`과 `440829fa8d1c01aaaced54d9469dd692910ab10d`로 일치함을 확인했다. 이후 GitHub directory visibility exact set을 `a44c70c0ce4c41491195e0e721bfbb718ce17c4c`로 별도 commit/push했다.
+- submodule 등록은 수행하지 않았다. S08B sentinel은 create-only로 추가된 뒤 이번 visibility commit에 포함되어 원격 `main`에 반영됐다.
 - notes canonical remote identity는 `github.com/devrestain/knowledgehub.git\n`이며 SHA-256은 `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`이다.
 - 두 repository를 commit할 때는 exact staged set을 각각 보여 주고 별도로 승인받는다.
 - 기존 Git history가 들어오면 재초기화하거나 force push하지 않고 additive migration plan을 먼저 작성한다.
@@ -130,11 +130,43 @@ S08B는 사용자가 확인한 `KnowledgeHub` notes remote와 branch를 control-
 - canonical remote: `github.com/devrestain/knowledgehub.git\n`
 - `remote_identity_sha256`: `a8c9310a232c9d41110f113aedb0bcdd6483571db43235109d092bdaa4ba3146`
 - current/expected branch: `main`
-- remote `main` commit: `440829fa8d1c01aaaced54d9469dd692910ab10d`
+- pre-visibility remote `main` commit: `440829fa8d1c01aaaced54d9469dd692910ab10d`
+- current remote `main` commit: `a44c70c0ce4c41491195e0e721bfbb718ce17c4c`
 - sentinel: `KnowledgeHub/.knowledgeos-root.json`
-- sentinel write: create-only, no overwrite; no commit/push
+- sentinel write: create-only, no overwrite; visibility fix commit `a44c70c` pushed separately
 
 `vaultctl configure --interactive`는 control/Vault 독립 Git root, configured `origin`, canonical remote identity, current branch, local `origin/main` tracking ref, UUID, canonical name과 민감자료 경계 확인을 모두 통과해야 sentinel을 쓴다. 이미 다른 bytes의 sentinel이 있으면 conflict로 종료한다.
+
+## S09 offline Shortcut/outbox gate
+
+S09의 canonical 범위는 실제 장치 adapter가 없는 control-side synthetic contract다. `ops/config/shortcuts.yaml`은 Blueprint의 다섯 Shortcut ID와 필드를 exact하게 복제하고, `ops/config/mobile.yaml`은 device-local recovery outbox와 입력·asset·privacy·Git gate를 기록한다. 실제 Shortcuts, Working Copy, device profile, credential, remote 또는 production Vault에는 쓰지 않는다.
+
+- payload는 deterministic target path, UUID/job ID, RFC3339 timestamp, input kind, sensitivity choice, UTF-8 byte count와 SHA-256을 포함한다.
+- outbox는 `input.json`을 O_EXCL/create-only로 저장하고 event를 append-only로 기록한다. 같은 ID·같은 digest retry는 `NO_OP`, 다른 digest는 conflict다.
+- `501:20`을 명시한 `docker compose -f ops/compose.yaml run --rm dev`는 프로젝트 로컬 `.codex/rules/knowledgeos.rules`에 exact allow로 등록되어 있다. 이 규칙은 disposable `dev` 실행만 허용하고 Compose lifecycle이나 다른 identity는 허용하지 않는다.
+- dirty/detached/diverged/conflict/pre-existing staged path 또는 exact staged set 미확인에서는 자동 Pull/Commit/Push를 금지한다. `Defer`도 committed blob bytes와 hash를 확인하지 못하면 request를 만들지 않는다.
+- remote 관찰 또는 local-only 이관 receipt와 최소 7일이 없으면 interactive confirmation이 있어도 cleanup하지 않는다. 30일 초과 pending item은 별도 stale warning으로 표시한다.
+
+S09의 synthetic recovery fixture는 offline, auth failure, push rejection, Shortcut cancellation, reboot과 changed retry를 다룬다. S10에서 실제 iPhone/iPad Working Copy 연동은 사용자가 확인했으며, 장치별 profile/capture/edit, visibility와 local result renderer의 잔여 acceptance는 별도 사용자 참여와 승인 아래 진행한다.
+
+## GitHub canonical directory visibility 보강
+
+2026-09-13 실제 iPhone/iPad Working Copy 연동 확인에서 원격 `KnowledgeHub` tree에
+파일이 있는 `99_System`만 보이고, 아직 비어 있는 canonical namespace와
+`99_System/Scripts/QuickAdd`가 누락되는 문제가 확인되었다. 원인은
+`KnowledgeHub/.gitignore`가 일반 namespace를 제외해서가 아니라 Git이 빈 디렉토리를
+저장하지 않기 때문이다.
+
+- 현재 비어 있는 일반 namespace에는 exact allowlist의 `.knowledgeos-directory`만 둔다.
+- `.gitkeep`, 빈 template, 빈 Markdown, device/profile/bridge/runtime marker는 만들지 않는다.
+- Blueprint required Vault files인 `.vault-bridge/README.md`와
+  `99_System/Scripts/QuickAdd/PrepareTitle.js`는 실제 계약 파일로 둔다.
+- `vaultops foundation`은 required Vault file, marker 경로, marker bytes를 모두 검사하며
+  허용되지 않은 marker·symlink·변조 bytes는 fail closed한다.
+- marker 추가 후에도 `KnowledgeHub/.knowledgeos-root.json`, request/response event,
+  device profile, runtime state는 이 보강의 대상이 아니다.
+- 검토된 exact set은 `a44c70c0ce4c41491195e0e721bfbb718ce17c4c`로 `origin/main`에 push했고,
+  post-push `git ls-remote`와 `git ls-tree`로 원격 ref·tracked tree를 확인했다.
 
 ## 검증 순서
 

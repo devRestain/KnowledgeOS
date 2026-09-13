@@ -183,6 +183,22 @@
 - 이유: Working Copy와 이후 bridge가 control workspace나 다른 GitHub repository를 notes repository로 오인하지 않도록 remote identity, branch, canonical name, UUID를 같은 tracked sentinel bytes에 고정해야 한다. 민감자료 경계는 sentinel schema에 넣지 않고 사용자 확인 evidence로만 남겨 secret·정책 문자열의 transport를 늘리지 않는다.
 - 영향: `git_identity_configured` overlay는 verified다. sentinel은 working tree에 추가되었지만 commit/push는 수행하지 않았고, 기존 sentinel의 다른 bytes는 configure가 덮어쓰지 않는다. Working Copy, device credential/sync, Shortcut, plugin, live bridge round-trip은 후속 단계다.
 
+### D-024 — S09 device-independent offline Shortcut/outbox contract
+
+- 상태: accepted
+- 날짜: 2026-09-11
+- 결정: S09는 실제 iPhone/iPad나 외부 앱을 연결하지 않고, Blueprint의 다섯 Shortcut(`KO · Capture`, `Save Source`, `Today`, `Defer to Mac`, `Sync`)을 `ops/config/shortcuts.yaml`의 exportable definition으로 고정한다. device-local recovery outbox의 control-side 소유자는 `ops/src/vaultops/mobile_offline.py`이며 관련 정책은 `ops/config/mobile.yaml`, synthetic failure cases는 `ops/tests/fixtures/s09_mobile_offline/`에 둔다.
+- 이유: capture가 Vault write, Git auth, push, cancellation, app exit/reboot 중간에 실패해도 원문을 잃지 않는 durable payload와 복구 규칙을 실제 device transport와 분리해 먼저 검증해야 한다. payload는 O_EXCL·fsync·mode `0600`, strict UTF-8 byte count/SHA-256, deterministic path와 sensitivity choice로 고정하고 event는 append-only로 둔다.
+- 영향: 같은 ID·같은 digest retry는 no-op, 다른 digest는 conflict이며, dirty/detached/diverged/conflict/pre-existing staged path 또는 exact staged set 미확인에서는 자동 Pull/Commit/Push를 허용하지 않는다. `Defer`는 committed blob bytes와 hash를 확인해야 하고, outbox cleanup은 `remote_observed` 또는 `local_vault_transferred` receipt와 7일 및 interactive confirmation을 모두 요구한다. 실제 Shortcuts export/import, Working Copy, credential, `.obsidian-phone`/`.obsidian-tablet`, mobile round-trip, remote write와 push는 S10 이후 사용자 참여 범위다.
+
+### D-025 — GitHub에서 빈 canonical Vault 디렉토리를 보존하는 구조 표식
+
+- 상태: accepted
+- 날짜: 2026-09-13
+- 결정: Git이 빈 디렉토리를 저장하지 않는 문제를 해결하기 위해 현재 비어 있는 일반 `KnowledgeHub` canonical namespace에만 `.knowledgeos-directory` 구조 표식을 둔다. 표식은 프로젝트 전용 숨김 파일이며 고정된 한 줄의 설명 bytes를 갖는다. `.gitkeep`, 빈 Markdown note, `.obsidian-*` profile, `.vault-bridge/{requests,responses}`, `runtime/`에는 표식을 만들지 않는다. Blueprint의 required Vault files인 `.vault-bridge/README.md`와 `99_System/Scripts/QuickAdd/PrepareTitle.js`는 더미가 아닌 실제 계약 파일로 배포한다.
+- 이유: GitHub/Working Copy가 `00_Inbox`, `01_AI_Review`, `10_Journal`, `20_Projects`, `30_Areas`, `40_Knowledge`, `50_Maps`, `60_Meetings`, `80_Assets`, `90_Archive`의 빈 namespace를 누락시키면 모바일 사용자가 canonical tree를 오인한다. 일반 `.gitkeep`를 허용하면 이전의 filler 금지 규칙과 구분되지 않으므로 이름·경로·bytes를 exact allowlist로 제한한다.
+- 영향: foundation check는 허용된 marker path와 bytes만 통과시키고, Blueprint `fixed_paths.required_vault_files`의 실제 파일 존재도 함께 검사한다. 실제 note나 asset이 namespace에 추가되면 marker는 구조 보조 파일로 남을 수 있으나, marker 자체는 사용자 note·credential·device identity·runtime event가 아니다. 이 변경은 Vault Git root에만 적용하며 control root, second sync transport, bridge publish, plugin, device profile, remote automation에는 영향을 주지 않는다.
+
 ## 열려 있는 결정
 
 | ID | 결정할 내용 | 필요한 시점 | 보수적 기본값 |

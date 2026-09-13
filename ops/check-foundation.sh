@@ -137,6 +137,45 @@ grep -Fqx '/runtime/' .gitignore || foundation_fail 'control .gitignore must con
 foundation_gitkeep_matches=$(find KnowledgeHub -name .gitkeep -print)
 [ -z "$foundation_gitkeep_matches" ] || foundation_fail "Vault filler .gitkeep files found: $foundation_gitkeep_matches"
 
+foundation_structural_marker_allowlist='
+KnowledgeHub/00_Inbox/Captures/.knowledgeos-directory
+KnowledgeHub/00_Inbox/Imports/.knowledgeos-directory
+KnowledgeHub/01_AI_Review/Conflict/.knowledgeos-directory
+KnowledgeHub/01_AI_Review/Expired/.knowledgeos-directory
+KnowledgeHub/01_AI_Review/Pending/.knowledgeos-directory
+KnowledgeHub/01_AI_Review/Rejected/.knowledgeos-directory
+KnowledgeHub/01_AI_Review/Resolved/.knowledgeos-directory
+KnowledgeHub/10_Journal/Daily/.knowledgeos-directory
+KnowledgeHub/10_Journal/Monthly/.knowledgeos-directory
+KnowledgeHub/10_Journal/Weekly/.knowledgeos-directory
+KnowledgeHub/20_Projects/.knowledgeos-directory
+KnowledgeHub/30_Areas/.knowledgeos-directory
+KnowledgeHub/40_Knowledge/Ideas/.knowledgeos-directory
+KnowledgeHub/40_Knowledge/Notes/.knowledgeos-directory
+KnowledgeHub/40_Knowledge/People/.knowledgeos-directory
+KnowledgeHub/40_Knowledge/Questions/.knowledgeos-directory
+KnowledgeHub/40_Knowledge/Sources/.knowledgeos-directory
+KnowledgeHub/50_Maps/.knowledgeos-directory
+KnowledgeHub/60_Meetings/.knowledgeos-directory
+KnowledgeHub/80_Assets/Audio/.knowledgeos-directory
+KnowledgeHub/80_Assets/Documents/.knowledgeos-directory
+KnowledgeHub/80_Assets/Images/.knowledgeos-directory
+KnowledgeHub/80_Assets/Inbox/.knowledgeos-directory
+KnowledgeHub/90_Archive/Captures/.knowledgeos-directory
+KnowledgeHub/90_Archive/Other/.knowledgeos-directory
+KnowledgeHub/90_Archive/Projects/.knowledgeos-directory
+'
+foundation_structural_marker_matches=$(find KnowledgeHub -name .knowledgeos-directory -print)
+for foundation_marker in $foundation_structural_marker_matches; do
+    printf '%s\n' "$foundation_structural_marker_allowlist" | grep -Fqx "$foundation_marker" \
+        || foundation_fail "structural marker is outside the canonical allowlist: $foundation_marker"
+    foundation_marker_first_line=$(sed -n '1p' "$foundation_marker")
+    [ "$foundation_marker_first_line" = 'KnowledgeOS canonical directory marker; Git has no empty-directory entries.' ] \
+        || foundation_fail "structural marker has unexpected bytes: $foundation_marker"
+    foundation_marker_line_count=$(awk 'END {print NR}' "$foundation_marker")
+    [ "$foundation_marker_line_count" = 1 ] || foundation_fail "structural marker must contain one line: $foundation_marker"
+done
+
 for foundation_pattern in \
     '.obsidian-mac/*' \
     '.obsidian-phone/*' \
@@ -164,6 +203,15 @@ ruby -ryaml -rjson -e '
   abort "schema root must be an object" unless schema.is_a?(Hash)
   abort "top-level required/key count mismatch" unless Array(schema["required"]).length == blueprint.keys.length
 '
+
+foundation_required_vault_files=$(ruby -ryaml -e '
+  blueprint = YAML.safe_load(File.read("blueprint/blueprint.yaml"), aliases: true)
+  Array(blueprint.fetch("fixed_paths").fetch("required_vault_files")).each { |path| puts path }
+')
+for foundation_relative in $foundation_required_vault_files; do
+    [ ! -L "KnowledgeHub/$foundation_relative" ] || foundation_fail "required Vault file is a symlink: $foundation_relative"
+    [ -f "KnowledgeHub/$foundation_relative" ] || foundation_fail "missing required Vault file: $foundation_relative"
+done
 
 foundation_literal_matches=$(find KnowledgeHub ops runtime -type d \( \
     -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \

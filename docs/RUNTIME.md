@@ -2,7 +2,7 @@
 
 ## 역할
 
-`runtime/`은 control workspace에 보존하는 장치 로컬 실행 상태이며, 구현될 worker의 기본 실행 위치는 Colima VM 위 Docker container다. 현재 구현에서는 worker와 상태 전이가 없고, container는 검증·CLI·테스트 runtime으로 사용한다. Vault note corpus와 Git bridge transport에 섞지 않는다.
+`runtime/`은 control workspace에 보존하는 장치 로컬 실행 상태이며, 구현될 worker의 기본 실행 위치는 Colima VM 위 Docker container다. 현재 구현에서는 worker와 상태 전이가 없고, container는 검증·CLI·테스트 runtime으로 사용한다. S09 mobile recovery outbox는 `runtime/`에 넣지 않고 실제 device-local 경로를 위한 control-side 계약만 정의했다. Vault note corpus와 Git bridge transport에 섞지 않는다.
 
 ```text
 runtime/
@@ -28,6 +28,15 @@ runtime/
 ```
 
 이 디렉터리들은 현재 비어 있으며 worker나 상태 전이는 구현되지 않았다.
+
+## S09 mobile recovery outbox와의 경계
+
+S09 outbox는 `On My iPhone/KnowledgeHub-Recovery/Outbox/JOB_ID/` 또는 iPad 대응 장치 경로에 보존되는 device-local payload를 모델링한다. 이는 control workspace의 `runtime/` durable state와 별도이며 현재 장치에 생성되지 않았다. control-side `OutboxStore`는 synthetic temporary root에서만 create-only `input.json`과 append-only event를 검증한다.
+
+- outbox payload는 strict fields, UTF-8 byte count, SHA-256, deterministic target path와 sensitivity choice를 함께 가진다.
+- recovery는 durable payload가 먼저 검증된 뒤의 offline/auth/push failure, cancellation, app exit/reboot을 대상으로 하며, 같은 ID·같은 digest는 no-op, 다른 digest는 conflict다.
+- `remote_observed` 또는 `local_vault_transferred` receipt와 7일 조건이 없으면 cleanup하지 않고, 30일 초과 pending item은 stale warning만 낸다.
+- 실제 device filesystem, Shortcuts, Working Copy, credential, sync topology는 S10에서 사용자 참여와 별도 승인을 받은 뒤 다룬다.
 
 ## 물리적 저장·실행 경계
 
