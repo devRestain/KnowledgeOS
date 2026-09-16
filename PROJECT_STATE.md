@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=complete
-/checkpoint revision=8330b8df742c24195d5a0fa7bf70528801532e49 dirty=true updated=2026-09-17T01:55:23+09:00
+/checkpoint revision=8330b8df742c24195d5a0fa7bf70528801532e49 dirty=true updated=2026-09-17T02:11:21+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
@@ -445,7 +445,7 @@
 /accept id=C_AUDIT_20260917.LINT state=pass action="Run the canonical lint suite" evidence=E_C_AUDIT_LINT
 /accept id=C_AUDIT_20260917.STATIC state=pass action="Validate state and changed root whitespace" evidence=E_C_AUDIT_STATIC
 /accept id=C_AUDIT_20260917.ROOTS state=pass action="Inventory both Git roots and runtime namespaces" evidence=E_C_AUDIT_ROOTS
-/accept id=C_AUDIT_20260917.README state=pass action="Document verified features in the README cookbook" evidence=E_C_AUDIT_README
+/accept id=C_AUDIT_20260917.README state=pass action="Document available user workflows and safety boundaries in the README guide" evidence=E_C_AUDIT_README
 /evidence id=E_C_AUDIT_C01 class=runtime result=pass source="ops/tests/test_toolchain_contract.py; ops/tests/test_foundation.py; make container-verify" observed="Run the pinned container toolchain and foundation checks"
 /evidence id=E_C_AUDIT_C02 class=semantic result=pass source="ops/tests/test_blueprint.py; make blueprint-check" observed="Validate Blueprint Draft 2020-12 JSON Schema"
 /evidence id=E_C_AUDIT_C03 class=semantic result=pass source="ops/tests/test_blueprint.py; make blueprint-check" observed="Validate registry path action command and bridge semantics"
@@ -475,5 +475,5 @@
 /evidence id=E_C_AUDIT_LINT class=static result=pass source="make lint" observed="Run Ruff checks with all checks passing"
 /evidence id=E_C_AUDIT_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate state grammar and changed root whitespace"
 /evidence id=E_C_AUDIT_ROOTS class=static result=pass source="git status; git -C KnowledgeHub status; git check-ignore; find" observed="Inventory both Git roots ignored paths and empty namespaces"
-/evidence id=E_C_AUDIT_README class=static result=pass source="README.md; ops/src/vaultops/cli.py; make vaultctl" observed="Document verified CLI features and safety boundaries in the cookbook"
+/evidence id=E_C_AUDIT_README class=static result=pass source="README.md; KnowledgeHub/Home.md; KnowledgeHub/Mobile.md; blueprint/blueprint.yaml" observed="Explain current user workflows and safety boundaries in the human-facing guide"
 /handoff state=ready action="Keep C01 C24 verified and leave D08 D09 D10 and E02 E03 E04 E05 inactive pending authorization"

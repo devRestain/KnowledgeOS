@@ -1,454 +1,353 @@
 # KnowledgeOS
 
-KnowledgeOS는 개인 지식을 안전하게 포착하고, 검토하고, 연결하고, 다시 찾아보기 위한 개인용 Obsidian 작업공간입니다. 단순한 메모 저장소가 아니라, 포착한 생각을 검토 가능한 지식과 실행 가능한 프로젝트로 바꾸는 작은 운영체제를 목표로 합니다.
+KnowledgeOS는 생각과 자료를 빠르게 담아 두고, 나중에 판단할 수 있는 지식과 실행할 수 있는 프로젝트로 바꾸는 개인용 Obsidian 작업공간입니다.
 
-## 이 프로젝트가 하는 일
+이 공간의 중심은 “무엇이든 자동으로 정리해 주는 AI”가 아닙니다. 먼저 원본을 안전하게 보존하고, 사람이 검토할 수 있는 형태로 만들고, 확정한 내용만 정식 노트와 프로젝트에 반영합니다. 그래서 짧은 메모는 부담 없이 남길 수 있고, 중요한 판단은 나중에 근거를 확인하면서 내릴 수 있습니다.
 
-자료와 생각은 다음 흐름을 거칩니다.
+## KnowledgeOS를 사용하는 기본 흐름
 
-1. 휴대폰이나 Mac에서 메모·음성·URL·첨부 자료를 포착합니다.
-2. 포착물은 원본을 보존한 채 Inbox에 쌓이고, 필요하면 AI 검토 대기열로 보냅니다.
-3. 사람이 분류·연결·수정 제안을 확인하고 승인합니다.
-4. 승인된 내용만 정식 Markdown 노트와 YAML 속성으로 확정됩니다.
-5. 확정된 노트에서 Home 화면, Bases, 검색 색인 같은 파생 화면을 다시 만듭니다.
-6. 나중에 검색하거나 질문할 때는 원본 노트와 근거 링크를 따라 답을 확인합니다.
-
-AI는 정식 노트를 대신 결정하지 않습니다. AI가 만든 분류·요약·링크·수정은 제안으로만 남고, 사람의 승인이 있어야 정본에 반영됩니다.
-
-## 현재 위치
-
-핵심 capability lane은 `C01`부터 `C24`까지 완료되었습니다. 기존 경계에는 Colima/Docker 실행 계약과 Blueprint·schema·semantic gate(`C01`–`C06`), template·bootstrap·Base·dashboard·portable Vault fixture(`C07`–`C09`), offline bridge·mobile outbox·provider-free diagnostics·create-only local command(`C10`–`C13`), asset·capture finalize·project archive transaction(`C14`), journal·replay(`C15`), reconcile·repair·receipt 검증(`C16`), exact local bridge/Git publish(`C17`)가 포함됩니다. `C18`은 read-only deterministic triage proposal contract, `C19`는 provider-free proposal review·approval·rejection·apply closure, `C20`은 proposal action facade route와 PRD traceability를 닫았습니다. `C21`은 검증된 Vault 노트와 relation edge를 deterministic JSONL generation으로 투영하고 atomic current pointer를 발행하며, `C22`는 한 개의 검증된 C21 generation 위에서 read-only lexical retrieval과 bounded typed-link retrieval을 수행하고 frozen evaluation baseline을 검증합니다. `C23`은 같은 검증 generation 위에서 hash-bound capture 입력을 확인하고 deterministic cited answer를 반환하는 provider-free guestbook-horror 흐름을 닫았습니다. `C24`는 deterministic background artifact, one-shot worker, replay·recovery 관찰과 inactive LaunchAgent preview를 닫았습니다.
-
-현재 1차 목표는 모바일 확장을 제외한 **MacBook 중심 Obsidian 사용 경험**입니다. 포착·제안·사람의 검토와 승인·정본 반영·Git 적용·검색·인용 답변까지의 provider-free 흐름과 `C24`의 선택적 core reliability가 구현·검증되었습니다. C24 worker는 명시적으로 실행할 수 있지만 provider 호출, Vault mutation, Git network I/O는 하지 않으며, LaunchAgent 설치·활성화는 `E03`로 분리되어 기본 비활성입니다. Mac 배치 오버레이는 Mac 프로필과 QuickAdd, Templater, Tasks, Linter, Obsidian Git을 포함하는 `D07`까지 완료로 승격했습니다. `D08`과 `D09`는 모바일 전용이므로 이번 목표에서 제외하고, `D10`은 Codex provider 연동을 별도로 원할 때만 검토합니다. `E01`은 C22 baseline에 대한 provider-free local vector/RRF 평가 overlay로 구현되었지만 기본 retrieval은 여전히 C22 lexical 경로입니다. `E02`부터 `E05`까지는 선택 확장이며 MacBook 기본 사용 경험에 필수인 과제는 없습니다.
-
-현재 상태 기록에는 Mac 프로필의 Home workspace, Properties와 Workspaces core plugin, 다섯 개 Mac community plugin의 설치·audit·기능 확인이 pass로 남아 있습니다. 또한 `C22`의 retrieval policy, lexical·typed-link candidate, stale/policy-digest fail-closed, CLI, frozen evaluation 및 canonical gate, `C23`의 cited answer·hash-bound capture·guestbook-horror evaluation, `C24`의 synthetic wake·recovery observation 및 canonical gate가 pass로 기록되어 있습니다. 최신 단계와 실제 검증 결과는 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다. E01 vector/RRF는 opt-in evaluation overlay로 사용할 수 있지만 기본 retrieval을 바꾸지 않으며, LaunchAgent activation·remote/unattended 실행·thin client·provider 연동은 기본 완료선과 별도의 승인 경계에 남아 있습니다.
-
-Blueprint 검증, generated artifact zero-diff, strict note engine, 16개 template, portable Vault fixture, Base/dashboard, offline bridge·recovery outbox, remote identity sentinel, GitHub directory visibility 기반은 이미 마련되어 있습니다. 무엇이 실제로 완료되었는지와 어떤 검증이 미실행인지에 대한 최신 기록은 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다.
-
-## C01–C24 Cookbook
-
-이 절은 현재 구현되어 있고 canonical container에서 검증된 기능만 설명합니다. 모든 명령은 프로젝트 root에서 실행합니다. Compose는 host UID/GID를 요구하므로, 임의의 `docker compose` 호출을 복사하기 전에 다음 runner를 한 번 정의합니다.
-
-```bash
-export KNOWLEDGEOS_UID="$(id -u)"
-export KNOWLEDGEOS_GID="$(id -g)"
-
-ko() {
-  docker compose -f ops/compose.yaml run --rm dev vaultctl "$@"
-}
+```text
+빠르게 담기
+    ↓
+Inbox에서 다시 보기
+    ↓
+분류하고 연결하기
+    ↓
+정본 노트 또는 프로젝트로 확정하기
+    ↓
+Home·Bases·검색으로 다시 사용하기
+    ↓
+끝난 맥락은 Archive에 보존하기
 ```
 
-컨테이너 내부의 canonical 경로는 control root `/workspace/control`, 독립 Vault `/workspace/KnowledgeHub`, runtime `/workspace/runtime`입니다. `ko`가 실행되는 작업 디렉터리는 `/workspace/control/ops`이므로 fixture 파일은 `/workspace/control/ops/tests/fixtures/...`로 지정합니다. Make target은 위 UID/GID를 자동으로 전달하므로 전체 검증에는 `make`를 우선 사용합니다.
+각 단계의 역할은 분명합니다.
 
-### 1. 시작 전 점검과 계약 검증
+1. **담기** — 생각, 질문, URL, 인용문, 음성에서 얻은 요점, 파일을 원본 그대로 남깁니다.
+2. **다시 보기** — Inbox에 쌓인 항목을 한 번에 처리하지 않고, 지금 결정할 수 있는 것만 고릅니다.
+3. **분류하기** — task, idea, question, knowledge, source, project 중 적절한 맥락을 정합니다.
+4. **확정하기** — 정식 Markdown 노트와 속성을 만들고, 관련 프로젝트나 지식 노트에 연결합니다.
+5. **사용하기** — 오늘 할 일, 진행 중인 프로젝트, 열린 질문, 지식의 근거를 Home과 검색에서 다시 찾습니다.
+6. **보존하기** — 끝난 capture와 프로젝트를 Archive로 옮기되, 노트의 정체성과 링크는 유지합니다.
 
-다음 순서로 현재 상태와 계약을 점검합니다. `make test`와 `make lint`는 disposable uv cache 경쟁을 피하기 위해 순서대로 실행합니다.
+AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분류, 요약, 링크, 새 노트 작성은 사람이 확인하기 전까지 정본이 되지 않습니다.
 
-```bash
-# source trust anchor and repository foundation
-make source-check
-make verify
+## 처음 사용하는 방법
 
-# Blueprint structural/semantic validation and generated artifact ownership
-make blueprint-check
-make schema-check
-make contract-check
+현재 KnowledgeOS의 가장 완성된 사용 방식은 MacBook에서 Obsidian을 여는 것입니다.
 
-# same foundation checks inside the canonical container
-make container-source-check
-make container-verify
+1. Obsidian에서 `KnowledgeHub/`를 Vault로 엽니다.
+2. 시작 화면으로 `Home.md`를 엽니다.
+3. 오늘의 방향을 Daily에 한 줄로 적습니다.
+4. 생각이 떠오르면 Home의 빠른 캡처를 사용합니다.
+5. 시간이 날 때 Inbox에서 하나씩 열어 triage hint, 프로젝트, 관련 노트를 정합니다.
+6. 계속할 일이면 프로젝트의 `next_action`을 갱신하고, 보존할 지식이면 해당 Knowledge 노트로 확정합니다.
 
-# regression and static quality
-make test
-make lint
-```
-
-읽기 전용 runtime·Git·Mac profile 진단은 다음과 같습니다.
-
-```bash
-ko doctor --root /workspace/control
-ko git status --repo both --root /workspace/control
-ko plugins audit --profile mac --root /workspace/control
-ko foundation source-check --root /workspace/control
-ko foundation check --root /workspace/control
-ko blueprint status
-ko blueprint validate --root /workspace/control
-ko schema export --check --root /workspace/control
-```
-
-`doctor`, `git status`, `plugins audit`, `foundation`, `blueprint validate`, `schema export --check`는 정본 Vault를 변경하지 않는 진단입니다. 실패하면 결과의 `status`, `errors`, `provider_called`, `mutation_performed`를 먼저 확인하고 다음 명령으로 진행하지 않습니다.
-
-### 2. additive bootstrap과 Vault identity
-
-`bootstrap`은 없는 canonical directory와 C07 template을 추가하는 명령입니다. 기존 파일을 정리하거나 삭제하지 않습니다. 처음에는 dry-run으로 계획을 확인합니다.
-
-```bash
-ko bootstrap --dry-run --root /workspace/control
-ko bootstrap --root /workspace/control
-```
-
-Vault identity와 root sentinel은 exact remote, branch, Vault UUID, canonical name을 확인한 뒤에만 생성합니다. 값이 확실하지 않으면 dry-run에 머뭅니다.
-
-```bash
-ko configure --dry-run --root /workspace/control
-
-# 실제 값으로 대체한 뒤, 명시적으로 boundary를 확인할 때만 실행
-ko configure \
-  --remote https://github.com/OWNER/REPOSITORY.git \
-  --branch main \
-  --vault-uuid VAULT_UUID \
-  --canonical-vault-name KnowledgeHub \
-  --confirm-sensitive-data-boundary \
-  --root /workspace/control
-```
-
-이 명령은 local sentinel과 identity binding을 다루는 것이며, remote fetch/pull/push를 대신하지 않습니다. 원격 저장소나 민감 자료 경계를 확인하지 않은 채 placeholder 값을 사용하지 않습니다.
-
-### 3. capture, journal, project, note
-
-#### Capture
-
-Capture는 unique path에 create-only로 기록합니다. text 입력은 stdin으로 전달하고 `--device`를 반드시 지정합니다.
-
-```bash
-# 계획만 확인
-printf '새로운 생각\n' | ko capture text \
-  --stdin --device mac --title "새로운 생각" --dry-run \
-  --root /workspace/control
-
-# 계획을 확인한 뒤 실제 capture를 생성할 때 --dry-run을 제거
-printf '새로운 생각\n' | ko capture text \
-  --stdin --device mac --title "새로운 생각" \
-  --root /workspace/control
-```
-
-URL capture는 URL을 파일로 전달할 수 있고, 기존 파일을 덮어쓰지 않습니다.
-
-```bash
-ko capture url \
-  --url-file /workspace/control/path/to/url.txt \
-  --comment-file /workspace/control/path/to/comment.txt \
-  --dry-run --root /workspace/control
-```
-
-#### Period, project, typed note
-
-```bash
-ko period create --kind daily --date 2026-09-17 --dry-run --root /workspace/control
-ko period create --kind weekly --date 2026-09-17 --dry-run --root /workspace/control
-ko period create --kind monthly --date 2026-09-17 --dry-run --root /workspace/control
-
-ko project create \
-  --title "Guestbook Horror" \
-  --status planned \
-  --priority medium \
-  --next-action "첫 번째 플레이 루프를 정리" \
-  --dry-run --root /workspace/control
-
-printf '아이디어 본문\n' | ko note create \
-  --type idea --title "새 아이디어" --body-stdin \
-  --dry-run --root /workspace/control
-
-ko note validate 40_Knowledge/Ideas/새-아이디어.md --root /workspace/control
-ko fmt --check --path 40_Knowledge/Ideas/새-아이디어.md --root /workspace/control
-```
-
-`note validate`는 strict note registry, frontmatter, path, title, type, link direction을 검사합니다. `fmt --check`는 검사만 하며, guarded formatting을 실제로 수행할 때만 `--check`를 제거합니다. 정본 변경은 항상 사람이 target path와 결과를 확인한 뒤 실행합니다.
-
-### 4. asset와 hash-bound transaction
-
-Asset은 regular file만 허용하며 destination directory와 source SHA-256을 명시적으로 확인할 수 있습니다. container가 볼 수 있는 source는 control root 또는 Vault mount 아래에 둡니다.
-
-```bash
-# host에서 먼저 실제 파일 digest를 확인
-shasum -a 256 /absolute/path/to/source.pdf
-
-# container path로 매핑해 계획 확인
-ko asset import \
-  --source /workspace/control/path/to/source.pdf \
-  --target-directory Documents \
-  --expected-sha256 LOWERCASE_64_HEX_SHA256 \
-  --dry-run --root /workspace/control
-```
-
-Capture finalize와 project archive는 source hash가 현재 bytes와 일치할 때만 진행합니다. journal과 receipt는 runtime에 남고, 동일 job·digest replay는 NO_OP으로 수렴합니다.
-
-```bash
-# Vault-relative path와 host에서 계산한 digest를 사용
-shasum -a 256 KnowledgeHub/00_Inbox/Captures/YYYY/MM/CAPTURE.md
-ko capture finalize \
-  --path 00_Inbox/Captures/YYYY/MM/CAPTURE.md \
-  --expected-sha256 LOWERCASE_64_HEX_SHA256 \
-  --outcome triaged \
-  --dry-run --root /workspace/control
-
-# complete project bundle의 모든 파일에 --hash PATH=SHA256를 반복
-ko project archive \
-  --project 20_Projects/Guestbook-Horror \
-  --hash 20_Projects/Guestbook-Horror/Guestbook-Horror.md=PROJECT_MD_SHA256 \
-  --archive-year 2026 \
-  --dry-run --root /workspace/control
-```
-
-Crash나 interrupted transaction이 의심되면 먼저 read-only reconcile을 실행합니다. repair plan 생성은 runtime create-only이고, apply는 fresh digest match가 확인된 경우에만 별도로 실행합니다.
-
-```bash
-ko reconcile --root /workspace/control
-ko repair plan --root /workspace/control
-ko receipts verify --root /workspace/control
-
-# 사람이 plan의 source/target/policy/schema digest를 검토한 뒤에만
-ko repair apply --plan /workspace/runtime/repair/PLAN.json --root /workspace/control
-```
-
-### 5. offline bridge와 proposal review
-
-Bridge transport는 committed request와 exact response path를 사용합니다. ingest와 status는 Vault를 바꾸지 않으며, publish는 지정한 response와 필요할 때 proposal만 exact path로 local commit합니다.
-
-```bash
-ko bridge status --root /workspace/control
-ko bridge ingest --job-id JOB_UUID --root /workspace/control
-
-# response file을 먼저 schema 검증한 뒤 exact path로 publish
-ko bridge publish \
-  --response-file /workspace/control/path/to/response.json \
-  --proposal-file /workspace/control/path/to/proposal.json \
-  --root /workspace/control
-```
-
-`C18`–`C20`의 AI 명령은 provider-free proposal boundary입니다. triage와 facade route는 제안·dispatch plan만 만들고 정본을 바꾸지 않습니다. approval은 digest-bound artifact를 만들며, 실제 canonical mutation은 사람이 승인한 `apply`에서만 수행합니다.
-
-```bash
-# source bytes의 SHA-256을 먼저 계산한 뒤 read-only triage
-shasum -a 256 KnowledgeHub/00_Inbox/Captures/YYYY/MM/CAPTURE.md
-ko ai triage \
-  --source 00_Inbox/Captures/YYYY/MM/CAPTURE.md \
-  --expected-sha256 LOWERCASE_64_HEX_SHA256 \
-  --root /workspace/control
-
-# pending proposal 확인 -> approval 생성 -> reject 또는 apply 선택
-ko ai review --root /workspace/control
-ko ai approve \
-  --proposal /workspace/runtime/review/PROPOSAL.json \
-  --expected-sha256 PROPOSAL_SHA256 \
-  --root /workspace/control
-ko ai reject \
-  --proposal /workspace/runtime/review/PROPOSAL.json \
-  --expected-sha256 PROPOSAL_SHA256 \
-  --reason "정본 반영 보류" \
-  --root /workspace/control
-ko ai apply \
-  --proposal /workspace/runtime/review/PROPOSAL.json \
-  --approval /workspace/runtime/approved/APPROVAL.json \
-  --root /workspace/control
-```
-
-다음 여섯 facade route는 현재 등록된 provider-free read-only dispatch plan입니다. 이 route 자체가 LLM 호출이나 Vault mutation을 의미하지 않습니다.
-
-```bash
-ko ai organize --root /workspace/control
-ko ai summarize --root /workspace/control
-ko ai relate --root /workspace/control
-ko ai extract --root /workspace/control
-ko ai inbox --root /workspace/control
-ko ai project-summary --root /workspace/control
-```
-
-### 6. projection, index, lexical retrieval
-
-`C21` projection은 Vault 원본을 immutable JSONL generation으로 만들고 runtime의 atomic current pointer를 갱신합니다. `C22`와 `C23`은 source freshness와 digest가 검증된 generation만 읽습니다.
-
-```bash
-ko export jsonl --root /workspace/control
-ko index build --root /workspace/control
-ko index verify --root /workspace/control
-```
-
-`search`는 lexical candidate만 반환하고, `retrieve`는 typed-link allowlist 안에서 최대 hop/node/edge/candidate cap으로 확장합니다. query body를 argv의 `--query`로 넘기는 방식은 지원하지 않습니다. stdin 또는 regular file을 사용합니다.
-
-```bash
-# lexical retrieval; default hops=0
-printf '확정되지 않은 정보\n' | ko search \
-  --query-stdin --root /workspace/control
-
-# lexical retrieval plus bounded typed-link expansion
-printf '플레이 루프\n' | ko retrieve \
-  --query-stdin --scope project:guestbook-horror --hops 1 \
-  --root /workspace/control
-
-# checked-in C22 frozen baseline; fixture paths are container-absolute
-ko retrieve \
-  --evaluation-file /workspace/control/ops/tests/fixtures/c22_retrieval/evaluation.yaml \
-  --root /workspace/control
-```
-
-검색 후보에는 query·policy·generation·content·chunk·retrieval-config digest와 graph path가 함께 기록됩니다. `search`, `retrieve`, `index verify`는 provider를 호출하지 않으며 C22 retrieval은 Vault와 runtime bytes를 query 실행 중 변경하지 않습니다.
-
-### 7. cited answer와 optional vector/RRF
-
-`C23 ask`는 질문 또는 hash-bound capture를 읽어 deterministic extractive answer와 citation digest를 반환합니다. capture를 source로 사용할 때는 source bytes의 lowercase SHA-256을 반드시 함께 전달합니다.
-
-```bash
-printf '이 프로젝트를 다시 방문할 이유는 무엇인가?\n' | ko ask \
-  --question-stdin --scope project:guestbook-horror --hops 1 \
-  --root /workspace/control
-
-# answer one capture; CAPTURE_SHA256은 실제 capture bytes의 digest로 교체
-ko ask \
-  --source 00_Inbox/Captures/YYYY/MM/CAPTURE.md \
-  --expected-sha256 CAPTURE_SHA256 \
-  --scope project:guestbook-horror \
-  --root /workspace/control
-
-# checked-in C23 cited-answer baseline
-ko ask \
-  --evaluation-file /workspace/control/ops/tests/fixtures/c23_answers/evaluation.yaml \
-  --root /workspace/control
-```
-
-`E01` vector/RRF는 명시적으로 opt-in할 때만 실행합니다. 기본 `search`/`retrieve`는 C22 lexical 경로이며 embedding provider나 remote service를 사용하지 않습니다.
-
-```bash
-# optional E01 frozen evaluation
-ko vector evaluate \
-  --evaluation-file /workspace/control/ops/tests/fixtures/e01_vectors/evaluation.yaml \
-  --root /workspace/control
-
-# optional vector/RRF retrieval
-printf '플레이 루프\n' | ko vector retrieve \
-  --query-stdin --scope project:guestbook-horror --hops 1 \
-  --root /workspace/control
-```
-
-### 8. C24 worker와 LaunchAgent 경계
-
-`C24` worker는 one-shot wake, committed bridge request ingest, runtime queue manifest, local transaction recovery observation을 실행할 수 있습니다. provider 호출, Vault mutation, Git network I/O는 하지 않습니다. 먼저 evaluation 또는 dry-run을 사용합니다.
-
-```bash
-# synthetic C24 baseline
-ko ai worker \
-  --evaluation-file /workspace/control/ops/tests/fixtures/c24_background/evaluation.yaml \
-  --root /workspace/control
-
-# request/recovery를 관찰하지만 queue manifest를 만들지 않음
-ko ai worker --once --dry-run --root /workspace/control
-
-# 명시적으로 one-shot worker를 실행; runtime만 변경될 수 있음
-ko ai worker --once --root /workspace/control
-
-# E03 경계의 inactive LaunchAgent installation preview
-ko launchd install --dry-run --root /workspace/control
-```
-
-LaunchAgent는 `RunAtLoad=false`, 기본 inactive이며 `E03`의 별도 authorization 없이는 설치·활성화하지 않습니다. `ko launchd install`은 C24에서 activation을 허용하지 않으므로 preview 결과를 확인하는 용도로만 사용합니다.
-
-### 9. C 단계별 검증 결과
-
-2026-09-17 현재 canonical container의 `make test`는 206개 테스트를 모두 통과했고 `make lint`도 통과했습니다. 아래는 각 C 단계의 대표 구현 surface와 직접 대응하는 검증 파일입니다.
-
-| 단계 | 완료된 capability | 대표 검증 |
-| --- | --- | --- |
-| C01 | Colima/Docker 실행·UID/GID·toolchain harness | `test_toolchain_contract.py`, `test_foundation.py` |
-| C02 | Blueprint Draft 2020-12 JSON Schema | `test_blueprint.py`, `make blueprint-check` |
-| C03 | registry/path/action/command/bridge semantic gate | `test_blueprint.py`, `make blueprint-check` |
-| C04 | Base/dashboard/projection/transaction semantics | `test_blueprint.py`, `test_vault_structure.py` |
-| C05 | generated-artifact ownership and zero-diff | `test_schema_export.py`, `make schema-check` |
-| C06 | operational policy, strict note schema, note engine | `test_note_engine.py`, `test_schema_export.py` |
-| C07 | additive templates/bootstrap/create-only project bundle | `test_c07_templates.py` |
-| C08 | Bases, Home, Mobile, deterministic dashboards | `test_c08_dashboard.py` |
-| C09 | portable Vault fixture and plugin-free fallback boundary | `test_c09_portable_fixture.py` |
-| C10 | offline bridge request/response/root-sentinel schemas | `test_c10_bridge_contract.py` |
-| C11 | offline shortcut, durable outbox, recovery contract | `test_c11_mobile_offline.py` |
-| C12 | provider-free read-only diagnostics and CLI integration | `test_c12_diagnostics.py` |
-| C13 | create-only local commands and guarded formatting | `test_c13_commands.py` |
-| C14 | hash-bound asset, capture-finalize, project-archive transaction | `test_c14_transactions.py` |
-| C15 | fsynced hash-chained journal and idempotent replay | `test_c15_recovery.py` |
-| C16 | reconcile, digest-bound repair, apply, receipt verification | `test_c16_reconcile.py` |
-| C17 | local bridge ingest, exact Git publish, crash recovery | `test_c17_bridge_publish.py` |
-| C18 | deterministic read-only triage proposal contract | `test_c18_triage.py` |
-| C19 | review, approval, rejection, guarded apply closure | `test_c19_proposals.py` |
-| C20 | action registry, six facade routes, PRD traceability | `test_c20_pipeline_registry.py` |
-| C21 | JSONL projection, immutable generations, atomic pointer | `test_c21_projection.py` |
-| C22 | lexical and bounded typed-link retrieval, frozen baseline | `test_c22_retrieval.py` |
-| C23 | cited answer, hash-bound capture, guestbook-horror flow | `test_c23_answer.py` |
-| C24 | background artifacts, one-shot wake, replay/recovery observation | `test_c24_background.py` |
-
-이 표의 “완료”는 단순히 파일이 존재한다는 뜻이 아니라, 해당 단계의 source·contract·test와 전체 canonical gate가 현재 checkout에서 함께 통과했다는 뜻입니다. 실제 외부 service, mobile device, remote provider, LaunchAgent activation은 별도 evidence이며 C lane 완료로 합산하지 않습니다.
-
-## Vault를 이해하는 방법
-
-`KnowledgeHub/`가 Obsidian에서 여는 실제 Vault입니다. 폴더는 정보의 수명과 관리 맥락을 나타내고, 노트의 `type`과 링크는 그 노트가 하는 일과 다른 노트와의 관계를 나타냅니다.
-
-- `00_Inbox/Captures/`: 아직 정리하지 않은 포착물
-- `01_AI_Review/`: AI 또는 사람이 검토 중인 제안과 보류 항목
-- `20_Projects/`: 끝내야 할 결과를 가진 프로젝트. 각 프로젝트는 관련 파일을 함께 갖는 묶음입니다.
-- `30_Areas/`: 계속 관리해야 하는 생활·업무 영역
-- `40_Knowledge/`: 장기 보존할 주장과 설명
-- `50_Maps/`: 사람이 큐레이션한 탐색 경로와 지도
-- `60_Meetings/`: 회의의 의제·결정·후속 작업
-- `80_Assets/`: 검증된 원본 파일과 관련 자료
-- `90_Archive/`: 끝난 맥락을 보존하는 장소
-- `99_System/`: 템플릿, 속성 사전, Bases, 대시보드 등 시스템 파일
-
-Home과 Mobile은 오늘의 핵심·다음 행동·빠른 이동을 보여주는 화면입니다. 검색 색인과 대시보드는 언제든 Markdown에서 다시 만들 수 있는 보조 산출물이지, 원본을 대신하지 않습니다.
+처음부터 모든 폴더를 정리할 필요는 없습니다. `Home → 빠른 캡처 → Inbox → 프로젝트 또는 Knowledge` 네 화면만으로도 기본 사용을 시작할 수 있습니다.
 
 ## 기기별 역할
 
-| 기기 | 가장 잘하는 일 |
-| --- | --- |
-| iPhone | 생각·음성·URL을 빠르게 포착하고 오늘의 내용을 확인하기 |
-| iPad | 읽기, 주석, 짧은 보완, 가벼운 검토 |
-| Mac | 최종 분류·승인·구조 변경·Git 충돌 해결·자동화 실행 |
+KnowledgeOS는 기기마다 잘 맞는 작업을 다르게 둡니다.
 
-휴대기기에서 짧게 끝낼 수 없는 구조 변경이나 충돌 해결은 Mac 검토로 넘깁니다. 모바일 Git 사용은 Working Copy Pro, 별도 worktree, Vault 식별 확인, 왕복 검증을 모두 통과한 뒤에만 허용합니다.
+| 기기 | 주된 역할 | 잘 맞는 작업 |
+| --- | --- | --- |
+| Mac | 결정하고 연결하고 확정하기 | 분류, 승인, 프로젝트 구조 변경, 검색, Git 확인, Archive |
+| iPhone | 놓치지 않고 담기 | 생각·음성·URL·짧은 메모 capture, 오늘 화면 확인 |
+| iPad | 읽고 가볍게 보완하기 | 읽기, 주석, 짧은 본문 수정, 검토 대상 확인 |
+
+모바일에서는 새로운 capture를 만들거나 읽는 작업을 우선합니다. 대량 이동, 대량 이름 변경, 삭제, plugin 설치, Git 충돌 해결, 정본에 대한 AI apply는 Mac에서 처리합니다.
+
+모바일 화면과 Shortcut 사용 방식은 설계되어 있지만, Working Copy를 통한 실제 mobile round trip은 별도의 배치 단계입니다. 아직 그 배치를 하지 않았다면 모바일 경로를 이미 동기화되고 있다고 가정하지 말고, Mac에서 `Home.md`를 정본 화면으로 사용하세요.
+
+## 매일 보는 화면
+
+### Home — 판단을 위한 데스크톱 조종석
+
+`Home.md`는 모든 파일을 보여주는 파일 브라우저가 아니라, 오늘 결정해야 할 것만 모아 보는 화면입니다.
+
+- **오늘의 방향** — 오늘 Daily와 focus를 엽니다.
+- **Now** — 현재 active 또는 blocked 상태인 프로젝트를 봅니다.
+- **Needs a decision** — 아직 답하지 않은 질문과 결정을 봅니다.
+- **Next actions** — 각 프로젝트에서 다음에 할 일을 봅니다.
+- **Knowledge radar** — 최근 지식과 아이디어를 다시 봅니다.
+- **Inbox** — 아직 처리하지 않은 capture를 봅니다.
+- **AI review** — pending 또는 conflict 상태의 제안을 확인합니다.
+- **빠른 이동** — Tasks, Weekly Review, Ideas, Sources로 바로 갑니다.
+
+Home에 표시된 목록은 원본을 대신하지 않습니다. 목록에서 노트를 열어 본문과 속성을 확인하면 언제든 전체 맥락으로 돌아갈 수 있습니다.
+
+### Mobile — 현장에서 담고 조회하는 화면
+
+`Mobile.md`는 작은 화면에서 필요한 것만 남긴 단일 열 화면입니다.
+
+- `KO · Capture` — 생각이나 짧은 텍스트를 새 capture로 만듭니다.
+- `KO · Save Source` — URL, 선택한 문장, 짧은 주석을 자료 capture로 저장합니다.
+- `KO · Defer to Mac` — Mac에서 처리할 작업을 요청 대상으로 보냅니다.
+- `KO · Sync` — 동기화 전에 상태를 확인하고 안전한 경우에만 다음 단계로 갑니다.
+- 오늘 Daily, Mobile 프로젝트 목록, Mac 검토 Inbox, AI 결과를 확인합니다.
+
+Mobile 화면의 동기화 안내는 마지막으로 확인된 snapshot을 뜻합니다. 화면에 “성공”을 기록해 두는 방식이 아니므로, 실제 상태는 기기의 Git 상태와 마지막 응답을 함께 확인해야 합니다.
+
+## 생각을 빠르게 담는 방법
+
+Mac의 Home에는 QuickAdd를 이용한 다섯 가지 빠른 진입점이 있습니다.
+
+| 단축키 | 진입점 | 만들어지는 맥락 |
+| --- | --- | --- |
+| `⌥⌘I` | `CAPTURE_THOUGHT` | 아직 판단하지 않은 생각을 `00_Inbox/Captures/`에 보관 |
+| `⌥⌘J` | `NEW_IDEA` | 발전시킬 아이디어를 `40_Knowledge/Ideas/`에 생성 |
+| `⌥⌘P` | `NEW_PROJECT` | 결과와 다음 행동을 가진 프로젝트 묶음을 생성 |
+| `⌥⌘Q` | `NEW_QUESTION` | 답이 필요한 질문이나 결정을 `40_Knowledge/Questions/`에 생성 |
+| `⌥⌘K` | `NEW_KNOWLEDGE` | 오래 보존할 지식 주장을 `40_Knowledge/Notes/`에 생성 |
+
+단축키가 아직 연결되지 않았다면 Obsidian Command palette에서 같은 choice 이름을 찾을 수 있습니다. 빠른 capture는 기존 파일을 덮어쓰지 않고 항상 새로운 파일을 만듭니다.
+
+### 어떤 방식으로 담을까?
+
+- 지금 당장 판단할 수 없으면 **capture**로 담습니다.
+- 나중에 발전시킬 가능성이 있으면 **idea**로 만듭니다.
+- 답을 찾거나 결정을 내려야 하면 **question**으로 만듭니다.
+- 반복해서 참고할 주장이나 설명이면 **knowledge**로 만듭니다.
+- 다시 읽거나 인용할 자료면 **source**로 만듭니다.
+- 끝내야 할 결과와 다음 행동이 있으면 **project**로 만듭니다.
+
+무엇인지 잘 모르겠을 때는 capture로 시작하는 편이 좋습니다. Inbox에서 나중에 판단할 수 있도록 `triage_hint`만 남겨도 충분합니다.
+
+## 노트는 맥락에 맞게 사용하기
+
+KnowledgeOS의 노트 유형은 폴더 이름만 다르게 붙인 메모가 아닙니다. 각 유형은 “이 노트를 나중에 어떻게 사용할 것인가”를 표현합니다.
+
+| 노트 유형 | 언제 사용하는가 | 기본 위치 |
+| --- | --- | --- |
+| Capture | 아직 분류하지 않은 원본을 보존할 때 | `00_Inbox/Captures/` |
+| Daily / Weekly / Monthly | 일정 기간의 방향과 회고를 남길 때 | `10_Journal/` |
+| Project | 끝내야 할 결과와 다음 행동이 있을 때 | `20_Projects/<project>/` |
+| Project note | 특정 프로젝트 안의 작업 메모일 때 | `20_Projects/<project>/Working/` |
+| Artifact | 프로젝트의 결과물이나 명세일 때 | `20_Projects/<project>/Artifacts/` |
+| Area | 계속 관리해야 하는 생활·업무 영역일 때 | `30_Areas/` |
+| Idea | 가능성을 발전시키고 싶을 때 | `40_Knowledge/Ideas/` |
+| Question | 답, 결정, 조사 방향이 필요할 때 | `40_Knowledge/Questions/` |
+| Knowledge | 오래 남길 설명이나 주장을 만들 때 | `40_Knowledge/Notes/` |
+| Source | 읽고 인용할 자료를 관리할 때 | `40_Knowledge/Sources/` |
+| Person | 사람과 관련된 맥락을 보관할 때 | `40_Knowledge/People/` |
+| MOC | 관련 노트를 사람이 큐레이션한 길로 묶을 때 | `50_Maps/` 또는 프로젝트 Working |
+| Meeting | 회의의 의제·결정·후속 작업을 남길 때 | `60_Meetings/` |
+
+새 노트를 만들 때는 파일명과 노트 제목을 같게 유지하고, frontmatter의 `type`, `status`, `created`, `modified`를 임의의 표현으로 바꾸지 않는 것이 좋습니다. 링크는 단순한 장식이 아니라 노트 사이의 관계를 표현하는 방법입니다.
+
+## Inbox를 처리하는 법
+
+Inbox는 “반드시 오늘 비워야 하는 목록”이 아닙니다. 처리할 수 있는 것만 골라 다음 질문에 답합니다.
+
+1. 이것은 버릴 것인가, 보류할 것인가?
+2. 계속할 행동이 있는가?
+3. 특정 프로젝트에 속하는가?
+4. 오래 남길 아이디어·질문·지식·자료인가?
+5. 이미 존재하는 노트와 어떤 관계가 있는가?
+
+결과에 따라 다음처럼 처리합니다.
+
+- **discarded** — 더 보존할 이유가 없을 때
+- **triaged** — 적절한 프로젝트나 정식 노트와 연결했을 때
+- **hold** — 지금 판단하지 않되 다시 볼 이유가 있을 때
+- **task** — 구체적인 다음 행동이 있을 때
+- **idea / question / knowledge / source** — 해당 정식 노트로 발전시킬 때
+
+Capture의 원문은 먼저 보존하고, 정식 노트로 옮길 때도 원본 capture와 연결합니다. 그래서 나중에 “왜 이 노트를 만들었는가?”를 추적할 수 있습니다.
+
+## 프로젝트를 운영하는 법
+
+프로젝트는 단순한 폴더가 아니라 결과를 향해 움직이는 작은 작업 공간입니다.
+
+프로젝트를 만들 때는 다음 세 가지를 먼저 적습니다.
+
+- **Outcome** — 끝났을 때 무엇이 달라져 있어야 하는가
+- **Status** — planned, active, blocked, completed 중 현재 상태
+- **Next action** — 다음에 실제로 할 수 있는 한 가지 행동
+
+프로젝트를 만들면 다음 구조가 함께 생깁니다.
+
+```text
+20_Projects/
+└── 프로젝트 이름/
+    ├── 프로젝트 이름.md
+    ├── Working/
+    └── Artifacts/
+```
+
+- 프로젝트 root note에는 목적, 상태, 우선순위, 다음 행동을 둡니다.
+- `Working/`에는 진행 중인 생각, MOC, 조사 메모를 둡니다.
+- `Artifacts/`에는 외부에 전달하거나 최종 결과로 남길 산출물을 둡니다.
+
+프로젝트가 막히면 상태를 `blocked`로 바꾸고, 막힌 이유나 기다리는 결정을 next action 주변에 남깁니다. 그러면 Home의 Now와 Blocked 목록에서 다시 발견할 수 있습니다.
+
+## 자료, 첨부파일, 출처
+
+자료를 저장할 때는 URL만 복사하는 것보다 “왜 저장했는지”를 함께 남기는 것이 좋습니다.
+
+1. `KO · Save Source`로 URL과 선택한 문장을 저장합니다.
+2. 짧은 주석에 “이 자료가 왜 필요한가”를 적습니다.
+3. 나중에 `Source` 노트에서 작성자, 날짜, citation key, 관련 프로젝트를 보완합니다.
+4. 주장이나 결정으로 발전하면 `derived_from` 또는 적절한 relation으로 원자료와 연결합니다.
+
+이미지, PDF 같은 파일은 `80_Assets/`에 보관하고 노트에서 링크합니다. 파일의 SHA-256과 provenance를 함께 관리하면 같은 자료가 바뀌었는지 확인할 수 있습니다. 지원하기 어려운 큰 파일이나 오디오·비디오는 무리해서 정본 Vault에 넣기보다 링크와 설명을 남기는 방식이 안전합니다.
+
+## AI 제안은 이렇게 사용하기
+
+AI Review는 정식 노트를 대신 쓰는 곳이 아니라, 사람이 판단하기 전의 제안을 보는 곳입니다.
+
+1. capture, Daily, Source처럼 원본이 있는 항목을 선택합니다.
+2. 분류, 요약, 링크, 정식 노트 초안 중 필요한 제안을 요청합니다.
+3. 제안의 원본 경로, 관련 프로젝트, 변경 내용을 확인합니다.
+4. 맞으면 승인하고, 아니면 수정하거나 거절합니다.
+5. 승인된 변경만 정본 노트에 적용합니다.
+
+AI Review의 상태는 대략 다음 의미를 가집니다.
+
+- **pending** — 아직 사람이 보지 않은 제안
+- **conflict** — 원본이나 대상 노트가 바뀌어 다시 확인해야 하는 제안
+- **approved** — 사람이 적용을 허용한 제안
+- **applied** — 정본에 적용된 제안
+- **rejected** — 적용하지 않기로 한 제안
+- **expired** — 승인할 수 있는 시간이 지나 다시 만들어야 하는 제안
+
+원본이 바뀐 상태에서 예전 제안을 억지로 적용하지 않습니다. 충돌이 나면 최신 원본을 기준으로 다시 검토합니다. 외부 AI provider를 사용하더라도 민감도와 `ai_policy`를 먼저 확인하며, 조용한 provider fallback이나 자동 정본 변경은 사용하지 않습니다.
+
+## 검색하고 답을 확인하는 법
+
+KnowledgeOS의 검색은 한 번에 “그럴듯한 답”을 만드는 것보다, 원본 노트와 근거를 다시 찾아가는 데 초점을 둡니다.
+
+### 빠르게 찾기
+
+- Obsidian Search로 정확한 단어나 파일을 찾습니다.
+- Home의 Bases에서 Inbox, 프로젝트, 질문, 지식, Sources를 맥락별로 봅니다.
+- `related`, `supports`, `contradicts`, `explains`, `implements` 같은 관계를 따라갑니다.
+- `50_Maps/`의 MOC는 사람이 자주 탐색하는 길을 고정하는 데 사용합니다.
+
+### 관련 맥락까지 넓히기
+
+검색 결과 하나만으로 부족하면 관련 project, source, idea, question을 함께 봅니다. KnowledgeOS의 retrieval은 본문 단어뿐 아니라 허용된 typed link를 따라 관련 노트를 확장합니다. 그래서 “이 주장과 연결된 프로젝트는 무엇인가?”, “이 아이디어를 뒷받침하는 자료는 무엇인가?” 같은 질문에 더 적합합니다.
+
+### 인용이 필요한 답
+
+`ask` 흐름은 질문이나 capture를 기준으로 답을 만들고, 답과 함께 근거 노트, 위치, evidence digest, uncertainty를 돌려주는 방식입니다. 근거가 부족하면 억지로 채우지 않고 insufficient input 또는 refused 결과를 남깁니다.
+
+기본 검색은 lexical-first이며, vector/RRF는 선택적인 실험 경로입니다. 따라서 검색 결과를 재현하고 싶을 때도 먼저 어떤 generation과 어떤 원본 노트를 기준으로 했는지 확인할 수 있습니다.
+
+## Daily와 Weekly Review
+
+### 아침
+
+1. Home의 Today Focus를 확인합니다.
+2. Daily에 오늘의 방향을 적습니다.
+3. Now에서 active 또는 blocked 프로젝트를 확인합니다.
+4. Next Actions에서 오늘 실제로 할 한두 가지를 고릅니다.
+
+### 하루 중
+
+- 생각은 capture로 담고, 흐름을 끊어 정리하지 않습니다.
+- URL은 Save Source로 저장하고, 나중에 읽을 이유를 한 줄 적습니다.
+- 결정이 필요한 것은 Question으로 만들어 기억에 의존하지 않습니다.
+
+### 주간 회고
+
+1. Weekly Review에서 이번 주에 만든 capture와 Daily를 돌아봅니다.
+2. 계속할 프로젝트의 next action을 갱신합니다.
+3. 오래된 Inbox는 삭제하지 말고 triage, hold, archive 중 하나를 선택합니다.
+4. 반복해서 등장한 주장은 Knowledge로 승격하고, 근거 Source를 연결합니다.
+5. 끝난 프로젝트는 결과물을 확인한 뒤 Archive합니다.
+
+## 동기화와 변경을 안전하게 다루기
+
+KnowledgeOS에는 한 번에 한 명의 writer만 정본 Vault를 변경한다는 원칙이 있습니다.
+
+- Mac에서는 Obsidian Git 또는 `vaultctl` 중 한 가지 경로만 사용합니다.
+- 두 경로를 동시에 열어 같은 파일을 수정하지 않습니다.
+- 모바일에서 기존 파일을 대량 수정하기 전에 Obsidian을 닫고 상태를 확인합니다.
+- dirty, diverged, detached, unknown 상태라면 자동 merge나 push를 시도하지 않고 Mac으로 넘깁니다.
+- 새로운 capture는 offline에서도 만들 수 있지만, 동기화 실패가 capture를 잃게 만들지 않도록 device recovery outbox에 남깁니다.
+- force push, reset, stash, rebase, “모든 변경사항 포함” 방식은 기본 흐름에 포함하지 않습니다.
+
+정본을 바꾸는 작업은 사람이 결과를 확인할 수 있어야 합니다. 단순한 capture 생성은 빠르게 허용하지만, 기존 note 수정·이동·archive·AI apply는 source와 target을 확인한 뒤 진행합니다.
+
+## 파일과 폴더를 이해하는 법
+
+| 위치 | 사용자의 관점에서 의미 |
+| --- | --- |
+| `00_Inbox/Captures/` | 아직 판단하지 않은 원본이 머무는 곳 |
+| `01_AI_Review/` | 사람이 승인하거나 거절할 제안을 보는 곳 |
+| `10_Journal/` | Daily, Weekly, Monthly의 시간 흐름 |
+| `20_Projects/` | 결과와 다음 행동을 가진 프로젝트 |
+| `30_Areas/` | 계속 관리해야 하는 삶·업무 영역 |
+| `40_Knowledge/` | Idea, Question, Knowledge, Source, Person |
+| `50_Maps/` | 사람이 만든 탐색 경로와 MOC |
+| `60_Meetings/` | 회의의 의제, 결정, 후속 작업 |
+| `80_Assets/` | 검증된 이미지, PDF, 원자료 |
+| `90_Archive/` | 끝난 capture와 프로젝트의 보존 장소 |
+| `99_System/` | Template, Base, Dashboard, schema 같은 시스템 파일 |
+
+`99_System/`의 파일은 화면과 노트 생성 규칙을 지탱합니다. 사용자가 직접 정리하거나 삭제하기보다, 해당 기능을 통해 변경하는 편이 안전합니다.
+
+## 이런 상황에서는 이렇게 사용하세요
+
+### “방금 떠오른 생각을 잊고 싶지 않다”
+
+Home에서 `⌥⌘I`를 누르고 원문만 적습니다. 지금 분류하지 않아도 됩니다. 나중에 Inbox에서 idea, question, project 중 하나를 고릅니다.
+
+### “읽은 글을 나중에 프로젝트에 쓰고 싶다”
+
+`KO · Save Source`로 URL, 중요한 문장, 저장 이유를 함께 남깁니다. Source 노트를 프로젝트와 연결하면, 나중에 project summary나 cited answer에서 근거로 다시 찾을 수 있습니다.
+
+### “아이디어를 실제 결과로 만들고 싶다”
+
+`NEW_PROJECT`로 프로젝트를 만들고 outcome과 next action을 적습니다. 관련 아이디어와 질문은 프로젝트 root에 복사하기보다 링크로 연결하고, 실제 작업 메모는 `Working/`, 결과물은 `Artifacts/`에 둡니다.
+
+### “결정해야 할 일이 자꾸 사라진다”
+
+`NEW_QUESTION`으로 질문을 만듭니다. Home의 Needs a decision에 모인 질문을 주간 회고 때 확인하고, 답을 찾으면 decision과 근거를 함께 남긴 뒤 상태를 닫습니다.
+
+### “AI가 정리해 준 내용을 믿어도 될까?”
+
+AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원본이 바뀌었거나 근거가 부족하면 적용하지 않습니다. AI는 정본의 소유자가 아니며, 승인하지 않은 제안은 지식으로 취급하지 않습니다.
+
+### “끝난 프로젝트를 치우고 싶다”
+
+결과물과 링크를 먼저 확인하고 프로젝트를 Archive합니다. Archive는 삭제가 아니라 보존입니다. 나중에 왜 그런 결정을 했는지 다시 찾아볼 수 있도록 root note와 related link를 유지합니다.
 
 ## 안전 원칙
 
-- Markdown 본문과 평평한 YAML 속성이 지식의 정본입니다.
-- 한 파일을 동시에 쓰는 주체는 하나뿐이며, 기존 파일 수정은 해시 확인과 명시적 승인에 묶입니다.
-- AI·plugin·외부 서비스는 선택 사항이며, 정본을 몰래 바꾸거나 비밀을 저장하지 않습니다.
-- 사람·회의·기밀 자료는 AI 기본 거부 또는 별도 Vault 경계를 적용합니다.
-- iCloud, Obsidian Sync, Dropbox, OneDrive를 canonical 모바일 경로와 병렬 writer로 사용하지 않습니다.
-- Control 저장소와 Vault 저장소의 Git 기록은 독립적으로 보존합니다.
+- 원본 Markdown과 YAML 속성이 정본입니다.
+- 새 capture는 기존 파일을 덮어쓰지 않습니다.
+- AI·plugin·외부 서비스는 정본의 대체자가 아닙니다.
+- 기존 파일의 수정과 이동은 원본 hash와 대상 맥락을 확인한 뒤 수행합니다.
+- `confidential` 자료는 remote provider로 보내지 않는 것을 기본으로 합니다.
+- 사람·회의 자료는 기본적으로 더 보수적인 privacy 정책을 적용합니다.
+- 모바일은 capture·조회·보류를 우선하고, canonical apply는 Mac에서 합니다.
+- 자동 pull, 자동 commit, 자동 push, force push는 기본값이 아닙니다.
+- 항상 켜진 worker와 LaunchAgent는 기본 비활성입니다.
 
-## 저장소 경계
+이 원칙 때문에 KnowledgeOS는 조금 느리게 느껴질 수 있습니다. 대신 빠르게 담는 단계와 신중하게 확정하는 단계를 분리해, 나중에 원본과 판단의 경계를 다시 확인할 수 있게 합니다.
 
-| 위치 | 용도 |
-| --- | --- |
-| 프로젝트 루트 | 정책, 설계 계약, 실행 코드, 테스트를 보관하는 control repository |
-| `KnowledgeHub/` | Obsidian 노트와 bridge transport를 보관하는 독립 Vault repository |
-| `runtime/` | queue, lock, receipt, journal, index, cache, log를 보관하는 Git 비추적 로컬 상태 |
+## 현재 사용 범위
 
-세 영역은 서로 자동으로 합쳐지지 않습니다. 원격 저장소, plugin, provider, 백그라운드 worker, 기존 자료 이관은 별도의 검토와 승인이 필요한 선택 기능입니다.
+현재 가장 안정적인 사용 범위는 MacBook 중심의 Obsidian workflow입니다.
 
-## 문서 안내
+- Home, Mobile, Bases, Dashboard, Templates를 사용할 수 있습니다.
+- Mac에서는 QuickAdd, Templater, Tasks, Linter, Obsidian Git을 역할별로 사용할 수 있습니다.
+- capture, typed note, Daily/Weekly/Monthly, project bundle, asset provenance, archive를 사용할 수 있습니다.
+- AI 제안은 preview·review·approval을 거치는 구조입니다.
+- lexical search, typed-link retrieval, 근거가 붙은 cited answer를 사용할 수 있습니다.
+- vector/RRF는 기본 검색을 바꾸지 않는 선택 기능입니다.
+- background worker는 필요할 때 명시적으로 실행하는 보조 기능이며, 자동 활성화되어 있지 않습니다.
 
-- [`OBSIDIAN_VAULT_BLUEPRINT.md`](OBSIDIAN_VAULT_BLUEPRINT.md): 에이전트가 읽는 상위 제품·구조·파이프라인 계약 색인
-- [`OBSIDIAN_VAULT_WHITEPAPER.md`](OBSIDIAN_VAULT_WHITEPAPER.md): 에이전트가 읽는 저수준 실행·트랜잭션·검증 부속서 색인
-- [`AGENTS.md`](AGENTS.md): 이 프로젝트에서 작업할 때 지켜야 할 짧은 실행 계약
-- [`docs/`](docs/): architecture, runtime, operations, mobile, decisions, source contract의 간결한 참조 문서
-- [`PROJECT_STATE.md`](PROJECT_STATE.md): 현재 단계, 실제 검증 결과, blocker, 다음 작업을 기록하는 에이전트용 상태 문서
+모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결, LaunchAgent 활성화는 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름을 그대로 사용하면 됩니다.
 
-Blueprint와 Whitepaper는 사람을 위한 긴 설명서가 아니라, 구조화된 계약을 빠르게 찾기 위한 인덱스입니다. 사용자에게 필요한 배경과 사용법은 이 README에 남깁니다.
+## 관련 화면
 
-## 확인 명령
+- [`KnowledgeHub/Home.md`](KnowledgeHub/Home.md) — Mac에서 매일 사용하는 시작 화면
+- [`KnowledgeHub/Mobile.md`](KnowledgeHub/Mobile.md) — 모바일에서 capture·조회·보류에 사용하는 화면
+- [`KnowledgeHub/99_System/Bases/Inbox.base`](KnowledgeHub/99_System/Bases/Inbox.base) — 처리하지 않은 capture와 mobile review
+- [`KnowledgeHub/99_System/Bases/Projects.base`](KnowledgeHub/99_System/Bases/Projects.base) — 프로젝트, Now, Next Actions
+- [`KnowledgeHub/99_System/Bases/Review.base`](KnowledgeHub/99_System/Bases/Review.base) — pending·conflict 제안
+- [`KnowledgeHub/99_System/Dashboards/Weekly_Review.md`](KnowledgeHub/99_System/Dashboards/Weekly_Review.md) — 주간 회고 화면
 
-프로젝트의 기본 구조와 계약을 확인할 때는 다음 명령을 사용합니다.
-
-```bash
-make source-check
-make verify
-make blueprint-check
-make schema-check
-make contract-check
-make container-source-check
-make container-verify
-make test
-make lint
-```
-
-각 명령은 서로 다른 범위를 검사합니다. 구조·의미·생성 산출물·실행·장치·배포 결과를 하나의 성공으로 합치지 않으며, 실제 실행 여부는 `PROJECT_STATE.md`에 따로 기록합니다.
-
-## 다음에 작업을 시작할 때
-
-먼저 `PROJECT_STATE.md`에서 현재 목표와 증거를 확인하고, 한 번에 하나의 작은 작업 단위를 끝까지 수행합니다. 설계 문서에 적힌 미래 기능을 이미 구현된 것으로 간주하지 말고, Vault 파일·소스·테스트·실행 결과를 함께 확인합니다.
+KnowledgeOS를 처음 사용할 때는 이 README를 모두 외우기보다 `Home.md`를 열고, 생각 하나를 capture한 뒤 Inbox에서 그 생각의 다음 맥락을 정하는 것부터 시작하면 됩니다.
