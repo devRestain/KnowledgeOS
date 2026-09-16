@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/job.schema.json",
+  "title": "KnowledgeOS C18 job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job_id",
+    "action",
+    "source_path",
+    "source_sha256",
+    "privacy_policy_sha256"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "action": {
+      "const": "triage"
+    },
+    "source_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "privacy_policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

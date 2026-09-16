@@ -24,9 +24,11 @@ from .diagnostics import (
 from .foundation import check_foundation, check_source_manifest
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
 from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
 from .schema_export import export_schema_artifacts
 from .transactions import archive_project, finalize_capture, import_asset
+from .triage import deterministic_triage
 from .workflows import create_period_note, create_project_bundle
 from .yaml_safe import load_yaml_file
 
@@ -153,6 +155,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     schema_export.add_argument("--check", action="store_true", help="check byte-for-byte zero-diff without writing")
     schema_export.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    ai = commands.add_parser("ai", help="proposal-only deterministic AI contract commands")
+    ai_commands = ai.add_subparsers(dest="ai_command", required=True)
+    ai_triage = ai_commands.add_parser("triage", help="read one note and return a non-mutating triage proposal")
+    ai_triage.add_argument("--source", required=True, help="Vault-relative capture or daily note path")
+    ai_triage.add_argument("--expected-sha256", required=True, help="lowercase SHA-256 of source bytes")
+    ai_triage.add_argument("--locator", default=None, help="required daily fragment locator")
+    ai_triage.add_argument("--fragment-sha256", default=None, help="required daily fragment SHA-256")
+    ai_triage.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_review = ai_commands.add_parser("review", help="inspect pending proposals without mutation")
+    ai_review.add_argument("--proposal", "--path", dest="proposal_path", default=None)
+    ai_review.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_approve = ai_commands.add_parser("approve", help="create one digest-bound approval artifact")
+    ai_approve.add_argument("--proposal", "--path", dest="proposal_path", required=True)
+    ai_approve.add_argument("--expected-sha256", "--sha256", dest="expected_sha256", required=True)
+    ai_approve.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_reject = ai_commands.add_parser("reject", help="reject and close one pending proposal")
+    ai_reject.add_argument("--proposal", "--path", dest="proposal_path", required=True)
+    ai_reject.add_argument("--expected-sha256", "--sha256", dest="expected_sha256", required=True)
+    rejection_reason = ai_reject.add_mutually_exclusive_group(required=True)
+    rejection_reason.add_argument("--reason")
+    rejection_reason.add_argument("--reason-stdin", action="store_true")
+    rejection_reason.add_argument("--reason-file", type=Path)
+    ai_reject.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_apply = ai_commands.add_parser("apply", help="apply an approved proposal and close it")
+    ai_apply.add_argument("--proposal", "--path", dest="proposal_path", required=True)
+    ai_apply.add_argument("--approval", type=Path, default=None, help="optional explicit approval artifact")
+    ai_apply.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -497,6 +527,58 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = export_schema_artifacts(args.root or _control_root(), check=args.check)
         print(result.as_json(), end="")
         return result.exit_code
+    if args.command == "ai" and args.ai_command == "review":
+        report, exit_code = review_proposals(
+            args.root or _control_root(),
+            proposal_path=args.proposal_path,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "approve":
+        report, exit_code = approve_proposal(
+            args.root or _control_root(),
+            proposal_path=args.proposal_path,
+            expected_sha256=args.expected_sha256,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "reject":
+        try:
+            if args.reason_file is not None:
+                reason = args.reason_file.read_text(encoding="utf-8")
+            elif args.reason_stdin:
+                reason = sys.stdin.read()
+            else:
+                reason = args.reason
+        except (OSError, UnicodeError) as error:
+            print(json.dumps({"status": "FAIL", "errors": [{"code": "REASON_INPUT_INVALID", "message": str(error)}]}))
+            return EXIT_INPUT_INVALID
+        report, exit_code = reject_proposal(
+            args.root or _control_root(),
+            proposal_path=args.proposal_path,
+            expected_sha256=args.expected_sha256,
+            reason=reason,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "apply":
+        report, exit_code = apply_proposal(
+            args.root or _control_root(),
+            proposal_path=args.proposal_path,
+            approval_path=args.approval,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "triage":
+        report, exit_code = deterministic_triage(
+            args.root or _control_root(),
+            source_path=args.source,
+            expected_sha256=args.expected_sha256,
+            locator=args.locator,
+            fragment_sha256=args.fragment_sha256,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "note":
         root = (args.root or _control_root()).resolve()
         if args.note_command == "validate":

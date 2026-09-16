@@ -17,7 +17,11 @@ AI는 정식 노트를 대신 결정하지 않습니다. AI가 만든 분류·�
 
 ## 현재 위치
 
-핵심 capability lane은 `C01`부터 `C17`까지 완료되었습니다. 최근 경계에는 provider-free 진단(`C12`), create-only 로컬 명령(`C13`), asset·capture finalize·project archive transaction(`C14`), journal·replay(`C15`), reconcile·repair·receipt 검증(`C16`), exact local bridge/Git publish(`C17`)가 포함됩니다. 다음 핵심 개발 단위는 read-only deterministic triage proposal contract인 `C18`입니다. Obsidian·plugin·모바일·provider 작업은 별도 `Dxx` deployment overlay로, vector·LaunchAgent·remote·thin client는 `Exx` 선택 확장으로 격리합니다.
+핵심 capability lane은 `C01`부터 `C17`까지 완료되었습니다. 최근 경계에는 provider-free 진단(`C12`), create-only 로컬 명령(`C13`), asset·capture finalize·project archive transaction(`C14`), journal·replay(`C15`), reconcile·repair·receipt 검증(`C16`), exact local bridge/Git publish(`C17`)가 포함됩니다. 다음 핵심 개발 단위는 read-only deterministic triage proposal contract인 `C18`입니다.
+
+현재 1차 목표는 모바일 확장을 제외한 **MacBook 중심 Obsidian 사용 경험**입니다. 대화형 사용 경험의 완료선은 `C23`으로, 포착·제안·사람의 검토와 승인·정본 반영·Git 적용·검색·인용 답변까지의 흐름을 닫습니다. `C24`는 백그라운드 산출물과 절전·복구 동작을 포함하는 선택적 코어 안정성 마감입니다. Mac 배치 오버레이는 Mac 프로필과 QuickAdd, Templater, Tasks, Linter, Obsidian Git을 포함하는 `D07`까지 완료로 승격했습니다. `D08`과 `D09`는 모바일 전용이므로 이번 목표에서 제외하고, `D10`은 Codex provider 연동을 별도로 원할 때만 검토합니다. `E01`부터 `E05`까지는 선택 확장이며 MacBook 기본 사용 경험에 필수인 과제는 없습니다.
+
+현재 상태 기록에는 Mac 프로필의 Home workspace, Properties와 Workspaces core plugin, 다섯 개 Mac community plugin의 설치·audit·기능 확인이 pass로 남아 있습니다. 최신 단계와 실제 검증 결과는 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다. `C24`, local provider, vector/RRF, LaunchAgent, remote/unattended 실행, thin client는 기본 완료선에 포함하지 않습니다.
 
 Blueprint 검증, generated artifact zero-diff, strict note engine, 16개 template, portable Vault fixture, Base/dashboard, offline bridge·recovery outbox, remote identity sentinel, GitHub directory visibility 기반은 이미 마련되어 있습니다. 무엇이 실제로 완료되었는지와 어떤 검증이 미실행인지에 대한 최신 기록은 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다.
 

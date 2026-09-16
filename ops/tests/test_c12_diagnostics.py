@@ -35,7 +35,8 @@ def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutati
     assert report["overlays"]["git_identity_configured"]["state"] == "verified"
     assert report["overlays"]["obsidian_mac_core_verified"]["state"] == "inactive"
     assert report["overlays"]["mobile_transport_verified"]["state"] == "deferred"
-    assert report["plugins"]["status"] == "INACTIVE"
+    assert report["plugins"]["profile"] == "mac"
+    assert report["plugins"]["profile_root"].endswith("KnowledgeHub/.obsidian-mac")
     assert (CONTROL_ROOT / "KnowledgeHub/.knowledgeos-root.json").read_bytes() == before
 
 
@@ -51,13 +52,66 @@ def test_git_status_distinguishes_dirty_worktree_from_diagnostic_failure() -> No
     assert "https://github.com" not in json.dumps(report)
 
 
-def test_plugins_audit_reports_unconfigured_profile_as_inactive() -> None:
-    report, exit_code = plugins_audit_report(CONTROL_ROOT)
+def _minimal_plugin_audit_root(tmp_path: Path) -> Path:
+    root = tmp_path / "control"
+    shutil.copytree(CONTROL_ROOT / "blueprint", root / "blueprint")
+    (root / "ops").mkdir()
+    shutil.copy2(CONTROL_ROOT / "ops/vaultops.toml", root / "ops/vaultops.toml")
+    (root / "KnowledgeHub").mkdir()
+    (root / "runtime").mkdir()
+    return root
+
+
+def test_plugins_audit_reports_unconfigured_profile_as_inactive(tmp_path: Path) -> None:
+    report, exit_code = plugins_audit_report(_minimal_plugin_audit_root(tmp_path))
 
     assert exit_code == 0
     assert report["status"] == "INACTIVE"
     assert report["profile_state"] == "not_configured"
     assert all(item["state"] == "inactive" for item in report["community_plugins"])
+
+
+def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> None:
+    root = _minimal_plugin_audit_root(tmp_path)
+    profile_root = root / "KnowledgeHub/.obsidian-mac"
+    profile_root.mkdir()
+    plugin_ids = [
+        "quickadd",
+        "templater-obsidian",
+        "obsidian-tasks-plugin",
+        "obsidian-linter",
+        "obsidian-git",
+    ]
+    (profile_root / "community-plugins.json").write_text(json.dumps(plugin_ids), encoding="utf-8")
+
+    report, exit_code = plugins_audit_report(root)
+
+    assert exit_code == 0, report
+    assert report["status"] == "PASS"
+    assert report["profile_state"] == "configured"
+    assert {item["id"] for item in report["community_plugins"]} == set(plugin_ids)
+    assert all(item["state"] == "installed" for item in report["community_plugins"])
+    assert report["unexpected_community_plugins"] == []
+
+
+def test_plugins_audit_rejects_object_manifest_with_profile_relative_locator(tmp_path: Path) -> None:
+    root = _minimal_plugin_audit_root(tmp_path)
+    profile_root = root / "KnowledgeHub/.obsidian-mac"
+    profile_root.mkdir()
+    (profile_root / "community-plugins.json").write_text('{"plugins": []}', encoding="utf-8")
+
+    report, exit_code = plugins_audit_report(root)
+
+    assert exit_code == EXIT_CONFIG_INVALID
+    assert report["status"] == "DEGRADED"
+    assert report["errors"] == [
+        {
+            "code": "PLUGIN_CONFIG_ROOT_INVALID",
+            "locator": "/community-plugins.json",
+            "message": "community-plugins.json root must be an array of plugin IDs: community-plugins.json",
+            "severity": "error",
+        }
+    ]
 
 
 def test_wrong_root_has_stable_input_exit_class(tmp_path: Path) -> None:

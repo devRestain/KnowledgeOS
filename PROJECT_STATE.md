@@ -1,9 +1,14 @@
 /state version=1
 /project id=knowledgeos
-/status value=complete
-/checkpoint revision=f52719731acd3656871ed524fe0e9374e6310c62 dirty=true updated=2026-09-16T13:23:03+09:00
-/goal phase=current id=STATE_AUDIT_20260916 state=complete action="Verify local implementation against recorded state"
-/goal phase=next id=C18 state=planned action="Implement readonly proposal lane"
+/status value=planned
+/checkpoint revision=6218b6294456357d369c7225debd8bee98486f0a dirty=true updated=2026-09-16T17:04:00+09:00
+/goal phase=current id=C20 state=planned action="Implement remaining proposal actions facade routes and PRD traceability"
+/goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
+/goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
+/goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
+/goal phase=history id=MAC_PROFILE_VERIFY_20260916 state=complete action="Verify Mac profile and community plugin execution"
+/goal phase=history id=MAC_PREFLIGHT_20260916 state=complete action="Audit Mac Obsidian readiness and bound preinstall sequence"
+/goal phase=history id=STATE_AUDIT_20260916 state=complete action="Verify local implementation against recorded state"
 /goal phase=history id=SESSION_RELABEL state=complete action="Relabel latest isolated session sequence"
 /goal phase=history id=C17 state=complete action="Implement exact local bridge and Git publish transaction"
 /goal phase=history id=C16 state=complete action="Implement reconcile repair plan and receipt verification"
@@ -65,6 +70,43 @@
 /accept id=C17.A4 state=pass action="Resume identical bridge output after a pre-commit interruption" evidence=E_C17_A4
 /accept id=C17.A5 state=pass action="Fail closed on Vault drift and unsafe response paths" evidence=E_C17_A5
 /accept id=C17.A6 state=pass action="Expose provider-free bridge ingest status and publish CLI" evidence=E_C17_A6
+/accept id=C18.A1 state=pass action="Generate C18 action prompt redaction and typed contract artifacts under deterministic ownership" evidence=E_C18_ARTIFACT
+/accept id=C18.A2 state=pass action="Return deterministic 1-5 candidate proposal-only triage results without provider Vault or Git mutation" evidence=E_C18_TRIAGE
+/accept id=C18.A3 state=pass action="Fail closed on source drift privacy denial non-source types and unbound daily fragments" evidence=E_C18_TRIAGE
+/accept id=C18.A4 state=pass action="Run canonical blueprint artifact container test and lint gates" evidence=E_C18_GATES
+/accept id=C18.A5 state=pass action="Validate state and both Git-root whitespace with runtime and bridge namespace inventory" evidence=E_C18_STATIC
+/accept id=C19.A1 state=pass action="Review pending proposals deterministically without mutation" evidence=E_C19_REVIEW
+/accept id=C19.A2 state=pass action="Create approval artifacts bound to proposal source target policy schema and Vault digests" evidence=E_C19_APPROVAL
+/accept id=C19.A3 state=pass action="Reject pending proposals into the canonical rejected namespace with create-only receipts" evidence=E_C19_DECISION
+/accept id=C19.A4 state=pass action="Apply only still-current approved note mutations and close proposals into the resolved namespace" evidence=E_C19_APPLY
+/accept id=C19.A5 state=pass action="Fail closed on stale malformed privacy-denied unsafe and already-consumed proposal state" evidence=E_C19_FAIL_CLOSED
+/accept id=C19.A6 state=pass action="Expose provider-free review approve reject and apply CLI commands" evidence=E_C19_CLI
+/accept id=C19.A7 state=pass action="Generate and verify C19 approval decision and apply-receipt schema artifacts" evidence=E_C19_ARTIFACT
+/accept id=C19.A8 state=pass action="Run canonical source blueprint schema container test and lint gates" evidence=E_C19_GATES
+/accept id=C19.A9 state=pass action="Validate state roots whitespace and runtime bridge namespace inventory" evidence=E_C19_STATIC
+/accept id=MAC_PROFILE_VERIFY_20260916.A1 state=pass action="Confirm app-generated Mac profile files" evidence=E_MAC_PROFILE_CONFIG
+/accept id=MAC_PROFILE_VERIFY_20260916.A2 state=pass action="Align required Mac core plugin settings" evidence=E_MAC_PROFILE_CORE
+/accept id=MAC_PROFILE_VERIFY_20260916.A3 state=pass action="Verify Restricted Mode is disabled for community plugin execution" evidence=E_MAC_PLUGIN_DEVICE
+/accept id=MAC_PROFILE_VERIFY_20260916.A4 state=pass action="Verify five community plugins are installed in the Mac profile" evidence=E_MAC_PLUGIN_AUDIT
+/accept id=MAC_PROFILE_VERIFY_20260916.A5 state=pass action="Preserve plugin installation outside scope" evidence=E_MAC_PREFLIGHT_SCOPE
+/accept id=MAC_PROFILE_VERIFY_20260916.A6 state=pass action="Verify community plugin function checks pass" evidence=E_MAC_PLUGIN_DEVICE
+/accept id=MAC_PROFILE_VERIFY_20260916.A7 state=pass action="Verify container diagnostics accept the profile-level manifest" evidence=E_MAC_PLUGIN_AUDIT
+/accept id=MAC_PROFILE_VERIFY_20260916.A8 state=pass action="Run canonical source blueprint schema container test and lint gates" evidence=E_MAC_PLUGIN_GATES
+/accept id=MAC_PROFILE_VERIFY_20260916.A9 state=pass action="Validate state and both Git-root diff checks" evidence=E_MAC_PLUGIN_STATIC
+/accept id=MAC_PREFLIGHT_20260916.A1 state=pass action="Confirm C01-C17 portable core and C17 bridge boundary" evidence=E_MAC_READINESS_CORE
+/accept id=MAC_PREFLIGHT_20260916.A2 state=pass action="Run canonical source blueprint schema and container gates" evidence=E_MAC_PREFLIGHT_GATES
+/accept id=MAC_PREFLIGHT_20260916.A2_TEST state=pass action="Run current container test suite" evidence=E_MAC_PREFLIGHT_TEST
+/accept id=MAC_PREFLIGHT_20260916.A2_LINT state=pass action="Run current container lint suite" evidence=E_MAC_PREFLIGHT_LINT
+/accept id=MAC_PREFLIGHT_20260916.A3 state=pass action="Verify D01 sentinel branch and remote binding" evidence=E_MAC_PREFLIGHT_D01
+/accept id=MAC_PREFLIGHT_20260916.A4 state=pass action="Determine Mac profile and five-plugin installation state" evidence=E_MAC_PREFLIGHT_PLUGIN_RECORD
+/accept id=MAC_PREFLIGHT_20260916.A5 state=pass action="Confirm D02 completion and define the D03 stop boundary" evidence=E_MAC_PREFLIGHT_SEQUENCE
+/accept id=MAC_PREFLIGHT_20260916.A6 state=pass action="Preserve user plugin installation and app mutations outside scope" evidence=E_MAC_PREFLIGHT_SCOPE
+/accept id=MAC_PREFLIGHT_20260916.A7 state=pass action="Validate project state and both Git-root diff checks" evidence=E_MAC_PREFLIGHT_STATIC
+/accept id=D07.A1 state=pass action="Verify Mac profile and core plugins" evidence=E_MAC_PROFILE_CORE
+/accept id=D07.A2 state=pass action="Verify five baseline community plugins are installed" evidence=E_MAC_PLUGIN_AUDIT
+/accept id=D07.A3 state=pass action="Verify five baseline community plugins function on Mac" evidence=E_MAC_PLUGIN_DEVICE
+/accept id=D07.A4 state=pass action="Verify diagnostics and canonical gates accept the Mac profile" evidence=E_MAC_PLUGIN_GATES
+/accept id=D07.A5 state=pass action="Validate D07 state and both Git-root diff checks" evidence=E_MAC_PLUGIN_STATIC
 /evidence id=E_STATE_AUDIT_LIVE class=semantic result=pass source="docs/IMPLEMENTATION_STATUS.md; docs/IMPLEMENTATION_PLAN.md; slice-presence" observed="Match live C14-C17 implementation paths and absent C18 proposal artifacts to the documented lane"
 /evidence id=E_STATE_AUDIT_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify" observed="Run source foundation contract artifact and container gates with all passing"
 /evidence id=E_STATE_AUDIT_TEST class=runtime result=pass source="make test; make lint" observed="Run 158 tests and lint checks with all passing"
@@ -157,10 +199,53 @@
 /evidence id=E_STATE_VALIDATOR_C17 class=static result=not_run source="scripts/validate_state.py" observed="Record absent validator path during C17 handoff"
 /evidence id=E_INVENTORY_C17 class=static result=pass source="git-status-and-find" observed="Inventory control and Vault roots with dirty sets ignored paths empty namespaces and runtime boundaries"
 /evidence id=E_DIFF_C17 class=static result=pass source="git diff --check" observed="Verify control and Vault roots after C17 bridge implementation"
+/evidence id=E_C18_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check" observed="Generate and zero-diff verify C18 redaction action prompt and job proposal receipt triage-result artifacts"
+/evidence id=E_C18_TRIAGE class=runtime result=pass source="ops/tests/test_c18_triage.py; vaultctl ai triage" observed="Verify deterministic typed read-only triage and fail-closed source privacy digest and daily-fragment gates without a provider call or mutation"
+/evidence id=E_C18_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run C18 source foundation blueprint artifact container test and lint gates with all passing"
+/evidence id=E_C18_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; find" observed="Validate state grammar control and Vault whitespace and inventory durable runtime plus bridge namespaces"
+/evidence id=E_C19_REVIEW class=runtime result=pass source="ops/tests/test_c19_proposals.py; vaultctl ai review" observed="Inspect pending proposals deterministically and preserve control Vault and runtime bytes"
+/evidence id=E_C19_APPROVAL class=artifact result=pass source="ops/tests/test_c19_proposals.py; runtime/approved" observed="Create one create-only approval artifact whose binding covers the exact proposal source target policy schema and current Vault tree digests"
+/evidence id=E_C19_DECISION class=runtime result=pass source="ops/tests/test_c19_proposals.py; vaultctl ai reject" observed="Reject a pending proposal into 01_AI_Review/Rejected and emit a replay-safe decision receipt without applying its target"
+/evidence id=E_C19_APPLY class=runtime result=pass source="ops/tests/test_c19_proposals.py; runtime/runs; runtime/receipts" observed="Apply a guarded create mutation through a hash-chained journal close the proposal in 01_AI_Review/Resolved and return NO_OP on replay"
+/evidence id=E_C19_FAIL_CLOSED class=runtime result=pass source="ops/tests/test_c19_proposals.py; ops/src/vaultops/proposals.py" observed="Reject stale approval malformed manifest and privacy-denied source state before unrelated target mutation"
+/evidence id=E_C19_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c19_proposals.py" observed="Route review approve reject and apply through the provider-free vaultctl ai command surface"
+/evidence id=E_C19_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check" observed="Generate and zero-diff verify C19 approval decision and apply-receipt schemas under explicit ownership"
+/evidence id=E_C19_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run all canonical C19 source foundation blueprint artifact container test and lint gates with all passing"
+/evidence id=E_C19_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar both Git roots whitespace and control Vault runtime bridge ignored and empty namespace boundaries"
 /evidence id=E_ARTIFACT class=artifact result=pass source="make schema-check" observed="Verify portable-core generated artifacts byte comparison and classify future artifacts as not applicable"
-/evidence id=E_DEPLOYMENT class=deployment result=not_run source="none" observed="Defer D02-D10 deployment overlay verification"
+/evidence id=E_DEPLOYMENT class=deployment result=pass source="vaultctl configure --dry-run; vaultctl doctor; vaultctl plugins audit; vaultctl git status" observed="Verify D01 through D07 MacBook deployment baseline while deferring mobile and provider overlays"
 /evidence id=E_EXTERNAL class=external_service result=not_run source="none" observed="Defer external service verification"
 /evidence id=E_DEVICE class=device result=not_run source="none" observed="Defer device verification"
+/evidence id=E_MAC_READINESS_CORE class=semantic result=pass source="docs/IMPLEMENTATION_STATUS.md; docs/IMPLEMENTATION_PLAN.md; ops/tests/test_c17_bridge_publish.py; ops/src/vaultops/bridge_publish.py" observed="Confirm C01-C17 core and provider-free C17 bridge while C18 proposal artifacts remain absent"
+/evidence id=E_MAC_PREFLIGHT_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify" observed="Run source foundation blueprint schema artifact and container gates with all passing"
+/evidence id=E_MAC_PREFLIGHT_TEST class=runtime result=pass source="make test" observed="Run 158 tests on Python 3.12.8 with all passing"
+/evidence id=E_MAC_PREFLIGHT_LINT class=static result=pass source="make lint" observed="Run Ruff checks with all checks passing"
+/evidence id=E_MAC_PREFLIGHT_D01 class=deployment result=pass source="vaultctl configure --dry-run; vaultctl doctor; vaultctl git status" observed="Verify existing root sentinel remote fingerprint main branch tracking ref and clean control Git"
+/evidence id=E_MAC_PREFLIGHT_PLUGINS class=deployment result=pass source="vaultctl plugins audit --profile mac; live path inventory" observed="Report configured Mac profile with no community plugin manifest and five baseline plugin entries inactive"
+/evidence id=E_MAC_PREFLIGHT_PLUGIN_RECORD class=deployment result=pass source="vaultctl plugins audit --profile mac; blueprint/blueprint.yaml" observed="Record the expected five-plugin Mac baseline and the current configured pre-install state"
+/evidence id=E_MAC_PROFILE_CONFIG class=deployment result=pass source="KnowledgeHub/.obsidian-mac/app.json; KnowledgeHub/.obsidian-mac/appearance.json; KnowledgeHub/.obsidian-mac/core-plugins.json; KnowledgeHub/.obsidian-mac/workspace.json" observed="Confirm Obsidian-generated Mac profile files with Home as the active workspace"
+/evidence id=E_MAC_PROFILE_CORE class=deployment result=pass source="KnowledgeHub/.obsidian-mac/core-plugins.json; blueprint/blueprint.yaml" observed="Confirm Properties and Workspaces core plugins enabled in the Mac profile"
+/evidence id=E_MAC_RESTRICTED_MODE class=device result=pass source=user_report observed="Confirm Restricted Mode is disabled for community plugin execution"
+/evidence id=E_MAC_PROFILE_DOCTOR_GAP class=deployment result=pass source="vaultctl doctor --root /workspace/control" observed="Report plugin audit PASS while provider and device overlays remain inactive"
+/evidence id=E_MAC_PLUGIN_DEVICE class=device result=pass source=user_report observed="Confirm five community plugin installations and function checks"
+/evidence id=E_MAC_PLUGIN_AUDIT class=runtime result=pass source="vaultctl plugins audit --profile mac --root /workspace/control" observed="Report five installed community plugins with no errors and no unexpected plugins"
+/evidence id=E_MAC_PLUGIN_DOCTOR class=runtime result=pass source="vaultctl doctor --root /workspace/control" observed="Report overall doctor PASS and plugin audit PASS"
+/evidence id=E_MAC_PLUGIN_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify" observed="Run source blueprint schema and container gates with all passing"
+/evidence id=E_MAC_PLUGIN_TEST class=runtime result=pass source="make test" observed="Run 160 tests with all passing after manifest parser correction"
+/evidence id=E_MAC_PLUGIN_LINT class=static result=pass source="make lint" observed="Run Ruff checks with all checks passing after manifest parser correction"
+/evidence id=E_MAC_PLUGIN_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate state grammar and both Git-root diff checks"
+/evidence id=E_MAC_PREFLIGHT_CORE_SURFACE class=static result=pass source="KnowledgeHub/.obsidian; KnowledgeHub/Home.md; KnowledgeHub/Mobile.md; KnowledgeHub/99_System" observed="Confirm ignored generic Obsidian baseline 16 templates 7 Bases 2 dashboards and plugin-free Markdown fallbacks"
+/evidence id=E_MAC_PREFLIGHT_SEQUENCE class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml; ops/src/vaultops/diagnostics.py" observed="Set D03 QuickAdd as the next execution after required Mac core plugin alignment with five separate D03-D07 install gates"
+/evidence id=E_MAC_PREFLIGHT_APP class=device result=blocked source="cua.getApp Obsidian" observed="Block live Obsidian window inspection because computer-use permission was unavailable"
+/evidence id=E_MAC_PREFLIGHT_SCOPE class=static result=pass source="AGENTS.md; docs/OPERATIONS.md; blueprint/blueprint.yaml" observed="Keep plugin installation app changes device actions and external effects outside this audit"
+/evidence id=E_MAC_PREFLIGHT_INVENTORY class=static result=pass source="git status; git -C KnowledgeHub status; git check-ignore; find" observed="Confirm configured Mac profile files and two pre-existing Vault edits with ignored workspace state and empty runtime and bridge event namespaces"
+/evidence id=E_MAC_PREFLIGHT_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check" observed="Validate updated state grammar and whitespace in both Git roots"
+/evidence id=E_MACBOOK_BOUNDARY class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md" observed="Define C23 as interactive MacBook completion C24 as optional core reliability and D07 as Mac deployment completion with no E prerequisite"
+/evidence id=E_MACBOOK_MOBILE_SCOPE class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; docs/MOBILE.md" observed="Exclude D08 and D09 mobile transport from the MacBook baseline"
+/evidence id=E_MACBOOK_OPTIONAL_SCOPE class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md" observed="Keep E01 through E05 optional for the MacBook baseline"
+/evidence id=E_MACBOOK_STATE class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md" observed="Validate updated MacBook boundary records and state protocol"
+/evidence id=E_MACBOOK_FOUNDATION class=static result=pass source="make source-check; make verify" observed="Verify source checksums and foundation boundaries after MacBook status update"
+/evidence id=E_MACBOOK_DIFF class=static result=pass source="git diff --check; git -C KnowledgeHub diff --check" observed="Validate changed-root whitespace after MacBook status update"
 /decision id=D01 state=accepted action="Keep control KnowledgeHub runtime boundaries" source="blueprint/blueprint.yaml"
 /decision id=D02 state=accepted action="Resolve conflicts in Blueprint order" source="docs/SOURCE_CONTRACT.md"
 /decision id=D03 state=accepted action="Use container first canonical evidence" source="ops/compose.yaml"
@@ -189,6 +274,10 @@
 /decision id=D26 state=accepted action="Commit only exact bridge response paths in the Vault root" source="ops/src/vaultops/bridge_publish.py"
 /decision id=D27 state=accepted action="Use lane local C D and E session labels" source="docs/IMPLEMENTATION_PLAN.md"
 /decision id=D28 state=accepted action="Treat legacy Git history numbers as provenance only" source="docs/IMPLEMENTATION_PLAN.md"
+/decision id=D29 state=accepted action="Complete D02 Mac profile verification before D03 plugin installation" source="docs/IMPLEMENTATION_PLAN.md"
+/decision id=D30 state=accepted action="Set MacBook interactive completion at C23 and deployment completion at D07" source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md"
+/decision id=D31 state=accepted action="Keep C24 as optional MacBook core reliability and E01 through E05 outside the baseline" source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md"
+/decision id=D32 state=accepted action="Keep C19 proposal decisions provider free interactive only and bind apply to exact proposal source target policy schema and Vault digests" source="ops/src/vaultops/proposals.py; blueprint/blueprint.yaml"
 /scope id=X01 state=out action="Migrate project state documents and agent guidance"
 /scope id=X02 state=out action="Translate required human information at close"
 /scope id=X03 state=out action="Preserve active workflows pipelines and gates"
@@ -201,8 +290,16 @@
 /scope id=X10 state=out action="Implement C15 fsynced transaction recovery journal"
 /scope id=X11 state=out action="Implement C16 reconcile repair plan and receipt verification"
 /scope id=X12 state=out action="Implement C17 exact local bridge and Git publish transaction"
-/scope id=X13 state=in action="Implement C18 readonly proposal lane"
+/scope id=X13 state=out action="Implement C18 readonly proposal lane"
 /scope id=X14 state=out action="Relabel session sequence and references"
 /scope id=X15 state=out action="Verify local implementation and status records"
+/scope id=X16 state=out action="Prepare D02 Mac profile verification before plugin installation"
+/scope id=X17 state=out action="Install or configure community plugins"
+/scope id=X18 state=in action="Complete MacBook interactive experience through C23 and deployment through D07"
+/scope id=X19 state=out action="Verify mobile transport and live mobile bridge round trip"
+/scope id=X20 state=out action="Activate optional E01 through E05 extensions"
+/scope id=X21 state=out action="Implement C19 provider-free proposal review approval rejection and apply closure"
+/blocker id=B_MAC_CORE_PROFILE state=resolved action="Enable Properties and Workspaces in the Mac profile before D03 installation" source="KnowledgeHub/.obsidian-mac/core-plugins.json; blueprint/blueprint.yaml"
+/blocker id=B_MAC_RESTRICTED_MODE state=resolved action="Verify Restricted Mode is disabled in Obsidian before D03 installation" source=user_report
 /blocker id=B_MISE state=resolved action="Use system Python validator fallback" source="python3"
-/handoff state=ready action="Start C18 after audited C01-C17 and verified D01 boundary"
+/handoff state=ready action="Start C20 remaining proposal actions facade routes and PRD traceability after C19 approval and apply closure"

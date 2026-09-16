@@ -35,7 +35,12 @@ def test_blueprint_required_vault_files_are_real_files() -> None:
 def test_retrospective_removed_placeholder_and_duplicate_surfaces() -> None:
     assert not (VAULT_ROOT / "00_Inbox/Imports").exists()
     assert not (VAULT_ROOT / "99_System/Bases/Ideas.base").exists()
-    for profile in (".obsidian-mac", ".obsidian-phone", ".obsidian-tablet"):
+    mac_profile = VAULT_ROOT / ".obsidian-mac"
+    if mac_profile.is_symlink():
+        raise AssertionError(".obsidian-mac must not be a symlink")
+    if mac_profile.exists():
+        assert mac_profile.is_dir()
+    for profile in (".obsidian-phone", ".obsidian-tablet"):
         assert not (VAULT_ROOT / profile).exists()
 
 

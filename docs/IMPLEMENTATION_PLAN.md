@@ -55,5 +55,5 @@
 - `E04` — Activate each remote or unattended lane through a separate decision and authorization gate.
 - `E05` — Implement a thin Obsidian client only after `C23` proves repeated CLI friction.
 
-- Resume the core lane at `C18` after the completed `C17` boundary recorded in `PROJECT_STATE.md`.
+- Resume the core lane at `C20` after the completed `C19` boundary recorded in `PROJECT_STATE.md`.
 - Keep deployment and extension lanes inactive unless their own prerequisites and exact external-effect approvals are satisfied.

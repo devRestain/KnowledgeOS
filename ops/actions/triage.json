@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "action": "triage",
+  "input_types": [
+    "capture",
+    "daily"
+  ],
+  "output_schema": "ops/schemas/triage-result.schema.json",
+  "provider_execution": false,
+  "mutation_performed": false
+}

@@ -140,29 +140,29 @@ artifacts:
     first_capability: C06
   - path: ops/policies/redaction-patterns.yaml
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
-      - path: OBSIDIAN_VAULT_WHITEPAPER.md
-        selectors: [/]
-    generator: deferred_to_owner_session
+      - path: blueprint/blueprint.yaml
+        selectors: [/privacy]
+    generator: vaultops.schema_export:c18_redaction
     deployed_copy: false
     first_capability: C18
   - path: ops/actions/triage.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
-        selectors: [/actions]
-    generator: deferred_to_owner_session
+        selectors: [/actions, /llm/triage]
+    generator: vaultops.schema_export:c18_triage_action
     deployed_copy: false
     first_capability: C18
   - path: ops/actions/draft-note.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
-        selectors: [/actions]
-    generator: deferred_to_owner_session
+        selectors: [/actions, /llm/draft_note]
+    generator: vaultops.schema_export:c18_draft_action
     deployed_copy: false
     first_capability: C18
   - path: ops/actions/summarize.json
@@ -203,20 +203,20 @@ artifacts:
     first_capability: C20
   - path: ops/prompts/system.md
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
-      - path: OBSIDIAN_VAULT_WHITEPAPER.md
-        selectors: [/]
-    generator: deferred_to_owner_session
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm, /privacy]
+    generator: vaultops.schema_export:c18_system_prompt
     deployed_copy: false
     first_capability: C18
   - path: ops/prompts/triage.md
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
-      - path: OBSIDIAN_VAULT_WHITEPAPER.md
-        selectors: [/]
-    generator: deferred_to_owner_session
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/triage]
+    generator: vaultops.schema_export:c18_triage_prompt
     deployed_copy: false
     first_capability: C18
   - path: ops/prompts/draft-note.md
@@ -266,40 +266,67 @@ artifacts:
     first_capability: C20
   - path: ops/schemas/job.schema.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/llm, /privacy]
-    generator: deferred_to_owner_session
+    generator: vaultops.schema_export:c18_job_schema
     deployed_copy: false
     first_capability: C18
   - path: ops/schemas/proposal.schema.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/llm, /privacy]
-    generator: deferred_to_owner_session
+    generator: vaultops.schema_export:c18_proposal_schema
     deployed_copy: false
     first_capability: C18
   - path: ops/schemas/receipt.schema.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/llm, /privacy]
-    generator: deferred_to_owner_session
+    generator: vaultops.schema_export:c18_receipt_schema
     deployed_copy: false
     first_capability: C18
   - path: ops/schemas/triage-result.schema.json
     owner: C18
-    status: NOT_APPLICABLE_FOR_PROFILE
+    status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
         selectors: [/llm]
-    generator: deferred_to_owner_session
+    generator: vaultops.schema_export:c18_triage_result_schema
     deployed_copy: false
     first_capability: C18
+  - path: ops/schemas/approval.schema.json
+    owner: C19
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/approval_binds, /note_types/proposal]
+    generator: vaultops.schema_export:c19_approval_schema
+    deployed_copy: false
+    first_capability: C19
+  - path: ops/schemas/decision.schema.json
+    owner: C19
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/approval_binds, /note_types/proposal]
+    generator: vaultops.schema_export:c19_decision_schema
+    deployed_copy: false
+    first_capability: C19
+  - path: ops/schemas/apply-receipt.schema.json
+    owner: C19
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/approval_binds, /note_types/proposal]
+    generator: vaultops.schema_export:c19_apply_receipt_schema
+    deployed_copy: false
+    first_capability: C19
   - path: ops/schemas/note-record.schema.json
     owner: C21
     status: NOT_APPLICABLE_FOR_PROFILE

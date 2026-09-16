@@ -101,15 +101,19 @@ def _strict_json_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _read_json_object(path: Path) -> dict[str, Any]:
+def _read_json_value(path: Path) -> Any:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_strict_json_object_pairs)
+        return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_strict_json_object_pairs)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         raise DiagnosticError(
             "DIAGNOSTIC_JSON_INVALID",
             f"invalid JSON at {path.name}: {error}",
             exit_code=EXIT_CONFIG_INVALID,
         ) from error
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    value = _read_json_value(path)
     if not isinstance(value, dict):
         raise DiagnosticError(
             "DIAGNOSTIC_JSON_ROOT_INVALID",
@@ -117,6 +121,35 @@ def _read_json_object(path: Path) -> dict[str, Any]:
             exit_code=EXIT_CONFIG_INVALID,
         )
     return value
+
+
+def _read_community_plugin_ids(path: Path) -> list[str]:
+    """Read Obsidian's profile-level community-plugins.json manifest.
+
+    Obsidian stores this manifest as a top-level JSON array of plugin IDs.
+    It is next to the profile's ``plugins/`` directory, not inside it.
+    """
+
+    value = _read_json_value(path)
+    if not isinstance(value, list):
+        raise DiagnosticError(
+            "PLUGIN_CONFIG_ROOT_INVALID",
+            f"community-plugins.json root must be an array of plugin IDs: {path.name}",
+            exit_code=EXIT_CONFIG_INVALID,
+        )
+    if not all(isinstance(item, str) and item for item in value):
+        raise DiagnosticError(
+            "PLUGIN_CONFIG_INVALID",
+            f"community-plugins.json must contain only non-empty string IDs: {path.name}",
+            exit_code=EXIT_CONFIG_INVALID,
+        )
+    if len(set(value)) != len(value):
+        raise DiagnosticError(
+            "PLUGIN_CONFIG_INVALID",
+            f"community-plugins.json must not contain duplicate plugin IDs: {path.name}",
+            exit_code=EXIT_CONFIG_INVALID,
+        )
+    return sorted(value)
 
 
 def discover_project_roots(root: str | Path) -> ProjectRoots:
@@ -343,14 +376,9 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
     installed: list[str] = []
     if community_path.exists():
         try:
-            community = _read_json_object(community_path)
+            installed = _read_community_plugin_ids(community_path)
         except DiagnosticError as error:
-            errors.append(_issue(error.code, "/plugins/community-plugins.json", str(error)))
-        else:
-            if not isinstance(community.get("plugins"), list) or not all(isinstance(item, str) for item in community["plugins"]):
-                errors.append(_issue("PLUGIN_CONFIG_INVALID", "/plugins/community-plugins.json", "plugins must be a list of string IDs"))
-            else:
-                installed = sorted(community["plugins"])
+            errors.append(_issue(error.code, "/community-plugins.json", str(error)))
     result_plugins = []
     for item in expected:
         result_plugins.append({**item, "state": "installed" if item["id"] in installed else "inactive"})
