@@ -372,3 +372,30 @@ artifacts:
     generator: vaultops.schema_export:c21_answer_schema
     deployed_copy: false
     first_capability: C21
+  - path: ops/config/background.yaml
+    owner: C24
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/automation_lanes, /bridge/detection, /commands]
+    generator: vaultops.schema_export:c24_background_config
+    deployed_copy: false
+    first_capability: C24
+  - path: ops/schemas/worker-report.schema.json
+    owner: C24
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/automation_lanes, /bridge/detection, /commands]
+    generator: vaultops.schema_export:c24_worker_report_schema
+    deployed_copy: false
+    first_capability: C24
+  - path: ops/launchd/com.knowledgeos.vaultops.plist
+    owner: C24
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/automation_lanes, /bridge/detection, /commands]
+    generator: vaultops.schema_export:c24_launchd_plist
+    deployed_copy: false
+    first_capability: C24

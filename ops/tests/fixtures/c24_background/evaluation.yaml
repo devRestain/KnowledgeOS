@@ -1,0 +1,7 @@
+schema_version: 1
+contract_id: knowledgeos-c24-background-evaluation-v1
+cases:
+  - id: synthetic-wake-replay
+    wake_id: synthetic-wake
+    expected:
+      synthetic_wake: true

@@ -1,0 +1,42 @@
+schema_version: 1
+contract_id: knowledgeos-background-v1
+capability: C24
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /automation_lanes
+  - /bridge/detection
+  - /commands
+  sha256: a7d51a38589c4815ac4e99817d3fe9897b0277afdee5f26db74ec9b47960e759
+activation:
+  enabled_by_default: false
+  launchd_active: false
+  installation: deferred_to_E03
+  explicit_authorization_required: true
+worker:
+  command:
+  - vaultctl
+  - ai
+  - worker
+  - --once
+  declared_command: true
+  request_namespace: .vault-bridge/requests/YYYY/MM/JOB_ID.json
+  detection_baseline: manual_sync_then_vaultctl_bridge_ingest
+  scheduled_reconcile_scans_local_committed_head: true
+  performs_git_network_io: false
+  runtime_write_scope:
+  - awaiting_remote_authorization
+  - queue
+  - review
+  - runs
+  - receipts
+  provider_called: false
+  vault_mutated: false
+  git_network_called: false
+  recovery_action: reconcile_local_transaction_journals_without_apply
+launchd:
+  label: com.knowledgeos.vaultops
+  run_at_load: false
+  start_interval_seconds: 300
+  throttle_interval_seconds: 60
+  rollback: bootout_the_exact_label_and_remove_the_installed_plist

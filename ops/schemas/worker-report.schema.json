@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/worker-report.schema.json",
+  "title": "KnowledgeOS C24 worker report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "operation",
+    "capability",
+    "mode",
+    "wake",
+    "requests",
+    "recovery",
+    "provider_called",
+    "vault_mutated",
+    "git_network_called",
+    "mutation_performed",
+    "runtime_mutation_performed",
+    "activation"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "REPAIR_REQUIRED",
+        "CONFLICT",
+        "FAIL"
+      ]
+    },
+    "operation": {
+      "const": "ai worker"
+    },
+    "capability": {
+      "const": "C24"
+    },
+    "mode": {
+      "enum": [
+        "once",
+        "watch"
+      ]
+    },
+    "wake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "synthetic"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "invocation",
+            "synthetic"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "synthetic": {
+          "type": "boolean"
+        }
+      }
+    },
+    "requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "status",
+          "state"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "queue_write": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "EXISTING"
+            ]
+          },
+          "job_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "errors": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "request_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "wake_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "wake_reports": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "recovery": {
+      "type": "object"
+    },
+    "recovery_status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_called": {
+      "const": false
+    },
+    "vault_mutated": {
+      "const": false
+    },
+    "git_network_called": {
+      "const": false
+    },
+    "mutation_performed": {
+      "const": false
+    },
+    "runtime_mutation_performed": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "launchd_active",
+        "installation"
+      ],
+      "properties": {
+        "launchd_active": {
+          "const": false
+        },
+        "installation": {
+          "const": "deferred_to_E03"
+        },
+        "worker_invocation": {
+          "const": "explicit_local_pass"
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

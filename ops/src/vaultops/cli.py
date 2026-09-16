@@ -12,6 +12,8 @@ from pathlib import Path
 from . import __version__
 from .answer import answer_from_capture, ask
 from .answer import evaluate_frozen_baseline as evaluate_answer_frozen_baseline
+from .background import evaluate_frozen_baseline as evaluate_background_frozen_baseline
+from .background import launchd_install, run_worker
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
 from .bridge_publish import bridge_status, ingest_bridge_request, publish_bridge_response
@@ -360,6 +362,22 @@ def build_parser() -> argparse.ArgumentParser:
             help="resolve one provider-free user action into a read-only dispatch plan",
         )
         facade.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_worker = ai_commands.add_parser(
+        "worker",
+        help="run one provider-free background wake pass or an explicit local watch",
+    )
+    worker_mode = ai_worker.add_mutually_exclusive_group()
+    worker_mode.add_argument("--once", dest="once", action="store_true", default=True)
+    worker_mode.add_argument("--watch", dest="once", action="store_false")
+    ai_worker.add_argument("--max-cycles", type=int, default=None)
+    ai_worker.add_argument("--wake-id", default=None)
+    ai_worker.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="inspect requests and recovery without creating queue manifests",
+    )
+    ai_worker.add_argument("--evaluation-file", type=Path, default=None)
+    ai_worker.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -473,6 +491,22 @@ def build_parser() -> argparse.ArgumentParser:
     bridge_publish_command.add_argument("--response-file", "--response", dest="response_file", type=Path, required=True)
     bridge_publish_command.add_argument("--proposal-file", dest="proposal_file", type=Path, default=None)
     bridge_publish_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    launchd = commands.add_parser(
+        "launchd",
+        help="preview the inactive C24 LaunchAgent artifact",
+    )
+    launchd_commands = launchd.add_subparsers(dest="launchd_command", required=True)
+    launchd_install_command = launchd_commands.add_parser(
+        "install",
+        help="preview E03 installation; C24 refuses activation",
+    )
+    launchd_install_command.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview without activation",
+    )
+    launchd_install_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
@@ -673,6 +707,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         report, exit_code = plugins_audit_report(args.root or _control_root(), args.profile)
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
+    if args.command == "launchd" and args.launchd_command == "install":
+        report, exit_code = launchd_install(
+            args.root or _control_root(),
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "foundation":
         root = args.root or _control_root()
         if args.foundation_command == "source-check":
@@ -808,6 +849,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                     hops=args.hops,
                     expected_generation_id=args.expected_generation_id,
                 )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "worker":
+        root = args.root or _control_root()
+        if args.evaluation_file is not None:
+            report, exit_code = evaluate_background_frozen_baseline(
+                root,
+                baseline_path=args.evaluation_file,
+            )
+        else:
+            report, exit_code = run_worker(
+                root,
+                once=args.once,
+                max_cycles=args.max_cycles,
+                wake_id=args.wake_id,
+                dry_run=args.dry_run,
+            )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "review":

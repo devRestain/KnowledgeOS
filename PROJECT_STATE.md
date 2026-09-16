@@ -1,12 +1,12 @@
 /state version=1
 /project id=knowledgeos
-/status value=planned
-/checkpoint revision=584ac1d6c78262b3eaa07ca81fd300704f439be2 dirty=true updated=2026-09-17T00:38:17+09:00
+/status value=complete
+/checkpoint revision=584ac1d6c78262b3eaa07ca81fd300704f439be2 dirty=true updated=2026-09-17T01:08:04+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
 /goal phase=history id=C23 state=complete action="Implement cited answers and the full provider-free guestbook-horror flow"
-/goal phase=current id=C24 state=planned action="Render background artifacts and verify synthetic wake and recovery behavior"
+/goal phase=current id=C24 state=complete action="Render background artifacts and verify synthetic wake and recovery behavior"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -380,4 +380,22 @@
 /evidence id=E_C23_EVAL class=runtime result=pass source="ops/tests/fixtures/c23_answers/evaluation.yaml; ops/src/vaultops/answer.py; ops/tests/test_c23_answer.py" observed="Pass the frozen C23 cited-return-reason and cited-play-loop baseline cases against one immutable generation"
 /evidence id=E_C23_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C23 source foundation Blueprint artifact container regression and lint gates with 193 tests and Ruff passing"
 /evidence id=E_C23_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar and inventory control dirty paths Vault clean state ignored profiles empty runtime and bridge namespaces"
-/handoff state=ready action="Start C24 background artifacts and synthetic wake and recovery verification"
+/decision id=D38 state=accepted action="Keep C24 worker activation provider calls Vault mutation and Git network effects inactive until separately authorized E03 or another explicit overlay" source="ops/src/vaultops/background.py; ops/config/background.yaml; ops/launchd/com.knowledgeos.vaultops.plist"
+/scope id=X26 state=out action="Implement C24 background artifacts synthetic wake recovery observation and inactive LaunchAgent preview"
+/accept id=C24.A1 state=pass action="Render deterministic C24 background configuration worker report schema and inactive LaunchAgent artifacts under explicit ownership" evidence=E_C24_ARTIFACT
+/accept id=C24.A2 state=pass action="Run one provider free wake pass over committed bridge requests and create idempotent runtime queue manifests" evidence=E_C24_WORKER
+/accept id=C24.A3 state=pass action="Replay committed requests as NO_OP while preserving Vault Git head and worktree state" evidence=E_C24_REPLAY
+/accept id=C24.A4 state=pass action="Observe repairable and conflicting transaction journals without applying or mutating canonical Vault content" evidence=E_C24_RECOVERY
+/accept id=C24.A5 state=pass action="Evaluate synthetic wake replay recovery stability and the frozen C24 baseline" evidence=E_C24_EVAL
+/accept id=C24.A6 state=pass action="Expose provider free worker and LaunchAgent preview CLI boundaries" evidence=E_C24_CLI
+/accept id=C24.A7 state=pass action="Run canonical C24 source foundation Blueprint schema container test and lint gates" evidence=E_C24_GATES
+/accept id=C24.A8 state=pass action="Validate C24 state both Git roots whitespace ignored paths empty namespaces and deferred handoff" evidence=E_C24_STATIC
+/evidence id=E_C24_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check; ops/config/generated-artifacts.yaml; ops/config/background.yaml; ops/schemas/worker-report.schema.json; ops/launchd/com.knowledgeos.vaultops.plist" observed="Render and verify deterministic C24 background artifacts under explicit ownership"
+/evidence id=E_C24_WORKER class=runtime result=pass source="ops/src/vaultops/background.py; ops/tests/test_c24_background.py" observed="Run a provider free one-shot worker over a committed bridge request and create one idempotent private runtime queue manifest"
+/evidence id=E_C24_REPLAY class=runtime result=pass source="ops/src/vaultops/bridge_publish.py; ops/tests/test_c24_background.py" observed="Replay the same committed request as NO_OP while preserving Vault bytes HEAD and clean worktree state"
+/evidence id=E_C24_RECOVERY class=runtime result=pass source="ops/src/vaultops/reconcile.py; ops/src/vaultops/background.py; ops/tests/test_c24_background.py" observed="Report repairable and conflict recovery journal states without applying a repair plan or mutating Vault files"
+/evidence id=E_C24_EVAL class=runtime result=pass source="ops/tests/fixtures/c24_background/evaluation.yaml; ops/src/vaultops/background.py; ops/tests/test_c24_background.py" observed="Pass the synthetic wake replay recovery stability and frozen baseline evaluation"
+/evidence id=E_C24_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c24_background.py" observed="Expose vaultctl ai worker evaluation and vaultctl launchd install preview while leaving activation deferred"
+/evidence id=E_C24_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C24 source foundation Blueprint artifact container regression and lint gates with 199 tests and Ruff passing"
+/evidence id=E_C24_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate C24 state grammar both Git roots whitespace ignored paths empty namespaces and a ready deferred handoff"
+/handoff state=ready action="Keep C24 complete and defer LaunchAgent activation and optional remote or provider overlays until separately authorized"

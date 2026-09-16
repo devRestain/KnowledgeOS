@@ -3,9 +3,10 @@
 The cumulative ``portable_core`` profile now includes the C10 control-side
 bridge and root-sentinel schemas.  Their first capability remains recorded as
 ``C10`` so the ownership manifest preserves the implementation boundary.
-C20 action registries and prompts are now owned deterministic artifacts, and
-C21 projection schemas are generated from the projection contract before a
-runtime generation is published.
+C20 action registries and prompts are now owned deterministic artifacts, C21
+projection schemas are generated from the projection contract before a
+runtime generation is published, and C24 background artifacts remain
+install-time and inactive by default.
 """
 
 from __future__ import annotations
@@ -24,6 +25,14 @@ from typing import Any
 import yaml
 from yaml import YAMLError
 
+from .background import (
+    BACKGROUND_CONFIG_PATH,
+    LAUNCHD_ARTIFACT_PATH,
+    WORKER_REPORT_SCHEMA_PATH,
+    background_config_document,
+    launchd_plist_bytes,
+    worker_report_schema,
+)
 from .blueprint import validate_blueprint
 from .bridge_contract import (
     BRIDGE_REQUEST_SCHEMA_PATH,
@@ -261,6 +270,30 @@ OWNED_ARTIFACTS = (
         deployed_copy=False,
         owner="C21",
         first_capability="C21",
+    ),
+    _owned(
+        BACKGROUND_CONFIG_PATH,
+        "c24_background_config",
+        ("/automation_lanes", "/bridge/detection", "/commands"),
+        deployed_copy=False,
+        owner="C24",
+        first_capability="C24",
+    ),
+    _owned(
+        WORKER_REPORT_SCHEMA_PATH,
+        "c24_worker_report_schema",
+        ("/automation_lanes", "/bridge/detection", "/commands"),
+        deployed_copy=False,
+        owner="C24",
+        first_capability="C24",
+    ),
+    _owned(
+        LAUNCHD_ARTIFACT_PATH,
+        "c24_launchd_plist",
+        ("/automation_lanes", "/bridge/detection", "/commands"),
+        deployed_copy=False,
+        owner="C24",
+        first_capability="C24",
     ),
 )
 
@@ -603,6 +636,20 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         return schema_bytes(decision_schema())
     if spec.path == "ops/schemas/apply-receipt.schema.json":
         return schema_bytes(apply_receipt_schema())
+    if spec.path == BACKGROUND_CONFIG_PATH:
+        return _yaml_bytes(
+            background_config_document(
+                blueprint,
+                source_info=_source_info(workspace, spec),
+            )
+        )
+    if spec.path == WORKER_REPORT_SCHEMA_PATH:
+        return schema_bytes(worker_report_schema())
+    if spec.path == LAUNCHD_ARTIFACT_PATH:
+        return launchd_plist_bytes(
+            blueprint,
+            source_info=_source_info(workspace, spec),
+        )
 
     if spec.path.endswith("/properties.yaml"):
         envelope = _envelope(blueprint, spec, "property_policy", workspace)
