@@ -72,7 +72,7 @@ def test_phase1_smoke_materializer_includes_core_surface_without_obsidian_config
     assert not any(path.name.startswith(".vault-bridge") for path in vault.iterdir())
 
 
-def test_s06_surface_remains_blueprint_exact_inside_the_s07_gate() -> None:
+def test_c08_surface_remains_blueprint_exact_inside_the_c09_gate() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected_bases = render_base_documents(blueprint)
     for relative, expected in expected_bases.items():

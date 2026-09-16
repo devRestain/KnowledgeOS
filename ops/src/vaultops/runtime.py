@@ -1,4 +1,4 @@
-"""Runtime directory contract used by the S01 harness."""
+"""Runtime directory contract used by the C01 harness."""
 
 from __future__ import annotations
 

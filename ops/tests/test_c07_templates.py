@@ -88,7 +88,7 @@ def _path_for(spec_name: str) -> str:
     return paths[spec_name]
 
 
-def test_exact_s05_template_allowlist_is_present_and_no_placeholder_directories_exist() -> None:
+def test_exact_c07_template_allowlist_is_present_and_no_placeholder_directories_exist() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected = tuple(f"99_System/Templates/{name}" for name in blueprint["templates"]["required"])
     assert template_paths() == expected

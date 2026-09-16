@@ -10,6 +10,7 @@
 ## Project Structure
 
 - Read `PROJECT_STATE.md` as the sole machine-state source for goals, evidence, blockers, and handoff.
+- Ignore external memory, `MEMORY.md`, rollout summaries, and chats; use `PROJECT_STATE.md` and live evidence for state.
 - Resolve design conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md`.
 - Keep executable contracts in manifests, schemas, source, tests, and commands.
 - Treat `docs/*.md` as compact agent contract indexes, not authoritative state.
@@ -25,7 +26,7 @@
 
 ## Verification
 
-- Before implementation or resumed work, compare the last handoff with live state and rerun `make source-check` and `make verify`.
+- Read `PROJECT_STATE.md` before implementation or resumption; compare handoff with live state and rerun `make source-check` and `make verify`.
 - Run required container, blueprint, schema, test, and lint checks; run test and lint sequentially.
 - Validate `PROJECT_STATE.md` with `scripts/validate_state.py` after every write.
 - Separate static, semantic, runtime, artifact, deployment, external, and device evidence.

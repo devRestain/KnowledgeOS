@@ -29,9 +29,9 @@ def test_blueprint_status_reports_the_implemented_contract_profile(capsys) -> No
     assert main(["blueprint", "status"]) == 0
     output = capsys.readouterr().out
     assert "capability_profile=portable_core" in output
-    assert "implemented:S02" in output
-    assert "implemented:S03A-S03B" in output
-    assert "generated_zero_diff=implemented:S03C-S04" in output
+    assert "implemented:C02" in output
+    assert "implemented:C03-C04" in output
+    assert "generated_zero_diff=implemented:C05-C06" in output
 
 
 def test_help_is_a_real_package_entrypoint(capsys) -> None:
@@ -66,7 +66,7 @@ def test_blueprint_validate_reports_json_schema_pass_without_writing(capsys) -> 
     } == before
 
 
-def test_s05_cli_commands_expose_dry_run_and_create_only_workflows(tmp_path: Path, capsys) -> None:
+def test_c07_cli_commands_expose_dry_run_and_create_only_workflows(tmp_path: Path, capsys) -> None:
     control_root = _fresh_control_copy(tmp_path)
     root = str(control_root)
 

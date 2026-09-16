@@ -12,3 +12,11 @@
 - Fail apply when source, target, policy, or schema hashes change after approval.
 - Reconcile crash state through journals and receipts without silently changing canonical Markdown.
 - Preserve receipt, authorization, and recovery evidence; reset only with an explicit backup and retention gate.
+- Store local transaction journals at `runtime/runs/JOB_ID/journal.jsonl` as hash-chained append-only records.
+- Fsync the immutable intent and each state append before canonical Vault mutation; write completion receipts create-only under `runtime/receipts/`.
+- Resume only when job, operation, path, and pre/postcondition hashes match; quarantine malformed or ambiguous journals under `runtime/quarantine/transactions/`.
+- Keep repair plans canonical, digest-bound, and create-only under `runtime/`; require a fresh observation match before repair apply.
+- Keep `.vault-bridge` as tracked Vault transport and accept a request only from the expected committed branch with add-only request history and matching source blobs.
+- Keep bridge ingest manifests in `runtime/queue/`, outside the Vault commit; make the same job and digest idempotent and quarantine a changed digest.
+- Publish only the response event and, for `needs_review`, its proposal artifact in one exact-path local Vault commit; do not fetch, pull, push, or invoke a provider.
+- Fsync the bridge publish intent before creating outputs; resume only identical paths and bytes, then append completion and write the local receipt after commit.

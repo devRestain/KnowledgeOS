@@ -1,7 +1,7 @@
 <!-- GENERATED: BEGIN knowledgeos-property-dictionary -->
 # Property Dictionary
 
-이 파일은 Blueprint registry에서 생성된 S04 strict note contract의 검증된 사본이다.
+이 파일은 Blueprint registry에서 생성된 C06 strict note contract의 검증된 사본이다.
 
 - contract: `knowledgeos-blueprint-v2`
 - capability profile: `portable_core`

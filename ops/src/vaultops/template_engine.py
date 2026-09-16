@@ -1,4 +1,4 @@
-"""Deterministic, non-executing renderers for the S05 note templates.
+"""Deterministic, non-executing renderers for the C07 note templates.
 
 The files under ``KnowledgeHub/99_System/Templates`` are deliberately ordinary
 Markdown templates.  Templater may render the small user-facing subset later,

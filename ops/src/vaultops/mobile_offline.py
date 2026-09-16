@@ -1,6 +1,6 @@
 """Offline mobile Shortcut contracts and durable recovery outbox.
 
-S09 owns the device-local part of the mobile contract only.  This module does
+C11 owns the device-local part of the mobile contract only.  This module does
 not access Shortcuts, Working Copy, a device filesystem, a Git remote, or the
 production Vault.  It provides a small deterministic model that can be used by
 an eventual device adapter and by synthetic recovery fixtures.
@@ -238,7 +238,7 @@ def validate_asset(
     converted_size_bytes: int | None = None,
     placeholder: bool = False,
 ) -> GateResult:
-    """Apply the S09 mobile MIME and size policy without downloading data."""
+    """Apply the C11 mobile MIME and size policy without downloading data."""
 
     if not isinstance(size_bytes, int) or size_bytes < 0:
         return GateResult(False, "MOBILE_ASSET_SIZE_INVALID", "asset size must be a non-negative integer")
@@ -623,7 +623,7 @@ def validate_defer_source(
 
 
 def load_shortcut_contract(root: str | Path) -> Mapping[str, Any]:
-    """Load the exportable S09 catalog and verify its IDs against the Blueprint."""
+    """Load the exportable C11 catalog and verify its IDs against the Blueprint."""
 
     workspace = Path(root).resolve()
     blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")

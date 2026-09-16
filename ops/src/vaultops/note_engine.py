@@ -1,6 +1,6 @@
 """Strict, registry-driven Markdown note contracts for KnowledgeOS.
 
-S04 keeps the Markdown file as the source of truth while giving later proposal
+C06 keeps the Markdown file as the source of truth while giving later proposal
 and projection code one typed boundary.  The module intentionally has no
 implicit write-to-Vault behaviour: parsing and validation are read-only, and
 the writer only emits bytes after the caller has supplied a concrete path.

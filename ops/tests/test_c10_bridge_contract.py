@@ -28,7 +28,7 @@ from vaultops.bridge_contract import (
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/s08a_bridge_contract"
+FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/c10_bridge_contract"
 
 
 def _blueprint() -> dict[str, object]:

@@ -12,6 +12,7 @@ from pathlib import Path
 from . import __version__
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
+from .bridge_publish import bridge_status, ingest_bridge_request, publish_bridge_response
 from .configure import configure
 from .diagnostics import (
     EXIT_INPUT_INVALID,
@@ -23,6 +24,7 @@ from .diagnostics import (
 from .foundation import check_foundation, check_source_manifest
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
 from .schema_export import export_schema_artifacts
 from .transactions import archive_project, finalize_capture, import_asset
 from .workflows import create_period_note, create_project_bundle
@@ -43,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("version", help="print the vaultops version")
     bootstrap_command = commands.add_parser(
-        "bootstrap", help="add missing canonical directories and S05 templates"
+        "bootstrap", help="add missing canonical directories and C07 templates"
     )
     bootstrap_command.add_argument("--dry-run", action="store_true", help="plan without writing")
     bootstrap_command.add_argument("--root", type=Path, default=None, help="mounted control root")
@@ -196,6 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
     capture_finalize_command.add_argument("--outcome", choices=("triaged", "discarded"), required=True)
     capture_finalize_command.add_argument("--related", default=None, help="Vault-relative note path or wikilink")
     capture_finalize_command.add_argument("--modified-at", default=None, help="ISO datetime with timezone")
+    capture_finalize_command.add_argument("--job-id", default=None, help="UUIDv4 used to resume a prior transaction")
     capture_finalize_command.add_argument("--dry-run", action="store_true", help="plan without writing")
     capture_finalize_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
@@ -212,8 +215,57 @@ def build_parser() -> argparse.ArgumentParser:
         help="repeat once for every project bundle file",
     )
     project_archive.add_argument("--archive-year", type=int, default=None)
+    project_archive.add_argument("--job-id", default=None, help="UUIDv4 used to resume a prior transaction")
     project_archive.add_argument("--dry-run", action="store_true", help="plan without writing")
     project_archive.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    reconcile_command = commands.add_parser(
+        "reconcile", help="read-only inspection of durable local transaction journals"
+    )
+    reconcile_command.add_argument("--job-id", default=None, help="inspect one UUIDv4 transaction")
+    reconcile_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    repair = commands.add_parser("repair", help="explicitly plan or apply local transaction repairs")
+    repair_commands = repair.add_subparsers(dest="repair_command", required=True)
+    repair_plan_command = repair_commands.add_parser(
+        "plan", help="build a deterministic repair plan without changing Vault state"
+    )
+    repair_plan_command.add_argument("--job-id", default=None, help="limit the plan to one UUIDv4 transaction")
+    repair_plan_command.add_argument(
+        "--output", type=Path, default=None, help="optional create-only plan file directly under runtime"
+    )
+    repair_plan_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+    repair_apply_command = repair_commands.add_parser(
+        "apply", help="apply a still-current digest-bound repair plan"
+    )
+    repair_apply_command.add_argument("--plan", type=Path, required=True, help="canonical repair plan JSON")
+    repair_apply_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    receipts = commands.add_parser("receipts", help="verify immutable local transaction receipts")
+    receipts_commands = receipts.add_subparsers(dest="receipts_command", required=True)
+    receipts_verify_command = receipts_commands.add_parser("verify", help="verify journal-bound receipts")
+    receipts_verify_command.add_argument("--job-id", default=None, help="verify one UUIDv4 transaction receipt")
+    receipts_verify_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    bridge = commands.add_parser("bridge", help="validate and publish local bridge transport")
+    bridge_commands = bridge.add_subparsers(dest="bridge_command", required=True)
+    bridge_ingest_command = bridge_commands.add_parser(
+        "ingest", help="validate one committed bridge request without changing the Vault"
+    )
+    bridge_ingest_command.add_argument("--request", "--path", dest="request_path", type=Path, default=None)
+    bridge_ingest_command.add_argument("--job-id", default=None, help="limit ingest to one UUIDv4 request")
+    bridge_ingest_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+    bridge_status_command = bridge_commands.add_parser(
+        "status", help="list local bridge requests and responses without changing state"
+    )
+    bridge_status_command.add_argument("--job-id", default=None, help="limit status to one UUIDv4 job")
+    bridge_status_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+    bridge_publish_command = bridge_commands.add_parser(
+        "publish", help="create and commit one exact local response path set"
+    )
+    bridge_publish_command.add_argument("--response-file", "--response", dest="response_file", type=Path, required=True)
+    bridge_publish_command.add_argument("--proposal-file", dest="proposal_file", type=Path, default=None)
+    bridge_publish_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
@@ -341,6 +393,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             related=args.related,
             modified_at=args.modified_at,
             dry_run=args.dry_run,
+            job_id=args.job_id,
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
@@ -359,7 +412,46 @@ def main(argv: Sequence[str] | None = None) -> int:
             expected_hashes=expected_hashes,
             archive_year=args.archive_year,
             dry_run=args.dry_run,
+            job_id=args.job_id,
         )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "reconcile":
+        report, exit_code = reconcile_transactions(args.root or _control_root(), job_id=args.job_id)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "repair":
+        root = args.root or _control_root()
+        if args.repair_command == "plan":
+            report, exit_code = repair_plan(
+                root,
+                job_id=args.job_id,
+                output=args.output,
+            )
+        else:
+            report, exit_code = apply_repair_plan(root, plan_path=args.plan)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "receipts" and args.receipts_command == "verify":
+        report, exit_code = verify_receipts(args.root or _control_root(), job_id=args.job_id)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "bridge":
+        root = args.root or _control_root()
+        if args.bridge_command == "ingest":
+            report, exit_code = ingest_bridge_request(
+                root,
+                request_path=args.request_path,
+                job_id=args.job_id,
+            )
+        elif args.bridge_command == "status":
+            report, exit_code = bridge_status(root, job_id=args.job_id)
+        else:
+            report, exit_code = publish_bridge_response(
+                root,
+                response_file=args.response_file,
+                proposal_file=args.proposal_file,
+            )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "doctor":
@@ -394,9 +486,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "blueprint":
         if args.blueprint_command == "status":
             print("capability_profile=portable_core")
-            print("blueprint_json_schema=implemented:S02")
-            print("cross_document_validation=implemented:S03A-S03B")
-            print("generated_zero_diff=implemented:S03C-S04 (vaultctl schema export --check)")
+            print("blueprint_json_schema=implemented:C02")
+            print("cross_document_validation=implemented:C03-C04")
+            print("generated_zero_diff=implemented:C05-C06 (vaultctl schema export --check)")
             return 0
         result = validate_blueprint(args.root or _control_root())
         print(result.as_json(), end="")

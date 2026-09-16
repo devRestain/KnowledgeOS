@@ -1,4 +1,4 @@
-"""Read-only S13A diagnostics for the KnowledgeOS control surface.
+"""Read-only C12 diagnostics for the KnowledgeOS control surface.
 
 The diagnostic commands deliberately observe the control repository, the
 independent Vault repository, and the runtime layout without changing any of
@@ -390,11 +390,11 @@ def _overlay_report(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> tup
     static = {
         "mobile_transport_verified": ("deferred", "MacBook-first order; device acceptance is a later user-participation slice"),
         "obsidian_mobile_profiles_verified": ("deferred", "device profile exact diff is not present"),
-        "obsidian_mac_core_verified": ("inactive", "S11 Mac profile has not been configured"),
+        "obsidian_mac_core_verified": ("inactive", "D02 Mac profile has not been configured"),
         "community_plugins_verified": ("inactive", "no approved community plugin profile is configured"),
         "codex_provider_verified": ("inactive", "provider overlay is not enabled"),
         "local_provider_verified": ("inactive", "local provider overlay is not enabled"),
-        "live_bridge_roundtrip_verified": ("inactive", "S14B live device round-trip is not enabled"),
+        "live_bridge_roundtrip_verified": ("inactive", "D09 live device round-trip is not enabled"),
         "launchd_active": ("inactive", "LaunchAgent installation is outside the current scope"),
         "remote_lane_active": ("inactive", "unattended remote lane is not enabled"),
     }
@@ -404,7 +404,7 @@ def _overlay_report(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> tup
 
 
 def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
-    """Run the complete provider-free S13A diagnostic report."""
+    """Run the complete provider-free C12 diagnostic report."""
 
     try:
         roots = discover_project_roots(root)
@@ -437,7 +437,7 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
         "config": {key: config[key] for key in sorted(config)},
         "capability": {
             "current_profile": "portable_core",
-            "session_slice": "S13A",
+            "session_slice": "C12",
             "next_profile": "offline_non_llm_automation",
         },
         "validation": {

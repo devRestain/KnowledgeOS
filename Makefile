@@ -26,7 +26,7 @@ test:
 	$(COMPOSE) run --rm dev uv run --frozen --no-sync pytest
 
 lint:
-	$(COMPOSE) run --rm dev uv run --frozen --no-sync ruff check src tests
+	$(COMPOSE) run --rm dev uv run --frozen --no-sync ruff check src tests ../scripts
 
 vaultctl:
 	$(COMPOSE) run --rm dev vaultctl --help

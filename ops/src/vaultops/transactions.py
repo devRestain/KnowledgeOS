@@ -1,10 +1,11 @@
-"""S13C local, interactive transaction gates.
+"""C14 local, interactive transaction gates.
 
 These operations are deliberately provider-free and explicit.  Asset imports
 are create-only; capture finalization and project archival require a caller
-supplied digest snapshot before they can move or replace anything.  Runtime
-journals, crash recovery, bridge publishing, and Git effects belong to later
-slices and are not implemented here.
+supplied digest snapshot before they can move or replace anything.  The local
+transaction journal and replay path live here; read-only reconciliation and
+explicit repair planning live in ``reconcile.py``.  Bridge publishing and Git
+effects remain outside this slice.
 """
 
 from __future__ import annotations
@@ -29,6 +30,14 @@ from .note_engine import (
     render_frontmatter,
     resolve_vault_relative_path,
     write_note_file,
+)
+from .recovery import (
+    RecoveryConflict,
+    RecoveryCorruption,
+    RecoveryError,
+    RecoveryJournal,
+    fsync_directory,
+    validate_job_id,
 )
 from .workflows import validate_title
 
@@ -358,6 +367,289 @@ CAPTURE_FINALIZE_STEPS = (
 )
 
 
+def _recovery_conflict_report(
+    operation: str,
+    job_id: str,
+    code: str,
+    message: str,
+    *,
+    source: str | None = None,
+    destination: str | None = None,
+    quarantined: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    report: dict[str, Any] = {
+        "status": "CONFLICT",
+        "operation": operation,
+        "mode": "apply",
+        "job_id": job_id,
+        "errors": [_issue(code, "/recovery", message)],
+        "created": [],
+    }
+    if source is not None:
+        report["source"] = source
+    if destination is not None:
+        report["destination"] = destination
+    if quarantined is not None:
+        report["quarantined"] = quarantined
+    return report, EXIT_CONFLICT
+
+
+def _quarantine_recovery_conflict(
+    journal: RecoveryJournal,
+    *,
+    operation: str,
+    code: str,
+    message: str,
+    source: str | None = None,
+    destination: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    try:
+        quarantined = journal.quarantine(message)
+    except RecoveryError as error:
+        return _recovery_conflict_report(
+            operation,
+            journal.job_id,
+            "RECOVERY_QUARANTINE_FAILED",
+            f"{message}; quarantine failed: {error}",
+            source=source,
+            destination=destination,
+        )
+    return _recovery_conflict_report(
+        operation,
+        journal.job_id,
+        code,
+        message,
+        source=source,
+        destination=destination,
+        quarantined=quarantined,
+    )
+
+
+def _complete_recovery_transaction(
+    journal: RecoveryJournal,
+    *,
+    source: str,
+    destination: str,
+    postcondition_sha256: Mapping[str, str],
+) -> Mapping[str, Any]:
+    latest = journal.latest()
+    if latest["state"] != "completed":
+        receipt = {
+            "schema_version": 1,
+            "job_id": journal.job_id,
+            "operation": journal.operation,
+            "status": "completed",
+            "source": source,
+            "destination": destination,
+            "postcondition_sha256": dict(postcondition_sha256),
+            "journal_path": journal.path.relative_to(journal.workspace).as_posix(),
+        }
+        journal.append(
+            "completed",
+            {
+                "source": source,
+                "destination": destination,
+                "postcondition_sha256": dict(postcondition_sha256),
+                "receipt": receipt,
+            },
+        )
+    return journal.completion_receipt()
+
+
+def _capture_request_matches(
+    intent: Mapping[str, Any],
+    *,
+    capture_path: str,
+    expected_sha256: str,
+    outcome: str,
+    related: str | None,
+    modified_at: str | datetime | None,
+) -> bool:
+    request = intent.get("request")
+    if not isinstance(request, Mapping):
+        return False
+    for key, expected in {
+        "capture_path": capture_path,
+        "expected_sha256": expected_sha256,
+        "outcome": outcome,
+        "related": related,
+    }.items():
+        if request.get(key) != expected:
+            return False
+    if modified_at is not None:
+        try:
+            parsed = modified_at if isinstance(modified_at, datetime) else datetime.fromisoformat(modified_at)
+        except (TypeError, ValueError):
+            return False
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return False
+        if request.get("modified_at") != parsed.replace(microsecond=0).isoformat(timespec="seconds"):
+            return False
+    return True
+
+
+def _render_capture_recovery_bytes(
+    workspace: Path,
+    vault: Path,
+    intent: Mapping[str, Any],
+) -> str:
+    source_relative = str(intent["source"])
+    source = _safe_vault_path(vault, source_relative)
+    raw_markdown = source.read_text(encoding="utf-8")
+    engine = NoteEngine.from_root(workspace)
+    original = engine.validate_text(source_relative, raw_markdown, target_types=_target_types(vault, engine))
+    if not original.passed or original.frontmatter is None or original.body is None:
+        raise RecoveryConflict("capture source no longer validates for recovery")
+    properties = dict(original.frontmatter)
+    properties["status"] = intent["request"]["outcome"]
+    properties["modified"] = intent["request"]["modified_at"]
+    related_link = intent.get("related_link")
+    if related_link is not None:
+        existing = properties.get("related", [])
+        if not isinstance(existing, list):
+            raise RecoveryConflict("capture related property is no longer a flat list")
+        if related_link not in existing:
+            properties["related"] = [*existing, related_link]
+    rendered = render_frontmatter(properties, original.body)
+    observed = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    if observed != intent["destination_sha256"]:
+        raise RecoveryConflict("recomputed capture destination bytes differ from the journal intent")
+    return rendered
+
+
+def _apply_capture_recovery(
+    journal: RecoveryJournal,
+    workspace: Path,
+    vault: Path,
+    *,
+    updated_markdown: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    intent = journal.intent()
+    source_relative = str(intent["source"])
+    destination_relative = str(intent["destination"])
+    source = _safe_vault_path(vault, source_relative)
+    destination = _safe_vault_path(vault, destination_relative)
+    latest_state = journal.latest()["state"]
+    if latest_state == "completed":
+        receipt = journal.completion_receipt()
+        return {
+            "status": "NO_OP",
+            "operation": journal.operation,
+            "mode": "apply",
+            "job_id": journal.job_id,
+            "source": source_relative,
+            "destination": destination_relative,
+            "replayed": True,
+            "completion_receipt": receipt,
+            "created": [],
+        }, EXIT_OK
+    if latest_state == "conflict":
+        return _recovery_conflict_report(
+            journal.operation,
+            journal.job_id,
+            "RECOVERY_TRANSACTION_CONFLICT",
+            "recovery journal is already marked conflict",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if latest_state == "intent":
+        journal.append("applying", {"source": source_relative, "destination": destination_relative})
+
+    expected_source_hash = str(intent["source_sha256"])
+    expected_destination_hash = str(intent["destination_sha256"])
+    source_exists = source.exists() or source.is_symlink()
+    destination_exists = destination.exists() or destination.is_symlink()
+    if source_exists and (source.is_symlink() or not source.is_file()):
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_PATH_MISMATCH",
+            message="capture source path is no longer a regular file",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if destination_exists and (destination.is_symlink() or not destination.is_file()):
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_PATH_MISMATCH",
+            message="capture destination path is no longer a regular file",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if source_exists:
+        observed_source_hash, _ = _hash_regular_file(source, label="capture recovery source")
+        if observed_source_hash != expected_source_hash:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=journal.operation,
+                code="RECOVERY_SOURCE_HASH_MISMATCH",
+                message="capture source hash differs from the fsynced recovery intent",
+                source=source_relative,
+                destination=destination_relative,
+            )
+    destination_matches = False
+    if destination_exists:
+        observed_destination_hash, _ = _hash_regular_file(destination, label="capture recovery destination")
+        if observed_destination_hash != expected_destination_hash:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=journal.operation,
+                code="RECOVERY_DESTINATION_HASH_MISMATCH",
+                message="capture destination bytes differ from the fsynced recovery intent",
+                source=source_relative,
+                destination=destination_relative,
+            )
+        destination_matches = True
+    if not source_exists and not destination_matches:
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_AMBIGUOUS_STATE",
+            message="neither the guarded source nor the intended destination exists",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if not destination_matches:
+        if updated_markdown is None:
+            updated_markdown = _render_capture_recovery_bytes(workspace, vault, intent)
+        write_note_file(destination, updated_markdown)
+        fsync_directory(destination.parent)
+        journal.append("published", {"destination": destination_relative, "sha256": expected_destination_hash})
+        destination_matches = True
+    if source.exists():
+        current_source_hash, _ = _hash_regular_file(source, label="capture recovery source")
+        if current_source_hash != expected_source_hash:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=journal.operation,
+                code="RECOVERY_SOURCE_HASH_MISMATCH",
+                message="capture source changed before recovery could remove it",
+                source=source_relative,
+                destination=destination_relative,
+            )
+        source.unlink()
+        fsync_directory(source.parent)
+    receipt = _complete_recovery_transaction(
+        journal,
+        source=source_relative,
+        destination=destination_relative,
+        postcondition_sha256={destination_relative: expected_destination_hash},
+    )
+    return {
+        "status": "PASS",
+        "operation": journal.operation,
+        "mode": "apply",
+        "job_id": journal.job_id,
+        "source": source_relative,
+        "destination": destination_relative,
+        "replayed": latest_state != "intent",
+        "completion_receipt": receipt,
+        "created": [destination_relative],
+        "moved": [source_relative, destination_relative],
+    }, EXIT_OK
+
+
 def finalize_capture(
     root: str | Path,
     *,
@@ -367,17 +659,68 @@ def finalize_capture(
     related: str | None = None,
     modified_at: str | datetime | None = None,
     dry_run: bool = False,
+    job_id: str | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Finalize one capture and move it to the year-partitioned archive."""
 
     operation = "capture finalize"
+    resolved_job_id = job_id
     try:
+        resolved_job_id = validate_job_id(job_id)
         _capture_source(capture_path)
         if outcome not in {"triaged", "discarded"}:
             raise TransactionInputError("outcome must be triaged or discarded")
         expected = _validated_sha256(expected_sha256, label="expected capture hash")
         workspace, vault = _workspace_and_vault(root)
         source_relative = normalize_vault_relative_path(capture_path)
+        journal = RecoveryJournal(workspace, job_id=resolved_job_id, operation="capture_finalize")
+        if not dry_run and journal.exists:
+            try:
+                intent = journal.intent()
+            except (RecoveryCorruption, RecoveryError) as error:
+                return _quarantine_recovery_conflict(
+                    journal,
+                    operation=operation,
+                    code="RECOVERY_JOURNAL_INVALID",
+                    message=str(error),
+                    source=source_relative,
+                )
+            if not _capture_request_matches(
+                intent,
+                capture_path=source_relative,
+                expected_sha256=expected,
+                outcome=outcome,
+                related=related,
+                modified_at=modified_at,
+            ):
+                return _quarantine_recovery_conflict(
+                    journal,
+                    operation=operation,
+                    code="RECOVERY_INTENT_MISMATCH",
+                    message="retry request does not match the fsynced capture intent",
+                    source=source_relative,
+                    destination=str(intent.get("destination", "")) or None,
+                )
+            try:
+                resumed, resumed_code = _apply_capture_recovery(journal, workspace, vault)
+                resumed.update(
+                    {
+                        "operation": operation,
+                        "transaction": list(CAPTURE_FINALIZE_STEPS),
+                        "note_id": intent.get("note_id"),
+                        "related": intent.get("related_link"),
+                    }
+                )
+                return resumed, resumed_code
+            except RecoveryConflict as error:
+                return _quarantine_recovery_conflict(
+                    journal,
+                    operation=operation,
+                    code="RECOVERY_RECOMPUTE_MISMATCH",
+                    message=str(error),
+                    source=str(intent.get("source", source_relative)),
+                    destination=str(intent.get("destination", "")) or None,
+                )
         source = _safe_vault_path(vault, source_relative)
         if source.is_symlink() or not source.is_file():
             raise TransactionInputError("capture source must be an existing regular non-symlink file")
@@ -391,6 +734,7 @@ def finalize_capture(
                 "expected_sha256": expected,
                 "observed_sha256": source_hash,
                 "errors": [_issue("CAPTURE_SOURCE_HASH_MISMATCH", "/source", "capture source hash does not match the guard")],
+                "job_id": resolved_job_id,
                 "created": [],
             }, EXIT_CONFLICT
         raw_markdown = source.read_text(encoding="utf-8")
@@ -416,13 +760,16 @@ def finalize_capture(
         properties = dict(original.frontmatter)
         properties["status"] = outcome
         properties["modified"] = modified.isoformat(timespec="seconds")
+        related_link_value: str | None = None
         related_target: str | None = None
         if related is not None:
-            related_link, related_target = _related_link(vault, engine, related)
+            related_link_value, related_target = _related_link(vault, engine, related)
             existing = properties.get("related", [])
             if not isinstance(existing, list):
                 raise TransactionInputError("capture related property must be a flat list")
-            properties["related"] = [*existing, related_link] if related_link not in existing else existing
+            properties["related"] = (
+                [*existing, related_link_value] if related_link_value not in existing else existing
+            )
         updated_markdown = render_frontmatter(properties, original.body)
         created = datetime.fromisoformat(str(original.frontmatter["created"]))
         destination_relative = f"90_Archive/Captures/{created:%Y}/{Path(source_relative).name}"
@@ -435,6 +782,7 @@ def finalize_capture(
                 "source": source_relative,
                 "destination": destination_relative,
                 "path_status": "EXISTING" if destination.exists() else "SYMLINK",
+                "job_id": resolved_job_id,
                 "created": [],
             }, EXIT_CONFLICT
         destination_types = _target_types(vault, engine)
@@ -451,12 +799,14 @@ def finalize_capture(
                 "source": source_relative,
                 "destination": destination_relative,
                 "errors": [issue.as_dict() for issue in destination_validation.errors],
+                "job_id": resolved_job_id,
                 "created": [],
             }, EXIT_VALIDATION_FAILED
         report: dict[str, Any] = {
             "status": "PASS",
             "operation": operation,
             "mode": "dry-run" if dry_run else "apply",
+            "job_id": resolved_job_id,
             "source": source_relative,
             "destination": destination_relative,
             "outcome": outcome,
@@ -469,37 +819,53 @@ def finalize_capture(
         if dry_run:
             report["would_move"] = [source_relative, destination_relative]
             return report, EXIT_OK
-        # Recheck the guarded source immediately before publishing the new
-        # bytes.  A later recovery slice will own fsynced journals.
-        current_hash, _ = _hash_regular_file(source, label="capture source")
-        if current_hash != expected:
-            return {
-                "status": "CONFLICT",
-                "operation": operation,
-                "mode": "apply",
-                "source": source_relative,
+        intent = {
+            "schema_version": 1,
+            "request": {
+                "capture_path": source_relative,
                 "expected_sha256": expected,
-                "observed_sha256": current_hash,
-                "errors": [_issue("CAPTURE_SOURCE_HASH_MISMATCH", "/source", "capture source changed before publish")],
-                "created": [],
-            }, EXIT_CONFLICT
-        write_note_file(destination, updated_markdown)
-        try:
-            source.unlink()
-        except Exception:
-            if destination.is_file() and not destination.is_symlink():
-                destination.unlink()
-            raise
-        report["created"] = [destination_relative]
-        report["moved"] = [source_relative, destination_relative]
-        report["completion_receipt"] = {
+                "outcome": outcome,
+                "related": related,
+                "modified_at": properties["modified"],
+            },
+            "source": source_relative,
+            "destination": destination_relative,
             "note_id": original.frontmatter.get("id"),
             "source_sha256": source_hash,
-            "destination": destination_relative,
+            "destination_sha256": hashlib.sha256(updated_markdown.encode("utf-8")).hexdigest(),
+            "related_link": related_link_value,
         }
-        return report, EXIT_OK
+        try:
+            journal.start(intent)
+            applied, apply_code = _apply_capture_recovery(
+                journal,
+                workspace,
+                vault,
+                updated_markdown=updated_markdown,
+            )
+        except RecoveryConflict as error:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=operation,
+                code="RECOVERY_INTENT_MISMATCH",
+                message=str(error),
+                source=source_relative,
+                destination=destination_relative,
+            )
+        applied.update(
+            {
+                "operation": operation,
+                "transaction": list(CAPTURE_FINALIZE_STEPS),
+                "note_id": original.frontmatter.get("id"),
+                "related": related_target,
+            }
+        )
+        return applied, apply_code
     except (OSError, TypeError, UnicodeError, ValueError, FrontmatterError, TransactionInputError, UnsafePathError) as error:
-        return _fail(operation, "CAPTURE_INPUT_INVALID", str(error))
+        failed, exit_code = _fail(operation, "CAPTURE_INPUT_INVALID", str(error))
+        if resolved_job_id is not None:
+            failed["job_id"] = resolved_job_id
+        return failed, exit_code
 
 
 def _normalize_expected_hashes(expected_hashes: Mapping[str, str] | None) -> dict[str, str]:
@@ -512,6 +878,161 @@ def _normalize_expected_hashes(expected_hashes: Mapping[str, str] | None) -> dic
     if len(normalized) != len(expected_hashes):
         raise TransactionInputError("project archive expected hash map contains duplicate normalized paths")
     return normalized
+
+
+def _archive_request_matches(
+    intent: Mapping[str, Any],
+    *,
+    project_path: str,
+    expected_hashes: Mapping[str, str],
+    archive_year: int | None,
+) -> bool:
+    request = intent.get("request")
+    if not isinstance(request, Mapping):
+        return False
+    if request.get("project_path") != project_path:
+        return False
+    if request.get("expected_hashes") != dict(expected_hashes):
+        return False
+    return archive_year is None or request.get("archive_year") == archive_year
+
+
+def _archive_directory_hashes(directory: Path, vault: Path) -> dict[str, str]:
+    if directory.is_symlink() or not directory.is_dir():
+        raise RecoveryConflict("archived project directory is not a real directory")
+    observed: dict[str, str] = {}
+    for path in sorted(directory.rglob("*"), key=lambda item: item.as_posix()):
+        if path.is_symlink():
+            raise RecoveryConflict("archived project contains a symlink")
+        if path.is_file():
+            relative = path.relative_to(vault).as_posix()
+            observed[relative] = _hash_regular_file(path, label=f"archived member {relative}")[0]
+    return observed
+
+
+def _apply_archive_recovery(
+    journal: RecoveryJournal,
+    vault: Path,
+) -> tuple[dict[str, Any], int]:
+    intent = journal.intent()
+    source_relative = str(intent["source"])
+    destination_relative = str(intent["destination"])
+    source_dir = _safe_vault_path(vault, source_relative)
+    destination_dir = _safe_vault_path(vault, destination_relative)
+    latest_state = journal.latest()["state"]
+    if latest_state == "completed":
+        receipt = journal.completion_receipt()
+        return {
+            "status": "NO_OP",
+            "operation": journal.operation,
+            "mode": "apply",
+            "job_id": journal.job_id,
+            "source": source_relative,
+            "destination": destination_relative,
+            "replayed": True,
+            "completion_receipt": receipt,
+            "created": [],
+        }, EXIT_OK
+    if latest_state == "conflict":
+        return _recovery_conflict_report(
+            journal.operation,
+            journal.job_id,
+            "RECOVERY_TRANSACTION_CONFLICT",
+            "recovery journal is already marked conflict",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if latest_state == "intent":
+        journal.append("applying", {"source": source_relative, "destination": destination_relative})
+
+    source_exists = source_dir.exists() or source_dir.is_symlink()
+    destination_exists = destination_dir.exists() or destination_dir.is_symlink()
+    expected_hashes = dict(intent["source_hashes"])
+    if source_exists and (source_dir.is_symlink() or not source_dir.is_dir()):
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_PATH_MISMATCH",
+            message="project source path is no longer a real directory",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if destination_exists and (destination_dir.is_symlink() or not destination_dir.is_dir()):
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_PATH_MISMATCH",
+            message="project archive destination is no longer a real directory",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if source_exists and destination_exists:
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_AMBIGUOUS_STATE",
+            message="project source and archive destination both exist",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if not source_exists and not destination_exists:
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_AMBIGUOUS_STATE",
+            message="neither the project source nor archive destination exists",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    if source_exists:
+        observed = _archive_directory_hashes(source_dir, vault)
+        if observed != expected_hashes:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=journal.operation,
+                code="RECOVERY_SOURCE_HASH_MISMATCH",
+                message="project source members differ from the fsynced recovery intent",
+                source=source_relative,
+                destination=destination_relative,
+            )
+        destination_dir.parent.mkdir(parents=True, exist_ok=True)
+        fsync_directory(destination_dir.parent)
+        os.rename(source_dir, destination_dir)
+        fsync_directory(destination_dir.parent)
+        fsync_directory(source_dir.parent)
+        journal.append("moved", {"source": source_relative, "destination": destination_relative})
+    observed_destination = _archive_directory_hashes(destination_dir, vault)
+    destination_hashes = {
+        f"{destination_relative}/{Path(relative).relative_to(source_relative).as_posix()}": digest
+        for relative, digest in expected_hashes.items()
+    }
+    if observed_destination != destination_hashes:
+        return _quarantine_recovery_conflict(
+            journal,
+            operation=journal.operation,
+            code="RECOVERY_DESTINATION_HASH_MISMATCH",
+            message="archived project members differ from the fsynced recovery intent",
+            source=source_relative,
+            destination=destination_relative,
+        )
+    receipt = _complete_recovery_transaction(
+        journal,
+        source=source_relative,
+        destination=destination_relative,
+        postcondition_sha256=destination_hashes,
+    )
+    return {
+        "status": "PASS",
+        "operation": journal.operation,
+        "mode": "apply",
+        "job_id": journal.job_id,
+        "source": source_relative,
+        "destination": destination_relative,
+        "replayed": latest_state != "intent",
+        "completion_receipt": receipt,
+        "created": [destination_relative],
+        "moved": [source_relative, destination_relative],
+    }, EXIT_OK
 
 
 def _project_files(project_dir: Path, vault: Path) -> dict[str, Path]:
@@ -535,11 +1056,14 @@ def archive_project(
     expected_hashes: Mapping[str, str],
     archive_year: int | None = None,
     dry_run: bool = False,
+    job_id: str | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Move one complete project bundle behind an exact digest guard."""
 
     operation = "project archive"
+    resolved_job_id = job_id
     try:
+        resolved_job_id = validate_job_id(job_id)
         workspace, vault = _workspace_and_vault(root)
         source_relative = normalize_vault_relative_path(project_path)
         if not source_relative.startswith("20_Projects/") or not source_relative.endswith(".md"):
@@ -548,6 +1072,43 @@ def archive_project(
         if len(parts) != 3 or parts[2] != f"{parts[1]}.md":
             raise TransactionInputError("project path must be 20_Projects/<name>/<name>.md")
         project_dir_relative = "/".join(parts[:2])
+        expected = _normalize_expected_hashes(expected_hashes)
+        journal = RecoveryJournal(workspace, job_id=resolved_job_id, operation="project_archive")
+        if not dry_run and journal.exists:
+            try:
+                intent = journal.intent()
+            except (RecoveryCorruption, RecoveryError) as error:
+                return _quarantine_recovery_conflict(
+                    journal,
+                    operation=operation,
+                    code="RECOVERY_JOURNAL_INVALID",
+                    message=str(error),
+                    source=project_dir_relative,
+                )
+            if not _archive_request_matches(
+                intent,
+                project_path=source_relative,
+                expected_hashes=expected,
+                archive_year=archive_year,
+            ):
+                return _quarantine_recovery_conflict(
+                    journal,
+                    operation=operation,
+                    code="RECOVERY_INTENT_MISMATCH",
+                    message="retry request does not match the fsynced project archive intent",
+                    source=project_dir_relative,
+                    destination=str(intent.get("destination", "")) or None,
+                )
+            resumed, resumed_code = _apply_archive_recovery(journal, vault)
+            resumed.update(
+                {
+                    "operation": operation,
+                    "project_id": intent.get("project_id"),
+                    "identity_preserved": True,
+                    "links_preserved": True,
+                }
+            )
+            return resumed, resumed_code
         project_dir = _safe_vault_path(vault, project_dir_relative)
         files = _project_files(project_dir, vault)
         if source_relative not in files:
@@ -571,7 +1132,6 @@ def archive_project(
         year = archive_year if archive_year is not None else created.year
         if not isinstance(year, int) or year < 1970 or year > 9999:
             raise TransactionInputError("archive year must be a four-digit integer")
-        expected = _normalize_expected_hashes(expected_hashes)
         observed: dict[str, str] = {}
         for relative, path in files.items():
             digest, _ = _hash_regular_file(path, label=f"project member {relative}")
@@ -584,6 +1144,7 @@ def archive_project(
                 "operation": operation,
                 "mode": "dry-run" if dry_run else "apply",
                 "source": project_dir_relative,
+                "job_id": resolved_job_id,
                 "errors": [_issue("PROJECT_HASH_SET_MISMATCH", "/expected_hashes", "expected hashes must cover exactly the project bundle", missing=missing, extra=extra)],
                 "created": [],
             }, EXIT_CONFLICT
@@ -594,6 +1155,7 @@ def archive_project(
                 "operation": operation,
                 "mode": "dry-run" if dry_run else "apply",
                 "source": project_dir_relative,
+                "job_id": resolved_job_id,
                 "errors": [_issue("PROJECT_SOURCE_HASH_MISMATCH", "/expected_hashes", "project member hash does not match the guard", paths=mismatches)],
                 "created": [],
             }, EXIT_CONFLICT
@@ -606,6 +1168,7 @@ def archive_project(
                 "mode": "dry-run" if dry_run else "apply",
                 "source": project_dir_relative,
                 "destination": destination_dir_relative,
+                "job_id": resolved_job_id,
                 "path_status": "SYMLINK" if destination_dir.is_symlink() else "EXISTING",
                 "created": [],
             }, EXIT_CONFLICT
@@ -625,6 +1188,7 @@ def archive_project(
                     "mode": "dry-run" if dry_run else "apply",
                     "source": project_dir_relative,
                     "destination": destination_dir_relative,
+                    "job_id": resolved_job_id,
                     "errors": [issue.as_dict() for issue in result.errors],
                     "created": [],
                 }, EXIT_VALIDATION_FAILED
@@ -632,6 +1196,7 @@ def archive_project(
             "status": "PASS",
             "operation": operation,
             "mode": "dry-run" if dry_run else "apply",
+            "job_id": resolved_job_id,
             "source": project_dir_relative,
             "destination": destination_dir_relative,
             "project_id": root_result.frontmatter.get("id"),
@@ -644,24 +1209,44 @@ def archive_project(
         if dry_run:
             report["would_move"] = [project_dir_relative, destination_dir_relative]
             return report, EXIT_OK
-        destination_dir.parent.mkdir(parents=True, exist_ok=True)
-        os.rename(project_dir, destination_dir)
+        intent = {
+            "schema_version": 1,
+            "request": {
+                "project_path": source_relative,
+                "expected_hashes": expected,
+                "archive_year": year,
+            },
+            "source": project_dir_relative,
+            "destination": destination_dir_relative,
+            "project_id": root_result.frontmatter.get("id"),
+            "source_hashes": observed,
+        }
         try:
-            for relative, expected_hash in expected.items():
-                destination_relative = f"{destination_dir_relative}/{Path(relative).relative_to(project_dir_relative).as_posix()}"
-                destination_path = _safe_vault_path(vault, destination_relative)
-                digest, _ = _hash_regular_file(destination_path, label=f"archived member {destination_relative}")
-                if digest != expected_hash:
-                    raise TransactionInputError("archived member hash differs from the guarded source")
-        except Exception:
-            if destination_dir.exists() and not project_dir.exists():
-                os.rename(destination_dir, project_dir)
-            raise
-        report["created"] = [destination_dir_relative]
-        report["moved"] = [project_dir_relative, destination_dir_relative]
-        return report, EXIT_OK
+            journal.start(intent)
+            applied, apply_code = _apply_archive_recovery(journal, vault)
+        except RecoveryConflict as error:
+            return _quarantine_recovery_conflict(
+                journal,
+                operation=operation,
+                code="RECOVERY_INTENT_MISMATCH",
+                message=str(error),
+                source=project_dir_relative,
+                destination=destination_dir_relative,
+            )
+        applied.update(
+            {
+                "operation": operation,
+                "project_id": root_result.frontmatter.get("id"),
+                "identity_preserved": True,
+                "links_preserved": True,
+            }
+        )
+        return applied, apply_code
     except (OSError, TypeError, UnicodeError, ValueError, FrontmatterError, TransactionInputError, UnsafePathError) as error:
-        return _fail(operation, "PROJECT_INPUT_INVALID", str(error))
+        failed, exit_code = _fail(operation, "PROJECT_INPUT_INVALID", str(error))
+        if resolved_job_id is not None:
+            failed["job_id"] = resolved_job_id
+        return failed, exit_code
 
 
 # Command-shaped aliases keep the Python API aligned with the Blueprint names.

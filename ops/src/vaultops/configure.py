@@ -1,4 +1,4 @@
-"""S08B Git identity configuration and production root-sentinel writer."""
+"""D01 Git identity configuration and production root-sentinel writer."""
 
 from __future__ import annotations
 

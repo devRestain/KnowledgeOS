@@ -11,7 +11,9 @@
 - Keep Vault writes create-only unless a hash-bound interactive maintenance gate authorizes replacement or movement.
 - Keep LLM behavior schema-constrained and proposal-only; prevent silent provider fallback and direct canonical writes.
 - Keep plugin-free Markdown and wikilink fallbacks available.
-- Keep the MacBook-first order and S13C as the next product slice.
+- Use lane-local `Cxx`, `Dxx`, and `Exx` session labels from `IMPLEMENTATION_PLAN.md`.
+- Interpret numeric order only within a lane and keep the core lane resumable at `C18`.
+- Treat legacy session numbers in Git history as provenance, not scheduling authority.
 - Keep device, plugin, provider, remote, background, and destructive actions inactive until their explicit gates pass.
 - Keep confidential or institutionally restricted material outside this Vault.
 - Keep lexical retrieval before any vector or RRF experiment.

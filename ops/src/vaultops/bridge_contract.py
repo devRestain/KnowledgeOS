@@ -1,9 +1,9 @@
-"""Offline bridge and root-sentinel contracts owned by S08A.
+"""Offline bridge and root-sentinel contracts owned by C10.
 
 This module deliberately stops at the control-side contract boundary.  It
 does not inspect Git history, contact a remote, create a production sentinel,
 publish a response, or mutate a Vault.  The response renderer is restricted
-to caller-supplied fixture paths so S08A evidence cannot be mistaken for a
+to caller-supplied fixture paths so C10 evidence cannot be mistaken for a
 live bridge round trip.
 """
 
@@ -131,7 +131,7 @@ DEVICE_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
 
 @dataclass(frozen=True)
 class ContractIssue:
-    """Stable diagnostic for an S08A contract check."""
+    """Stable diagnostic for an C10 contract check."""
 
     code: str
     locator: str
@@ -493,7 +493,7 @@ def validate_append_only_history(events: Sequence[Mapping[str, Any]]) -> Contrac
 
     The fixture accepts only one ``add`` event for each path.  A real Git
     history adapter belongs to a later offline automation slice; this helper
-    provides the S08A fail-closed/quarantine contract without reading Git.
+    provides the C10 fail-closed/quarantine contract without reading Git.
     """
 
     seen: set[str] = set()
@@ -548,7 +548,7 @@ def validate_root_sentinel(
     """Validate sentinel shape and optional expected bindings.
 
     ``expected`` is supplied by a later, user-confirmed deployment preflight;
-    S08A tests use it only with synthetic values.  This function never reads
+    C10 tests use it only with synthetic values.  This function never reads
     or writes ``.knowledgeos-root.json``.
     """
 
@@ -620,7 +620,7 @@ def _validate_request_semantics(document: Mapping[str, Any]) -> tuple[ContractIs
 
 
 def validate_bridge_request(document: Any, blueprint: Mapping[str, Any]) -> ContractReport:
-    """Validate bridge request schema and action-specific S08A semantics."""
+    """Validate bridge request schema and action-specific C10 semantics."""
 
     issues = list(_schema_issues(document, build_bridge_request_schema(blueprint), "bridge-request"))
     if not issues and isinstance(document, Mapping):
@@ -678,7 +678,7 @@ def write_fixture_response(
 
 
 def protocol_copy_paths() -> tuple[str, str]:
-    """Return the two Vault protocol copy paths owned by S08A."""
+    """Return the two Vault protocol copy paths owned by C10."""
 
     return PROTOCOL_REQUEST_SCHEMA_PATH, PROTOCOL_RESPONSE_SCHEMA_PATH
 

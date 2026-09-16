@@ -1,4 +1,4 @@
-"""S05 create-only project and deterministic period workflows."""
+"""C07 create-only project and deterministic period workflows."""
 
 from __future__ import annotations
 
@@ -280,7 +280,7 @@ def project_local_link_resolves(relative_path: str, project_link: str, project_r
 
 
 def render_project_local_sample(workspace: str | Path, *, title: str, note_kind: str = "exploration", artifact_title: str = "Artifact") -> tuple[str, str]:
-    """Render schema-valid project-local samples for the S05 fixture gate."""
+    """Render schema-valid project-local samples for the C07 fixture gate."""
 
     safe = validate_title(title)
     project_root = f"20_Projects/{safe}/{safe}.md"

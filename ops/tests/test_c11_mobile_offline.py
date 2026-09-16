@@ -27,7 +27,7 @@ from vaultops.mobile_offline import (
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/s09_mobile_offline"
+FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/c11_mobile_offline"
 JOB_ID = "550e8400-e29b-41d4-a716-446655440000"
 CREATED_AT = "2026-09-01T15:42:12+09:00"
 TARGET = "00_Inbox/Captures/2026/09/20260901-154212-iphone-550e8400.md"

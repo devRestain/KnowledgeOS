@@ -1,4 +1,4 @@
-"""Additive bootstrap for canonical directories and portable S05-S06 files."""
+"""Additive bootstrap for canonical directories and portable C07-C08 files."""
 
 from __future__ import annotations
 

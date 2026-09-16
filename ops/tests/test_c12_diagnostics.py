@@ -85,7 +85,7 @@ def test_strict_config_rejects_unknown_keys_and_value_drift(tmp_path: Path) -> N
         raise AssertionError("strict config unexpectedly accepted drift")
 
 
-def test_cli_exposes_s13a_namespaces(capsys) -> None:
+def test_cli_exposes_c12_namespaces(capsys) -> None:
     assert main(["git", "status", "--repo", "vault", "--root", str(CONTROL_ROOT)]) == 0
     git_report = json.loads(capsys.readouterr().out)
     assert git_report["requested_repo"] == "vault"

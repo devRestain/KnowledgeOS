@@ -1,8 +1,8 @@
-"""S07 fixed-fixture validation for the portable Vault exit gate.
+"""C09 fixed-fixture validation for the portable Vault exit gate.
 
 The fixture is deliberately a read-only evidence surface.  It does not
 implement archive, capture-finalize, or asset-import mutations; those writers
-belong to later command slices.  Instead, S07 checks the concrete input and
+belong to later command slices.  Instead, C09 checks the concrete input and
 expected bytes that those later writers must preserve, together with the
 already-owned note and Base contracts.
 """
@@ -29,13 +29,13 @@ from .note_engine import (
 from .yaml_safe import load_yaml_file
 
 FIXTURE_NAME = "guestbook-horror"
-FIXTURE_RELATIVE_ROOT = "ops/tests/fixtures/s07_portable_vault/guestbook-horror"
+FIXTURE_RELATIVE_ROOT = "ops/tests/fixtures/c09_portable_vault/guestbook-horror"
 _WIKILINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
 
 
 @dataclass(frozen=True)
 class FixtureIssue:
-    """One stable S07 fixture diagnostic."""
+    """One stable C09 fixture diagnostic."""
 
     code: str
     path: str
@@ -77,7 +77,7 @@ class FixtureReport:
 
 
 def fixture_root(workspace_root: str | Path) -> Path:
-    """Return the checked-in S07 fixture root."""
+    """Return the checked-in C09 fixture root."""
 
     return Path(workspace_root).resolve() / FIXTURE_RELATIVE_ROOT
 
@@ -87,7 +87,7 @@ def load_fixture_manifest(workspace_root: str | Path) -> dict[str, Any]:
 
     manifest = load_yaml_file(fixture_root(workspace_root) / "manifest.yaml")
     if manifest.get("schema_version") != 1 or manifest.get("fixture") != FIXTURE_NAME:
-        raise ValueError("S07 fixture manifest has an unsupported identity")
+        raise ValueError("C09 fixture manifest has an unsupported identity")
     return manifest
 
 
@@ -98,16 +98,16 @@ def _issue(code: str, path: str, message: str, details: Mapping[str, Any] | None
 def _manifest_entries(section: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
     entries = section.get("files")
     if not isinstance(entries, list):
-        raise TypeError("S07 manifest section files must be a list")
+        raise TypeError("C09 manifest section files must be a list")
     result: list[Mapping[str, Any]] = []
     for entry in entries:
         if not isinstance(entry, Mapping) or not isinstance(entry.get("path"), str):
-            raise TypeError("S07 manifest file entry needs a path")
+            raise TypeError("C09 manifest file entry needs a path")
         normalize_vault_relative_path(entry["path"])
         if not isinstance(entry.get("sha256"), str) or len(entry["sha256"]) != 64:
-            raise ValueError(f"S07 manifest hash is invalid: {entry.get('path')}")
+            raise ValueError(f"C09 manifest hash is invalid: {entry.get('path')}")
         if not isinstance(entry.get("mtime"), int):
-            raise TypeError(f"S07 manifest mtime is invalid: {entry.get('path')}")
+            raise TypeError(f"C09 manifest mtime is invalid: {entry.get('path')}")
         result.append(entry)
     return tuple(result)
 
@@ -118,7 +118,7 @@ def _manifest_entry_map(section: Mapping[str, Any]) -> dict[str, Mapping[str, An
     for entry in entries:
         path = str(entry["path"])
         if path in result:
-            raise ValueError(f"S07 manifest contains a duplicate path: {path}")
+            raise ValueError(f"C09 manifest contains a duplicate path: {path}")
         result[path] = entry
     return result
 
@@ -384,7 +384,7 @@ def validate_guestbook_fixture(
     section_name: str = "input",
     check_mtime: bool = False,
 ) -> FixtureReport:
-    """Run the S07 exact-byte, note, and (for input) Base query gate."""
+    """Run the C09 exact-byte, note, and (for input) Base query gate."""
 
     workspace = Path(workspace_root).resolve()
     manifest = load_fixture_manifest(workspace)

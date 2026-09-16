@@ -1,4 +1,4 @@
-"""S13B create-only commands and guarded Markdown formatting."""
+"""C13 create-only commands and guarded Markdown formatting."""
 
 from __future__ import annotations
 
@@ -409,7 +409,7 @@ def create_note(
     try:
         if note_type not in _NOTE_CREATE_TYPES:
             raise LocalCommandInputError(
-                f"note type {note_type!r} is not createable in S13B; use period or project create"
+                f"note type {note_type!r} is not createable in C13; use period or project create"
             )
         safe_title = _safe_title(title)
         body = read_content(stdin=body_stdin, file_path=body_file, label="note body", required=False)

@@ -1,4 +1,4 @@
-# S08A offline bridge fixtures
+# C10 offline bridge fixtures
 
 These are synthetic, control-side contract fixtures only. They contain no
 Vault note body, credential, remote URL, Git commit, or production response.

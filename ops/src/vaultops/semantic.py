@@ -1,6 +1,6 @@
 """Cross-document semantic checks for the KnowledgeOS Blueprint.
 
-S03A and S03B validate declarations that are present in the Blueprint itself.
+C03 and C04 validate declarations that are present in the Blueprint itself.
 They do not require generated action, prompt, schema, Vault, or bridge files to
 exist; those files belong to later ownership/generation sessions. Keeping the
 expected registries and consumer contracts here makes a rename, deletion,
@@ -688,7 +688,7 @@ EXPECTED_CAPTURE_FINALIZE_TRANSACTION = [
 
 @dataclass(frozen=True)
 class SemanticValidation:
-    """Result of S03A semantic checks."""
+    """Result of C03 semantic checks."""
 
     errors: tuple[dict[str, Any], ...]
 
@@ -1517,7 +1517,7 @@ def _check_bridge(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) ->
 
 
 def validate_semantic_contract(blueprint: Mapping[str, Any]) -> SemanticValidation:
-    """Run the S03A registry and S03B consumer/lifecycle semantic checks."""
+    """Run the C03 registry and C04 consumer/lifecycle semantic checks."""
 
     errors: list[dict[str, Any]] = []
     _check_note_paths_and_templates(blueprint, errors)

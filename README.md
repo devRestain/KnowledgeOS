@@ -17,7 +17,7 @@ AI는 정식 노트를 대신 결정하지 않습니다. AI가 만든 분류·�
 
 ## 현재 위치
 
-S13A(provider-free 진단), S13B(create-only 로컬 명령), S13C(asset import, capture finalize, project archive transaction)가 완료되었습니다. 다음 개발 단위는 S13D(fsynced transaction recovery journal)입니다. 그 뒤에 bridge/Git publish, MacBook Obsidian·plugin 통합, 모바일 왕복 검증을 순서대로 진행합니다.
+핵심 capability lane은 `C01`부터 `C17`까지 완료되었습니다. 최근 경계에는 provider-free 진단(`C12`), create-only 로컬 명령(`C13`), asset·capture finalize·project archive transaction(`C14`), journal·replay(`C15`), reconcile·repair·receipt 검증(`C16`), exact local bridge/Git publish(`C17`)가 포함됩니다. 다음 핵심 개발 단위는 read-only deterministic triage proposal contract인 `C18`입니다. Obsidian·plugin·모바일·provider 작업은 별도 `Dxx` deployment overlay로, vector·LaunchAgent·remote·thin client는 `Exx` 선택 확장으로 격리합니다.
 
 Blueprint 검증, generated artifact zero-diff, strict note engine, 16개 template, portable Vault fixture, Base/dashboard, offline bridge·recovery outbox, remote identity sentinel, GitHub directory visibility 기반은 이미 마련되어 있습니다. 무엇이 실제로 완료되었는지와 어떤 검증이 미실행인지에 대한 최신 기록은 [`PROJECT_STATE.md`](PROJECT_STATE.md)에서 확인합니다.
 

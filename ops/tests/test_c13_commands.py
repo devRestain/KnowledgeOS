@@ -108,7 +108,7 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
     root = _fresh_control_copy(tmp_path)
     assert main(["bootstrap", "--root", str(root)]) == 0
     capsys.readouterr()
-    project = create_project_bundle(root, title="S13B Project", created_at="2026-09-13T10:00:00+09:00")
+    project = create_project_bundle(root, title="C13 Project", created_at="2026-09-13T10:00:00+09:00")
     assert project["status"] == "PASS", project
     body_file = tmp_path / "body.md"
     body_file.write_text("## 현재 초안\n\n검증할 내용\n", encoding="utf-8")
@@ -121,7 +121,7 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
         "--title",
         "Working Note",
         "--project",
-        "20_Projects/S13B Project/S13B Project.md",
+        "20_Projects/C13 Project/C13 Project.md",
         "--body-file",
         str(body_file),
         "--dry-run",
@@ -132,7 +132,7 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
     preview = _json_output(capsys)
     assert preview["status"] == "PASS"
     assert preview["mode"] == "dry-run"
-    target = root / "KnowledgeHub/20_Projects/S13B Project/Working/Working Note.md"
+    target = root / "KnowledgeHub/20_Projects/C13 Project/Working/Working Note.md"
     assert not target.exists()
 
     assert main([item for item in command if item != "--dry-run"]) == 0
@@ -140,9 +140,9 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
     assert applied["status"] == "PASS"
     assert target.is_file()
     assert NoteEngine.from_root(root).validate_text(
-        "20_Projects/S13B Project/Working/Working Note.md",
+        "20_Projects/C13 Project/Working/Working Note.md",
         target.read_text(encoding="utf-8"),
-        target_types={"S13B Project": "project"},
+        target_types={"C13 Project": "project"},
     ).passed
 
 

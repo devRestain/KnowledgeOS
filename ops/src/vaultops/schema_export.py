@@ -1,8 +1,8 @@
 """Deterministic generation and zero-diff validation for owned artifacts.
 
-The cumulative ``portable_core`` profile now includes the S08A control-side
+The cumulative ``portable_core`` profile now includes the C10 control-side
 bridge and root-sentinel schemas.  Their first capability remains recorded as
-``S08A`` so the ownership manifest preserves the implementation boundary.
+``C10`` so the ownership manifest preserves the implementation boundary.
 Later prompts, action registries, and projection files remain visible but are
 reported as ``NOT_APPLICABLE_FOR_PROFILE`` until their owner session starts.
 """
@@ -145,8 +145,8 @@ OWNED_ARTIFACTS = (
         "bridge_request_schema",
         ("/bridge",),
         deployed_copy=False,
-        owner="S08A",
-        first_capability="S08A",
+        owner="C10",
+        first_capability="C10",
         generator_id="vaultops.bridge_contract",
     ),
     _owned(
@@ -154,8 +154,8 @@ OWNED_ARTIFACTS = (
         "bridge_response_schema",
         ("/bridge",),
         deployed_copy=False,
-        owner="S08A",
-        first_capability="S08A",
+        owner="C10",
+        first_capability="C10",
         generator_id="vaultops.bridge_contract",
     ),
     _owned(
@@ -163,8 +163,8 @@ OWNED_ARTIFACTS = (
         "root_sentinel_schema",
         ("/mobile_install_gate/root_sentinel_contract",),
         deployed_copy=False,
-        owner="S08A",
-        first_capability="S08A",
+        owner="C10",
+        first_capability="C10",
         generator_id="vaultops.bridge_contract",
     ),
     _owned(
@@ -172,8 +172,8 @@ OWNED_ARTIFACTS = (
         "bridge_request_protocol_copy",
         ("/bridge",),
         deployed_copy=True,
-        owner="S08A",
-        first_capability="S08A",
+        owner="C10",
+        first_capability="C10",
         generator_id="vaultops.bridge_contract",
     ),
     _owned(
@@ -181,8 +181,8 @@ OWNED_ARTIFACTS = (
         "bridge_response_protocol_copy",
         ("/bridge",),
         deployed_copy=True,
-        owner="S08A",
-        first_capability="S08A",
+        owner="C10",
+        first_capability="C10",
         generator_id="vaultops.bridge_contract",
     ),
 )
@@ -191,53 +191,53 @@ OWNED_ARTIFACTS = (
 NOT_APPLICABLE_ARTIFACTS = (
     _not_applicable(
         "ops/policies/generated-sections.yaml",
-        "S04",
+        "C06",
         ("/",),
         inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md",
     ),
     _not_applicable(
         "ops/policies/redaction-patterns.yaml",
-        "S15",
+        "C18",
         ("/",),
         inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md",
     ),
-    _not_applicable("ops/actions/triage.json", "S15", ("/actions",)),
-    _not_applicable("ops/actions/draft-note.json", "S15", ("/actions",)),
-    _not_applicable("ops/actions/summarize.json", "S16B", ("/actions",)),
-    _not_applicable("ops/actions/link-suggestions.json", "S16B", ("/actions",)),
-    _not_applicable("ops/actions/normalize.json", "S16B", ("/actions",)),
-    _not_applicable("ops/actions/answer.json", "S16B", ("/actions",)),
+    _not_applicable("ops/actions/triage.json", "C18", ("/actions",)),
+    _not_applicable("ops/actions/draft-note.json", "C18", ("/actions",)),
+    _not_applicable("ops/actions/summarize.json", "C20", ("/actions",)),
+    _not_applicable("ops/actions/link-suggestions.json", "C20", ("/actions",)),
+    _not_applicable("ops/actions/normalize.json", "C20", ("/actions",)),
+    _not_applicable("ops/actions/answer.json", "C20", ("/actions",)),
     _not_applicable(
-        "ops/prompts/system.md", "S15", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/system.md", "C18", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/triage.md", "S15", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/triage.md", "C18", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/draft-note.md", "S16B", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/draft-note.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/summarize.md", "S16B", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/summarize.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/link-suggestions.md", "S16B", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/link-suggestions.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/normalize.md", "S16B", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/normalize.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
     _not_applicable(
-        "ops/prompts/answer.md", "S16B", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
+        "ops/prompts/answer.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
     ),
-    _not_applicable("ops/schemas/job.schema.json", "S15", ("/llm", "/privacy")),
-    _not_applicable("ops/schemas/proposal.schema.json", "S15", ("/llm", "/privacy")),
-    _not_applicable("ops/schemas/receipt.schema.json", "S15", ("/llm", "/privacy")),
-    _not_applicable("ops/schemas/triage-result.schema.json", "S15", ("/llm",)),
-    _not_applicable("ops/schemas/note-record.schema.json", "S17", ("/projection",)),
-    _not_applicable("ops/schemas/edge-record.schema.json", "S17", ("/projection",)),
+    _not_applicable("ops/schemas/job.schema.json", "C18", ("/llm", "/privacy")),
+    _not_applicable("ops/schemas/proposal.schema.json", "C18", ("/llm", "/privacy")),
+    _not_applicable("ops/schemas/receipt.schema.json", "C18", ("/llm", "/privacy")),
+    _not_applicable("ops/schemas/triage-result.schema.json", "C18", ("/llm",)),
+    _not_applicable("ops/schemas/note-record.schema.json", "C21", ("/projection",)),
+    _not_applicable("ops/schemas/edge-record.schema.json", "C21", ("/projection",)),
     _not_applicable(
-        "ops/schemas/retrieval-candidate.schema.json", "S17", ("/projection", "/retrieval")
+        "ops/schemas/retrieval-candidate.schema.json", "C21", ("/projection", "/retrieval")
     ),
-    _not_applicable("ops/schemas/answer.schema.json", "S17", ("/projection", "/retrieval")),
+    _not_applicable("ops/schemas/answer.schema.json", "C21", ("/projection", "/retrieval")),
 )
 
 ALL_ARTIFACTS = (*OWNED_ARTIFACTS, *NOT_APPLICABLE_ARTIFACTS)
@@ -432,7 +432,7 @@ def _property_dictionary_bytes(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->",
         "# Property Dictionary",
         "",
-        "이 파일은 Blueprint registry에서 생성된 S04 strict note contract의 검증된 사본이다.",
+        "이 파일은 Blueprint registry에서 생성된 C06 strict note contract의 검증된 사본이다.",
         "",
         f"- contract: `{blueprint['contract_id']}`",
         f"- capability profile: `{CAPABILITY_PROFILE}`",

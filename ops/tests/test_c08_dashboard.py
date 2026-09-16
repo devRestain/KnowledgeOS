@@ -18,7 +18,7 @@ from vaultops.note_engine import NoteEngine
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_PATH = CONTROL_ROOT / "ops/tests/fixtures/s06_dashboard/fixture.yaml"
+FIXTURE_PATH = CONTROL_ROOT / "ops/tests/fixtures/c08_dashboard/fixture.yaml"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
@@ -112,7 +112,7 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
         assert result.passed, {"path": relative, "errors": result.as_dict()}
 
 
-def test_bootstrap_includes_s06_surface_without_overwriting_or_creating_sentinel(tmp_path: Path) -> None:
+def test_bootstrap_includes_c08_surface_without_overwriting_or_creating_sentinel(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     preview = bootstrap(root, dry_run=True)
     assert preview["status"] == "PASS"

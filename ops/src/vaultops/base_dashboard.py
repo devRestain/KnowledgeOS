@@ -1,10 +1,10 @@
-"""Deterministic S06 Base compiler and frozen-fixture query evaluator.
+"""Deterministic C08 Base compiler and frozen-fixture query evaluator.
 
 The Blueprint owns the logical query contract.  This module compiles that
 contract to the current Obsidian Bases YAML shape and provides a small,
 read-only evaluator for acceptance fixtures.  It deliberately does not try to
 interpret arbitrary Bases expressions: the evaluator implements only the
-allowlisted S06 query vocabulary, so an unrecognised contract fails closed.
+allowlisted C08 query vocabulary, so an unrecognised contract fails closed.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ CANONICAL_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 class BaseContractError(ValueError):
-    """Raised when a Base or frozen query contract is not S06-safe."""
+    """Raised when a Base or frozen query contract is not C08-safe."""
 
 
 def _dashboard_source(value: str) -> str:
@@ -53,7 +53,7 @@ def _dashboard_source(value: str) -> str:
 
 
 def dashboard_sources() -> dict[str, str]:
-    """Return the plugin-free S06 navigation and dashboard source bytes."""
+    """Return the plugin-free C08 navigation and dashboard source bytes."""
 
     return {
         "Home.md": _dashboard_source(
@@ -341,7 +341,7 @@ def dashboard_sources() -> dict[str, str]:
         ),
         "99_System/CSS/dashboard.css": _dashboard_source(
             r"""
-            /* KnowledgeOS S06: layout-only enhancement. Markdown/Base content remains authoritative. */
+            /* KnowledgeOS C08: layout-only enhancement. Markdown/Base content remains authoritative. */
             .knowledgeos-dashboard-grid {
               display: grid;
               grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -580,10 +580,10 @@ def render_base_documents(blueprint: Mapping[str, Any]) -> dict[str, str]:
 
     bases = blueprint.get("bases")
     if not isinstance(bases, Mapping) or tuple(bases.get("required", ())) != BASE_NAMES:
-        raise BaseContractError("Blueprint Base registry does not match S06 exact set")
+        raise BaseContractError("Blueprint Base registry does not match C08 exact set")
     views = bases.get("views")
     if not isinstance(views, Mapping) or set(views) != set(BASE_NAMES):
-        raise BaseContractError("Blueprint Base view registry does not match S06 exact set")
+        raise BaseContractError("Blueprint Base view registry does not match C08 exact set")
 
     documents: dict[str, str] = {}
     for base_name in BASE_NAMES:
@@ -652,16 +652,16 @@ def load_frozen_fixture(path: str | Path) -> tuple[date, tuple[FrozenNote, ...]]
 
     value = load_yaml_file(path)
     if not isinstance(value, Mapping) or not isinstance(value.get("today"), str):
-        raise BaseContractError("S06 fixture must define an ISO today value")
+        raise BaseContractError("C08 fixture must define an ISO today value")
     notes = value.get("notes")
     if not isinstance(notes, list):
-        raise BaseContractError("S06 fixture notes must be a list")
+        raise BaseContractError("C08 fixture notes must be a list")
     parsed: list[FrozenNote] = []
     for item in notes:
         if not isinstance(item, Mapping) or not isinstance(item.get("path"), str):
-            raise BaseContractError("S06 fixture note path is required")
+            raise BaseContractError("C08 fixture note path is required")
         if not isinstance(item.get("properties"), Mapping) or not isinstance(item.get("mtime"), (int, float)):
-            raise BaseContractError(f"S06 fixture note is incomplete: {item.get('path')}")
+            raise BaseContractError(f"C08 fixture note is incomplete: {item.get('path')}")
         parsed.append(FrozenNote(item["path"], dict(item["properties"]), float(item["mtime"])))
     return date.fromisoformat(value["today"]), tuple(parsed)
 
@@ -820,7 +820,7 @@ def evaluate_base_view(
         raise BaseContractError(f"Base file is missing or unsafe: {BASE_DIRECTORY}/{base_name}")
     actual = base_path.read_text(encoding="utf-8")
     if yaml.safe_load(actual) != yaml.safe_load(expected[f"{BASE_DIRECTORY}/{base_name}"]):
-        raise BaseContractError(f"Base file differs from canonical S06 compiler: {base_name}")
+        raise BaseContractError(f"Base file differs from canonical C08 compiler: {base_name}")
     return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(workspace / "KnowledgeHub"), today=today)
 
 
