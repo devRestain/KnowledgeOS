@@ -1,0 +1,91 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability: C20
+authoritative_sources:
+- blueprint/blueprint.yaml#/actions
+- blueprint/blueprint.yaml#/bridge/action_contracts
+- blueprint/blueprint.yaml#/llm
+- docs/IMPLEMENTATION_PLAN.md#C20
+pipelines:
+- id: triage
+  action_path: ops/actions/triage.json
+  prompt_path: ops/prompts/triage.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+- id: draft_note
+  action_path: ops/actions/draft-note.json
+  prompt_path: ops/prompts/draft-note.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+- id: summarize
+  action_path: ops/actions/summarize.json
+  prompt_path: ops/prompts/summarize.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+- id: link_suggestions
+  action_path: ops/actions/link-suggestions.json
+  prompt_path: ops/prompts/link-suggestions.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+- id: normalize
+  action_path: ops/actions/normalize.json
+  prompt_path: ops/prompts/normalize.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+- id: answer
+  action_path: ops/actions/answer.json
+  prompt_path: ops/prompts/answer.md
+  source: blueprint/blueprint.yaml#/actions/pipeline_registry/filenames
+routes:
+- id: organize
+  pipelines:
+  - triage
+  - normalize
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+- id: summarize
+  pipelines:
+  - summarize
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+- id: relate
+  pipelines:
+  - link_suggestions
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+- id: extract
+  pipelines:
+  - draft_note
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+- id: inbox
+  pipelines:
+  - triage
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+- id: project-summary
+  pipelines:
+  - summarize
+  source: blueprint/blueprint.yaml#/actions/user_action_routes
+requirements:
+  C20.A1:
+    kind: artifact
+    summary: Own every declared pipeline action and prompt
+    sources:
+    - blueprint/blueprint.yaml#/actions
+    - blueprint/blueprint.yaml#/llm
+  C20.A2:
+    kind: semantic
+    summary: Resolve every declared facade route to an exact pipeline sequence
+    sources:
+    - blueprint/blueprint.yaml#/actions/user_action_routes
+  C20.A3:
+    kind: runtime
+    summary: Keep route dispatch provider free and non-mutating
+    sources:
+    - blueprint/blueprint.yaml#/actions/invariants
+    - blueprint/blueprint.yaml#/llm/live_vault_write
+    - blueprint/blueprint.yaml#/llm/silent_provider_fallback
+  C20.A4:
+    kind: semantic
+    summary: Reject unknown and duplicate route or pipeline mappings
+    sources:
+    - blueprint/blueprint.yaml#/actions/pipeline_registry
+    - blueprint/blueprint.yaml#/actions/user_action_routes
+  C20.A5:
+    kind: artifact
+    summary: Bind C20 implementation records to authoritative contract sources
+    sources:
+    - blueprint/blueprint.yaml#/actions
+    - blueprint/blueprint.yaml#/bridge/action_contracts
+    - docs/IMPLEMENTATION_PLAN.md#C20

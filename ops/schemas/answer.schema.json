@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/answer.schema.json",
+  "title": "KnowledgeOS C23 cited answer or summary",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/summary"
+    },
+    {
+      "$ref": "#/$defs/answer"
+    }
+  ],
+  "$defs": {
+    "summary": {
+      "$anchor": "summary",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_id",
+        "summary_plaintext",
+        "citations",
+        "uncertainty",
+        "summary_sha256"
+      ],
+      "properties": {
+        "summary_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "summary_plaintext": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "citations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "locator",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
+              },
+              "locator": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "uncertainty": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "answer": {
+      "$anchor": "answer",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "answer_id",
+        "answer_plaintext",
+        "citations",
+        "uncertainty",
+        "answer_sha256"
+      ],
+      "properties": {
+        "answer_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "answer_plaintext": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "^(?![\\s\\S]*<[^>]+>)(?![\\s\\S]*!\\[\\[)(?![\\s\\S]*(?:obsidian|command):)[\\s\\S]*$"
+        },
+        "citations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "locator",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
+              },
+              "locator": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "uncertainty": {
+          "type": "string",
+          "minLength": 1
+        },
+        "answer_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

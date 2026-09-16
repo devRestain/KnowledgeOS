@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "action": "draft_note",
-  "input": "selected_candidate_only",
-  "output_schema": "ops/schemas/proposal.schema.json",
+  "prompt": "ops/prompts/draft-note.md",
   "provider_execution": false,
   "mutation_performed": false,
-  "available_after": "C19"
+  "available_after": "C19",
+  "input": "selected_candidate_only",
+  "output_schema": "ops/schemas/proposal.schema.json"
 }

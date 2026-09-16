@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "action": "answer",
+  "prompt": "ops/prompts/answer.md",
+  "provider_execution": false,
+  "mutation_performed": false,
+  "available_after": "C20",
+  "input": "source_capture_reference",
+  "target": null,
+  "parameters": [
+    "scope_id"
+  ],
+  "output_schema": "ops/schemas/answer.schema.json#answer"
+}

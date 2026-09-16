@@ -1,0 +1,31 @@
+schema_version: 1
+capability: C23
+profile: portable_core
+cases:
+  - id: cited_return_reason
+    query: 플레이어가 텍스트 공포 게임에 다시 돌아올 이유
+    scope: project:guestbook-horror
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 5
+    hops: 1
+    expected_citation_paths:
+      - 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
+    required_text:
+      - 바뀌는 기록과 해석
+      - 반복 방문의 이유
+  - id: cited_play_loop
+    query: 플레이 루프
+    scope: project:guestbook-horror
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 5
+    hops: 1
+    expected_citation_paths:
+      - 20_Projects/guestbook-horror/Working/플레이 루프 후보.md
+      - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+    required_text:
+      - 다음 방문
+      - 기록을 읽고 빈칸을 선택한 뒤

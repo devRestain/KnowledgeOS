@@ -21,6 +21,8 @@
 
 - Use `Makefile` targets and container Python `3.12.8` with uv `0.8.14` for canonical work.
 - Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID`; fail closed when Compose values are missing.
+- Use `/goal` mode for substantive multi-step work and keep the active goal aligned with session progress.
+- Set `token_budget` only when the user explicitly requests a goal budget.
 - Keep create-only writes inside validated targets.
 - Preserve control and Vault worktrees during every slice.
 

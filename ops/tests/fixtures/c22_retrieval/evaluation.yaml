@@ -1,0 +1,62 @@
+schema_version: 1
+capability: C22
+profile: portable_core
+queries:
+  - id: lexical_knowledge_phrase
+    query: 확정되지 않은 정보
+    mode: search
+    scope: null
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 10
+    hops: 0
+    expected_prefix_paths:
+      - 40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md
+    required_paths: []
+    required_graph_predicates: []
+  - id: lexical_source_phrase
+    query: synthetic source
+    mode: search
+    scope: null
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 10
+    hops: 0
+    expected_prefix_paths:
+      - 40_Knowledge/Sources/Guestbook Horror Design Note.md
+    required_paths: []
+    required_graph_predicates: []
+  - id: typed_link_play_loop
+    query: 플레이 루프
+    mode: retrieve
+    scope: project:guestbook-horror
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 10
+    hops: 1
+    expected_prefix_paths:
+      - 20_Projects/guestbook-horror/Working/플레이 루프 후보.md
+      - 40_Knowledge/Ideas/이전 플레이의 흔적을 다음 방문에 반영한다.md
+    required_paths:
+      - 20_Projects/guestbook-horror/guestbook-horror.md
+    required_graph_predicates:
+      - projects
+      - implements
+  - id: typed_link_blank
+    query: 빈칸
+    mode: retrieve
+    scope: project:guestbook-horror
+    path_prefix: null
+    include_types: null
+    include_review: false
+    limit: 10
+    hops: 1
+    expected_prefix_paths:
+      - 40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md
+    required_paths:
+      - 40_Knowledge/Questions/플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 무엇인가.md
+    required_graph_predicates:
+      - explains

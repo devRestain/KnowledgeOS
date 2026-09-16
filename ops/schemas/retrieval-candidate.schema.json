@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/retrieval-candidate.schema.json",
+  "title": "KnowledgeOS C22 frozen retrieval candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query_sha256",
+    "policy_decision_sha256",
+    "index_generation_id",
+    "note_id",
+    "path",
+    "content_hash",
+    "chunk_id",
+    "chunk_hash",
+    "chunk_locator",
+    "retrieval_reason",
+    "lexical_score_and_rank",
+    "vector_score_and_rank",
+    "rrf_parameter_and_rank",
+    "graph_path",
+    "parser_and_chunker_version",
+    "embedding_provider_model_dimension_and_artifact_digest",
+    "indexer_version",
+    "retrieval_config_sha256"
+  ],
+  "properties": {
+    "query_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_decision_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "index_generation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "note_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,199}$"
+        }
+      ]
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chunk_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "chunk_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chunk_locator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "retrieval_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "lexical_score_and_rank": {
+      "type": "object"
+    },
+    "vector_score_and_rank": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rrf_parameter_and_rank": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "graph_path": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "parser_and_chunker_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "embedding_provider_model_dimension_and_artifact_digest": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "indexer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieval_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

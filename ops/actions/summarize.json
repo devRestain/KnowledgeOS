@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "action": "summarize",
+  "prompt": "ops/prompts/summarize.md",
+  "provider_execution": false,
+  "mutation_performed": false,
+  "available_after": "C20",
+  "input": "bounded_summary_mode",
+  "target": null,
+  "output_schema": "ops/schemas/answer.schema.json#summary"
+}

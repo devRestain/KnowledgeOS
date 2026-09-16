@@ -1,11 +1,12 @@
 {
   "schema_version": 1,
   "action": "triage",
+  "prompt": "ops/prompts/triage.md",
+  "provider_execution": false,
+  "mutation_performed": false,
   "input_types": [
     "capture",
     "daily"
   ],
-  "output_schema": "ops/schemas/triage-result.schema.json",
-  "provider_execution": false,
-  "mutation_performed": false
+  "output_schema": "ops/schemas/triage-result.schema.json"
 }

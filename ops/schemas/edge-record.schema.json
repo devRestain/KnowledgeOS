@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/edge-record.schema.json",
+  "title": "KnowledgeOS C21 projected canonical edge record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "subject_id",
+    "edge_kind",
+    "predicate",
+    "object_id",
+    "subject_path",
+    "object_path",
+    "provenance",
+    "source_locator",
+    "object_locator",
+    "source_content_hash",
+    "relation_schema_version"
+  ],
+  "properties": {
+    "subject_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,199}$"
+        }
+      ]
+    },
+    "edge_kind": {
+      "enum": [
+        "semantic",
+        "context"
+      ]
+    },
+    "predicate": {
+      "type": "string",
+      "minLength": 1
+    },
+    "object_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,199}$"
+        }
+      ]
+    },
+    "subject_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
+    },
+    "object_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
+    },
+    "provenance": {
+      "const": "canonical_property"
+    },
+    "source_locator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "object_locator": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "relation_schema_version": {
+      "const": 1
+    }
+  }
+}

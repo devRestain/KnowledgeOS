@@ -685,6 +685,95 @@ EXPECTED_CAPTURE_FINALIZE_TRANSACTION = [
     "append_completion_receipt",
 ]
 
+EXPECTED_RETRIEVAL_PHASES = [
+    "native_exact_and_links",
+    "lexical_fts",
+    "local_vectors",
+    "reciprocal_rank_fusion",
+    "bounded_typed_graph_expansion",
+]
+
+EXPECTED_RETRIEVAL_GRAPH = {
+    "default_hops": 1,
+    "maximum_hops": 2,
+    "per_hop_node_cap": 20,
+    "total_edge_cap": 60,
+    "total_candidate_cap": 50,
+    "one_hop_allowlist": {
+        "predicates": [
+            "supports",
+            "contradicts",
+            "explains",
+            "applies_to",
+            "derived_from",
+            "implements",
+            "raises",
+            "projects",
+            "areas",
+            "topics",
+            "sources",
+            "people",
+            "related",
+        ],
+        "directions": ["outgoing", "incoming"],
+    },
+    "two_hop_sequence_allowlist": [
+        [
+            {"direction": "incoming", "predicate": "applies_to"},
+            {"direction": "incoming", "predicate": "supports"},
+        ],
+        [
+            {"direction": "incoming", "predicate": "applies_to"},
+            {"direction": "incoming", "predicate": "contradicts"},
+        ],
+        [
+            {"direction": "outgoing", "predicate": "implements"},
+            {"direction": "outgoing", "predicate": "derived_from"},
+        ],
+        [
+            {"direction": "outgoing", "predicate": "raises"},
+            {"direction": "incoming", "predicate": "explains"},
+        ],
+        [
+            {"direction": "incoming", "predicate": "projects"},
+            {"direction": "outgoing", "predicate": "sources"},
+        ],
+    ],
+    "unknown_sequence_policy": "reject",
+}
+
+EXPECTED_RETRIEVAL_CORPUS = {
+    "default_include_types": [
+        "knowledge",
+        "source",
+        "project",
+        "project_note",
+        "artifact",
+        "idea",
+        "question",
+    ],
+    "journal_requires_explicit_scope": True,
+    "exclude_paths": [
+        ".vault-bridge/**",
+        ".obsidian-*/**",
+        "99_System/**",
+        "01_AI_Review/Rejected/**",
+        "01_AI_Review/Expired/**",
+    ],
+    "review_corpus_separate": ["01_AI_Review/Pending/**", "01_AI_Review/Conflict/**"],
+}
+
+EXPECTED_RETRIEVAL_REMOTE_EMBEDDING = {
+    "allowed_ai_policy": ["remote_ok"],
+    "ask_requires_digest_bound_interactive_authorization": True,
+    "local_only_and_deny_forbidden": True,
+}
+
+EXPECTED_RETRIEVAL_STALENESS = {
+    "default": "fail_closed_and_require_rebuild",
+    "running_query_pins_generation": True,
+}
+
 
 @dataclass(frozen=True)
 class SemanticValidation:
@@ -964,6 +1053,15 @@ def _check_actions(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -
     for route, expected_pipelines in EXPECTED_ROUTES.items():
         actual_route = _as_mapping(routes.get(route))
         actual_pipelines = tuple(actual_route.get("pipelines", ()))
+        if len(actual_pipelines) != len(set(actual_pipelines)):
+            errors.append(
+                _error(
+                    "SEMANTIC_ACTION_PIPELINE_MAPPING",
+                    _path("actions", "user_action_routes", route, "pipelines"),
+                    "user action contains a duplicate pipeline mapping",
+                    details={"actual": actual_pipelines},
+                )
+            )
         if set(actual_pipelines) != set(expected_pipelines):
             errors.append(
                 _error(
@@ -1355,6 +1453,110 @@ def _check_projection(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]
     )
 
 
+def _check_retrieval(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
+    retrieval = _as_mapping(blueprint.get("retrieval"))
+    _check_mapping_value(
+        errors,
+        retrieval.get("phases"),
+        EXPECTED_RETRIEVAL_PHASES,
+        locator="/retrieval/phases",
+        code="SEMANTIC_RETRIEVAL_PHASE_ORDER",
+    )
+    _check_mapping_value(
+        errors,
+        dict(_as_mapping(retrieval.get("graph_expansion"))),
+        EXPECTED_RETRIEVAL_GRAPH,
+        locator="/retrieval/graph_expansion",
+        code="SEMANTIC_RETRIEVAL_GRAPH_BOUNDS",
+    )
+    _check_mapping_value(
+        errors,
+        dict(_as_mapping(retrieval.get("corpus"))),
+        EXPECTED_RETRIEVAL_CORPUS,
+        locator="/retrieval/corpus",
+        code="SEMANTIC_RETRIEVAL_CORPUS_POLICY",
+    )
+    _check_mapping_value(
+        errors,
+        retrieval.get("policy_gate_points"),
+        [
+            "before_remote_embedding_or_indexing",
+            "during_candidate_fusion_and_graph_expansion",
+            "immediately_before_model_context",
+        ],
+        locator="/retrieval/policy_gate_points",
+        code="SEMANTIC_RETRIEVAL_POLICY_GATES",
+    )
+    _check_mapping_value(
+        errors,
+        dict(_as_mapping(retrieval.get("remote_embedding"))),
+        EXPECTED_RETRIEVAL_REMOTE_EMBEDDING,
+        locator="/retrieval/remote_embedding",
+        code="SEMANTIC_RETRIEVAL_PRIVACY_POLICY",
+    )
+    _check_mapping_value(
+        errors,
+        dict(_as_mapping(retrieval.get("local_embedding"))),
+        {"deny_forbidden": True},
+        locator="/retrieval/local_embedding",
+        code="SEMANTIC_RETRIEVAL_PRIVACY_POLICY",
+    )
+    _check_mapping_value(
+        errors,
+        retrieval.get("filter_before_model"),
+        ["scope", "path", "type", "sensitivity", "ai_policy"],
+        locator="/retrieval/filter_before_model",
+        code="SEMANTIC_RETRIEVAL_FILTER_ORDER",
+    )
+    _check_mapping_value(
+        errors,
+        retrieval.get("frozen_candidate_fields"),
+        [
+            "query_sha256",
+            "policy_decision_sha256",
+            "index_generation_id",
+            "note_id",
+            "path",
+            "content_hash",
+            "chunk_id",
+            "chunk_hash",
+            "chunk_locator",
+            "retrieval_reason",
+            "lexical_score_and_rank",
+            "vector_score_and_rank",
+            "rrf_parameter_and_rank",
+            "graph_path",
+            "parser_and_chunker_version",
+            "embedding_provider_model_dimension_and_artifact_digest",
+            "indexer_version",
+            "retrieval_config_sha256",
+        ],
+        locator="/retrieval/frozen_candidate_fields",
+        code="SEMANTIC_RETRIEVAL_CANDIDATE_FIELDS",
+    )
+    _check_mapping_value(
+        errors,
+        dict(_as_mapping(retrieval.get("staleness"))),
+        EXPECTED_RETRIEVAL_STALENESS,
+        locator="/retrieval/staleness",
+        code="SEMANTIC_RETRIEVAL_STALENESS",
+    )
+    _check_mapping_value(
+        errors,
+        retrieval.get("answer_requires"),
+        ["note_id", "path", "locator", "evidence_hash", "uncertainty"],
+        locator="/retrieval/answer_requires",
+        code="SEMANTIC_RETRIEVAL_ANSWER_CONTRACT",
+    )
+    _check_mapping_value(
+        errors,
+        retrieval.get("graphrag_default"),
+        "deferred",
+        locator="/retrieval/graphrag_default",
+        code="SEMANTIC_RETRIEVAL_GRAPH_BOUNDS",
+    )
+
+
 def _check_transactions(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
     quickadd = _as_mapping(blueprint.get("quickadd_choices"))
     new_project = _as_mapping(quickadd.get("NEW_PROJECT"))
@@ -1528,6 +1730,7 @@ def validate_semantic_contract(blueprint: Mapping[str, Any]) -> SemanticValidati
     _check_bases(blueprint, errors)
     _check_dashboards(blueprint, errors)
     _check_projection(blueprint, errors)
+    _check_retrieval(blueprint, errors)
     _check_transactions(blueprint, errors)
     errors.sort(key=lambda item: (item["locator"], item["code"], item["message"]))
     return SemanticValidation(tuple(errors))

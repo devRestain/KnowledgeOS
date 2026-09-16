@@ -1,8 +1,12 @@
 /state version=1
 /project id=knowledgeos
 /status value=planned
-/checkpoint revision=6218b6294456357d369c7225debd8bee98486f0a dirty=true updated=2026-09-16T17:04:00+09:00
-/goal phase=current id=C20 state=planned action="Implement remaining proposal actions facade routes and PRD traceability"
+/checkpoint revision=584ac1d6c78262b3eaa07ca81fd300704f439be2 dirty=true updated=2026-09-17T00:38:17+09:00
+/goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
+/goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
+/goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
+/goal phase=history id=C23 state=complete action="Implement cited answers and the full provider-free guestbook-horror flow"
+/goal phase=current id=C24 state=planned action="Render background artifacts and verify synthetic wake and recovery behavior"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -84,6 +88,31 @@
 /accept id=C19.A7 state=pass action="Generate and verify C19 approval decision and apply-receipt schema artifacts" evidence=E_C19_ARTIFACT
 /accept id=C19.A8 state=pass action="Run canonical source blueprint schema container test and lint gates" evidence=E_C19_GATES
 /accept id=C19.A9 state=pass action="Validate state roots whitespace and runtime bridge namespace inventory" evidence=E_C19_STATIC
+/accept id=C20.A1 state=pass action="Own every declared pipeline action and prompt" evidence=E_C20_ARTIFACT
+/accept id=C20.A2 state=pass action="Resolve every declared facade route to an exact pipeline sequence" evidence=E_C20_SEMANTIC
+/accept id=C20.A3 state=pass action="Keep route dispatch provider free and non-mutating" evidence=E_C20_RUNTIME
+/accept id=C20.A4 state=pass action="Reject unknown duplicate and missing registry mappings" evidence=E_C20_FAIL_CLOSED
+/accept id=C20.A5 state=pass action="Bind C20 implementation records to authoritative contract sources" evidence=E_C20_TRACEABILITY
+/accept id=C20.A6 state=pass action="Expose six provider-free facade routes through the CLI" evidence=E_C20_CLI
+/accept id=C20.A7 state=pass action="Run canonical C20 source blueprint schema container test and lint gates" evidence=E_C20_GATES
+/accept id=C20.A8 state=pass action="Validate C20 state roots whitespace and runtime namespaces" evidence=E_C20_STATIC
+/accept id=C21.A1 state=pass action="Generate four projection schema artifacts from the Blueprint" evidence=E_C21_ARTIFACT
+/accept id=C21.A2 state=pass action="Project validated Markdown notes and canonical relation edges deterministically" evidence=E_C21_PROJECTION
+/accept id=C21.A3 state=pass action="Reject invalid encoding duplicate relation mixed generation digest and source drift inputs" evidence=E_C21_FAIL_CLOSED
+/accept id=C21.A4 state=pass action="Publish immutable generation files and one atomic current pointer" evidence=E_C21_PUBLISH
+/accept id=C21.A5 state=pass action="Read one generation with digest and source freshness validation" evidence=E_C21_READER
+/accept id=C21.A6 state=pass action="Expose provider-free export and index CLI commands" evidence=E_C21_CLI
+/accept id=C21.A7 state=pass action="Run canonical C21 source blueprint artifact container test and lint gates" evidence=E_C21_GATES
+/accept id=C21.A8 state=pass action="Validate C21 state roots whitespace ignored paths and runtime namespaces" evidence=E_C21_STATIC
+/accept id=C22.A1 state=pass action="Apply retrieval policy corpus and privacy filters before candidate generation" evidence=E_C22_POLICY
+/accept id=C22.A2 state=pass action="Return deterministic Unicode lexical candidates with query and chunk digests" evidence=E_C22_LEXICAL
+/accept id=C22.A3 state=pass action="Expand only allowlisted typed links within one and two hop caps" evidence=E_C22_GRAPH
+/accept id=C22.A4 state=pass action="Emit schema-valid frozen candidates with one generation and no vector or provider fields" evidence=E_C22_CANDIDATE
+/accept id=C22.A5 state=pass action="Fail closed on stale projection and retrieval policy digest drift without mutation" evidence=E_C22_FAIL_CLOSED
+/accept id=C22.A6 state=pass action="Expose stdin or validated-file search and retrieve CLI routes" evidence=E_C22_CLI
+/accept id=C22.A7 state=pass action="Evaluate the guestbook-horror fixture against a frozen C22 baseline" evidence=E_C22_EVAL
+/accept id=C22.A8 state=pass action="Run canonical C22 source blueprint schema container test and lint gates" evidence=E_C22_GATES
+/accept id=C22.A9 state=pass action="Validate C22 state roots whitespace ignored paths and runtime namespaces" evidence=E_C22_STATIC
 /accept id=MAC_PROFILE_VERIFY_20260916.A1 state=pass action="Confirm app-generated Mac profile files" evidence=E_MAC_PROFILE_CONFIG
 /accept id=MAC_PROFILE_VERIFY_20260916.A2 state=pass action="Align required Mac core plugin settings" evidence=E_MAC_PROFILE_CORE
 /accept id=MAC_PROFILE_VERIFY_20260916.A3 state=pass action="Verify Restricted Mode is disabled for community plugin execution" evidence=E_MAC_PLUGIN_DEVICE
@@ -212,6 +241,31 @@
 /evidence id=E_C19_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check" observed="Generate and zero-diff verify C19 approval decision and apply-receipt schemas under explicit ownership"
 /evidence id=E_C19_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run all canonical C19 source foundation blueprint artifact container test and lint gates with all passing"
 /evidence id=E_C19_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar both Git roots whitespace and control Vault runtime bridge ignored and empty namespace boundaries"
+/evidence id=E_C20_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check; ops/config/generated-artifacts.yaml" observed="Generate six C20 action configs five prompts and PRD traceability under deterministic ownership with zero-diff hashes"
+/evidence id=E_C20_SEMANTIC class=semantic result=pass source="make blueprint-check; ops/src/vaultops/pipeline_registry.py; ops/tests/test_c20_pipeline_registry.py" observed="Resolve the exact six pipeline mappings and six facade route sequences from the Blueprint"
+/evidence id=E_C20_RUNTIME class=runtime result=pass source="docker compose -f ops/compose.yaml run --rm dev uv run --frozen --no-sync pytest tests/test_c20_pipeline_registry.py" observed="Return ready read-only dispatch plans without provider calls or mutations for every route"
+/evidence id=E_C20_FAIL_CLOSED class=semantic result=pass source="ops/tests/test_c20_pipeline_registry.py" observed="Reject unknown routes duplicate pipeline mappings and missing action or prompt artifacts"
+/evidence id=E_C20_TRACEABILITY class=artifact result=pass source="ops/config/prd-traceability.yaml; make schema-check" observed="Bind C20 requirements pipelines routes and outputs to Blueprint and implementation-plan selectors"
+/evidence id=E_C20_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c20_pipeline_registry.py; make test" observed="Expose organize summarize relate extract inbox and project-summary as provider-free read-only facade commands"
+/evidence id=E_C20_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Run final canonical source blueprint schema container test and lint gates with 173 tests and Ruff passing"
+/evidence id=E_C20_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git-status-and-find" observed="Validate the state contract and inventory control and Vault roots ignored paths and empty runtime bridge namespaces"
+/evidence id=E_C21_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check; ops/config/generated-artifacts.yaml" observed="Generate and zero-diff verify four C21 projection schemas under explicit ownership"
+/evidence id=E_C21_PROJECTION class=runtime result=pass source="ops/tests/test_c21_projection.py; vaultops.cli.main" observed="Project validated fixture notes and canonical relation edges with stable compact JSONL bytes"
+/evidence id=E_C21_FAIL_CLOSED class=runtime result=pass source="ops/tests/test_c21_projection.py" observed="Reject non-LF source duplicate identity duplicate edge mixed generation digest mismatch and stale source inputs"
+/evidence id=E_C21_PUBLISH class=runtime result=pass source="ops/tests/test_c21_projection.py; runtime/index/exports" observed="Fsync generation files and atomically swap one current pointer without Vault mutation"
+/evidence id=E_C21_READER class=runtime result=pass source="ops/tests/test_c21_projection.py; vaultops.cli.main" observed="Read one pointer and accept only one generation with matching manifest file schema and source digests"
+/evidence id=E_C21_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c21_projection.py" observed="Expose provider-free export jsonl and index build verify commands"
+/evidence id=E_C21_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Run final canonical C21 source foundation blueprint artifact container test and lint gates with all passing"
+/evidence id=E_C21_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar both Git roots whitespace ignored paths empty namespaces and runtime projection boundaries"
+/evidence id=E_C22_POLICY class=semantic result=pass source="make blueprint-check; ops/policies/retrieval.yaml; ops/src/vaultops/retrieval.py" observed="Validate lexical first retrieval phases bounded graph policy gates corpus filters privacy gates and deferred vector RRF provider policy"
+/evidence id=E_C22_LEXICAL class=runtime result=pass source="ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py" observed="Return deterministic Unicode lexical candidates with morphology compatible matching and no Vault or runtime mutation"
+/evidence id=E_C22_GRAPH class=runtime result=pass source="ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py" observed="Expand only allowlisted outgoing and incoming typed edges within configured hop edge node and candidate caps"
+/evidence id=E_C22_CANDIDATE class=artifact result=pass source="ops/schemas/retrieval-candidate.schema.json; make schema-check; ops/tests/test_c22_retrieval.py" observed="Validate every C22 candidate against the frozen schema with generation content chunk policy and retrieval config digests"
+/evidence id=E_C22_FAIL_CLOSED class=runtime result=pass source="ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py" observed="Reject stale C21 source or retrieval policy digest inputs before returning candidates and preserve runtime bytes"
+/evidence id=E_C22_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c22_retrieval.py" observed="Expose search and retrieve through stdin or regular query files and reject argv query bodies"
+/evidence id=E_C22_EVAL class=runtime result=pass source="ops/tests/fixtures/c22_retrieval/evaluation.yaml; ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py" observed="Evaluate four guestbook-horror lexical and typed-link cases against one verified immutable generation with all cases passing"
+/evidence id=E_C22_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C22 source foundation blueprint schema container test and lint gates with 188 tests and Ruff passing"
+/evidence id=E_C22_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find runtime" observed="Validate C22 state grammar both Git roots preserved dirty paths ignored runtime and empty namespaces"
 /evidence id=E_ARTIFACT class=artifact result=pass source="make schema-check" observed="Verify portable-core generated artifacts byte comparison and classify future artifacts as not applicable"
 /evidence id=E_DEPLOYMENT class=deployment result=pass source="vaultctl configure --dry-run; vaultctl doctor; vaultctl plugins audit; vaultctl git status" observed="Verify D01 through D07 MacBook deployment baseline while deferring mobile and provider overlays"
 /evidence id=E_EXTERNAL class=external_service result=not_run source="none" observed="Defer external service verification"
@@ -278,6 +332,11 @@
 /decision id=D30 state=accepted action="Set MacBook interactive completion at C23 and deployment completion at D07" source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md"
 /decision id=D31 state=accepted action="Keep C24 as optional MacBook core reliability and E01 through E05 outside the baseline" source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_BLUEPRINT.md"
 /decision id=D32 state=accepted action="Keep C19 proposal decisions provider free interactive only and bind apply to exact proposal source target policy schema and Vault digests" source="ops/src/vaultops/proposals.py; blueprint/blueprint.yaml"
+/decision id=D33 state=accepted action="Keep C20 facade dispatch provider free and read only and defer provider projection retrieval device and remote overlays to planned gates" source="ops/src/vaultops/pipeline_registry.py; blueprint/blueprint.yaml; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D34 state=accepted action="Publish immutable C21 generations through one atomic runtime pointer" source="blueprint/blueprint.yaml; ops/src/vaultops/projection.py"
+/decision id=D35 state=accepted action="Keep C22 retrieval read only and pin one verified C21 generation" source="blueprint/blueprint.yaml; ops/policies/retrieval.yaml; ops/src/vaultops/projection.py"
+/decision id=D36 state=accepted action="Keep C22 lexical retrieval provider free and bound typed link expansion to the declared allowlists and caps" source="blueprint/blueprint.yaml; ops/policies/retrieval.yaml; ops/src/vaultops/retrieval.py"
+/decision id=D37 state=accepted action="Keep C23 answers extractive provider free and pinned to verified projection evidence" source="blueprint/blueprint.yaml; ops/src/vaultops/answer.py"
 /scope id=X01 state=out action="Migrate project state documents and agent guidance"
 /scope id=X02 state=out action="Translate required human information at close"
 /scope id=X03 state=out action="Preserve active workflows pipelines and gates"
@@ -295,11 +354,30 @@
 /scope id=X15 state=out action="Verify local implementation and status records"
 /scope id=X16 state=out action="Prepare D02 Mac profile verification before plugin installation"
 /scope id=X17 state=out action="Install or configure community plugins"
-/scope id=X18 state=in action="Complete MacBook interactive experience through C23 and deployment through D07"
+/scope id=X18 state=out action="Complete MacBook interactive experience through C23 and deployment through D07"
 /scope id=X19 state=out action="Verify mobile transport and live mobile bridge round trip"
 /scope id=X20 state=out action="Activate optional E01 through E05 extensions"
 /scope id=X21 state=out action="Implement C19 provider-free proposal review approval rejection and apply closure"
+/scope id=X22 state=out action="Implement C20 remaining proposal actions facade routes and PRD traceability"
+/scope id=X23 state=out action="Implement C21 deterministic JSONL projection and generation pointers"
+/scope id=X24 state=out action="Implement C22 lexical and typed link retrieval with a frozen evaluation baseline"
+/scope id=X25 state=out action="Implement C23 cited answers and the full provider-free guestbook-horror flow"
 /blocker id=B_MAC_CORE_PROFILE state=resolved action="Enable Properties and Workspaces in the Mac profile before D03 installation" source="KnowledgeHub/.obsidian-mac/core-plugins.json; blueprint/blueprint.yaml"
 /blocker id=B_MAC_RESTRICTED_MODE state=resolved action="Verify Restricted Mode is disabled in Obsidian before D03 installation" source=user_report
 /blocker id=B_MISE state=resolved action="Use system Python validator fallback" source="python3"
-/handoff state=ready action="Start C20 remaining proposal actions facade routes and PRD traceability after C19 approval and apply closure"
+/accept id=C23.A1 state=pass action="Build deterministic extractive answers from one verified C21 generation and C22 lexical typed link retrieval" evidence=E_C23_ANSWER
+/accept id=C23.A2 state=pass action="Emit schema valid hash bound citations uncertainty and safe answer plaintext" evidence=E_C23_ARTIFACT
+/accept id=C23.A3 state=pass action="Require a regular hash bound capture source and fail closed on source or index drift" evidence=E_C23_FAIL_CLOSED
+/accept id=C23.A4 state=pass action="Expose stdin validated file evaluation and capture reference answer CLI transports" evidence=E_C23_CLI
+/accept id=C23.A5 state=pass action="Complete the provider free guestbook horror fixture flow without Vault runtime or provider mutation" evidence=E_C23_CAPTURE
+/accept id=C23.A6 state=pass action="Run canonical C23 source foundation blueprint schema container test and lint gates" evidence=E_C23_GATES
+/accept id=C23.A7 state=pass action="Validate C23 state roots whitespace ignored paths empty namespaces and handoff" evidence=E_C23_STATIC
+/evidence id=E_C23_ANSWER class=runtime result=pass source="ops/src/vaultops/answer.py; ops/tests/test_c23_answer.py" observed="Return deterministic extractive answers with query policy generation and citation digests over the pinned projection without provider calls or mutations"
+/evidence id=E_C23_ARTIFACT class=artifact result=pass source="ops/schemas/answer.schema.json; make schema-check; ops/tests/test_c23_answer.py" observed="Validate the answer object against the C23 Draft 2020-12 schema and verify generated artifacts remain zero-diff"
+/evidence id=E_C23_FAIL_CLOSED class=runtime result=pass source="ops/src/vaultops/answer.py; ops/tests/test_c23_answer.py" observed="Reject mismatched capture digests before answer generation and preserve provider-free fail-closed behavior"
+/evidence id=E_C23_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c23_answer.py" observed="Expose vaultctl ask question stdin evaluation file and hash-bound capture reference transports"
+/evidence id=E_C23_CAPTURE class=runtime result=pass source="ops/tests/fixtures/c09_portable_vault/guestbook-horror/input; ops/tests/test_c23_answer.py" observed="Build the exact guestbook-horror fixture projection and answer a capture-derived query with citations while preserving Vault and runtime bytes"
+/evidence id=E_C23_EVAL class=runtime result=pass source="ops/tests/fixtures/c23_answers/evaluation.yaml; ops/src/vaultops/answer.py; ops/tests/test_c23_answer.py" observed="Pass the frozen C23 cited-return-reason and cited-play-loop baseline cases against one immutable generation"
+/evidence id=E_C23_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C23 source foundation Blueprint artifact container regression and lint gates with 193 tests and Ruff passing"
+/evidence id=E_C23_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar and inventory control dirty paths Vault clean state ignored profiles empty runtime and bridge namespaces"
+/handoff state=ready action="Start C24 background artifacts and synthetic wake and recovery verification"

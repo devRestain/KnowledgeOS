@@ -3,8 +3,9 @@
 The cumulative ``portable_core`` profile now includes the C10 control-side
 bridge and root-sentinel schemas.  Their first capability remains recorded as
 ``C10`` so the ownership manifest preserves the implementation boundary.
-Later prompts, action registries, and projection files remain visible but are
-reported as ``NOT_APPLICABLE_FOR_PROFILE`` until their owner session starts.
+C20 action registries and prompts are now owned deterministic artifacts, and
+C21 projection schemas are generated from the projection contract before a
+runtime generation is published.
 """
 
 from __future__ import annotations
@@ -36,6 +37,19 @@ from .bridge_contract import (
     schema_bytes,
 )
 from .note_engine import build_note_json_schema
+from .pipeline_registry import (
+    PIPELINE_FILENAMES,
+    PROMPT_FILENAMES,
+    canonical_action_document,
+    canonical_prompt,
+    canonical_traceability_document,
+)
+from .projection import (
+    answer_schema,
+    edge_record_schema,
+    note_record_schema,
+    retrieval_candidate_schema,
+)
 from .proposals import apply_receipt_schema, approval_schema, decision_schema
 from .triage import triage_result_schema
 from .yaml_safe import load_yaml_file
@@ -199,6 +213,55 @@ OWNED_ARTIFACTS = (
     _owned("ops/schemas/approval.schema.json", "c19_approval_schema", ("/llm/approval_binds", "/note_types/proposal"), deployed_copy=False, owner="C19", first_capability="C19"),
     _owned("ops/schemas/decision.schema.json", "c19_decision_schema", ("/llm/approval_binds", "/note_types/proposal"), deployed_copy=False, owner="C19", first_capability="C19"),
     _owned("ops/schemas/apply-receipt.schema.json", "c19_apply_receipt_schema", ("/llm/approval_binds", "/note_types/proposal"), deployed_copy=False, owner="C19", first_capability="C19"),
+    _owned("ops/actions/summarize.json", "c20_summarize_action", ("/actions", "/bridge/action_contracts/summarize"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/actions/link-suggestions.json", "c20_link_suggestions_action", ("/actions", "/bridge/action_contracts/link_suggestions"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/actions/normalize.json", "c20_normalize_action", ("/actions",), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/actions/answer.json", "c20_answer_action", ("/actions", "/bridge/action_contracts/answer"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/prompts/draft-note.md", "c20_draft_note_prompt", ("/actions", "/llm/draft_note"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/prompts/summarize.md", "c20_summarize_prompt", ("/actions", "/bridge/action_contracts/summarize"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/prompts/link-suggestions.md", "c20_link_suggestions_prompt", ("/actions", "/bridge/action_contracts/link_suggestions"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/prompts/normalize.md", "c20_normalize_prompt", ("/actions",), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned("ops/prompts/answer.md", "c20_answer_prompt", ("/actions", "/bridge/action_contracts/answer"), deployed_copy=False, owner="C20", first_capability="C20"),
+    _owned(
+        "ops/config/prd-traceability.yaml",
+        "c20_traceability",
+        ("/actions", "/bridge/action_contracts", "/commands"),
+        deployed_copy=False,
+        owner="C20",
+        first_capability="C20",
+    ),
+    _owned(
+        "ops/schemas/note-record.schema.json",
+        "c21_note_record_schema",
+        ("/projection",),
+        deployed_copy=False,
+        owner="C21",
+        first_capability="C21",
+    ),
+    _owned(
+        "ops/schemas/edge-record.schema.json",
+        "c21_edge_record_schema",
+        ("/projection",),
+        deployed_copy=False,
+        owner="C21",
+        first_capability="C21",
+    ),
+    _owned(
+        "ops/schemas/retrieval-candidate.schema.json",
+        "c21_retrieval_candidate_schema",
+        ("/projection", "/retrieval"),
+        deployed_copy=False,
+        owner="C21",
+        first_capability="C21",
+    ),
+    _owned(
+        "ops/schemas/answer.schema.json",
+        "c21_answer_schema",
+        ("/projection", "/retrieval"),
+        deployed_copy=False,
+        owner="C21",
+        first_capability="C21",
+    ),
 )
 
 
@@ -209,45 +272,16 @@ NOT_APPLICABLE_ARTIFACTS = (
         ("/",),
         inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md",
     ),
-    _not_applicable("ops/actions/summarize.json", "C20", ("/actions",)),
-    _not_applicable("ops/actions/link-suggestions.json", "C20", ("/actions",)),
-    _not_applicable("ops/actions/normalize.json", "C20", ("/actions",)),
-    _not_applicable("ops/actions/answer.json", "C20", ("/actions",)),
-    _not_applicable(
-        "ops/prompts/draft-note.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
-    ),
-    _not_applicable(
-        "ops/prompts/summarize.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
-    ),
-    _not_applicable(
-        "ops/prompts/link-suggestions.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
-    ),
-    _not_applicable(
-        "ops/prompts/normalize.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
-    ),
-    _not_applicable(
-        "ops/prompts/answer.md", "C20", ("/",), inputs_path="OBSIDIAN_VAULT_WHITEPAPER.md"
-    ),
-    _not_applicable("ops/schemas/note-record.schema.json", "C21", ("/projection",)),
-    _not_applicable("ops/schemas/edge-record.schema.json", "C21", ("/projection",)),
-    _not_applicable(
-        "ops/schemas/retrieval-candidate.schema.json", "C21", ("/projection", "/retrieval")
-    ),
-    _not_applicable("ops/schemas/answer.schema.json", "C21", ("/projection", "/retrieval")),
 )
 
-# Keep the machine-readable ownership file in capability order: the C06
-# deferred artifact precedes this C18 slice, while later C20/C21 artifacts
-# remain after it.  Export ownership is still determined solely by status.
+# Keep the machine-readable ownership file in capability order: the deferred
+# C06 artifact precedes the C18-C21 slices. Export ownership is still
+# determined solely by status.
 ALL_ARTIFACTS = (
     *OWNED_ARTIFACTS[:14],
     NOT_APPLICABLE_ARTIFACTS[0],
-    *OWNED_ARTIFACTS[14:17],
-    *NOT_APPLICABLE_ARTIFACTS[1:5],
-    *OWNED_ARTIFACTS[17:19],
-    *NOT_APPLICABLE_ARTIFACTS[5:10],
-    *OWNED_ARTIFACTS[19:],
-    *NOT_APPLICABLE_ARTIFACTS[10:],
+    *OWNED_ARTIFACTS[14:],
+    *NOT_APPLICABLE_ARTIFACTS[1:],
 )
 
 
@@ -525,6 +559,14 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
             )
             + "\n"
         ).encode("utf-8")
+    if spec.path == "ops/schemas/note-record.schema.json":
+        return schema_bytes(note_record_schema())
+    if spec.path == "ops/schemas/edge-record.schema.json":
+        return schema_bytes(edge_record_schema())
+    if spec.path == "ops/schemas/retrieval-candidate.schema.json":
+        return schema_bytes(retrieval_candidate_schema())
+    if spec.path == "ops/schemas/answer.schema.json":
+        return schema_bytes(answer_schema())
     if spec.path == "ops/schemas/triage-result.schema.json":
         return schema_bytes(triage_result_schema())
     if spec.path == "ops/schemas/job.schema.json":
@@ -535,10 +577,26 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         return schema_bytes(_c18_schema("receipt"))
     if spec.path in {"ops/prompts/system.md", "ops/prompts/triage.md"}:
         return _c18_text("c18_system_prompt" if spec.path.endswith("system.md") else "c18_triage_prompt")
+    if spec.path == "ops/config/prd-traceability.yaml":
+        return canonical_traceability_document(blueprint)
+    if spec.path.startswith("ops/actions/") and PurePosixPath(spec.path).name in PIPELINE_FILENAMES.values():
+        pipeline = next(
+            pipeline
+            for pipeline, filename in PIPELINE_FILENAMES.items()
+            if filename == PurePosixPath(spec.path).name
+        )
+        return schema_bytes(canonical_action_document(blueprint, pipeline))
+    if spec.path.startswith("ops/prompts/") and PurePosixPath(spec.path).name in PROMPT_FILENAMES.values():
+        pipeline = next(
+            pipeline
+            for pipeline, filename in PROMPT_FILENAMES.items()
+            if filename == PurePosixPath(spec.path).name
+        )
+        return canonical_prompt(pipeline).encode("utf-8")
     if spec.path == "ops/actions/triage.json":
-        return schema_bytes({"schema_version": 1, "action": "triage", "input_types": list(blueprint["llm"]["triage"]["allowed_source_types"]), "output_schema": "ops/schemas/triage-result.schema.json", "provider_execution": False, "mutation_performed": False})
+        return schema_bytes(canonical_action_document(blueprint, "triage"))
     if spec.path == "ops/actions/draft-note.json":
-        return schema_bytes({"schema_version": 1, "action": "draft_note", "input": "selected_candidate_only", "output_schema": "ops/schemas/proposal.schema.json", "provider_execution": False, "mutation_performed": False, "available_after": "C19"})
+        return schema_bytes(canonical_action_document(blueprint, "draft_note"))
     if spec.path == "ops/schemas/approval.schema.json":
         return schema_bytes(approval_schema())
     if spec.path == "ops/schemas/decision.schema.json":

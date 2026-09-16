@@ -10,6 +10,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from . import __version__
+from .answer import answer_from_capture, ask
+from .answer import evaluate_frozen_baseline as evaluate_answer_frozen_baseline
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
 from .bridge_publish import bridge_status, ingest_bridge_request, publish_bridge_response
@@ -24,8 +26,17 @@ from .diagnostics import (
 from .foundation import check_foundation, check_source_manifest
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .pipeline_registry import dispatch_user_action
+from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
 from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
+from .retrieval import (
+    RetrievalValidationError,
+    evaluate_frozen_baseline,
+    read_query_file,
+    retrieve,
+    search,
+)
 from .schema_export import export_schema_artifacts
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
@@ -35,6 +46,68 @@ from .yaml_safe import load_yaml_file
 
 def _control_root() -> Path:
     return Path(os.environ.get("KNOWLEDGEOS_CONTROL_ROOT", "/workspace/control"))
+
+
+def _add_retrieval_arguments(
+    command: argparse.ArgumentParser,
+    *,
+    default_hops: int,
+    allow_evaluation: bool = False,
+) -> None:
+    query_input = command.add_mutually_exclusive_group(required=True)
+    query_input.add_argument(
+        "--query-stdin",
+        action="store_true",
+        help="read one logical UTF-8 query line from stdin",
+    )
+    query_input.add_argument(
+        "--query-file",
+        type=Path,
+        help="read one logical UTF-8 query line from a regular file",
+    )
+    if allow_evaluation:
+        query_input.add_argument(
+            "--evaluation-file",
+            type=Path,
+            help="evaluate the checked-in C22 frozen baseline instead of one query",
+        )
+    command.add_argument("--scope", default=None, help="optional project or scope filter")
+    command.add_argument("--path-prefix", default=None, help="optional Vault-relative path prefix")
+    command.add_argument(
+        "--include-type",
+        dest="include_types",
+        action="append",
+        default=None,
+        help="include one note type; repeat for a custom corpus",
+    )
+    command.add_argument("--include-review", action="store_true", help="include only the separate pending/conflict review corpus")
+    command.add_argument("--limit", type=int, default=10, help="maximum number of candidates from 1 through 50")
+    command.add_argument(
+        "--hops",
+        type=int,
+        choices=(0, 1, 2),
+        default=default_hops,
+        help="bounded typed-link expansion hops",
+    )
+    command.add_argument(
+        "--generation-id",
+        dest="expected_generation_id",
+        default=None,
+        help="require the current pointer to select this immutable generation",
+    )
+    command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+
+def _retrieval_query(args: argparse.Namespace) -> str:
+    if args.query_stdin:
+        return sys.stdin.read()
+    return read_query_file(args.query_file)
+
+
+def _answer_query(args: argparse.Namespace) -> str:
+    if args.question_stdin:
+        return sys.stdin.read()
+    return read_query_file(args.question_file)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -156,6 +229,104 @@ def build_parser() -> argparse.ArgumentParser:
     schema_export.add_argument("--check", action="store_true", help="check byte-for-byte zero-diff without writing")
     schema_export.add_argument("--root", type=Path, default=None, help="mounted control root")
 
+    export = commands.add_parser("export", help="publish deterministic runtime projections")
+    export_commands = export.add_subparsers(dest="export_command", required=True)
+    export_jsonl_command = export_commands.add_parser(
+        "jsonl",
+        help="project validated Vault notes and canonical edges into one generation",
+    )
+    export_jsonl_command.add_argument("--generation-id", default=None, help="optional immutable generation identifier")
+    export_jsonl_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    index = commands.add_parser("index", help="build and verify the deterministic projection index")
+    index_commands = index.add_subparsers(dest="index_command", required=True)
+    index_build = index_commands.add_parser("build", help="build and atomically publish one projection generation")
+    index_build.add_argument("--generation-id", default=None, help="optional immutable generation identifier")
+    index_build.add_argument("--root", type=Path, default=None, help="mounted control root")
+    index_verify = index_commands.add_parser("verify", help="verify the current pointer and selected generation")
+    index_verify.add_argument(
+        "--no-source-check",
+        action="store_true",
+        help="verify generated files without comparing the source snapshot",
+    )
+    index_verify.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    search_command = commands.add_parser("search", help="run provider-free lexical retrieval")
+    _add_retrieval_arguments(search_command, default_hops=0)
+
+    retrieve_command = commands.add_parser(
+        "retrieve",
+        help="run provider-free lexical retrieval and bounded typed-link expansion",
+    )
+    _add_retrieval_arguments(retrieve_command, default_hops=1, allow_evaluation=True)
+
+    ask_command = commands.add_parser(
+        "ask",
+        help="return one deterministic provider-free cited answer",
+    )
+    answer_input = ask_command.add_mutually_exclusive_group(required=True)
+    answer_input.add_argument(
+        "--question-stdin",
+        "--query-stdin",
+        dest="question_stdin",
+        action="store_true",
+        help="read one logical UTF-8 question from stdin",
+    )
+    answer_input.add_argument(
+        "--question-file",
+        "--query-file",
+        dest="question_file",
+        type=Path,
+        help="read one logical UTF-8 question from a regular file",
+    )
+    answer_input.add_argument(
+        "--source",
+        "--source-path",
+        dest="source_path",
+        help="answer the body of one hash-bound Vault capture note",
+    )
+    answer_input.add_argument(
+        "--evaluation-file",
+        type=Path,
+        help="evaluate the checked-in C23 frozen answer baseline",
+    )
+    ask_command.add_argument(
+        "--expected-sha256",
+        "--source-sha256",
+        dest="expected_sha256",
+        default=None,
+        help="required lowercase SHA-256 for --source",
+    )
+    ask_command.add_argument("--scope", default=None, help="optional project or scope filter")
+    ask_command.add_argument("--path-prefix", default=None, help="optional Vault-relative path prefix")
+    ask_command.add_argument(
+        "--include-type",
+        dest="include_types",
+        action="append",
+        default=None,
+        help="include one note type; repeat for a custom corpus",
+    )
+    ask_command.add_argument(
+        "--include-review",
+        action="store_true",
+        help="include only the separate pending/conflict review corpus",
+    )
+    ask_command.add_argument("--limit", type=int, default=5, help="maximum number of cited candidates from 1 through 50")
+    ask_command.add_argument(
+        "--hops",
+        type=int,
+        choices=(0, 1, 2),
+        default=1,
+        help="bounded typed-link expansion hops",
+    )
+    ask_command.add_argument(
+        "--generation-id",
+        dest="expected_generation_id",
+        default=None,
+        help="require the current pointer to select this immutable generation",
+    )
+    ask_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
     ai = commands.add_parser("ai", help="proposal-only deterministic AI contract commands")
     ai_commands = ai.add_subparsers(dest="ai_command", required=True)
     ai_triage = ai_commands.add_parser("triage", help="read one note and return a non-mutating triage proposal")
@@ -183,6 +354,12 @@ def build_parser() -> argparse.ArgumentParser:
     ai_apply.add_argument("--proposal", "--path", dest="proposal_path", required=True)
     ai_apply.add_argument("--approval", type=Path, default=None, help="optional explicit approval artifact")
     ai_apply.add_argument("--root", type=Path, default=None, help="mounted control root")
+    for route in ("organize", "summarize", "relate", "extract", "inbox", "project-summary"):
+        facade = ai_commands.add_parser(
+            route,
+            help="resolve one provider-free user action into a read-only dispatch plan",
+        )
+        facade.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -527,6 +704,112 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = export_schema_artifacts(args.root or _control_root(), check=args.check)
         print(result.as_json(), end="")
         return result.exit_code
+    if args.command == "export" and args.export_command == "jsonl":
+        report, exit_code = export_jsonl(
+            args.root or _control_root(),
+            generation_id=args.generation_id,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "index" and args.index_command == "build":
+        report, exit_code = build_index(
+            args.root or _control_root(),
+            generation_id=args.generation_id,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "index" and args.index_command == "verify":
+        report, exit_code = verify_projection(
+            args.root or _control_root(),
+            verify_sources=not args.no_source_check,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command in {"search", "retrieve"}:
+        root = args.root or _control_root()
+        evaluation_file = getattr(args, "evaluation_file", None)
+        if evaluation_file is not None:
+            report, exit_code = evaluate_frozen_baseline(
+                root,
+                baseline_path=evaluation_file,
+                expected_generation_id=args.expected_generation_id,
+            )
+        else:
+            try:
+                query = _retrieval_query(args)
+            except (OSError, UnicodeError, RetrievalValidationError, TypeError, ValueError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": args.command,
+                    "capability": "C22",
+                    "provider_called": False,
+                    "mutation_performed": False,
+                    "errors": [{"code": "RETRIEVAL_INPUT_INVALID", "message": str(error)}],
+                }
+                exit_code = EXIT_INPUT_INVALID
+            else:
+                runner = search if args.command == "search" else retrieve
+                report, exit_code = runner(
+                    root,
+                    query,
+                    scope=args.scope,
+                    path_prefix=args.path_prefix,
+                    include_types=args.include_types,
+                    include_review=args.include_review,
+                    limit=args.limit,
+                    hops=args.hops,
+                    expected_generation_id=args.expected_generation_id,
+                )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ask":
+        root = args.root or _control_root()
+        if args.evaluation_file is not None:
+            report, exit_code = evaluate_answer_frozen_baseline(
+                root,
+                baseline_path=args.evaluation_file,
+                expected_generation_id=args.expected_generation_id,
+            )
+        elif args.source_path is not None:
+            report, exit_code = answer_from_capture(
+                root,
+                source_path=args.source_path,
+                expected_sha256=args.expected_sha256,
+                scope=args.scope,
+                path_prefix=args.path_prefix,
+                include_types=args.include_types,
+                include_review=args.include_review,
+                limit=args.limit,
+                hops=args.hops,
+                expected_generation_id=args.expected_generation_id,
+            )
+        else:
+            try:
+                query = _answer_query(args)
+            except (OSError, UnicodeError, RetrievalValidationError, TypeError, ValueError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": "ask",
+                    "capability": "C23",
+                    "provider_called": False,
+                    "mutation_performed": False,
+                    "errors": [{"code": "ANSWER_INPUT_INVALID", "message": str(error)}],
+                }
+                exit_code = EXIT_INPUT_INVALID
+            else:
+                report, exit_code = ask(
+                    root,
+                    query,
+                    scope=args.scope,
+                    path_prefix=args.path_prefix,
+                    include_types=args.include_types,
+                    include_review=args.include_review,
+                    limit=args.limit,
+                    hops=args.hops,
+                    expected_generation_id=args.expected_generation_id,
+                )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "ai" and args.ai_command == "review":
         report, exit_code = review_proposals(
             args.root or _control_root(),
@@ -577,6 +860,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             locator=args.locator,
             fragment_sha256=args.fragment_sha256,
         )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command in {
+        "organize",
+        "summarize",
+        "relate",
+        "extract",
+        "inbox",
+        "project-summary",
+    }:
+        report, exit_code = dispatch_user_action(args.root or _control_root(), args.ai_command)
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "note":

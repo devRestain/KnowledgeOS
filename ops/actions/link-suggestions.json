@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "action": "link_suggestions",
+  "prompt": "ops/prompts/link-suggestions.md",
+  "provider_execution": false,
+  "mutation_performed": false,
+  "available_after": "C20",
+  "input": "candidate_set_required",
+  "target": "source_path_and_hash",
+  "parameter": "retrieval_profile_id",
+  "output_schema": "ops/schemas/proposal.schema.json"
+}
