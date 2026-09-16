@@ -5,8 +5,8 @@ bridge and root-sentinel schemas.  Their first capability remains recorded as
 ``C10`` so the ownership manifest preserves the implementation boundary.
 C20 action registries and prompts are now owned deterministic artifacts, C21
 projection schemas are generated from the projection contract before a
-runtime generation is published, and C24 background artifacts remain
-install-time and inactive by default.
+runtime generation is published, C24 background artifacts remain install-time
+and inactive by default, and E01 owns the local vector evaluation schema.
 """
 
 from __future__ import annotations
@@ -61,6 +61,7 @@ from .projection import (
 )
 from .proposals import apply_receipt_schema, approval_schema, decision_schema
 from .triage import triage_result_schema
+from .vector import vector_evaluation_schema
 from .yaml_safe import load_yaml_file
 
 OWNERSHIP_CONTRACT_PATH = "ops/config/generated-artifacts.yaml"
@@ -68,6 +69,7 @@ CAPABILITY_PROFILE = "portable_core"
 GENERATOR_ID = "vaultops.schema_export"
 PROPERTY_DICTIONARY_PATH = "ops/expected/Property_Dictionary.md"
 DEPLOYED_PROPERTY_DICTIONARY_PATH = "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
+VECTOR_EVALUATION_SCHEMA_PATH = "ops/schemas/e01-vector-evaluation.schema.json"
 
 
 @dataclass(frozen=True)
@@ -294,6 +296,16 @@ OWNED_ARTIFACTS = (
         deployed_copy=False,
         owner="C24",
         first_capability="C24",
+    ),
+    _owned(
+        VECTOR_EVALUATION_SCHEMA_PATH,
+        "e01_vector_evaluation_schema",
+        ("/vector_contract", "/vector_evaluation_schema"),
+        deployed_copy=False,
+        owner="E01",
+        first_capability="E01",
+        generator_id="vaultops.vector",
+        inputs_path="ops/src/vaultops/vector.py",
     ),
 )
 
@@ -650,6 +662,8 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
             blueprint,
             source_info=_source_info(workspace, spec),
         )
+    if spec.path == VECTOR_EVALUATION_SCHEMA_PATH:
+        return schema_bytes(vector_evaluation_schema())
 
     if spec.path.endswith("/properties.yaml"):
         envelope = _envelope(blueprint, spec, "property_policy", workspace)

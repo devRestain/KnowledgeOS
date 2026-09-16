@@ -42,6 +42,7 @@ from .retrieval import (
 from .schema_export import export_schema_artifacts
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
+from .vector import evaluate_vector_baseline, vector_retrieve, vector_search
 from .workflows import create_period_note, create_project_bundle
 from .yaml_safe import load_yaml_file
 
@@ -96,6 +97,11 @@ def _add_retrieval_arguments(
         dest="expected_generation_id",
         default=None,
         help="require the current pointer to select this immutable generation",
+    )
+    command.add_argument(
+        "--vector",
+        action="store_true",
+        help="explicitly enable the local E01 vector and RRF overlay",
     )
     command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
@@ -261,6 +267,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="run provider-free lexical retrieval and bounded typed-link expansion",
     )
     _add_retrieval_arguments(retrieve_command, default_hops=1, allow_evaluation=True)
+
+    vector = commands.add_parser(
+        "vector",
+        help="run the explicit local E01 vector and RRF evaluation overlay",
+    )
+    vector_commands = vector.add_subparsers(dest="vector_command", required=True)
+    vector_search_command = vector_commands.add_parser(
+        "search",
+        help="run local vector-only retrieval over one verified generation",
+    )
+    _add_retrieval_arguments(vector_search_command, default_hops=0)
+    vector_retrieve_command = vector_commands.add_parser(
+        "retrieve",
+        help="run local vector/RRF retrieval and bounded typed-link expansion",
+    )
+    _add_retrieval_arguments(vector_retrieve_command, default_hops=1)
+    vector_evaluate_command = vector_commands.add_parser(
+        "evaluate",
+        help="evaluate local vector and RRF against the frozen E01 baseline",
+    )
+    vector_evaluate_command.add_argument("--evaluation-file", type=Path, default=None)
+    vector_evaluate_command.add_argument(
+        "--generation-id",
+        dest="expected_generation_id",
+        default=None,
+        help="require the current pointer to select this immutable generation",
+    )
+    vector_evaluate_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     ask_command = commands.add_parser(
         "ask",
@@ -770,11 +804,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = args.root or _control_root()
         evaluation_file = getattr(args, "evaluation_file", None)
         if evaluation_file is not None:
-            report, exit_code = evaluate_frozen_baseline(
-                root,
-                baseline_path=evaluation_file,
-                expected_generation_id=args.expected_generation_id,
-            )
+            if args.vector:
+                report, exit_code = evaluate_vector_baseline(
+                    root,
+                    baseline_path=evaluation_file,
+                    expected_generation_id=args.expected_generation_id,
+                )
+            else:
+                report, exit_code = evaluate_frozen_baseline(
+                    root,
+                    baseline_path=evaluation_file,
+                    expected_generation_id=args.expected_generation_id,
+                )
         else:
             try:
                 query = _retrieval_query(args)
@@ -790,6 +831,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                 exit_code = EXIT_INPUT_INVALID
             else:
                 runner = search if args.command == "search" else retrieve
+                report, exit_code = runner(
+                    root,
+                    query,
+                    scope=args.scope,
+                    path_prefix=args.path_prefix,
+                    include_types=args.include_types,
+                    include_review=args.include_review,
+                    limit=args.limit,
+                    hops=args.hops,
+                    expected_generation_id=args.expected_generation_id,
+                    use_vector=args.vector,
+                )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "vector":
+        root = args.root or _control_root()
+        if args.vector_command == "evaluate":
+            report, exit_code = evaluate_vector_baseline(
+                root,
+                baseline_path=args.evaluation_file,
+                expected_generation_id=args.expected_generation_id,
+            )
+        else:
+            try:
+                query = _retrieval_query(args)
+            except (OSError, UnicodeError, RetrievalValidationError, TypeError, ValueError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": f"vector {args.vector_command}",
+                    "capability": "E01",
+                    "vector_enabled": True,
+                    "provider_called": False,
+                    "mutation_performed": False,
+                    "errors": [{"code": "E01_INPUT_INVALID", "message": str(error)}],
+                }
+                exit_code = 10
+            else:
+                runner = vector_search if args.vector_command == "search" else vector_retrieve
                 report, exit_code = runner(
                     root,
                     query,

@@ -399,3 +399,12 @@ artifacts:
     generator: vaultops.schema_export:c24_launchd_plist
     deployed_copy: false
     first_capability: C24
+  - path: ops/schemas/e01-vector-evaluation.schema.json
+    owner: E01
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/vector.py
+        selectors: [/vector_contract, /vector_evaluation_schema]
+    generator: vaultops.vector:e01_vector_evaluation_schema
+    deployed_copy: false
+    first_capability: E01

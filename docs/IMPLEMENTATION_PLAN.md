@@ -55,4 +55,4 @@
 - `E04` — Activate each remote or unattended lane through a separate decision and authorization gate.
 - `E05` — Implement a thin Obsidian client only after `C23` proves repeated CLI friction.
 
-- The `C01`-`C24` core capability lane is complete; keep the deployment and extension lanes inactive unless their own prerequisites and exact external-effect approvals are satisfied.
+- The `C01`-`C24` core capability lane and the E01 vector/RRF evaluation slice are complete; keep D08-D10 and E02-E05 inactive unless their own prerequisites and exact external-effect approvals are satisfied, and keep vector retrieval opt-in by default.

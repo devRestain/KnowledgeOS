@@ -4,8 +4,9 @@ The C22 boundary deliberately keeps retrieval read-only.  The Vault remains the
 source of truth, C21's immutable generation is the only input surface, and the
 retrieval policy is checked against both the generated policy artifact and the
 Blueprint before any candidate is returned.  This module implements lexical
-matching and bounded typed-link expansion only; vectors, RRF, providers, and
-answer generation belong to later lanes.
+matching and bounded typed-link expansion only by default.  The optional E01
+local vector/RRF overlay is imported lazily so the C22 default remains byte
+and behavior stable without an explicit opt-in.
 """
 
 from __future__ import annotations
@@ -914,7 +915,9 @@ def _expand_typed_links(
     graph_node_ids: set[str] = set()
     for seed in lexical[:total_candidate_cap]:
         seed_id = str(seed["note_id"])
-        seed_rank = int(seed["lexical_score_and_rank"]["rank"])
+        lexical_rank = seed["lexical_score_and_rank"].get("rank")
+        rrf_rank = (seed.get("rrf_parameter_and_rank") or {}).get("rank")
+        seed_rank = int(lexical_rank if lexical_rank is not None else rrf_rank)
         frontier: list[tuple[str, tuple[str, ...], tuple[tuple[str, str], ...], tuple[str, ...]]] = [
             (seed_id, (seed_id,), (), ())
         ]
@@ -970,7 +973,7 @@ def _expand_typed_links(
             if not existing or tuple(path) < tuple(existing):
                 candidate["graph_path"] = path
             if "typed_link_expansion" not in candidate["retrieval_reason"]:
-                candidate["retrieval_reason"] = "lexical_match;typed_link_expansion"
+                candidate["retrieval_reason"] += ";typed_link_expansion"
 
     graph_candidates: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
     for note_id, (graph_key, path) in graph_best.items():
@@ -1055,7 +1058,28 @@ def _execute_projection(
     include_review: bool,
     limit: int,
     hops: int,
+    use_vector: bool = False,
 ) -> dict[str, Any]:
+    if not isinstance(use_vector, bool):
+        raise RetrievalValidationError("use_vector must be boolean")
+    if use_vector:
+        # Import lazily: E01 is an optional overlay and imports C22 helpers to
+        # preserve one policy filter, chunker, candidate schema, and graph
+        # implementation.  Keeping this branch opt-in preserves C22 defaults.
+        from .vector import vector_retrieve_projection
+
+        return vector_retrieve_projection(
+            projection,
+            query,
+            policy=retrieval,
+            retrieval_config_sha256=retrieval_config_sha256,
+            scope=scope,
+            path_prefix=path_prefix,
+            include_types=include_types,
+            include_review=include_review,
+            limit=limit,
+            hops=hops,
+        )
     normalized_query, query_sha256, terms = _canonical_query(query)
     included, excluded, selected_types, normalized_review, normalized_limit, normalized_hops = _filter_notes(
         projection,
@@ -1148,6 +1172,7 @@ def _run_retrieval(
     limit: int,
     hops: int,
     expected_generation_id: str | None,
+    use_vector: bool = False,
 ) -> tuple[dict[str, Any], int]:
     try:
         workspace = _workspace(root)
@@ -1190,6 +1215,7 @@ def _run_retrieval(
             include_review=include_review,
             limit=limit,
             hops=hops,
+            use_vector=use_vector,
         )
     except RetrievalConflict as error:
         return _failure(operation, "RETRIEVAL_POLICY_STALE", str(error), EXIT_CONFLICT)
@@ -1200,8 +1226,8 @@ def _run_retrieval(
 
     report = {
         "status": "PASS",
-        "operation": operation,
-        "capability": "C22",
+        "operation": f"vector {operation}" if use_vector else operation,
+        "capability": "E01" if use_vector else "C22",
         "query_sha256": result["query_sha256"],
         "policy_decision_sha256": result["policy_decision_sha256"],
         "index_generation_id": result["index_generation_id"],
@@ -1210,9 +1236,14 @@ def _run_retrieval(
         "candidates": result["candidates"],
         "filters": result["filters"],
         "source_verified": True,
+        "vector_enabled": bool(result.get("vector_enabled", False)),
         "provider_called": False,
         "mutation_performed": False,
     }
+    if result.get("vector_config_sha256") is not None:
+        report["vector_config_sha256"] = result["vector_config_sha256"]
+    if result.get("retrieval_mode") is not None:
+        report["retrieval_mode"] = result["retrieval_mode"]
     return report, EXIT_OK
 
 
@@ -1227,6 +1258,7 @@ def search(
     limit: int = DEFAULT_LIMIT,
     hops: int = 0,
     expected_generation_id: str | None = None,
+    use_vector: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """Run lexical retrieval and optional explicitly requested bounded expansion."""
 
@@ -1241,6 +1273,7 @@ def search(
         limit=limit,
         hops=hops,
         expected_generation_id=expected_generation_id,
+        use_vector=use_vector,
     )
 
 
@@ -1255,6 +1288,7 @@ def retrieve(
     limit: int = DEFAULT_LIMIT,
     hops: int = 1,
     expected_generation_id: str | None = None,
+    use_vector: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """Run lexical retrieval followed by policy-bounded typed-link expansion."""
 
@@ -1269,6 +1303,7 @@ def retrieve(
         limit=limit,
         hops=hops,
         expected_generation_id=expected_generation_id,
+        use_vector=use_vector,
     )
 
 
@@ -1284,6 +1319,7 @@ def search_projection(
     include_review: bool = False,
     limit: int = DEFAULT_LIMIT,
     hops: int = 0,
+    use_vector: bool = False,
 ) -> dict[str, Any]:
     """Pure C22 execution over an already pinned projection and policy."""
 
@@ -1302,6 +1338,7 @@ def search_projection(
         include_review=include_review,
         limit=limit,
         hops=hops,
+        use_vector=use_vector,
     )
 
 
@@ -1317,6 +1354,7 @@ def retrieve_projection(
     include_review: bool = False,
     limit: int = DEFAULT_LIMIT,
     hops: int = 1,
+    use_vector: bool = False,
 ) -> dict[str, Any]:
     """Pure lexical plus typed-link C22 execution over one pinned generation."""
 
@@ -1331,6 +1369,7 @@ def retrieve_projection(
         include_review=include_review,
         limit=limit,
         hops=hops,
+        use_vector=use_vector,
     )
 
 

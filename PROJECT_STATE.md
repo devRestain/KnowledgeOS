@@ -1,12 +1,13 @@
 /state version=1
 /project id=knowledgeos
 /status value=complete
-/checkpoint revision=584ac1d6c78262b3eaa07ca81fd300704f439be2 dirty=true updated=2026-09-17T01:08:04+09:00
+/checkpoint revision=5f5dfbaa5478677130561fbab134cafd325eebe2 dirty=true updated=2026-09-17T01:36:25+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
 /goal phase=history id=C23 state=complete action="Implement cited answers and the full provider-free guestbook-horror flow"
-/goal phase=current id=C24 state=complete action="Render background artifacts and verify synthetic wake and recovery behavior"
+/goal phase=history id=C24 state=complete action="Render background artifacts and verify synthetic wake and recovery behavior"
+/goal phase=current id=E01 state=complete action="Evaluate deterministic local vector and RRF against the frozen C22 baseline"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -381,7 +382,9 @@
 /evidence id=E_C23_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C23 source foundation Blueprint artifact container regression and lint gates with 193 tests and Ruff passing"
 /evidence id=E_C23_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar and inventory control dirty paths Vault clean state ignored profiles empty runtime and bridge namespaces"
 /decision id=D38 state=accepted action="Keep C24 worker activation provider calls Vault mutation and Git network effects inactive until separately authorized E03 or another explicit overlay" source="ops/src/vaultops/background.py; ops/config/background.yaml; ops/launchd/com.knowledgeos.vaultops.plist"
+/decision id=D39 state=accepted action="Keep E01 vector and RRF evaluation provider free opt in and disabled by default" source="blueprint/blueprint.yaml; docs/IMPLEMENTATION_PLAN.md"
 /scope id=X26 state=out action="Implement C24 background artifacts synthetic wake recovery observation and inactive LaunchAgent preview"
+/scope id=X27 state=out action="Implement E01 local vector and RRF evaluation without enabling default retrieval"
 /accept id=C24.A1 state=pass action="Render deterministic C24 background configuration worker report schema and inactive LaunchAgent artifacts under explicit ownership" evidence=E_C24_ARTIFACT
 /accept id=C24.A2 state=pass action="Run one provider free wake pass over committed bridge requests and create idempotent runtime queue manifests" evidence=E_C24_WORKER
 /accept id=C24.A3 state=pass action="Replay committed requests as NO_OP while preserving Vault Git head and worktree state" evidence=E_C24_REPLAY
@@ -398,4 +401,18 @@
 /evidence id=E_C24_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c24_background.py" observed="Expose vaultctl ai worker evaluation and vaultctl launchd install preview while leaving activation deferred"
 /evidence id=E_C24_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical C24 source foundation Blueprint artifact container regression and lint gates with 199 tests and Ruff passing"
 /evidence id=E_C24_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate C24 state grammar both Git roots whitespace ignored paths empty namespaces and a ready deferred handoff"
-/handoff state=ready action="Keep C24 complete and defer LaunchAgent activation and optional remote or provider overlays until separately authorized"
+/accept id=E01.A1 state=pass action="Define deterministic provider free local vector and RRF contract" evidence=E_E01_CONTRACT
+/accept id=E01.A2 state=pass action="Return vector and fused candidates bound to one verified C22 generation" evidence=E_E01_RETRIEVAL
+/accept id=E01.A3 state=pass action="Preserve privacy staleness and no mutation gates for vector evaluation" evidence=E_E01_FAIL_CLOSED
+/accept id=E01.A4 state=pass action="Evaluate frozen C22 cases and report the optional promotion decision" evidence=E_E01_EVAL
+/accept id=E01.A5 state=pass action="Expose explicit vector retrieval and evaluation CLI routes" evidence=E_E01_CLI
+/accept id=E01.A6 state=pass action="Run canonical E01 source blueprint schema container test and lint gates" evidence=E_E01_GATES
+/accept id=E01.A7 state=pass action="Validate E01 state roots whitespace ignored paths empty namespaces and handoff" evidence=E_E01_STATIC
+/evidence id=E_E01_CONTRACT class=semantic result=pass source="ops/src/vaultops/vector.py; blueprint/blueprint.yaml; ops/config/generated-artifacts.yaml; ops/schemas/e01-vector-evaluation.schema.json" observed="Define provider free deterministic local vector and weighted RRF parameters with opt in retrieval disabled by default and generated schema ownership"
+/evidence id=E_E01_RETRIEVAL class=runtime result=pass source="ops/src/vaultops/vector.py; ops/src/vaultops/retrieval.py; ops/tests/test_e01_vector.py; ops/tests/test_c22_retrieval.py" observed="Return deterministic vector only and vector plus RRF candidates bound to one verified C22 generation while preserving typed link expansion"
+/evidence id=E_E01_FAIL_CLOSED class=runtime result=pass source="ops/src/vaultops/vector.py; ops/tests/test_e01_vector.py" observed="Enforce C22 local embedding privacy policy reject stale projection digests reject invalid RRF ranked lists and avoid runtime or Vault mutation"
+/evidence id=E_E01_EVAL class=runtime result=pass source="ops/tests/fixtures/e01_vectors/evaluation.yaml; ops/src/vaultops/vector.py; ops/tests/test_e01_vector.py" observed="Evaluate four frozen guestbook horror cases and emit recall MRR RRF comparison and promotion decision in a schema valid report"
+/evidence id=E_E01_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_e01_vector.py" observed="Route explicit vector retrieval and vaultctl vector search retrieve evaluate commands while leaving default retrieval on C22 lexical behavior"
+/evidence id=E_E01_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical E01 source foundation Blueprint artifact container regression and lint gates with 206 tests and Ruff passing"
+/evidence id=E_E01_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status; git -C KnowledgeHub status; git check-ignore; find" observed="Validate state grammar and inventory control intended dirty changes Vault clean state ignored runtime profiles and empty namespaces before handoff"
+/handoff state=ready action="Keep E01 complete and leave D08 D09 D10 and E02 E03 E04 E05 inactive pending their own authorization"

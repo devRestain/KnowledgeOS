@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/e01-vector-evaluation.schema.json",
+  "title": "KnowledgeOS E01 local vector and RRF evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "operation",
+    "capability",
+    "baseline_sha256",
+    "index_generation_id",
+    "retrieval_config_sha256",
+    "vector_config_sha256",
+    "cases",
+    "metrics",
+    "source_verified",
+    "provider_called",
+    "mutation_performed"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "operation": {
+      "const": "vector evaluate"
+    },
+    "capability": {
+      "const": "E01"
+    },
+    "baseline_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "index_generation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieval_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "vector_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "mode",
+          "lexical",
+          "vector",
+          "rrf",
+          "passed"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "enum": [
+              "search",
+              "retrieve"
+            ]
+          },
+          "lexical": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_paths",
+              "expected_path_recall",
+              "reciprocal_rank"
+            ],
+            "properties": {
+              "candidate_paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "expected_path_recall": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "reciprocal_rank": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "vector": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_paths",
+              "expected_path_recall",
+              "reciprocal_rank"
+            ],
+            "properties": {
+              "candidate_paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "expected_path_recall": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "reciprocal_rank": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "rrf": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_paths",
+              "expected_path_recall",
+              "reciprocal_rank"
+            ],
+            "properties": {
+              "candidate_paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "expected_path_recall": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "reciprocal_rank": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_count",
+        "passed_case_count",
+        "all_cases_passed",
+        "lexical_mean_expected_path_recall",
+        "vector_mean_expected_path_recall",
+        "rrf_mean_expected_path_recall",
+        "lexical_mean_reciprocal_rank",
+        "vector_mean_reciprocal_rank",
+        "rrf_mean_reciprocal_rank",
+        "rrf_improves_baseline",
+        "require_improvement",
+        "promotion_gate_passed",
+        "promotion_decision"
+      ],
+      "properties": {
+        "case_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed_case_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "all_cases_passed": {
+          "type": "boolean"
+        },
+        "lexical_mean_expected_path_recall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vector_mean_expected_path_recall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rrf_mean_expected_path_recall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lexical_mean_reciprocal_rank": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vector_mean_reciprocal_rank": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rrf_mean_reciprocal_rank": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rrf_improves_baseline": {
+          "type": "boolean"
+        },
+        "require_improvement": {
+          "type": "boolean"
+        },
+        "promotion_gate_passed": {
+          "type": "boolean"
+        },
+        "promotion_decision": {
+          "enum": [
+            "promote_optional_rrf",
+            "retain_lexical_baseline"
+          ]
+        }
+      }
+    },
+    "source_verified": {
+      "const": true
+    },
+    "provider_called": {
+      "const": false
+    },
+    "mutation_performed": {
+      "const": false
+    }
+  }
+}

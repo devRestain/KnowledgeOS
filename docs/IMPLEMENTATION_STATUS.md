@@ -9,6 +9,6 @@
 - C22 provides read-only lexical and bounded typed-link retrieval over one verified C21 generation with digest-bound frozen candidates and evaluation; C23 adds deterministic extractive cited answers over that same pinned evidence without provider or Vault mutation.
 - C24 renders deterministic background configuration, worker-report, and inactive LaunchAgent artifacts; one-shot wake passes ingest committed requests idempotently and observe local recovery without provider, Vault, Git network, or LaunchAgent activation.
 - Preserve deployment evidence separately: the MacBook baseline through `D07` is complete; `D08` and `D09` are mobile overlays excluded from this baseline, and `D10` remains a separately gated provider overlay.
-- Keep optional extension sessions `E01` through `E05`, background activation, and remote effects inactive because no optional extension is required for the MacBook baseline.
+- E01 now provides an explicit provider-free local vector/RRF evaluation overlay without changing default retrieval; keep E02 through E05, background activation, and remote effects inactive because no further optional extension is required for the MacBook baseline.
 - Treat legacy numbers in Git history as provenance only, never as current execution order.
 - Keep historical narrative, obsolete counts, and superseded snapshots out of this index.
