@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=planned
-/checkpoint revision=9412ff1301490e971f0d63f370330fa9fe5d8999 dirty=true updated=2026-09-17T15:21:13+09:00
+/checkpoint revision=5914c02c86e963c73b3b2b2c6ec411e44c374f45 dirty=true updated=2026-09-18T00:55:32+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
@@ -10,8 +10,13 @@
 /goal phase=history id=E01 state=complete action="Evaluate deterministic local vector and RRF against the frozen C22 baseline"
 /goal phase=history id=C_AUDIT_20260917 state=complete action="Verify C01 C24 implementation and document available features"
 /goal phase=history id=E_TARGETS_20260917 state=complete action="Confirm five Mac plugin targets excluding Omnisearch"
-/goal phase=current id=C25 state=planned action="Repair central retrieval privacy gates and review corpus filtering"
-/goal phase=next id=C26 state=planned action="Bind cited evidence to exact displayed source bytes"
+/goal phase=history id=C25 state=complete action="Repair central retrieval privacy gates and review corpus filtering"
+/goal phase=history id=C26 state=complete action="Bind cited evidence to exact displayed source bytes"
+/goal phase=history id=C27 state=complete action="Implement action-specific proposals daily-fragment binding and deterministic proposal generation"
+/goal phase=history id=C28 state=complete action="Implement replay-safe journaled proposal lifecycle after C27 action-specific proposal generation"
+/goal phase=history id=C29 state=complete action="Implement privacy-minimized AI projections with explicit local and remote eligibility classes"
+/goal phase=history id=C30 state=complete action="Reconcile capability diagnostics and define the generated local-model configuration contract"
+/goal phase=current id=C31 state=planned action="Implement provider-neutral request response receipt and frozen-context envelopes"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -502,16 +507,71 @@
 /scope id=X32 state=pending action="Plan E10 Meta Bind low risk property view"
 /scope id=X33 state=out action="Install or configure selected community plugins before separate Mac authorization"
 /blocker id=B_E_PLUGIN_AUTH state=open action="Authorize Mac plugin installation only when deferred E06 resumes" source="AGENTS.md; blueprint/blueprint.yaml"
-/accept id=C25.A1 state=not_run action="Apply path type scope sensitivity and AI policy gates to every review and canonical candidate" evidence=E_C25_IMPLEMENTATION
-/accept id=C25.A2 state=not_run action="Reapply privacy gates during fusion graph expansion and model context construction" evidence=E_C25_IMPLEMENTATION
-/accept id=C25.A3 state=not_run action="Exclude confidential denied wrong type wrong path and wrong scope review notes across lexical vector and answer routes" evidence=E_C25_IMPLEMENTATION
-/accept id=C25.A4 state=not_run action="Run canonical source contract container test lint state and diff gates" evidence=E_C25_GATES
-/accept id=C26.A1 state=not_run action="Bind citations and displayed excerpts to exact locator content and chunk hashes" evidence=E_C26_IMPLEMENTATION
-/accept id=C26.A2 state=not_run action="Preserve lexical and vector chunk provenance through fusion and reject evidence drift" evidence=E_C26_IMPLEMENTATION
+/accept id=C25.A1 state=pass action="Apply path type scope sensitivity and AI policy gates to every review and canonical candidate" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A2 state=pass action="Reapply privacy gates during fusion graph expansion and model context construction" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A3 state=pass action="Exclude confidential denied wrong type wrong path and wrong scope review notes across lexical vector and answer routes" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A4 state=pass action="Run canonical source contract container test lint state and diff gates" evidence=E_C25_GATES
+/accept id=C26.A1 state=pass action="Bind citations and displayed excerpts to exact locator content and chunk hashes" evidence=E_C26_IMPLEMENTATION
+/accept id=C26.A2 state=pass action="Preserve lexical and vector chunk provenance through fusion and reject evidence drift" evidence=E_C26_IMPLEMENTATION
+/accept id=C27.A1 state=pass action="Separate C18 triage candidates from strict action-specific proposal schemas" evidence=E_C27_SCHEMA
+/accept id=C27.A2 state=pass action="Recompute and verify daily fragment bytes from the supplied locator" evidence=E_C27_FRAGMENT
+/accept id=C27.A3 state=pass action="Generate one create-only Pending artifact with bounded bindings and no canonical target mutation" evidence=E_C27_GENERATION
+/accept id=C27.A4 state=pass action="Mark C20 routes as executable or controlled unsupported" evidence=E_C27_ROUTES
+/accept id=C27.A5 state=pass action="Run C27 regression and container gates" evidence=E_C27_RUNTIME
+/accept id=C27.A6 state=pass action="Validate C27 state roots and whitespace" evidence=E_C27_STATIC
+/evidence id=E_C27_SCHEMA class=semantic result=pass source="ops/src/vaultops/action_proposals.py; ops/schemas/proposal.schema.json; ops/tests/test_c27_proposals.py" observed="Validate strict draft_note link_suggestions and normalize proposal branches and reject the C18 triage candidate shape"
+/evidence id=E_C27_FRAGMENT class=runtime result=pass source="ops/src/vaultops/fragments.py; ops/src/vaultops/triage.py; ops/tests/test_c27_proposals.py" observed="Recompute daily fragment bytes from block section body and line locators and reject digest drift and invalid locators"
+/evidence id=E_C27_GENERATION class=artifact result=pass source="ops/src/vaultops/action_proposals.py; ops/tests/test_c27_proposals.py" observed="Create one C19-compatible Pending artifact with bounded diff and bindings and replay identical bytes as NO_OP without canonical target mutation"
+/evidence id=E_C27_ROUTES class=semantic result=pass source="ops/src/vaultops/pipeline_registry.py; ops/src/vaultops/cli.py; ops/tests/test_c27_proposals.py" observed="Classify extract and relate routes as executable and remaining C20 facade routes as controlled unsupported"
+/evidence id=E_C27_FOUNDATION class=semantic result=pass source="make source-check; make verify; make blueprint-check; make contract-check" observed="Pass source checksum foundation Blueprint and contract validation"
+/evidence id=E_C27_ARTIFACT class=artifact result=pass source="make schema-export; make schema-check; ops/schemas/proposal.schema.json" observed="Regenerate and zero-diff verify the C27 proposal schema and generated artifact ownership"
+/evidence id=E_C27_RUNTIME class=runtime result=pass source="make container-source-check; make container-verify; make test; ops/tests/test_c27_proposals.py" observed="Pass container foundation checks C27-focused tests and all 218 regression tests in Python 3.12.8"
+/evidence id=E_C27_LINT class=static result=pass source="make lint" observed="Pass Ruff checks after C27 implementation"
+/evidence id=E_C27_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate state grammar both Git roots whitespace ignored paths and empty namespaces"
 /evidence id=E_C25_PROGRAM class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; ops/policies/retrieval.yaml; blueprint/blueprint.yaml" observed="Define C25 through C36 dependencies acceptance boundaries local model profiles and external gates"
-/evidence id=E_C25_IMPLEMENTATION class=runtime result=not_run source="ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py; ops/tests/test_c23_answer.py" observed="Defer C25 implementation to the next execution session"
-/evidence id=E_C25_GATES class=runtime result=not_run source="none" observed="Defer canonical implementation gates until C25 code changes exist"
-/evidence id=E_C26_IMPLEMENTATION class=runtime result=not_run source="ops/src/vaultops/answer.py; ops/src/vaultops/vector.py" observed="Defer C26 implementation to its ordered execution session"
+/evidence id=E_C25_IMPLEMENTATION class=runtime result=pass source="ops/src/vaultops/retrieval.py; ops/src/vaultops/vector.py; ops/src/vaultops/answer.py; ops/tests/test_c22_retrieval.py" observed="Reapply central path type scope sensitivity and ai_policy gates across review and canonical candidates lexical retrieval E01 vector RRF graph expansion and C23 answer context"
+/evidence id=E_C25_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint; scripts/validate_state.py; git diff --check; git -C KnowledgeHub diff --check" observed="Pass canonical source contract container test lint state and changed-root whitespace gates and record 208 tests passed in Python 3.12.8"
+/evidence id=E_C25_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git status --short --ignored; git -C KnowledgeHub status --short --ignored" observed="Capture state grammar and control/Vault dirty and ignored-path inventory without altering pre-existing ignored Obsidian or Vault boundaries"
+/evidence id=E_C26_IMPLEMENTATION class=runtime result=pass source="ops/src/vaultops/answer.py; ops/src/vaultops/retrieval.py; ops/src/vaultops/vector.py; ops/src/vaultops/projection.py; ops/schemas/answer.schema.json; ops/tests/test_c26_provenance.py" observed="Bind citations to note id path source content hash exact locator chunk id hash projection generation displayed excerpt bytes excerpt SHA-256 preserve lexical and vector channel provenance through RRF reject source locator generation and channel drift"
+/evidence id=E_C26_GATES class=runtime result=pass source="make schema-export; make schema-check; make blueprint-check; make container-source-check; make container-verify; make test; make lint" observed="Regenerate and zero-diff verify the answer artifact pass Blueprint and container foundation gates run 210 tests pass Ruff lint"
+/evidence id=E_C26_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate state grammar control whitespace and Vault whitespace after the C26 handoff update"
+/accept id=C28.A1 state=pass action="Derive timestamp-independent approval and rejection replay identities" evidence=E_C28_REPLAY
+/accept id=C28.A2 state=pass action="Quarantine same-id artifacts and journals when replay bytes differ" evidence=E_C28_QUARANTINE
+/accept id=C28.A3 state=pass action="Journal rejection intent before Vault rewrite and move" evidence=E_C28_JOURNAL
+/accept id=C28.A4 state=pass action="Recover rejection deterministically after rewrite move and receipt interruptions" evidence=E_C28_RECOVERY
+/accept id=C28.A5 state=pass action="Allow unrelated Vault-tree drift during rejection recovery" evidence=E_C28_DRIFT
+/accept id=C28.A6 state=pass action="Run C28 schema regression and canonical gates" evidence=E_C28_GATES
+/accept id=C28.A7 state=pass action="Validate C28 state roots and whitespace" evidence=E_C28_STATIC
+/evidence id=E_C28_REPLAY class=runtime result=pass source="ops/src/vaultops/proposals.py; ops/tests/test_c28_proposal_recovery.py" observed="Derive replay identities before timestamps and return NO_OP for identical approval and rejection requests"
+/evidence id=E_C28_QUARANTINE class=runtime result=pass source="ops/src/vaultops/proposals.py; ops/tests/test_c28_proposal_recovery.py" observed="Quarantine conflicting approval artifacts and active rejection journals when the same id carries different request bytes"
+/evidence id=E_C28_JOURNAL class=runtime result=pass source="ops/src/vaultops/proposals.py; ops/src/vaultops/recovery.py; ops/tests/test_c28_proposal_recovery.py" observed="Journal rejection intent before rewriting or moving the Pending proposal"
+/evidence id=E_C28_RECOVERY class=runtime result=pass source="ops/src/vaultops/proposals.py; ops/tests/test_c28_proposal_recovery.py" observed="Recover after injected rewrite and move interruptions and publish one journal-bound rejection receipt"
+/evidence id=E_C28_DRIFT class=runtime result=pass source="ops/tests/test_c28_proposal_recovery.py" observed="Keep unrelated Vault-tree drift from blocking a hash-bound rejection recovery"
+/evidence id=E_C28_ARTIFACT class=artifact result=pass source="ops/src/vaultops/proposals.py; ops/schemas/approval.schema.json; ops/schemas/decision.schema.json; make schema-export; make schema-check" observed="Generate and verify approval and decision artifacts with replay identity and journal binding fields"
+/evidence id=E_C28_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical source foundation Blueprint artifact container regression and lint gates with 222 tests passing"
+/evidence id=E_C28_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate C28 state grammar both Git-root whitespace ignored paths and empty namespaces"
+/accept id=C29.A1 state=pass action="Omit confidential and denied titles bodies properties and incident edges from AI artifacts" evidence=E_C29_IMPLEMENTATION
+/accept id=C29.A2 state=pass action="Permit local-only content only in local eligibility and remote content only from remote-ok notes" evidence=E_C29_POLICY
+/accept id=C29.A3 state=pass action="Publish immutable profile generations through atomic pointers and reject full-content C21 pointers" evidence=E_C29_ARTIFACT
+/accept id=C29.A4 state=pass action="Run C29 regression schema container source blueprint test lint and state gates" evidence=E_C29_GATES
+/accept id=C29.A5 state=pass action="Validate C29 state roots whitespace ignored paths and empty namespaces" evidence=E_C29_STATIC
+/evidence id=E_C29_IMPLEMENTATION class=runtime result=pass source="ops/src/vaultops/ai_projection.py; ops/tests/test_c29_ai_projection.py" observed="Filter confidential denied and profile-ineligible notes before serialization and remove incident edges and relation links"
+/evidence id=E_C29_POLICY class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml; ops/src/vaultops/ai_projection.py; ops/tests/test_c29_ai_projection.py" observed="Bind local eligibility to remote-ok ask and local-only policies and remote eligibility to remote-ok only"
+/evidence id=E_C29_ARTIFACT class=artifact result=pass source="ops/schemas/ai-note-record.schema.json; ops/schemas/ai-edge-record.schema.json; ops/config/generated-artifacts.yaml; make schema-export; make schema-check" observed="Generate and zero-diff verify C29 record schemas and publish separate immutable local and remote generation pointers"
+/evidence id=E_C29_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Pass canonical source foundation Blueprint schema container regression and lint gates with 226 tests passing"
+/evidence id=E_C29_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate C29 state grammar control and Vault whitespace dirty and ignored paths and empty namespaces"
+/accept id=C30.A1 state=pass action="Derive declared configured reachable authorized verified enabled and healthy capability dimensions" evidence=E_C30_DIAGNOSTICS
+/accept id=C30.A2 state=pass action="Generate and validate a disabled loopback-only local-model configuration artifact" evidence=E_C30_ARTIFACT
+/accept id=C30.A3 state=pass action="Report projection usability plugin evidence background inactivity and vector opt-in without device inference" evidence=E_C30_RUNTIME
+/accept id=C30.A4 state=pass action="Run canonical C30 source Blueprint schema container regression and lint gates" evidence=E_C30_GATES
+/accept id=C30.A5 state=pass action="Validate C30 state roots whitespace ignored paths and empty namespaces" evidence=E_C30_STATIC
+/accept id=C30.A6 state=pass action="Preserve explicit authorization boundaries for model provisioning live inspection and digest capture" evidence=E_C30_EXTERNAL
+/evidence id=E_C30_DIAGNOSTICS class=runtime result=pass source="ops/src/vaultops/diagnostics.py; ops/tests/test_c12_diagnostics.py; ops/tests/test_c30_diagnostics.py" observed="Derive and report declared configured reachable authorized verified enabled and healthy dimensions independently while preserving not-run and not-inferred evidence"
+/evidence id=E_C30_ARTIFACT class=artifact result=pass source="ops/src/vaultops/local_models.py; ops/config/local-models.yaml; ops/config/generated-artifacts.yaml; make schema-export; make schema-check" observed="Generate and zero-diff verify the disabled loopback-only local-model artifact with Gemma 4 generation and EmbeddingGemma embedding baselines and null live digests"
+/evidence id=E_C30_RUNTIME class=runtime result=pass source="vaultctl doctor --root /workspace/control; ops/tests/test_c30_diagnostics.py" observed="Report no verified current projection separate D07 filesystem evidence from device proof preserve inactive C24 background and opt-in E01 vector states and return doctor PASS"
+/evidence id=E_C30_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Run canonical source foundation Blueprint schema artifact container regression and lint gates with 231 tests passing in Python 3.12.8"
+/evidence id=E_C30_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; git check-ignore; find KnowledgeHub -type d -empty -print" observed="Validate C30 state grammar both Git roots whitespace ignored runtime paths preserved dirty control changes clean Vault state and empty bridge namespaces"
+/evidence id=E_C30_EXTERNAL class=external_service result=not_run source="none" observed="Defer model installation download live service inspection and full digest capture pending explicit external authorization"
 /evidence id=E_C25_PLAN_EXTERNAL class=external_service result=pass source="Google Gemma and Ollama official documentation" observed="Verify current Gemma 4 12B tags EmbeddingGemma profiles and Ollama local API constraints"
 /evidence id=E_C25_PLAN_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check" observed="Validate source checksums foundation Blueprint semantics and generated artifact zero diff"
 /evidence id=E_C25_PLAN_TEST class=runtime result=pass source="make test" observed="Run 206 tests with all passing in Python 3.12.8"
@@ -525,11 +585,11 @@
 /decision id=D51 state=accepted action="Keep model output schema constrained proposal only and human approved" source="OBSIDIAN_VAULT_BLUEPRINT.md; blueprint/blueprint.yaml"
 /decision id=D52 state=accepted action="Keep model installation downloads live calls plugin actions and host agents separately authorized" source="AGENTS.md; docs/OPERATIONS.md; docs/IMPLEMENTATION_PLAN.md"
 /decision id=D53 state=accepted action="Keep a thin Obsidian client conditional on E05 friction evidence and CLI parity" source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml"
-/scope id=X34 state=pending action="Implement C27 action specific proposals after C26"
-/scope id=X35 state=pending action="Implement C28 proposal lifecycle recovery after C27"
-/scope id=X36 state=pending action="Implement C29 privacy minimized projections after C25"
-/scope id=X37 state=pending action="Implement C30 truthful diagnostics and local model configuration after C29"
-/scope id=X38 state=pending action="Implement C31 provider neutral envelopes after C30"
+/scope id=X34 state=out action="Implement C27 action specific proposals after C26"
+/scope id=X35 state=out action="Implement C28 proposal lifecycle recovery after C27"
+/scope id=X36 state=out action="Implement C29 privacy minimized projections after C25"
+/scope id=X37 state=out action="Implement C30 truthful diagnostics and local model configuration after C29"
+/scope id=X38 state=in action="Implement C31 provider neutral envelopes after C30"
 /scope id=X39 state=pending action="Implement C32 executable synthetic provider brokerage after C31"
 /scope id=X40 state=pending action="Implement C33 bounded fake verified Ollama transport after D10"
 /scope id=X41 state=pending action="Implement C34 EmbeddingGemma indexing and quality gates after C33"
@@ -538,4 +598,7 @@
 /scope id=X44 state=out action="Contact install pull expose or activate Ollama during the planning session"
 /scope id=X45 state=out action="Install or activate AI plugins LaunchAgents devices remote services or Git effects during the planning session"
 /scope id=X46 state=out action="Treat third party plugin indexes proposals or approvals as canonical KnowledgeOS evidence"
-/handoff state=ready action="Start C25 privacy gate repair without provider plugin device or network effects"
+/decision id=D54 state=accepted action="Advance the current implementation lane from C28 to C29 after verified rejection recovery" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D55 state=accepted action="Keep C29 profile-scoped privacy-minimized projections separate from the C21 full projection" source="ops/src/vaultops/ai_projection.py; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D56 state=accepted action="Advance the implementation lane from C30 to C31 after verified capability diagnostics and local model configuration" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/handoff state=ready action="Start C31 provider-neutral request response receipt and frozen-context envelopes after verified C30"

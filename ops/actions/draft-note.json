@@ -4,7 +4,7 @@
   "prompt": "ops/prompts/draft-note.md",
   "provider_execution": false,
   "mutation_performed": false,
-  "available_after": "C19",
+  "available_after": "C27",
   "input": "selected_candidate_only",
   "output_schema": "ops/schemas/proposal.schema.json"
 }

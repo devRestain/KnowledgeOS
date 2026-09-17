@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,9 +23,11 @@ from jsonschema import Draft202012Validator
 
 from .blueprint import validate_blueprint
 from .note_engine import (
+    FrontmatterError,
     NoteContractError,
     NoteEngine,
     UnsafePathError,
+    parse_frontmatter,
     render_frontmatter,
     resolve_vault_relative_path,
     write_note_file,
@@ -47,10 +50,6 @@ _UUID4 = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
 _SOURCE_HASH = re.compile(r"^(.+)\|sha256:([0-9a-f]{64})$")
-_MANIFEST = re.compile(
-    r"<!--\s*vaultops:proposal-manifest\s*(?P<payload>\{.*?\})\s*-->",
-    re.DOTALL,
-)
 _MAX_REASON = 2000
 _MAX_MANIFEST = 256 * 1024
 
@@ -59,6 +58,7 @@ RESOLVED_ROOT = "01_AI_Review/Resolved"
 REJECTED_ROOT = "01_AI_Review/Rejected"
 APPROVED_ROOT = "runtime/approved"
 RECEIPTS_ROOT = "runtime/receipts"
+PROPOSAL_QUARANTINE_ROOT = "runtime/quarantine/proposals"
 
 
 def _now() -> str:
@@ -85,12 +85,65 @@ def _problem(
     }, exit_code
 
 
+def _conflict(
+    operation: str,
+    code: str,
+    message: str,
+    *,
+    details: Mapping[str, Any] | None = None,
+    quarantined: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    report, exit_code = _problem(operation, code, message, details=details)
+    report["status"] = "CONFLICT"
+    if quarantined is not None:
+        report["quarantined"] = quarantined
+    return report, exit_code
+
+
 def _hash_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
 def _hash_json(value: Any) -> str:
     return _hash_bytes(canonical_json_bytes(value))
+
+
+def _approval_replay_identity(payload: Mapping[str, Any]) -> str:
+    """Hash approval intent fields while excluding the approval timestamp."""
+
+    return _hash_json(
+        {
+            "operation": "proposal_approval",
+            "proposal_id": payload.get("proposal_id"),
+            "proposal_path": payload.get("proposal_path"),
+            "action": payload.get("action"),
+            "target_path": payload.get("target_path"),
+            "approval_binds": payload.get("approval_binds"),
+        }
+    )
+
+
+def _rejection_replay_identity(
+    *,
+    proposal_id: str,
+    proposal_path: str,
+    proposal_sha256: str,
+    reason_sha256: str,
+    reason_length: int,
+) -> str:
+    """Hash rejection request bytes before adding timestamps or journal state."""
+
+    return _hash_json(
+        {
+            "operation": "proposal_rejection",
+            "decision": "rejected",
+            "proposal_id": proposal_id,
+            "proposal_path": proposal_path,
+            "proposal_sha256": proposal_sha256,
+            "reason_sha256": reason_sha256,
+            "reason_length": reason_length,
+        }
+    )
 
 
 def _workspace(root: str | Path) -> Path:
@@ -270,14 +323,19 @@ class MutationPlan:
 
 
 def _manifest(document: ProposalDocument) -> tuple[dict[str, Any], int] | dict[str, Any]:
-    matches = list(_MANIFEST.finditer(document.typed.body))
-    if len(matches) != 1:
+    body = document.typed.body
+    markers = list(re.finditer(r"<!--\s*vaultops:proposal-manifest(?=\s|$)", body))
+    if len(markers) != 1:
         return _problem(
             "proposal",
             "PROPOSAL_MANIFEST_REQUIRED",
             "exactly one vaultops proposal manifest is required",
         )
-    payload = matches[0].group("payload").strip()
+    payload_start = markers[0].end()
+    end = body.find("-->", payload_start)
+    if end < 0:
+        return _problem("proposal", "PROPOSAL_MANIFEST_INVALID", "proposal manifest terminator is missing")
+    payload = body[payload_start:end].strip()
     if len(payload.encode("utf-8")) > _MAX_MANIFEST:
         return _problem("proposal", "PROPOSAL_MANIFEST_TOO_LARGE", "proposal manifest is too large")
     try:
@@ -289,6 +347,35 @@ def _manifest(document: ProposalDocument) -> tuple[dict[str, Any], int] | dict[s
     return value
 
 
+def _target_type_index(vault: Path, engine: NoteEngine) -> dict[str, str]:
+    """Resolve canonical wikilink aliases for relation-aware target checks."""
+
+    result: dict[str, str] = {}
+    for path in sorted(vault.rglob("*.md"), key=lambda item: item.relative_to(vault).as_posix()):
+        if path.is_symlink() or not path.is_file():
+            continue
+        relative = path.relative_to(vault).as_posix()
+        try:
+            note_type = engine.note_type_for_path(relative)
+            document = parse_frontmatter(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, FrontmatterError, UnsafePathError):
+            continue
+        if note_type is None:
+            continue
+        aliases = document.properties.get("aliases", [])
+        values = {
+            relative.removesuffix(".md"),
+            Path(relative).stem,
+            str(document.properties.get("title", "")),
+        }
+        values.update(alias for alias in aliases if isinstance(alias, str) and alias)
+        for value in values - {""}:
+            previous = result.get(value)
+            if previous is None or previous == note_type:
+                result[value] = note_type
+    return result
+
+
 def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[dict[str, str]], int] | list[dict[str, str]]:
     values = document.typed.properties.get("source_hashes")
     if not isinstance(values, list) or not values:
@@ -296,6 +383,7 @@ def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[di
     vault = _vault(workspace)
     result: list[dict[str, str]] = []
     engine = NoteEngine.from_root(workspace)
+    target_types = _target_type_index(vault, engine)
     for item in values:
         if not isinstance(item, str):
             return _problem("proposal", "PROPOSAL_SOURCE_BINDING_INVALID", "source hash binding must be text")
@@ -314,7 +402,7 @@ def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[di
                     "source digest does not match proposal binding",
                     details={"path": normalized},
                 )
-            typed = engine.typed_note(normalized, raw.decode("utf-8"))
+            typed = engine.typed_note(normalized, raw.decode("utf-8"), target_types=target_types)
         except (OSError, UnicodeError, UnsafePathError, NoteContractError, ValueError) as error:
             return _problem("proposal", "PROPOSAL_SOURCE_INVALID", str(error))
         if typed.properties.get("sensitivity") == "confidential" or typed.properties.get("ai_policy") == "deny":
@@ -354,7 +442,15 @@ def _plan(workspace: Path, document: ProposalDocument) -> tuple[MutationPlan, in
             return _problem("proposal", "PROPOSAL_TARGET_CONTENT_INVALID", "target_markdown or target_properties and target_body are required")
         markdown = render_frontmatter(properties, body)
     try:
-        NoteEngine.from_root(workspace).typed_note(target_path, markdown)
+        engine = NoteEngine.from_root(workspace)
+        target_types = _target_type_index(_vault(workspace), engine)
+        target_types.update(
+            {
+                target_path.removesuffix(".md"): engine.note_type_for_path(target_path) or "",
+                Path(target_path).stem: engine.note_type_for_path(target_path) or "",
+            }
+        )
+        NoteEngine.from_root(workspace).typed_note(target_path, markdown, target_types=target_types)
     except (NoteContractError, ValueError, UnicodeError) as error:
         return _problem("proposal", "PROPOSAL_TARGET_NOTE_INVALID", str(error))
     current_exists = target.exists() or target.is_symlink()
@@ -442,6 +538,32 @@ def _create_only_json(path: Path, payload: Mapping[str, Any]) -> None:
         if descriptor != -1:
             os.close(descriptor)
     fsync_directory(path.parent)
+
+
+def _quarantine_runtime_file(workspace: Path, path: Path, *, reason: str) -> str:
+    """Move one conflicting private artifact out of the active runtime set."""
+
+    if path.is_symlink() or not path.is_file():
+        raise RecoveryConflict(f"conflicting runtime artifact is not a regular file: {path}")
+    runtime = workspace / "runtime"
+    _private_dir(runtime)
+    quarantine = workspace / PROPOSAL_QUARANTINE_ROOT
+    _private_dir(workspace / "runtime" / "quarantine")
+    _private_dir(quarantine)
+    destination = quarantine / f"{path.name}.conflict-{uuid.uuid4().hex[:12]}"
+    os.rename(path, destination)
+    fsync_directory(destination.parent)
+    marker = destination.with_name(f"{destination.name}.json")
+    _create_only_json(
+        marker,
+        {
+            "schema_version": SCHEMA_VERSION,
+            "original_path": path.relative_to(workspace).as_posix(),
+            "quarantined_path": destination.relative_to(workspace).as_posix(),
+            "reason": reason,
+        },
+    )
+    return destination.relative_to(workspace).as_posix()
 
 
 def _approval_path(workspace: Path, proposal_id: str) -> Path:
@@ -547,7 +669,25 @@ def approve_proposal(
         if isinstance(loaded, tuple):
             return loaded
         document = loaded
+        approval_file = workspace / APPROVED_ROOT / f"{document.proposal_id}.json"
+        existing = _load_json(approval_file)
         if document.sha256 != expected_sha256:
+            bound_hash = existing.get("approval_binds", {}).get("proposal_sha256") if existing else None
+            if existing is not None and bound_hash != document.sha256:
+                try:
+                    quarantined = _quarantine_runtime_file(
+                        workspace,
+                        approval_file,
+                        reason="proposal bytes differ for an existing approval identity",
+                    )
+                except (OSError, RecoveryConflict, ValueError) as error:
+                    return _conflict(operation, "APPROVAL_CONFLICT", str(error))
+                return _conflict(
+                    operation,
+                    "APPROVAL_REPLAY_CONFLICT",
+                    "same proposal id has different proposal bytes",
+                    quarantined=quarantined,
+                )
             return _problem(operation, "PROPOSAL_DRIFT", "proposal digest does not match expected_sha256")
         sources = _parse_sources(workspace, document)
         if isinstance(sources, tuple):
@@ -556,6 +696,15 @@ def approve_proposal(
         if isinstance(plan, tuple):
             return plan
         binding = _binding(workspace, document, plan, sources)
+        replay_identity = _approval_replay_identity(
+            {
+                "proposal_id": document.proposal_id,
+                "proposal_path": document.path,
+                "action": plan.action,
+                "target_path": plan.target_path,
+                "approval_binds": binding,
+            }
+        )
         approval: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "operation": "proposal_approval",
@@ -565,6 +714,7 @@ def approve_proposal(
             "action": plan.action,
             "target_path": plan.target_path,
             "approval_binds": binding,
+            "replay_identity_sha256": replay_identity,
             "approved_at": _now(),
             "provider_called": False,
             "mutation_performed": False,
@@ -572,20 +722,34 @@ def approve_proposal(
         error = _validate_approval(approval)
         if error:
             return _problem(operation, "APPROVAL_SCHEMA_INVALID", error)
-        path = _approval_path(workspace, document.proposal_id)
-        existing = _load_json(path)
-        if existing is not None:
-            if existing != approval:
-                return _problem(operation, "APPROVAL_CONFLICT", "existing approval artifact differs")
-            return {
-                "status": "NO_OP",
-                "operation": operation,
-                "provider_called": False,
-                "mutation_performed": False,
-                "replayed": True,
-                "approval": existing,
-            }, EXIT_OK
-        _create_only_json(path, approval)
+        if approval_file.exists() or approval_file.is_symlink():
+            if existing is not None and _validate_approval(existing) is None:
+                observed_identity = existing.get("replay_identity_sha256")
+                if observed_identity == replay_identity:
+                    return {
+                        "status": "NO_OP",
+                        "operation": operation,
+                        "provider_called": False,
+                        "mutation_performed": False,
+                        "replayed": True,
+                        "approval": existing,
+                    }, EXIT_OK
+            try:
+                quarantined = _quarantine_runtime_file(
+                    workspace,
+                    approval_file,
+                    reason="approval replay identity differs from the requested bytes",
+                )
+            except (OSError, RecoveryConflict, ValueError) as error:
+                return _conflict(operation, "APPROVAL_CONFLICT", str(error))
+            return _conflict(
+                operation,
+                "APPROVAL_REPLAY_CONFLICT",
+                "existing approval artifact differs from the requested replay identity",
+                quarantined=quarantined,
+            )
+        _runtime_dirs(workspace)
+        _create_only_json(approval_file, approval)
         return {
             "status": "PASS",
             "operation": operation,
@@ -607,7 +771,9 @@ def _decision_payload(
     decision: str,
     reason: str,
     binding: Mapping[str, Any],
+    journal_sha256: str | None = None,
 ) -> dict[str, Any]:
+    reason_sha256 = _hash_bytes(reason.encode("utf-8"))
     return {
         "schema_version": SCHEMA_VERSION,
         "operation": "proposal_decision",
@@ -615,13 +781,306 @@ def _decision_payload(
         "proposal_id": document.proposal_id,
         "proposal_path": document.path,
         "proposal_sha256": document.sha256,
-        "reason_sha256": _hash_bytes(reason.encode("utf-8")),
+        "reason_sha256": reason_sha256,
         "reason_length": len(reason),
         "approval_binds": dict(binding),
+        "replay_identity_sha256": _rejection_replay_identity(
+            proposal_id=document.proposal_id,
+            proposal_path=document.path,
+            proposal_sha256=document.sha256,
+            reason_sha256=reason_sha256,
+            reason_length=len(reason),
+        ),
+        "journal_sha256": journal_sha256,
         "decided_at": _now(),
         "provider_called": False,
         "mutation_performed": True,
     }
+
+
+def _document_from_raw(workspace: Path, relative: str, raw: bytes) -> ProposalDocument:
+    """Validate a proposal note without requiring its status to remain pending."""
+
+    normalized, path = _safe_vault_path(_vault(workspace), relative)
+    text = raw.decode("utf-8")
+    typed = NoteEngine.from_root(workspace).typed_note(normalized, text)
+    if typed.note_type != "proposal":
+        raise RecoveryConflict("recovery path does not contain a proposal note")
+    proposal_id = typed.properties.get("proposal_id")
+    if not isinstance(proposal_id, str) or not _UUID4.fullmatch(proposal_id):
+        raise RecoveryConflict("recovery proposal_id is invalid")
+    if typed.properties.get("id") != f"proposal-{proposal_id}":
+        raise RecoveryConflict("recovery proposal id and note id differ")
+    return ProposalDocument(normalized, path, raw, text, typed, proposal_id)
+
+
+def _rejection_request_matches(
+    intent: Mapping[str, Any],
+    *,
+    proposal_path: str,
+    expected_sha256: str,
+    reason_sha256: str,
+    reason_length: int,
+) -> bool:
+    request = intent.get("request")
+    return isinstance(request, Mapping) and dict(request) == {
+        "proposal_path": proposal_path,
+        "proposal_sha256": expected_sha256,
+        "reason_sha256": reason_sha256,
+        "reason_length": reason_length,
+    }
+
+
+def _rejection_journal_for_path(workspace: Path, proposal_path: str) -> RecoveryJournal | None:
+    runs = workspace / "runtime" / "runs"
+    if runs.is_symlink() or not runs.is_dir():
+        return None
+    for job_dir in sorted(runs.iterdir(), key=lambda item: item.name):
+        if job_dir.is_symlink() or not job_dir.is_dir() or not _UUID4.fullmatch(job_dir.name):
+            continue
+        journal_path = job_dir / "journal.jsonl"
+        if journal_path.is_symlink() or not journal_path.is_file():
+            continue
+        try:
+            first_line = journal_path.read_bytes().splitlines()[0]
+            first = json.loads(first_line.decode("utf-8"))
+        except (IndexError, OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(first, Mapping) or first.get("operation") != "proposal_rejection":
+            continue
+        payload = first.get("payload")
+        if isinstance(payload, Mapping) and payload.get("proposal_path") == proposal_path:
+            return RecoveryJournal(workspace, job_id=job_dir.name, operation="proposal_rejection")
+    return None
+
+
+def _rejection_receipt_replay(
+    workspace: Path,
+    *,
+    proposal_path: str,
+    expected_sha256: str,
+    reason: str,
+) -> tuple[dict[str, Any], int] | None:
+    receipts = workspace / RECEIPTS_ROOT
+    if receipts.is_symlink() or not receipts.is_dir():
+        return None
+    reason_sha256 = _hash_bytes(reason.encode("utf-8"))
+    reason_length = len(reason)
+    for path in sorted(receipts.glob("*-proposal-rejection.json")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        receipt = _load_json(path)
+        if receipt is None or receipt.get("proposal_path") != proposal_path:
+            continue
+        proposal_id = receipt.get("proposal_id")
+        expected_identity = (
+            _rejection_replay_identity(
+                proposal_id=proposal_id,
+                proposal_path=proposal_path,
+                proposal_sha256=expected_sha256,
+                reason_sha256=reason_sha256,
+                reason_length=reason_length,
+            )
+            if isinstance(proposal_id, str)
+            else None
+        )
+        if (
+            expected_identity is not None
+            and _validate_decision(receipt) is None
+            and receipt.get("proposal_sha256") == expected_sha256
+            and receipt.get("replay_identity_sha256") == expected_identity
+        ):
+            return {
+                "status": "NO_OP",
+                "operation": "ai reject",
+                "provider_called": False,
+                "mutation_performed": False,
+                "replayed": True,
+                "receipt": receipt,
+            }, EXIT_OK
+        try:
+            quarantined = _quarantine_runtime_file(
+                workspace,
+                path,
+                reason="rejection replay identity differs from the requested bytes",
+            )
+        except (OSError, RecoveryConflict, ValueError) as error:
+            return _conflict("ai reject", "DECISION_CONFLICT", str(error))
+        return _conflict(
+            "ai reject",
+            "DECISION_REPLAY_CONFLICT",
+            "existing rejection receipt differs from the requested replay identity",
+            quarantined=quarantined,
+        )
+    return None
+
+
+def _rejection_recovery_conflict(
+    journal: RecoveryJournal,
+    *,
+    code: str,
+    message: str,
+) -> tuple[dict[str, Any], int]:
+    try:
+        quarantined = journal.quarantine(message)
+    except (OSError, RecoveryError) as error:
+        return _conflict("ai reject", code, f"{message}; quarantine failed: {error}")
+    return _conflict("ai reject", code, message, quarantined=quarantined)
+
+
+def _closed_rejection_bytes(workspace: Path, relative: str, raw: bytes, intent: Mapping[str, Any]) -> bytes:
+    observed = _hash_bytes(raw)
+    expected_source = intent.get("proposal_sha256")
+    expected_closed = intent.get("closed_proposal_sha256")
+    if observed == expected_closed:
+        return raw
+    if observed != expected_source:
+        raise RecoveryConflict("proposal bytes differ from the rejection journal intent")
+    document = _document_from_raw(workspace, relative, raw)
+    if document.proposal_id != intent.get("proposal_id"):
+        raise RecoveryConflict("proposal id differs from the rejection journal intent")
+    modified = intent.get("closed_modified")
+    if not isinstance(modified, str) or not modified:
+        raise RecoveryConflict("rejection journal closed_modified is invalid")
+    properties = dict(document.typed.properties)
+    properties["status"] = "rejected"
+    properties["ai_status"] = "rejected"
+    properties["modified"] = modified
+    rendered = render_frontmatter(properties, document.typed.body).encode("utf-8")
+    if _hash_bytes(rendered) != expected_closed:
+        raise RecoveryConflict("recomputed rejected proposal bytes differ from the journal intent")
+    return rendered
+
+
+def _apply_rejection_recovery(journal: RecoveryJournal, workspace: Path) -> tuple[dict[str, Any], int]:
+    operation = "ai reject"
+    try:
+        records = journal.records()
+        intent = journal.intent()
+    except (RecoveryCorruption, RecoveryError) as error:
+        return _rejection_recovery_conflict(journal, code="RECOVERY_JOURNAL_INVALID", message=str(error))
+
+    latest_state = str(records[-1]["state"])
+    if latest_state == "conflict":
+        return _conflict(operation, "RECOVERY_TRANSACTION_CONFLICT", "rejection journal is already marked conflict")
+    if latest_state == "completed":
+        try:
+            completion = dict(journal.completion_receipt())
+            receipt_path = _receipt_path(workspace, journal.job_id, "rejection")
+            _create_only_json(receipt_path, completion)
+        except (OSError, RecoveryConflict, RecoveryCorruption, RecoveryError) as error:
+            return _problem(operation, "REJECTION_RECEIPT_INVALID", str(error), exit_code=EXIT_INPUT_INVALID)
+        return {
+            "status": "PASS",
+            "operation": operation,
+            "provider_called": False,
+            "mutation_performed": True,
+            "replayed": True,
+            "receipt": completion,
+            "closed_path": intent.get("destination_path"),
+        }, EXIT_OK
+
+    try:
+        proposal_relative = str(intent["proposal_path"])
+        destination_relative = str(intent["destination_path"])
+        expected_closed = str(intent["closed_proposal_sha256"])
+        if latest_state == "intent":
+            journal.append("applying", {"proposal_path": proposal_relative, "destination_path": destination_relative})
+        pending = _safe_vault_path(_vault(workspace), proposal_relative)[1]
+        destination = _safe_vault_path(_vault(workspace), destination_relative)[1]
+        pending_exists = pending.exists() or pending.is_symlink()
+        destination_exists = destination.exists() or destination.is_symlink()
+        if pending_exists and destination_exists:
+            return _rejection_recovery_conflict(
+                journal,
+                code="RECOVERY_AMBIGUOUS_STATE",
+                message="pending proposal and rejected destination both exist",
+            )
+        if pending_exists:
+            if pending.is_symlink() or not pending.is_file():
+                return _rejection_recovery_conflict(
+                    journal,
+                    code="RECOVERY_PATH_MISMATCH",
+                    message="pending proposal path is not a regular file",
+                )
+            raw = pending.read_bytes()
+            closed = _closed_rejection_bytes(workspace, proposal_relative, raw, intent)
+            if _hash_bytes(closed) != expected_closed:
+                return _rejection_recovery_conflict(
+                    journal,
+                    code="RECOVERY_DESTINATION_HASH_MISMATCH",
+                    message="recomputed rejected proposal bytes differ from the journal intent",
+                )
+            if _hash_bytes(raw) != expected_closed:
+                write_note_file(
+                    pending,
+                    closed.decode("utf-8"),
+                    overwrite=True,
+                    expected_sha256=str(intent["proposal_sha256"]),
+                )
+                fsync_directory(pending.parent)
+                if _hash_bytes(pending.read_bytes()) != expected_closed:
+                    return _rejection_recovery_conflict(
+                        journal,
+                        code="RECOVERY_DESTINATION_HASH_MISMATCH",
+                        message="published rejected proposal bytes do not match the journal intent",
+                    )
+                journal.append("published", {"proposal_path": proposal_relative, "sha256": expected_closed})
+            os.replace(pending, destination)
+            fsync_directory(destination.parent)
+            fsync_directory(pending.parent)
+            journal.append("moved", {"destination_path": destination_relative, "sha256": expected_closed})
+        elif destination_exists:
+            if destination.is_symlink() or not destination.is_file():
+                return _rejection_recovery_conflict(
+                    journal,
+                    code="RECOVERY_PATH_MISMATCH",
+                    message="rejected destination is not a regular file",
+                )
+            if _hash_bytes(destination.read_bytes()) != expected_closed:
+                return _rejection_recovery_conflict(
+                    journal,
+                    code="RECOVERY_DESTINATION_HASH_MISMATCH",
+                    message="rejected destination bytes differ from the journal intent",
+                )
+            if journal.latest()["state"] != "moved":
+                journal.append("moved", {"destination_path": destination_relative, "sha256": expected_closed})
+        else:
+            return _rejection_recovery_conflict(
+                journal,
+                code="RECOVERY_AMBIGUOUS_STATE",
+                message="neither the pending proposal nor rejected destination exists",
+            )
+
+        receipt_payload = dict(intent["receipt"])
+        if _validate_decision(receipt_payload):
+            return _rejection_recovery_conflict(
+                journal,
+                code="DECISION_SCHEMA_INVALID",
+                message="rejection journal receipt fails its schema",
+            )
+        journal.append("completed", {"receipt": receipt_payload})
+        completion = dict(journal.completion_receipt())
+        if _validate_decision(completion):
+            return _rejection_recovery_conflict(
+                journal,
+                code="DECISION_SCHEMA_INVALID",
+                message="completed rejection receipt fails its schema",
+            )
+        _create_only_json(_receipt_path(workspace, journal.job_id, "rejection"), completion)
+        return {
+            "status": "PASS",
+            "operation": operation,
+            "provider_called": False,
+            "mutation_performed": True,
+            "replayed": latest_state != "intent",
+            "receipt": completion,
+            "closed_path": destination_relative,
+        }, EXIT_OK
+    except (KeyError, OSError, UnicodeError, UnsafePathError, ValueError, RecoveryConflict) as error:
+        if isinstance(error, RecoveryConflict):
+            return _rejection_recovery_conflict(journal, code="RECOVERY_RECOMPUTE_MISMATCH", message=str(error))
+        return _problem(operation, "REJECTION_INTERRUPTED", str(error), exit_code=EXIT_INPUT_INVALID)
 
 
 def reject_proposal(
@@ -631,13 +1090,45 @@ def reject_proposal(
     expected_sha256: str,
     reason: str,
 ) -> tuple[dict[str, Any], int]:
-    """Reject and close one pending proposal into the Rejected namespace."""
+    """Reject and close one pending proposal through a replay-safe journal."""
 
     operation = "ai reject"
     try:
         if not isinstance(reason, str) or not reason.strip() or len(reason) > _MAX_REASON:
             return _problem(operation, "REJECTION_REASON_INVALID", "reason must be bounded non-empty text")
+        if not isinstance(expected_sha256, str) or not _SHA256.fullmatch(expected_sha256):
+            return _problem(operation, "PROPOSAL_HASH_INVALID", "expected_sha256 must be lowercase SHA-256")
         workspace = _workspace(root)
+        reason_sha256 = _hash_bytes(reason.encode("utf-8"))
+        reason_length = len(reason)
+        replay = _rejection_receipt_replay(
+            workspace,
+            proposal_path=proposal_path,
+            expected_sha256=expected_sha256,
+            reason=reason,
+        )
+        if replay is not None:
+            return replay
+        journal = _rejection_journal_for_path(workspace, proposal_path)
+        if journal is not None:
+            try:
+                intent = journal.intent()
+            except (RecoveryCorruption, RecoveryError) as error:
+                return _rejection_recovery_conflict(journal, code="RECOVERY_JOURNAL_INVALID", message=str(error))
+            if not _rejection_request_matches(
+                intent,
+                proposal_path=proposal_path,
+                expected_sha256=expected_sha256,
+                reason_sha256=reason_sha256,
+                reason_length=reason_length,
+            ):
+                return _rejection_recovery_conflict(
+                    journal,
+                    code="DECISION_REPLAY_CONFLICT",
+                    message="same proposal id has a different rejection request",
+                )
+            return _apply_rejection_recovery(journal, workspace)
+
         loaded = _load_proposal(workspace, proposal_path)
         if isinstance(loaded, tuple):
             return loaded
@@ -655,36 +1146,27 @@ def reject_proposal(
         schema_error = _validate_decision(payload)
         if schema_error:
             return _problem(operation, "DECISION_SCHEMA_INVALID", schema_error)
-        receipt_path = _receipt_path(workspace, document.proposal_id, "rejection")
-        existing_receipt = _load_json(receipt_path)
-        if existing_receipt is not None:
-            if existing_receipt != payload:
-                return _problem(operation, "DECISION_CONFLICT", "existing rejection receipt differs")
-            return {
-                "status": "NO_OP",
-                "operation": operation,
-                "provider_called": False,
-                "mutation_performed": False,
-                "replayed": True,
-                "receipt": existing_receipt,
-            }, EXIT_OK
-        destination = _vault(workspace) / REJECTED_ROOT / Path(document.path).name
-        if destination.exists() or destination.is_symlink():
-            return _problem(operation, "DECISION_CONFLICT", "rejection destination already exists")
-        updated = _closed_proposal_text(document, status="rejected")
-        write_note_file(document.absolute_path, updated, overwrite=True, expected_sha256=document.sha256)
-        os.replace(document.absolute_path, destination)
-        fsync_directory(destination.parent)
-        _create_only_json(receipt_path, payload)
-        return {
-            "status": "PASS",
-            "operation": operation,
-            "provider_called": False,
-            "mutation_performed": True,
-            "replayed": False,
+        closed_modified = str(payload["decided_at"])
+        updated = _closed_proposal_text(document, status="rejected", modified=closed_modified)
+        intent = {
+            "schema_version": SCHEMA_VERSION,
+            "proposal_id": document.proposal_id,
+            "proposal_path": document.path,
+            "proposal_sha256": document.sha256,
+            "destination_path": f"{REJECTED_ROOT}/{Path(document.path).name}",
+            "closed_modified": closed_modified,
+            "closed_proposal_sha256": _hash_bytes(updated.encode("utf-8")),
+            "request": {
+                "proposal_path": document.path,
+                "proposal_sha256": document.sha256,
+                "reason_sha256": reason_sha256,
+                "reason_length": reason_length,
+            },
             "receipt": payload,
-            "closed_path": destination.relative_to(_vault(workspace)).as_posix(),
-        }, EXIT_OK
+        }
+        journal = RecoveryJournal(workspace, job_id=document.proposal_id, operation="proposal_rejection")
+        journal.start(intent)
+        return _apply_rejection_recovery(journal, workspace)
     except RecoveryConflict as error:
         return _problem(operation, "DECISION_CONFLICT", str(error))
     except (OSError, UnicodeError, UnsafePathError, ValueError, KeyError) as error:
@@ -696,11 +1178,16 @@ def _validate_decision(value: Mapping[str, Any]) -> str | None:
     return errors[0].message if errors else None
 
 
-def _closed_proposal_text(document: ProposalDocument, *, status: str) -> str:
+def _closed_proposal_text(
+    document: ProposalDocument,
+    *,
+    status: str,
+    modified: str | None = None,
+) -> str:
     properties = dict(document.typed.properties)
     properties["status"] = status
     properties["ai_status"] = status
-    properties["modified"] = _now()
+    properties["modified"] = modified or _now()
     return render_frontmatter(properties, document.typed.body)
 
 
@@ -931,7 +1418,7 @@ def approval_schema() -> dict[str, Any]:
         "type": "object",
         "additionalProperties": False,
         "$defs": binding["$defs"],
-        "required": ["schema_version", "operation", "status", "proposal_id", "proposal_path", "action", "target_path", "approval_binds", "approved_at", "provider_called", "mutation_performed"],
+        "required": ["schema_version", "operation", "status", "proposal_id", "proposal_path", "action", "target_path", "approval_binds", "replay_identity_sha256", "approved_at", "provider_called", "mutation_performed"],
         "properties": {
             "schema_version": {"const": 1},
             "operation": {"const": "proposal_approval"},
@@ -941,6 +1428,7 @@ def approval_schema() -> dict[str, Any]:
             "action": {"enum": ["create_note", "update_note"]},
             "target_path": {"type": "string", "minLength": 1},
             "approval_binds": binding,
+            "replay_identity_sha256": {"type": "string", "pattern": _SHA256.pattern},
             "approved_at": {"type": "string", "minLength": 1},
             "provider_called": {"const": False},
             "mutation_performed": {"const": False},
@@ -957,7 +1445,7 @@ def decision_schema() -> dict[str, Any]:
         "type": "object",
         "additionalProperties": False,
         "$defs": base["$defs"],
-        "required": ["schema_version", "operation", "decision", "proposal_id", "proposal_path", "proposal_sha256", "reason_sha256", "reason_length", "approval_binds", "decided_at", "provider_called", "mutation_performed"],
+        "required": ["schema_version", "operation", "decision", "proposal_id", "proposal_path", "proposal_sha256", "reason_sha256", "reason_length", "approval_binds", "replay_identity_sha256", "journal_sha256", "decided_at", "provider_called", "mutation_performed"],
         "properties": {
             "schema_version": {"const": 1},
             "operation": {"const": "proposal_decision"},
@@ -968,6 +1456,8 @@ def decision_schema() -> dict[str, Any]:
             "reason_sha256": {"type": "string", "pattern": _SHA256.pattern},
             "reason_length": {"type": "integer", "minimum": 1, "maximum": _MAX_REASON},
             "approval_binds": base["properties"]["approval_binds"],
+            "replay_identity_sha256": {"type": "string", "pattern": _SHA256.pattern},
+            "journal_sha256": {"anyOf": [{"type": "string", "pattern": _SHA256.pattern}, {"type": "null"}]},
             "decided_at": {"type": "string", "minLength": 1},
             "provider_called": {"const": False},
             "mutation_performed": {"const": True},

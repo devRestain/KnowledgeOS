@@ -31,7 +31,10 @@ from .projection import (
 from .retrieval import (
     RetrievalConflict,
     RetrievalValidationError,
+    _chunks_for_note,
     _load_contract,
+    _normalized_options,
+    _revalidate_candidates,
     retrieve_projection,
 )
 from .retrieval import (
@@ -220,7 +223,12 @@ def _flatten_property(value: Any) -> str:
     return str(value)
 
 
-def _property_evidence(note: Mapping[str, Any], terms: Sequence[str]) -> str:
+def _property_evidence(
+    note: Mapping[str, Any],
+    terms: Sequence[str],
+    *,
+    fallback_text: str,
+) -> str:
     properties = _as_mapping(note.get("properties"), f"properties for {note.get('path', 'note')}")
     note_type = str(note.get("type", ""))
     selected: list[str] = []
@@ -237,31 +245,132 @@ def _property_evidence(note: Mapping[str, Any], terms: Sequence[str]) -> str:
             break
     if selected:
         return " ".join(selected)
-    return _best_sentence(str(note.get("body", "")), terms)
+    return _best_sentence(fallback_text, terms)
 
 
-def _candidate_evidence(note: Mapping[str, Any], candidate: Mapping[str, Any], terms: Sequence[str]) -> str:
-    locator = str(candidate.get("chunk_locator", ""))
-    if locator == "/frontmatter":
-        evidence = _property_evidence(note, terms)
+def _candidate_chunk(note: Mapping[str, Any], candidate: Mapping[str, Any]) -> Any:
+    """Resolve a candidate to the exact chunk selected by its locator and hash."""
+
+    note_id = candidate.get("note_id")
+    path = candidate.get("path")
+    content_hash = candidate.get("content_hash")
+    chunk_id = candidate.get("chunk_id")
+    locator = candidate.get("chunk_locator")
+    chunk_hash = candidate.get("chunk_hash")
+    if note_id != note.get("id") or path != note.get("path"):
+        raise AnswerConflict("answer candidate note identity does not match the pinned projection")
+    if content_hash != note.get("content_hash"):
+        raise AnswerConflict("answer candidate source content hash does not match the pinned projection")
+    if not all(isinstance(value, str) and value for value in (chunk_id, locator, chunk_hash)):
+        raise AnswerValidationError("answer candidate chunk provenance is incomplete")
+    for chunk in _chunks_for_note(note):
+        if chunk.chunk_id != chunk_id:
+            continue
+        if chunk.locator != locator:
+            raise AnswerConflict("answer candidate locator does not match the pinned source chunk")
+        if chunk.chunk_hash != chunk_hash:
+            raise AnswerConflict("answer candidate chunk hash does not match the pinned source bytes")
+        return chunk
+    raise AnswerConflict("answer candidate chunk id is not present in the pinned projection")
+
+
+def _candidate_evidence(
+    note: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+    terms: Sequence[str],
+) -> tuple[str, Any]:
+    """Return display text sourced only from the candidate's exact chunk."""
+
+    chunk = _candidate_chunk(note, candidate)
+    selected_chunk = chunk
+    if chunk.locator == "/frontmatter":
+        # Preferred properties preserve the useful C23 decision/claim evidence,
+        # while the fallback remains inside the selected frontmatter chunk.
+        evidence = _property_evidence(note, terms, fallback_text=chunk.text)
     else:
-        evidence = _best_sentence(_chunk_text(note, locator), terms)
+        evidence = _best_sentence(chunk.text, terms)
+        heading_removed = re.sub(
+            r"(?m)^\s*#{1,6}[ \t]+[^\n]*(?:\n|$)",
+            "",
+            chunk.text,
+        ).strip()
+        if not heading_removed:
+            # A title-only heading chunk is a retrieval match, not useful
+            # display evidence.  Advance only within the same note's body
+            # chunks and cite the exact chunk actually displayed.
+            chunks = _chunks_for_note(note)
+            try:
+                chunk_index = next(index for index, item in enumerate(chunks) if item.chunk_id == chunk.chunk_id)
+            except StopIteration as error:
+                raise AnswerConflict("answer candidate chunk order is not pinned") from error
+            for alternative in chunks[chunk_index + 1 :]:
+                if alternative.locator == "/frontmatter":
+                    continue
+                alternative_body = re.sub(
+                    r"(?m)^\s*#{1,6}[ \t]+[^\n]*(?:\n|$)",
+                    "",
+                    alternative.text,
+                ).strip()
+                if not alternative_body:
+                    continue
+                alternative_evidence = _best_sentence(alternative.text, terms)
+                if alternative_evidence:
+                    selected_chunk = alternative
+                    evidence = alternative_evidence
+                    break
     if not evidence:
-        evidence = _safe_text(note.get("title", ""))
-    return _safe_text(evidence)
+        # This remains inside the selected chunk.  In particular, a
+        # /frontmatter candidate can never fall back to the note body.
+        evidence = _safe_text(selected_chunk.text)
+    else:
+        evidence = _safe_text(evidence)
+    if not evidence:
+        raise AnswerConflict("answer candidate chunk has no displayable evidence")
+    return evidence, selected_chunk
 
 
-def _citation(candidate: Mapping[str, Any]) -> dict[str, str]:
+def _citation(
+    candidate: Mapping[str, Any],
+    note: Mapping[str, Any],
+    chunk: Any,
+    excerpt: str,
+) -> dict[str, str]:
     path = candidate.get("path")
     locator = candidate.get("chunk_locator")
-    evidence_hash = candidate.get("chunk_hash")
-    if not isinstance(path, str) or not path:
+    content_hash = candidate.get("content_hash")
+    generation_id = candidate.get("index_generation_id")
+    chunk_id = candidate.get("chunk_id")
+    chunk_hash = candidate.get("chunk_hash")
+    if path != note.get("path") or not isinstance(path, str) or not path:
         raise AnswerValidationError("retrieval candidate path is invalid")
     if not isinstance(locator, str) or not locator:
         raise AnswerValidationError("retrieval candidate locator is invalid")
-    if not isinstance(evidence_hash, str) or not _SHA256_RE.fullmatch(evidence_hash):
-        raise AnswerValidationError("retrieval candidate evidence hash is invalid")
-    return {"path": path, "locator": locator, "sha256": evidence_hash}
+    if not isinstance(content_hash, str) or not _SHA256_RE.fullmatch(content_hash):
+        raise AnswerValidationError("retrieval candidate source content hash is invalid")
+    if not isinstance(generation_id, str) or not _GENERATION_ID_RE.fullmatch(generation_id):
+        raise AnswerValidationError("retrieval candidate projection generation is invalid")
+    if not isinstance(chunk_id, str) or not chunk_id:
+        raise AnswerValidationError("retrieval candidate chunk id is invalid")
+    if not isinstance(chunk_hash, str) or not _SHA256_RE.fullmatch(chunk_hash):
+        raise AnswerValidationError("retrieval candidate chunk hash is invalid")
+    if chunk.chunk_id != chunk_id or chunk.locator != locator or chunk.chunk_hash != chunk_hash:
+        raise AnswerConflict("citation chunk provenance does not match the pinned source bytes")
+    if not isinstance(excerpt, str) or not excerpt:
+        raise AnswerValidationError("citation excerpt is invalid")
+    excerpt_hash = _sha256_bytes(excerpt.encode("utf-8"))
+    return {
+        "note_id": str(note["id"]),
+        "path": path,
+        "content_hash": content_hash,
+        "locator": locator,
+        "chunk_id": chunk_id,
+        "chunk_hash": chunk_hash,
+        "index_generation_id": generation_id,
+        "excerpt": excerpt,
+        "excerpt_sha256": excerpt_hash,
+        # Keep the C23 field as a stable alias for the full selected chunk hash.
+        "sha256": chunk_hash,
+    }
 
 
 def _answer_hash_payload(answer: Mapping[str, Any]) -> dict[str, Any]:
@@ -296,12 +405,26 @@ def _build_answer(
             raise AnswerValidationError(f"answer candidate references missing note: {note_id}")
         if candidate.get("content_hash") != note.get("content_hash"):
             raise AnswerConflict("answer candidate content hash does not match the pinned projection")
-        citation = _citation(candidate)
-        citation_key = (citation["path"], citation["locator"], citation["sha256"])
+        evidence, chunk = _candidate_evidence(note, candidate, terms)
+        citation_candidate = dict(candidate)
+        citation_candidate.update(
+            {
+                "chunk_id": chunk.chunk_id,
+                "chunk_hash": chunk.chunk_hash,
+                "chunk_locator": chunk.locator,
+            }
+        )
+        citation = _citation(citation_candidate, note, chunk, evidence)
+        citation_key = (
+            citation["note_id"],
+            citation["path"],
+            citation["locator"],
+            citation["chunk_hash"],
+            citation["excerpt_sha256"],
+        )
         if citation_key in seen_citations:
             continue
         seen_citations.add(citation_key)
-        evidence = _candidate_evidence(note, candidate, terms)
         title = _safe_text(note.get("title", ""), maximum=240)
         lines.append(f"{title}: {evidence}" if title else evidence)
         citations.append(citation)
@@ -468,9 +591,25 @@ def answer_projection(
         limit=limit,
         hops=hops,
     )
+    options = _normalized_options(
+        policy,
+        scope=scope,
+        path_prefix=path_prefix,
+        include_types=include_types,
+        include_review=include_review,
+        limit=limit,
+        hops=hops,
+    )
+    safe_retrieval = dict(retrieval)
+    safe_retrieval["candidates"] = _revalidate_candidates(
+        projection,
+        policy,
+        retrieval["candidates"],
+        options=options,
+    )
     notes_by_id = {str(note["id"]): note for note in projection.notes}
-    answer = _build_answer(query, retrieval, notes_by_id, source_reference=source_reference)
-    return _answer_report(operation, retrieval, answer, source_reference=source_reference)
+    answer = _build_answer(query, safe_retrieval, notes_by_id, source_reference=source_reference)
+    return _answer_report(operation, safe_retrieval, answer, source_reference=source_reference)
 
 
 def _run_answer(

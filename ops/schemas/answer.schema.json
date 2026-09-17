@@ -40,20 +40,67 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "note_id",
               "path",
+              "content_hash",
               "locator",
+              "chunk_id",
+              "chunk_hash",
+              "index_generation_id",
+              "excerpt",
+              "excerpt_sha256",
               "sha256"
             ],
             "properties": {
+              "note_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "pattern": "^[a-z0-9][a-z0-9_-]{0,199}$"
+                  }
+                ]
+              },
               "path": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 1000,
                 "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
               },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
               "locator": {
                 "type": "string",
                 "minLength": 1
+              },
+              "chunk_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "chunk_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "index_generation_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "excerpt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1200
+              },
+              "excerpt_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
               },
               "sha256": {
                 "type": "string",
@@ -102,20 +149,67 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "note_id",
               "path",
+              "content_hash",
               "locator",
+              "chunk_id",
+              "chunk_hash",
+              "index_generation_id",
+              "excerpt",
+              "excerpt_sha256",
               "sha256"
             ],
             "properties": {
+              "note_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "pattern": "^[a-z0-9][a-z0-9_-]{0,199}$"
+                  }
+                ]
+              },
               "path": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 1000,
                 "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\r\\n\\x00]+$"
               },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
               "locator": {
                 "type": "string",
                 "minLength": 1
+              },
+              "chunk_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "chunk_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "index_generation_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "excerpt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1200
+              },
+              "excerpt_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
               },
               "sha256": {
                 "type": "string",

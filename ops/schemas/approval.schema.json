@@ -43,6 +43,7 @@
     "action",
     "target_path",
     "approval_binds",
+    "replay_identity_sha256",
     "approved_at",
     "provider_called",
     "mutation_performed"
@@ -254,6 +255,10 @@
           }
         }
       }
+    },
+    "replay_identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
     "approved_at": {
       "type": "string",

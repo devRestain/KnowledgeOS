@@ -193,14 +193,14 @@ artifacts:
     deployed_copy: false
     first_capability: C18
   - path: ops/schemas/proposal.schema.json
-    owner: C18
+    owner: C27
     status: OWNED
     authoritative_inputs:
       - path: blueprint/blueprint.yaml
-        selectors: [/llm, /privacy]
-    generator: vaultops.schema_export:c18_proposal_schema
+        selectors: [/llm, /privacy, /bridge/action_contracts]
+    generator: vaultops.schema_export:c27_proposal_schema
     deployed_copy: false
-    first_capability: C18
+    first_capability: C27
   - path: ops/schemas/receipt.schema.json
     owner: C18
     status: OWNED
@@ -372,6 +372,24 @@ artifacts:
     generator: vaultops.schema_export:c21_answer_schema
     deployed_copy: false
     first_capability: C21
+  - path: ops/schemas/ai-note-record.schema.json
+    owner: C29
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection, /privacy]
+    generator: vaultops.schema_export:c29_ai_note_record_schema
+    deployed_copy: false
+    first_capability: C29
+  - path: ops/schemas/ai-edge-record.schema.json
+    owner: C29
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/projection, /privacy]
+    generator: vaultops.schema_export:c29_ai_edge_record_schema
+    deployed_copy: false
+    first_capability: C29
   - path: ops/config/background.yaml
     owner: C24
     status: OWNED
@@ -408,3 +426,12 @@ artifacts:
     generator: vaultops.vector:e01_vector_evaluation_schema
     deployed_copy: false
     first_capability: E01
+  - path: ops/config/local-models.yaml
+    owner: C30
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm]
+    generator: vaultops.schema_export:c30_local_model_config
+    deployed_copy: false
+    first_capability: C30

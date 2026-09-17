@@ -4,7 +4,7 @@
   "prompt": "ops/prompts/normalize.md",
   "provider_execution": false,
   "mutation_performed": false,
-  "available_after": "C20",
+  "available_after": "C27",
   "input": "validated_note",
   "target": "note_path_and_hash",
   "output_schema": "ops/schemas/proposal.schema.json",

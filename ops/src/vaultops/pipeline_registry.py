@@ -270,8 +270,29 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def dispatch_user_action(root: str | Path, route: str) -> tuple[dict[str, Any], int]:
-    """Resolve one facade route into a read-only execution plan."""
+def dispatch_user_action(
+    root: str | Path,
+    route: str,
+    *,
+    source_path: str | None = None,
+    expected_sha256: str | None = None,
+    locator: str | None = None,
+    fragment_sha256: str | None = None,
+    target_path: str | None = None,
+    target_type: str | None = None,
+    title: str | None = None,
+    selected_candidate_id: str | None = None,
+    selected_candidate_sha256: str | None = None,
+    candidate_set_file: str | Path | None = None,
+    retrieval_profile_id: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    """Resolve one facade route into a C20 or executable C27 plan.
+
+    A route without inputs remains a read-only capability report for backward
+    compatibility.  ``extract`` and ``relate`` become executable only when
+    their complete hash-bound C27 inputs are supplied; the remaining facade
+    routes explicitly identify why they are still controlled unsupported.
+    """
 
     operation = f"ai {route}"
     if not isinstance(route, str) or route not in USER_ACTION_ROUTES:
@@ -281,18 +302,111 @@ def dispatch_user_action(root: str | Path, route: str) -> tuple[dict[str, Any], 
         report["operation"] = operation
         return report, code
     definition = report["routes"][route]
-    return {
+    common = {
         "status": "READY",
         "operation": operation,
         "capability": "C20",
         "route": route,
         "pipelines": definition,
-        "execution": "read_only_dispatch_plan",
         "provider_called": False,
         "mutation_performed": False,
         "requires_human_approval_before_apply": True,
         "traceability": report["traceability"],
-    }, EXIT_OK
+    }
+    if route == "extract":
+        supplied = any(
+            value is not None
+            for value in (
+                source_path,
+                expected_sha256,
+                locator,
+                fragment_sha256,
+                target_path,
+                target_type,
+                title,
+                selected_candidate_id,
+                selected_candidate_sha256,
+            )
+        )
+        if supplied and (source_path is None or expected_sha256 is None):
+            return _failure(
+                operation,
+                [_error("C27_ROUTE_INPUT_REQUIRED", "extract requires source_path and expected_sha256")],
+            )
+        if supplied:
+            from .action_proposals import generate_action_proposal
+
+            generated, generated_code = generate_action_proposal(
+                root,
+                action="draft_note",
+                source_path=source_path,
+                expected_sha256=expected_sha256,
+                locator=locator,
+                fragment_sha256=fragment_sha256,
+                target_path=target_path,
+                target_type=target_type,
+                title=title,
+                selected_candidate_id=selected_candidate_id,
+                selected_candidate_sha256=selected_candidate_sha256,
+            )
+            generated.setdefault("route", route)
+            generated.setdefault("pipelines", definition)
+            generated.setdefault("traceability", report["traceability"])
+            return generated, generated_code
+        common.update(
+            {
+                "execution": "executable",
+                "required_inputs": ["source_path", "expected_sha256", "selected_candidate_id_and_digest_or_title"],
+            }
+        )
+        return common, EXIT_OK
+    if route == "relate":
+        supplied = any(
+            value is not None
+            for value in (source_path, expected_sha256, candidate_set_file, retrieval_profile_id, locator, fragment_sha256)
+        )
+        if supplied and (
+            source_path is None
+            or expected_sha256 is None
+            or candidate_set_file is None
+            or retrieval_profile_id is None
+        ):
+            return _failure(
+                operation,
+                [_error("C27_ROUTE_INPUT_REQUIRED", "relate requires source_path, expected_sha256, candidate_set_file, and retrieval_profile_id")],
+            )
+        if supplied:
+            from .action_proposals import generate_action_proposal
+
+            generated, generated_code = generate_action_proposal(
+                root,
+                action="link_suggestions",
+                source_path=source_path,
+                expected_sha256=expected_sha256,
+                locator=locator,
+                fragment_sha256=fragment_sha256,
+                candidate_set_file=candidate_set_file,
+                retrieval_profile_id=retrieval_profile_id,
+            )
+            generated.setdefault("route", route)
+            generated.setdefault("pipelines", definition)
+            generated.setdefault("traceability", report["traceability"])
+            return generated, generated_code
+        common.update(
+            {
+                "execution": "executable",
+                "required_inputs": ["source_path", "expected_sha256", "candidate_set_file", "retrieval_profile_id"],
+            }
+        )
+        return common, EXIT_OK
+    reasons = {
+        "organize": "triage selection and the subsequent normalize proposal require separate human-bound inputs",
+        "summarize": "bounded summary generation requires a later provider-neutral candidate/context contract",
+        "inbox": "fan-out source enumeration and per-source selection are not executable in C27",
+        "project-summary": "project-scoped candidate retrieval and summary generation remain controlled unsupported",
+    }
+    common.update({"execution": "controlled_unsupported", "unsupported_reason": reasons[route]})
+    return common, EXIT_OK
 
 
 def canonical_traceability_document(blueprint: Mapping[str, Any]) -> bytes:
@@ -361,7 +475,7 @@ def canonical_action_document(blueprint: Mapping[str, Any], pipeline: str) -> di
         "prompt": f"{PROMPT_REGISTRY_PATH}/{PROMPT_FILENAMES[pipeline]}",
         "provider_execution": False,
         "mutation_performed": False,
-        "available_after": "C20" if pipeline in {"summarize", "link_suggestions", "normalize", "answer"} else ("C19" if pipeline == "draft_note" else None),
+        "available_after": "C27" if pipeline in {"draft_note", "link_suggestions", "normalize"} else ("C20" if pipeline in {"summarize", "answer"} else None),
     }
     if pipeline == "triage":
         document.update(

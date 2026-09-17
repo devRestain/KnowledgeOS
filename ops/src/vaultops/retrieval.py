@@ -205,6 +205,18 @@ class _Transition:
     edge: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class _RetrievalOptions:
+    """One normalized policy decision shared by every retrieval stage."""
+
+    scope: str | None
+    path_prefix: str | None
+    include_types: tuple[str, ...]
+    include_review: bool
+    limit: int
+    hops: int
+
+
 def _nfc(value: str) -> str:
     return unicodedata.normalize("NFC", value)
 
@@ -468,7 +480,7 @@ def _normalize_path_prefix(path_prefix: str | None) -> str | None:
     return value
 
 
-def _normalize_options(
+def _normalized_options(
     retrieval: Mapping[str, Any],
     *,
     scope: str | None,
@@ -477,7 +489,7 @@ def _normalize_options(
     include_review: bool,
     limit: int,
     hops: int,
-) -> tuple[str | None, str | None, tuple[str, ...], bool, int, int]:
+) -> _RetrievalOptions:
     normalized_scope = _normalize_scope(scope)
     normalized_prefix = _normalize_path_prefix(path_prefix)
     corpus = _as_mapping(retrieval["corpus"], "/retrieval/corpus")
@@ -501,7 +513,45 @@ def _normalize_options(
     maximum_hops = graph["maximum_hops"]
     if isinstance(hops, bool) or not isinstance(hops, int) or not 0 <= hops <= int(maximum_hops):
         raise RetrievalValidationError(f"hops must be an integer from 0 through {maximum_hops}")
-    return normalized_scope, normalized_prefix, selected_types, include_review, limit, hops
+    return _RetrievalOptions(
+        scope=normalized_scope,
+        path_prefix=normalized_prefix,
+        include_types=selected_types,
+        include_review=include_review,
+        limit=limit,
+        hops=hops,
+    )
+
+
+def _normalize_options(
+    retrieval: Mapping[str, Any],
+    *,
+    scope: str | None,
+    path_prefix: str | None,
+    include_types: Sequence[str] | None,
+    include_review: bool,
+    limit: int,
+    hops: int,
+) -> tuple[str | None, str | None, tuple[str, ...], bool, int, int]:
+    """Return the legacy tuple shape for callers that expose filter details."""
+
+    options = _normalized_options(
+        retrieval,
+        scope=scope,
+        path_prefix=path_prefix,
+        include_types=include_types,
+        include_review=include_review,
+        limit=limit,
+        hops=hops,
+    )
+    return (
+        options.scope,
+        options.path_prefix,
+        options.include_types,
+        options.include_review,
+        options.limit,
+        options.hops,
+    )
 
 
 def _path_matches(path: str, pattern: str) -> bool:
@@ -549,6 +599,56 @@ def _scope_match(note: Mapping[str, Any], scope: str) -> bool:
     return False
 
 
+def _note_filter_reason(
+    note: Mapping[str, Any],
+    *,
+    corpus: Mapping[str, Any],
+    exclude_patterns: Sequence[str],
+    review_patterns: Sequence[str],
+    options: _RetrievalOptions,
+) -> str | None:
+    """Return the first failed gate for one note.
+
+    Review notes are a separate path corpus, not a policy bypass.  Every
+    candidate must pass the path, type, scope, sensitivity, and AI-policy
+    gates, regardless of whether ``include_review`` is enabled.
+    """
+
+    path = str(note.get("path", ""))
+    note_type = str(note.get("type", ""))
+    if any(_path_matches(path, pattern) for pattern in exclude_patterns):
+        return "excluded_path"
+
+    if path.casefold().startswith("01_ai_review/"):
+        if not options.include_review:
+            return "review_corpus_separate"
+        if not any(_path_matches(path, pattern) for pattern in review_patterns):
+            return "review_path_not_allowlisted"
+
+    if bool(corpus["journal_requires_explicit_scope"]) and note_type in _JOURNAL_TYPES and options.scope is None:
+        return "journal_scope_required"
+    if note_type not in options.include_types:
+        return "type_not_in_scope"
+    if options.path_prefix is not None and not (
+        path.casefold() == options.path_prefix.casefold()
+        or path.casefold().startswith(options.path_prefix.casefold() + "/")
+    ):
+        return "path_out_of_scope"
+    if options.scope is not None and not _scope_match(note, options.scope):
+        return "scope_mismatch"
+
+    properties = _as_mapping(note.get("properties"), f"properties for {path}")
+    sensitivity = properties.get("sensitivity")
+    ai_policy = properties.get("ai_policy")
+    if sensitivity not in {"public", "personal", "confidential"}:
+        return "sensitivity_missing_or_invalid"
+    if sensitivity == "confidential":
+        return "confidential_corpus_excluded"
+    if ai_policy not in {"remote_ok", "ask", "local_only"}:
+        return "ai_policy_denied_or_invalid"
+    return None
+
+
 def _filter_notes(
     projection: ProjectionRead,
     retrieval: Mapping[str, Any],
@@ -559,8 +659,9 @@ def _filter_notes(
     include_review: bool,
     limit: int,
     hops: int,
+    _options: _RetrievalOptions | None = None,
 ) -> tuple[tuple[Mapping[str, Any], ...], list[dict[str, str]], tuple[str, ...], bool, int, int]:
-    normalized_scope, normalized_prefix, selected_types, normalized_review, normalized_limit, normalized_hops = _normalize_options(
+    options = _options or _normalized_options(
         retrieval,
         scope=scope,
         path_prefix=path_prefix,
@@ -576,41 +677,18 @@ def _filter_notes(
     excluded: list[dict[str, str]] = []
     for note in projection.notes:
         path = str(note.get("path", ""))
-        note_type = str(note.get("type", ""))
-        reason: str | None = None
-        if any(_path_matches(path, pattern) for pattern in exclude_patterns):
-            reason = "excluded_path"
-        elif path.casefold().startswith("01_ai_review/"):
-            if not normalized_review:
-                reason = "review_corpus_separate"
-            elif not any(_path_matches(path, pattern) for pattern in review_patterns):
-                reason = "review_path_not_allowlisted"
-        elif bool(corpus["journal_requires_explicit_scope"]) and note_type in _JOURNAL_TYPES and normalized_scope is None:
-            reason = "journal_scope_required"
-        elif note_type not in selected_types:
-            reason = "type_not_in_scope"
-        elif normalized_prefix is not None and not (
-            path.casefold() == normalized_prefix.casefold()
-            or path.casefold().startswith(normalized_prefix.casefold() + "/")
-        ):
-            reason = "path_out_of_scope"
-        elif normalized_scope is not None and not _scope_match(note, normalized_scope):
-            reason = "scope_mismatch"
-        else:
-            properties = _as_mapping(note.get("properties"), f"properties for {path}")
-            sensitivity = properties.get("sensitivity")
-            ai_policy = properties.get("ai_policy")
-            if sensitivity not in {"public", "personal", "confidential"}:
-                reason = "sensitivity_missing_or_invalid"
-            elif sensitivity == "confidential":
-                reason = "confidential_corpus_excluded"
-            elif ai_policy not in {"remote_ok", "ask", "local_only"}:
-                reason = "ai_policy_denied_or_invalid"
+        reason = _note_filter_reason(
+            note,
+            corpus=corpus,
+            exclude_patterns=exclude_patterns,
+            review_patterns=review_patterns,
+            options=options,
+        )
         if reason is None:
             included.append(note)
         else:
             excluded.append({"path": path, "reason": reason})
-    return tuple(included), excluded, selected_types, normalized_review, normalized_limit, normalized_hops
+    return tuple(included), excluded, options.include_types, options.include_review, options.limit, options.hops
 
 
 def _chunk_id(note_id: str, locator: str) -> str:
@@ -749,11 +827,36 @@ def _lexical_candidates(
             scored.append((score, chunk, lexical))
 
     best_by_note: dict[str, tuple[float, _Chunk, dict[str, Any]]] = {}
+    scored_by_note: dict[str, list[tuple[float, _Chunk, dict[str, Any]]]] = defaultdict(list)
     for score, chunk, lexical in scored:
+        scored_by_note[str(chunk.note["id"])].append((score, chunk, lexical))
         note_id = str(chunk.note["id"])
         previous = best_by_note.get(note_id)
         if previous is None or score > previous[0] or (score == previous[0] and _chunk_sort_key(chunk) < _chunk_sort_key(previous[1])):
             best_by_note[note_id] = (score, chunk, lexical)
+    # Keep the note's established lexical rank, but anchor a project note to
+    # its body when the complete query is present there.  Frontmatter remains
+    # metadata-only, so an answer never has to display body text for a
+    # /frontmatter candidate.
+    for note_id, note_scored in scored_by_note.items():
+        previous = best_by_note[note_id]
+        note = previous[1].note
+        if str(note.get("type")) != "project_note" or previous[1].locator != "/frontmatter":
+            continue
+        body_matches = [
+            item
+            for item in note_scored
+            if item[1].locator != "/frontmatter" and folded_query and folded_query in _fold_text(item[1].text)
+        ]
+        if body_matches:
+            body_anchor = min(
+                body_matches,
+                key=lambda item: (
+                    -item[0],
+                    _chunk_sort_key(item[1]),
+                ),
+            )
+            best_by_note[note_id] = (previous[0], body_anchor[1], body_anchor[2])
     ranked = sorted(
         best_by_note.values(),
         key=lambda item: (
@@ -766,18 +869,18 @@ def _lexical_candidates(
     result: list[dict[str, Any]] = []
     for rank, (_, chunk, lexical) in enumerate(ranked, start=1):
         lexical["rank"] = rank
-        result.append(
-            _candidate(
-                chunk,
-                query_sha256=query_sha256,
-                policy_decision_sha256=policy_decision_sha256,
-                generation_id=generation_id,
-                retrieval_config_sha256=retrieval_config_sha256,
-                retrieval_reason="lexical_match",
-                lexical=lexical,
-                graph_path=[],
-            )
+        candidate = _candidate(
+            chunk,
+            query_sha256=query_sha256,
+            policy_decision_sha256=policy_decision_sha256,
+            generation_id=generation_id,
+            retrieval_config_sha256=retrieval_config_sha256,
+            retrieval_reason="lexical_match",
+            lexical=lexical,
+            graph_path=[],
         )
+        candidate["lexical_score_and_rank"]["provenance"] = _candidate_provenance(candidate)
+        result.append(candidate)
     return result
 
 
@@ -819,6 +922,133 @@ def _candidate(
     if errors:
         raise RetrievalValidationError(f"frozen retrieval candidate is invalid: {errors[0].message}")
     return candidate
+
+
+def _candidate_provenance(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the exact chunk identity a retrieval channel selected."""
+
+    return {
+        "note_id": str(candidate["note_id"]),
+        "path": str(candidate["path"]),
+        "content_hash": str(candidate["content_hash"]),
+        "index_generation_id": str(candidate["index_generation_id"]),
+        "chunk_id": str(candidate["chunk_id"]),
+        "chunk_hash": str(candidate["chunk_hash"]),
+        "chunk_locator": str(candidate["chunk_locator"]),
+    }
+
+
+def _revalidate_candidates(
+    projection: ProjectionRead,
+    retrieval: Mapping[str, Any],
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    options: _RetrievalOptions,
+) -> list[dict[str, Any]]:
+    """Reapply the central policy to an already-created candidate stream.
+
+    Candidate streams are untrusted between retrieval phases.  Rechecking
+    note eligibility here prevents a future fusion, graph, or context builder
+    from treating an earlier filter as a permanent authorization.  A
+    candidate that no longer identifies the pinned note exactly is rejected
+    instead of being repaired or silently reinterpreted.
+    """
+
+    eligible_notes, _excluded, _types, _review, _limit, _hops = _filter_notes(
+        projection,
+        retrieval,
+        scope=options.scope,
+        path_prefix=options.path_prefix,
+        include_types=options.include_types,
+        include_review=options.include_review,
+        limit=options.limit,
+        hops=options.hops,
+        _options=options,
+    )
+    notes_by_id = {str(note["id"]): note for note in eligible_notes}
+    projection_notes_by_id = {str(note["id"]): note for note in projection.notes}
+
+    def validate_chunk_identity(
+        note: Mapping[str, Any],
+        identity: Mapping[str, Any],
+        *,
+        label: str,
+    ) -> None:
+        note_id = str(note["id"])
+        if identity.get("note_id") != note_id:
+            raise RetrievalConflict(f"{label} note identity does not match the pinned projection")
+        if identity.get("path") != note.get("path"):
+            raise RetrievalConflict(f"{label} path does not match the pinned projection")
+        if identity.get("content_hash") != note.get("content_hash"):
+            raise RetrievalConflict(f"{label} source content hash does not match the pinned projection")
+        if identity.get("index_generation_id") != projection.manifest.get("generation_id"):
+            raise RetrievalConflict(f"{label} projection generation does not match the pinned projection")
+        chunk_id = identity.get("chunk_id")
+        locator = identity.get("chunk_locator")
+        chunk_hash = identity.get("chunk_hash")
+        if not all(isinstance(value, str) and value for value in (chunk_id, locator, chunk_hash)):
+            raise RetrievalConflict(f"{label} chunk provenance is incomplete")
+        chunks = {chunk.chunk_id: chunk for chunk in _chunks_for_note(note)}
+        chunk = chunks.get(chunk_id)
+        if chunk is None:
+            raise RetrievalConflict(f"{label} chunk id is not present in the pinned projection")
+        if chunk.locator != locator:
+            raise RetrievalConflict(f"{label} locator does not match the pinned projection")
+        if chunk.chunk_hash != chunk_hash:
+            raise RetrievalConflict(f"{label} chunk hash does not match the pinned source bytes")
+
+    safe: list[dict[str, Any]] = []
+    for raw_candidate in candidates:
+        candidate = _as_mapping(raw_candidate, "retrieval candidate")
+        note_id = candidate.get("note_id")
+        if not isinstance(note_id, str) or not note_id:
+            raise RetrievalValidationError("retrieval candidate note_id is invalid")
+        note = projection_notes_by_id.get(note_id)
+        if note is None:
+            raise RetrievalConflict("retrieval candidate references a note outside the pinned projection")
+        validate_chunk_identity(note, candidate, label="retrieval candidate")
+        for channel in ("lexical_score_and_rank", "vector_score_and_rank"):
+            score_and_rank = candidate.get(channel)
+            if score_and_rank is None:
+                continue
+            if not isinstance(score_and_rank, Mapping):
+                raise RetrievalConflict(f"{channel} provenance container is invalid")
+            provenance = score_and_rank.get("provenance")
+            if provenance is None:
+                continue
+            if not isinstance(provenance, Mapping):
+                raise RetrievalConflict(f"{channel} provenance is invalid")
+            validate_chunk_identity(note, provenance, label=channel)
+        if note_id not in notes_by_id:
+            continue
+        safe.append(dict(candidate))
+    return safe
+
+
+def revalidate_candidates(
+    projection: ProjectionRead,
+    retrieval: Mapping[str, Any],
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    scope: str | None = None,
+    path_prefix: str | None = None,
+    include_types: Sequence[str] | None = None,
+    include_review: bool = False,
+    limit: int = DEFAULT_LIMIT,
+    hops: int = 1,
+) -> list[dict[str, Any]]:
+    """Apply the retrieval privacy gate immediately before context use."""
+
+    options = _normalized_options(
+        retrieval,
+        scope=scope,
+        path_prefix=path_prefix,
+        include_types=include_types,
+        include_review=include_review,
+        limit=limit,
+        hops=hops,
+    )
+    return _revalidate_candidates(projection, retrieval, candidates, options=options)
 
 
 def _transition_sort_key(transition: _Transition, note_by_id: Mapping[str, Mapping[str, Any]]) -> tuple[Any, ...]:
@@ -900,7 +1130,23 @@ def _expand_typed_links(
     policy_decision_sha256: str,
     generation_id: str,
     retrieval_config_sha256: str,
+    options: _RetrievalOptions | None = None,
 ) -> list[dict[str, Any]]:
+    if options is not None:
+        # Recompute the eligible note set at the graph boundary.  The graph
+        # must not become an indirect path around the central privacy gate.
+        eligible_notes = _filter_notes(
+            projection,
+            retrieval,
+            scope=options.scope,
+            path_prefix=options.path_prefix,
+            include_types=options.include_types,
+            include_review=options.include_review,
+            limit=options.limit,
+            hops=options.hops,
+            _options=options,
+        )[0]
+        lexical = _revalidate_candidates(projection, retrieval, lexical, options=options)
     if hops == 0 or not lexical:
         return lexical
     graph = _as_mapping(retrieval["graph_expansion"], "/retrieval/graph_expansion")
@@ -1005,7 +1251,10 @@ def _expand_typed_links(
             )
         )
     graph_candidates.sort(key=lambda item: item[0])
-    return lexical + [candidate for _, candidate in graph_candidates]
+    combined = lexical + [candidate for _, candidate in graph_candidates]
+    if options is not None:
+        return _revalidate_candidates(projection, retrieval, combined, options=options)
+    return combined
 
 
 def _policy_decision_hash(
@@ -1081,6 +1330,15 @@ def _execute_projection(
             hops=hops,
         )
     normalized_query, query_sha256, terms = _canonical_query(query)
+    options = _normalized_options(
+        retrieval,
+        scope=scope,
+        path_prefix=path_prefix,
+        include_types=include_types,
+        include_review=include_review,
+        limit=limit,
+        hops=hops,
+    )
     included, excluded, selected_types, normalized_review, normalized_limit, normalized_hops = _filter_notes(
         projection,
         retrieval,
@@ -1090,6 +1348,7 @@ def _execute_projection(
         include_review=include_review,
         limit=limit,
         hops=hops,
+        _options=options,
     )
     policy_hash = _policy_decision_hash(
         retrieval,
@@ -1123,7 +1382,9 @@ def _execute_projection(
         policy_decision_sha256=policy_hash,
         generation_id=str(projection.manifest["generation_id"]),
         retrieval_config_sha256=retrieval_config_sha256,
+        options=options,
     )
+    combined = _revalidate_candidates(projection, retrieval, combined, options=options)
     total_cap = int(_as_mapping(retrieval["graph_expansion"], "/retrieval/graph_expansion")["total_candidate_cap"])
     candidates = combined[: min(normalized_limit, total_cap)]
     return {

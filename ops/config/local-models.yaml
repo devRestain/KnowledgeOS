@@ -1,0 +1,56 @@
+schema_version: 1
+contract_id: knowledgeos-blueprint-v2
+capability_profile: portable_core
+artifact_kind: local_model_config
+authoritative_inputs:
+- path: blueprint/blueprint.yaml
+  selectors:
+  - /llm
+  sha256: a7d51a38589c4815ac4e99817d3fe9897b0277afdee5f26db74ec9b47960e759
+local_models:
+  schema_version: 1
+  provider: ollama
+  route: local_profile
+  enabled_by_default: false
+  endpoint:
+    base_url: http://127.0.0.1:11434
+    loopback_only: true
+    cloud_disabled: true
+    allow_redirects: false
+    allow_proxy: false
+    allow_tunnel: false
+    auto_pull: false
+  environment:
+    OLLAMA_HOST: 127.0.0.1:11434
+    OLLAMA_NO_CLOUD: '1'
+  profiles:
+    generation:
+      task: generation
+      model_tag: gemma4:12b-it-q4_K_M
+      model_digest: null
+      enabled: false
+      options:
+        num_ctx: 8192
+        stream: false
+        think: false
+        tools: false
+        temperature: 0
+        seed: 0
+        max_output_tokens: 1024
+        keep_alive: 0
+        parallel_requests: 1
+    embedding:
+      task: embedding
+      model_tag: embeddinggemma:300m-qat-q8_0
+      model_digest: null
+      enabled: false
+      options:
+        dimension: 768
+        truncate: false
+        query_prefix: 'task: search result | query:'
+        document_prefix: 'title: {title | none} | text:'
+  provisioning:
+    installation: explicit_external_authorization
+    model_download: explicit_external_authorization
+    live_service_inspection: explicit_external_authorization
+    full_digest_capture: external_service_evidence

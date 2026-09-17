@@ -25,6 +25,13 @@ from typing import Any
 import yaml
 from yaml import YAMLError
 
+from .action_proposals import proposal_schema
+from .ai_projection import (
+    AI_EDGE_SCHEMA_PATH,
+    AI_NOTE_SCHEMA_PATH,
+    ai_edge_record_schema,
+    ai_note_record_schema,
+)
 from .background import (
     BACKGROUND_CONFIG_PATH,
     LAUNCHD_ARTIFACT_PATH,
@@ -44,6 +51,11 @@ from .bridge_contract import (
     build_bridge_response_schema,
     build_root_sentinel_schema,
     schema_bytes,
+)
+from .local_models import (
+    LOCAL_MODEL_AUTHORITATIVE_SELECTORS,
+    LOCAL_MODEL_CONFIG_PATH,
+    local_model_config_bytes,
 )
 from .note_engine import build_note_json_schema
 from .pipeline_registry import (
@@ -218,7 +230,14 @@ OWNED_ARTIFACTS = (
     _owned("ops/prompts/system.md", "c18_system_prompt", ("/llm", "/privacy"), deployed_copy=False, owner="C18", first_capability="C18"),
     _owned("ops/prompts/triage.md", "c18_triage_prompt", ("/llm/triage",), deployed_copy=False, owner="C18", first_capability="C18"),
     _owned("ops/schemas/job.schema.json", "c18_job_schema", ("/llm", "/privacy"), deployed_copy=False, owner="C18", first_capability="C18"),
-    _owned("ops/schemas/proposal.schema.json", "c18_proposal_schema", ("/llm", "/privacy"), deployed_copy=False, owner="C18", first_capability="C18"),
+    _owned(
+        "ops/schemas/proposal.schema.json",
+        "c27_proposal_schema",
+        ("/llm", "/privacy", "/bridge/action_contracts"),
+        deployed_copy=False,
+        owner="C27",
+        first_capability="C27",
+    ),
     _owned("ops/schemas/receipt.schema.json", "c18_receipt_schema", ("/llm", "/privacy"), deployed_copy=False, owner="C18", first_capability="C18"),
     _owned("ops/schemas/triage-result.schema.json", "c18_triage_result_schema", ("/llm",), deployed_copy=False, owner="C18", first_capability="C18"),
     _owned("ops/schemas/approval.schema.json", "c19_approval_schema", ("/llm/approval_binds", "/note_types/proposal"), deployed_copy=False, owner="C19", first_capability="C19"),
@@ -274,6 +293,22 @@ OWNED_ARTIFACTS = (
         first_capability="C21",
     ),
     _owned(
+        AI_NOTE_SCHEMA_PATH,
+        "c29_ai_note_record_schema",
+        ("/projection", "/privacy"),
+        deployed_copy=False,
+        owner="C29",
+        first_capability="C29",
+    ),
+    _owned(
+        AI_EDGE_SCHEMA_PATH,
+        "c29_ai_edge_record_schema",
+        ("/projection", "/privacy"),
+        deployed_copy=False,
+        owner="C29",
+        first_capability="C29",
+    ),
+    _owned(
         BACKGROUND_CONFIG_PATH,
         "c24_background_config",
         ("/automation_lanes", "/bridge/detection", "/commands"),
@@ -306,6 +341,14 @@ OWNED_ARTIFACTS = (
         first_capability="E01",
         generator_id="vaultops.vector",
         inputs_path="ops/src/vaultops/vector.py",
+    ),
+    _owned(
+        LOCAL_MODEL_CONFIG_PATH,
+        "c30_local_model_config",
+        LOCAL_MODEL_AUTHORITATIVE_SELECTORS,
+        deployed_copy=False,
+        owner="C30",
+        first_capability="C30",
     ),
 )
 
@@ -612,12 +655,16 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         return schema_bytes(retrieval_candidate_schema())
     if spec.path == "ops/schemas/answer.schema.json":
         return schema_bytes(answer_schema())
+    if spec.path == AI_NOTE_SCHEMA_PATH:
+        return schema_bytes(ai_note_record_schema())
+    if spec.path == AI_EDGE_SCHEMA_PATH:
+        return schema_bytes(ai_edge_record_schema())
     if spec.path == "ops/schemas/triage-result.schema.json":
         return schema_bytes(triage_result_schema())
     if spec.path == "ops/schemas/job.schema.json":
         return schema_bytes(_c18_schema("job"))
     if spec.path == "ops/schemas/proposal.schema.json":
-        return schema_bytes(_c18_schema("proposal"))
+        return schema_bytes(proposal_schema())
     if spec.path == "ops/schemas/receipt.schema.json":
         return schema_bytes(_c18_schema("receipt"))
     if spec.path in {"ops/prompts/system.md", "ops/prompts/triage.md"}:
@@ -664,6 +711,11 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         )
     if spec.path == VECTOR_EVALUATION_SCHEMA_PATH:
         return schema_bytes(vector_evaluation_schema())
+    if spec.path == LOCAL_MODEL_CONFIG_PATH:
+        return local_model_config_bytes(
+            blueprint,
+            source_info=_source_info(workspace, spec),
+        )
 
     if spec.path.endswith("/properties.yaml"):
         envelope = _envelope(blueprint, spec, "property_policy", workspace)

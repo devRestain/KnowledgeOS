@@ -16,10 +16,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .ai_projection import load_current_ai_projection
+from .background import render_background_artifacts
 from .blueprint import validate_blueprint
 from .bridge_contract import remote_identity_sha256, validate_root_sentinel
+from .local_models import LOCAL_MODEL_CONFIG_PATH, inspect_local_model_config
+from .projection import load_current_projection
 from .runtime import RuntimeLayout
 from .schema_export import export_schema_artifacts
+from .vector import vector_config_sha256, vector_contract
 from .yaml_safe import load_yaml_file
 
 # Exit classes are stable API for scripts.  Argparse keeps its conventional 2
@@ -55,6 +60,76 @@ _CORE_PLUGIN_IDS = {
     "File recovery": "file-recovery",
     "Workspaces": "workspaces",
 }
+
+_CAPABILITY_DIMENSIONS = (
+    "declared",
+    "configured",
+    "reachable",
+    "authorized",
+    "verified",
+    "enabled",
+    "healthy",
+)
+
+
+def _capability(
+    *,
+    state: str,
+    declared: str,
+    configured: str,
+    reachable: str,
+    authorized: str,
+    verified: str,
+    enabled: str,
+    healthy: str,
+    reason: str,
+    evidence_class: str,
+    evidence: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return one explicit capability state without collapsing evidence classes."""
+
+    values = {
+        "declared": declared,
+        "configured": configured,
+        "reachable": reachable,
+        "authorized": authorized,
+        "verified": verified,
+        "enabled": enabled,
+        "healthy": healthy,
+    }
+    if set(values) != set(_CAPABILITY_DIMENSIONS):
+        raise AssertionError("capability dimensions drifted")
+    return {
+        "state": state,
+        **values,
+        "reason": reason,
+        "evidence_class": evidence_class,
+        "evidence": list(evidence or []),
+    }
+
+
+def _inactive_capability(
+    *,
+    reason: str,
+    declared: bool = True,
+    configured: str = "not_configured",
+    state: str = "inactive",
+    evidence_class: str = "static",
+    evidence: list[str] | None = None,
+) -> dict[str, Any]:
+    return _capability(
+        state=state,
+        declared="declared" if declared else "not_declared",
+        configured=configured,
+        reachable="not_run",
+        authorized="not_authorized",
+        verified="not_run",
+        enabled="disabled" if configured != "invalid" else "not_configured",
+        healthy="not_ready",
+        reason=reason,
+        evidence_class=evidence_class,
+        evidence=evidence,
+    )
 
 
 class DiagnosticError(ValueError):
@@ -321,16 +396,41 @@ def _sentinel_overlay(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> t
     sentinel_path = roots.vault / ".knowledgeos-root.json"
     if sentinel_path.is_symlink():
         issue = _issue("SENTINEL_SYMLINK", "/overlays/git_identity_configured", "root sentinel must not be a symlink")
-        return {"state": "error", "reason": "sentinel_symlink"}, [issue]
+        return {
+            **_inactive_capability(
+                reason="sentinel_symlink",
+                configured="invalid",
+                state="error",
+                evidence_class="static",
+                evidence=["KnowledgeHub/.knowledgeos-root.json"],
+            ),
+            "reason": "sentinel_symlink",
+        }, [issue]
     if not sentinel_path.is_file():
-        return {"state": "inactive", "reason": "sentinel_missing", "required_for": "git_identity_configured"}, []
+        return {
+            **_inactive_capability(
+                reason="sentinel_missing",
+                evidence_class="static",
+                evidence=["KnowledgeHub/.knowledgeos-root.json"],
+            ),
+            "required_for": "git_identity_configured",
+        }, []
     try:
         sentinel = _read_json_object(sentinel_path)
         blueprint = load_yaml_file(roots.control / "blueprint/blueprint.yaml")
         validation = validate_root_sentinel(sentinel, blueprint)
     except (DiagnosticError, OSError, TypeError, ValueError, KeyError) as error:
         issue = _issue("SENTINEL_INVALID", "/overlays/git_identity_configured", "root sentinel could not be validated")
-        return {"state": "error", "reason": str(error)}, [issue]
+        return {
+            **_inactive_capability(
+                reason="sentinel_invalid",
+                configured="invalid",
+                state="error",
+                evidence_class="static",
+                evidence=["KnowledgeHub/.knowledgeos-root.json"],
+            ),
+            "detail": str(error),
+        }, [issue]
     issues = [_issue(item.code, f"/overlays/git_identity_configured{item.locator}", item.message) for item in validation.issues]
     remote_code, remote_url, _ = _run_git(roots.vault, "config", "--get", "remote.origin.url")
     if remote_code != 0 or not remote_url:
@@ -347,9 +447,29 @@ def _sentinel_overlay(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> t
     if vault_report.get("branch") != expected_branch or vault_report.get("upstream") != f"origin/{expected_branch}":
         issues.append(_issue("GIT_BRANCH_BINDING_MISMATCH", "/overlays/git_identity_configured", "current branch/tracking ref does not match the sentinel"))
     if issues:
-        return {"state": "error", "reason": "sentinel_or_git_binding_invalid"}, issues
+        return {
+            **_inactive_capability(
+                reason="sentinel_or_git_binding_invalid",
+                configured="configured",
+                state="error",
+                evidence_class="runtime",
+                evidence=["KnowledgeHub/.knowledgeos-root.json", "git status"],
+            ),
+        }, issues
     return {
-        "state": "verified",
+        **_capability(
+            state="verified",
+            declared="declared",
+            configured="configured",
+            reachable="not_applicable",
+            authorized="not_applicable",
+            verified="verified",
+            enabled="enabled",
+            healthy="healthy",
+            reason="sentinel_and_git_binding_verified",
+            evidence_class="runtime",
+            evidence=["KnowledgeHub/.knowledgeos-root.json", "git status"],
+        ),
         "vault_uuid": sentinel.get("vault_uuid"),
         "canonical_vault_name": sentinel.get("canonical_vault_name"),
         "expected_branch": expected_branch,
@@ -370,6 +490,17 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             "profile_state": "not_configured",
             "community_plugins": [{**item, "state": "inactive", "reason": "profile_missing"} for item in expected],
             "fallback": "canonical_markdown_and_plugin_free_surface_available",
+            "capability": _inactive_capability(
+                reason="profile_missing",
+                evidence_class="static",
+                evidence=["blueprint/blueprint.yaml#/plugin_profiles", str(profile_root)],
+            ),
+            "filesystem_evidence": "not_configured",
+            "device_proof": {
+                "state": "not_inferred",
+                "evidence_class": "device",
+                "reason": "diagnostics_do_not_operate_obsidian",
+            },
         }, []
     errors: list[dict[str, str]] = []
     community_path = profile_root / "community-plugins.json"
@@ -383,14 +514,34 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
     for item in expected:
         result_plugins.append({**item, "state": "installed" if item["id"] in installed else "inactive"})
     unexpected = sorted(set(installed) - {item["id"] for item in expected})
+    filesystem_pass = not errors and not unexpected and all(item["state"] == "installed" for item in result_plugins)
     result = {
         "profile": profile,
         "profile_root": str(profile_root),
-        "status": "PASS" if not errors and all(item["state"] == "installed" for item in result_plugins) else "DEGRADED",
+        "status": "PASS" if filesystem_pass else "DEGRADED",
         "profile_state": "configured",
         "community_plugins": result_plugins,
         "unexpected_community_plugins": unexpected,
         "fallback": "canonical_markdown_and_plugin_free_surface_available",
+        "capability": _capability(
+            state="configured" if filesystem_pass else "degraded",
+            declared="declared",
+            configured="configured" if not errors else "invalid",
+            reachable="not_applicable",
+            authorized="not_applicable",
+            verified="not_run",
+            enabled="enabled" if filesystem_pass else "disabled",
+            healthy="not_run" if not errors else "not_ready",
+            reason="filesystem_manifest_audited_without_device_probe",
+            evidence_class="runtime",
+            evidence=["KnowledgeHub/.obsidian-mac/community-plugins.json", "blueprint/blueprint.yaml#/plugin_profiles"],
+        ),
+        "filesystem_evidence": "pass" if filesystem_pass else "degraded",
+        "device_proof": {
+            "state": "not_inferred",
+            "evidence_class": "device",
+            "reason": "filesystem_configuration_does_not_prove_plugin_execution",
+        },
     }
     return result, errors
 
@@ -412,27 +563,206 @@ def plugins_audit_report(root: str | Path, profile: str = "mac") -> tuple[dict[s
     return result, EXIT_OK
 
 
-def _overlay_report(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> tuple[dict[str, Any], list[dict[str, str]]]:
-    identity, errors = _sentinel_overlay(roots, vault_report)
-    overlays: dict[str, Any] = {"git_identity_configured": identity}
-    static = {
-        "mobile_transport_verified": ("deferred", "MacBook-first order; device acceptance is a later user-participation slice"),
-        "obsidian_mobile_profiles_verified": ("deferred", "device profile exact diff is not present"),
-        "obsidian_mac_core_verified": ("inactive", "D02 Mac profile has not been configured"),
-        "community_plugins_verified": ("inactive", "no approved community plugin profile is configured"),
-        "codex_provider_verified": ("inactive", "provider overlay is not enabled"),
-        "local_provider_verified": ("inactive", "local provider overlay is not enabled"),
-        "live_bridge_roundtrip_verified": ("inactive", "D09 live device round-trip is not enabled"),
-        "launchd_active": ("inactive", "LaunchAgent installation is outside the current scope"),
-        "remote_lane_active": ("inactive", "unattended remote lane is not enabled"),
+def _local_model_capability(report: Mapping[str, Any]) -> dict[str, Any]:
+    if report.get("status") == "PASS":
+        return _capability(
+            state="inactive",
+            declared="declared",
+            configured="configured",
+            reachable="not_run",
+            authorized="not_authorized",
+            verified="not_verified",
+            enabled="disabled",
+            healthy="not_ready",
+            reason="generated_profile_is_disabled_and_live_service_probe_is_deferred",
+            evidence_class="artifact",
+            evidence=[LOCAL_MODEL_CONFIG_PATH, "blueprint/blueprint.yaml#/llm"],
+        )
+    if report.get("profile_state") == "configured":
+        return _inactive_capability(
+            reason=str(report.get("reason", "local_model_config_invalid")),
+            configured="invalid",
+            state="degraded",
+            evidence_class="artifact",
+            evidence=[LOCAL_MODEL_CONFIG_PATH],
+        )
+    return _inactive_capability(
+        reason=str(report.get("reason", "local_model_config_missing")),
+        evidence_class="artifact",
+        evidence=[LOCAL_MODEL_CONFIG_PATH],
+    )
+
+
+def _projection_report(roots: ProjectRoots) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    errors: list[dict[str, str]] = []
+    report: dict[str, Any] = {
+        "projection_version": None,
+        "generation_id": None,
+        "usable": False,
+        "source_verified": False,
+        "state": "unavailable",
+        "reason": "no_verified_current_projection",
+        "local_ai": {"state": "unavailable", "generation_id": None},
+        "remote_ai": {"state": "unavailable", "generation_id": None},
     }
-    for name, (state, reason) in static.items():
-        overlays[name] = {"state": state, "reason": reason}
+    try:
+        projection = load_current_projection(roots.control, verify_sources=True)
+    except (OSError, TypeError, ValueError, KeyError) as error:
+        errors.append(_issue("PROJECTION_INSPECTION_FAILED", "/projection", str(error), severity="warning"))
+    else:
+        manifest = projection.manifest
+        report.update(
+            {
+                "projection_version": manifest.get("schema_version"),
+                "generation_id": manifest.get("generation_id"),
+                "usable": True,
+                "source_verified": True,
+                "state": "verified",
+                "reason": "current_projection_verified",
+            }
+        )
+    for profile in ("local", "remote"):
+        try:
+            projection = load_current_ai_projection(roots.control, profile=profile, verify_sources=True)
+        except (OSError, TypeError, ValueError, KeyError):
+            continue
+        report[f"{profile}_ai"] = {
+            "state": "verified",
+            "generation_id": projection.manifest.get("generation_id"),
+            "projection_version": projection.manifest.get("schema_version"),
+            "source_verified": True,
+        }
+    return report, errors
+
+
+def _background_capability(roots: ProjectRoots) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    try:
+        report, exit_code = render_background_artifacts(roots.control)
+    except (OSError, TypeError, ValueError) as error:
+        return (
+            _inactive_capability(
+                reason="background_artifact_inspection_failed",
+                configured="invalid",
+                state="degraded",
+                evidence_class="artifact",
+                evidence=["ops/config/background.yaml", "ops/launchd/com.knowledgeos.vaultops.plist"],
+            ),
+            [_issue("C24_ARTIFACT_INSPECTION_FAILED", "/background", str(error))],
+        )
+    if exit_code != 0 or report.get("status") != "PASS":
+        return (
+            _inactive_capability(
+                reason="background_artifacts_invalid",
+                configured="invalid",
+                state="degraded",
+                evidence_class="artifact",
+                evidence=["ops/config/background.yaml", "ops/launchd/com.knowledgeos.vaultops.plist"],
+            ),
+            [_issue("C24_ARTIFACT_INVALID", "/background", "C24 background artifacts are not valid")],
+        )
+    return (
+        _capability(
+            state="inactive",
+            declared="declared",
+            configured="configured",
+            reachable="not_applicable",
+            authorized="not_authorized",
+            verified="verified",
+            enabled="disabled",
+            healthy="healthy",
+            reason="C24_artifacts_verified_but_activation_is_deferred",
+            evidence_class="artifact",
+            evidence=["ops/config/background.yaml", "ops/launchd/com.knowledgeos.vaultops.plist"],
+        ),
+        [],
+    )
+
+
+def _vector_capability() -> dict[str, Any]:
+    contract = vector_contract()
+    enabled = contract.get("enabled_by_default") is True
+    return _capability(
+        state="enabled" if enabled else "inactive",
+        declared="declared",
+        configured="configured",
+        reachable="not_applicable",
+        authorized="not_applicable",
+        verified="verified",
+        enabled="enabled" if enabled else "disabled",
+        healthy="healthy" if enabled else "not_ready",
+        reason="E01_requires_explicit_vector_opt_in",
+        evidence_class="semantic",
+        evidence=["ops/src/vaultops/vector.py", "ops/config/generated-artifacts.yaml"],
+    ) | {
+        "capability": "E01",
+        "enabled_by_default": bool(contract["enabled_by_default"]),
+        "opt_in_required": not enabled,
+        "vector_config_sha256": vector_config_sha256(),
+    }
+
+
+def _overlay_report(
+    roots: ProjectRoots,
+    vault_report: Mapping[str, Any],
+    *,
+    plugins: Mapping[str, Any],
+    local_models: Mapping[str, Any],
+    background: Mapping[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    identity, errors = _sentinel_overlay(roots, vault_report)
+    plugin_capability = plugins.get("capability")
+    if not isinstance(plugin_capability, Mapping):
+        plugin_capability = _inactive_capability(reason="plugin_audit_unavailable")
+    local_capability = _local_model_capability(local_models)
+    overlays: dict[str, Any] = {
+        "git_identity_configured": identity,
+        "mobile_transport_verified": _inactive_capability(
+            reason="MacBook_first_order_requires_later_device_acceptance",
+            state="deferred",
+            evidence_class="device",
+            evidence=["blueprint/blueprint.yaml#/mobile_install_gate"],
+        ),
+        "obsidian_mobile_profiles_verified": _inactive_capability(
+            reason="device_profile_exact_diff_and_app_probe_are_not_run",
+            state="deferred",
+            evidence_class="device",
+            evidence=["blueprint/blueprint.yaml#/device_profiles"],
+        ),
+        "obsidian_mac_core_verified": {
+            **dict(plugin_capability),
+            "state": "inactive",
+            "reason": "filesystem_profile_does_not_prove_Obsidian_core_plugin_execution",
+            "evidence_class": "device",
+        },
+        "community_plugins_verified": {
+            **dict(plugin_capability),
+            "state": "inactive",
+            "reason": "filesystem_manifest_audit_does_not_prove_device_plugin_execution",
+            "evidence_class": "device",
+        },
+        "codex_provider_verified": _inactive_capability(
+            reason="remote_provider_overlay_is_not_enabled",
+            evidence_class="external_service",
+            evidence=["blueprint/blueprint.yaml#/llm/routes/codex_chatgpt_login"],
+        ),
+        "local_provider_verified": dict(local_capability),
+        "live_bridge_roundtrip_verified": _inactive_capability(
+            reason="D09_live_device_roundtrip_is_not_enabled",
+            evidence_class="device",
+            evidence=["blueprint/blueprint.yaml#/mobile_git_transaction"],
+        ),
+        "launchd_active": dict(background),
+        "remote_lane_active": _inactive_capability(
+            reason="unattended_remote_lane_is_disabled_by_blueprint",
+            evidence_class="semantic",
+            evidence=["blueprint/blueprint.yaml#/defaults/remote_unattended"],
+        ),
+    }
     return overlays, errors
 
 
 def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
-    """Run the complete provider-free C12 diagnostic report."""
+    """Run the complete provider-free C30 diagnostic report."""
 
     try:
         roots = discover_project_roots(root)
@@ -441,6 +771,7 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
         return {"operation": "doctor", "mode": "read-only", "status": "FAIL", "errors": [_issue(error.code, "/root", str(error))]}, error.exit_code
 
     errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
     blueprint = validate_blueprint(roots.control)
     if not blueprint.passed:
         errors.append(_issue("BLUEPRINT_VALIDATION_FAILED", "/validation/blueprint", "Blueprint validation failed"))
@@ -453,10 +784,37 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
     vault_git, vault_errors = _git_repository_report("vault", roots.vault)
     errors.extend(control_errors)
     errors.extend(vault_errors)
-    overlays, overlay_errors = _overlay_report(roots, vault_git)
-    errors.extend(overlay_errors)
     plugins, plugin_errors = _plugin_audit(roots, "mac")
     errors.extend(plugin_errors)
+    local_models, local_model_errors = inspect_local_model_config(roots.control)
+    errors.extend(local_model_errors)
+    projection, projection_warnings = _projection_report(roots)
+    warnings.extend(projection_warnings)
+    background, background_errors = _background_capability(roots)
+    errors.extend(background_errors)
+    overlays, overlay_errors = _overlay_report(
+        roots,
+        vault_git,
+        plugins=plugins,
+        local_models=local_models,
+        background=background,
+    )
+    errors.extend(overlay_errors)
+    vector = _vector_capability()
+    projection_ready = bool(projection.get("usable"))
+    projection_capability = _capability(
+        state="verified" if projection_ready else "inactive",
+        declared="declared",
+        configured="configured" if projection_ready else "not_configured",
+        reachable="not_applicable",
+        authorized="not_applicable",
+        verified="verified" if projection_ready else "not_run",
+        enabled="enabled" if projection_ready else "disabled",
+        healthy="healthy" if projection_ready else "not_ready",
+        reason=str(projection.get("reason", "projection_unavailable")),
+        evidence_class="runtime" if projection_ready else "static",
+        evidence=["runtime/index/exports/current.json"],
+    )
     result = {
         "operation": "doctor",
         "mode": "read-only",
@@ -465,8 +823,9 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
         "config": {key: config[key] for key in sorted(config)},
         "capability": {
             "current_profile": "portable_core",
-            "session_slice": "C12",
-            "next_profile": "offline_non_llm_automation",
+            "session_slice": "C30",
+            "next_profile": "provider_neutral_envelopes",
+            "state_dimensions": list(_CAPABILITY_DIMENSIONS),
         },
         "validation": {
             "blueprint": blueprint.report.get("status", "FAIL"),
@@ -478,6 +837,19 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
         "runtime": {"status": "PASS" if not runtime_problems else "FAIL", "problems": runtime_problems},
         "overlays": overlays,
         "plugins": plugins,
+        "local_models": local_models,
+        "projection": projection,
+        "background": background,
+        "vector": vector,
+        "capabilities": {
+            "local_model": _local_model_capability(local_models),
+            "projection": projection_capability,
+            "usable_index": projection_capability,
+            "d07_plugins": plugins.get("capability", _inactive_capability(reason="plugin_audit_unavailable")),
+            "c24_background": background,
+            "e01_vector": vector,
+        },
+        "warnings": warnings,
         "errors": errors,
     }
     return result, EXIT_OK if not errors else _exit_code_for_errors(errors)

@@ -335,7 +335,7 @@ def _vector_candidates(
     retrieval_config_sha256: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    from .retrieval import _candidate, _chunks_for_note
+    from .retrieval import _candidate, _candidate_provenance, _chunks_for_note
 
     query_vector = embed_text(query)
     scored: list[tuple[float, Any]] = []
@@ -371,6 +371,7 @@ def _vector_candidates(
             graph_path=[],
         )
         candidate["vector_score_and_rank"] = _vector_metadata(score, rank)
+        candidate["vector_score_and_rank"]["provenance"] = _candidate_provenance(candidate)
         candidate["embedding_provider_model_dimension_and_artifact_digest"] = _embedding_metadata()
         errors = sorted(
             Draft202012Validator(retrieval_candidate_schema()).iter_errors(candidate),
@@ -380,6 +381,46 @@ def _vector_candidates(
             raise VectorValidationError(f"E01 vector candidate is invalid: {errors[0].message}")
         result.append(candidate)
     return result
+
+
+def _validate_fusion_pair(
+    lexical: Mapping[str, Any],
+    vector: Mapping[str, Any],
+) -> None:
+    """Reject RRF inputs whose shared note identity or channel evidence drifts."""
+
+    for field in (
+        "note_id",
+        "path",
+        "content_hash",
+        "index_generation_id",
+        "query_sha256",
+        "policy_decision_sha256",
+        "retrieval_config_sha256",
+    ):
+        if lexical.get(field) != vector.get(field):
+            raise VectorConflict(f"RRF {field} provenance does not match across channels")
+    for channel, record in (
+        ("lexical_score_and_rank", lexical),
+        ("vector_score_and_rank", vector),
+    ):
+        score_and_rank = record.get(channel)
+        if not isinstance(score_and_rank, Mapping):
+            raise VectorConflict(f"RRF {channel} provenance container is invalid")
+        provenance = score_and_rank.get("provenance")
+        if not isinstance(provenance, Mapping):
+            raise VectorConflict(f"RRF {channel} provenance is missing")
+        for field in ("note_id", "path", "content_hash", "index_generation_id"):
+            if provenance.get(field) != record.get(field):
+                raise VectorConflict(f"RRF {channel} {field} provenance does not match its candidate")
+
+
+def _copy_channel_record(value: Mapping[str, Any]) -> dict[str, Any]:
+    copied = dict(value)
+    provenance = copied.get("provenance")
+    if isinstance(provenance, Mapping):
+        copied["provenance"] = dict(provenance)
+    return copied
 
 
 def _fuse_candidates(
@@ -401,16 +442,19 @@ def _fuse_candidates(
     vector_by_id = {str(item["note_id"]): item for item in vector}
     records: list[dict[str, Any]] = []
     for note_id, fusion in sorted(fused.items(), key=lambda item: int(item[1]["rank"])):
-        source = lexical_by_id.get(note_id) or vector_by_id[note_id]
-        candidate = dict(source)
-        candidate["lexical_score_and_rank"] = dict(
-            (lexical_by_id.get(note_id) or {"lexical_score_and_rank": _zero_lexical()})[
-                "lexical_score_and_rank"
-            ]
-        )
+        lexical_record = lexical_by_id.get(note_id)
         vector_record = vector_by_id.get(note_id)
+        if lexical_record is not None and vector_record is not None:
+            _validate_fusion_pair(lexical_record, vector_record)
+        source = lexical_record or vector_record
+        if source is None:
+            raise VectorConflict("RRF selected a note with no channel candidate")
+        candidate = dict(source)
+        candidate["lexical_score_and_rank"] = _copy_channel_record(
+            lexical_record["lexical_score_and_rank"] if lexical_record is not None else _zero_lexical()
+        )
         candidate["vector_score_and_rank"] = (
-            dict(vector_record["vector_score_and_rank"]) if vector_record is not None else None
+            _copy_channel_record(vector_record["vector_score_and_rank"]) if vector_record is not None else None
         )
         candidate["rrf_parameter_and_rank"] = {
             "algorithm": RRF_ALGORITHM,
@@ -468,13 +512,24 @@ def _vector_projection(
         _lexical_candidates,
         _normalize_path_prefix,
         _normalize_scope,
+        _normalized_options,
         _policy_decision_hash,
+        _revalidate_candidates,
     )
 
     retrieval = _as_mapping(policy.get("retrieval"), "policy retrieval") if "retrieval" in policy else policy
     _validate_contract(retrieval)
     normalized_query, query_sha256, _terms = _canonical_query(query)
     normalized_limit, normalized_hops = _validated_vector_options(limit=limit, hops=hops)
+    options = _normalized_options(
+        retrieval,
+        scope=scope,
+        path_prefix=path_prefix,
+        include_types=include_types,
+        include_review=include_review,
+        limit=normalized_limit,
+        hops=normalized_hops,
+    )
     included, excluded, selected_types, normalized_review, normalized_limit, normalized_hops = _filter_notes(
         projection,
         retrieval,
@@ -484,6 +539,7 @@ def _vector_projection(
         include_review=include_review,
         limit=normalized_limit,
         hops=normalized_hops,
+        _options=options,
     )
     normalized_scope = _normalize_scope(scope)
     normalized_prefix = _normalize_path_prefix(path_prefix)
@@ -511,6 +567,7 @@ def _vector_projection(
         retrieval_config_sha256=retrieval_config_sha256,
         limit=vector_limit,
     )
+    vector = _revalidate_candidates(projection, retrieval, vector, options=options)
     lexical: list[dict[str, Any]] = []
     if fuse:
         lexical = _lexical_candidates(
@@ -522,6 +579,7 @@ def _vector_projection(
             policy_hash,
             retrieval_config_sha256,
         )
+        lexical = _revalidate_candidates(projection, retrieval, lexical, options=options)
         candidates = _fuse_candidates(
             lexical,
             vector,
@@ -531,6 +589,7 @@ def _vector_projection(
             retrieval_config_sha256=retrieval_config_sha256,
             limit=normalized_limit,
         )
+        candidates = _revalidate_candidates(projection, retrieval, candidates, options=options)
         candidates = _expand_typed_links(
             projection,
             candidates,
@@ -541,9 +600,11 @@ def _vector_projection(
             policy_decision_sha256=policy_hash,
             generation_id=generation_id,
             retrieval_config_sha256=retrieval_config_sha256,
+            options=options,
         )[:normalized_limit]
     else:
         candidates = vector[:normalized_limit]
+    candidates = _revalidate_candidates(projection, retrieval, candidates, options=options)
     return {
         "query_sha256": query_sha256,
         "policy_decision_sha256": policy_hash,

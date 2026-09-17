@@ -403,15 +403,33 @@ def retrieval_candidate_schema() -> dict[str, Any]:
 
 
 def answer_schema() -> dict[str, Any]:
-    """Return the C23 answer schema with ``#summary`` and ``#answer`` anchors."""
+    """Return the C26 byte-bound cited answer schema."""
 
     citation = {
         "type": "object",
         "additionalProperties": False,
-        "required": ["path", "locator", "sha256"],
+        "required": [
+            "note_id",
+            "path",
+            "content_hash",
+            "locator",
+            "chunk_id",
+            "chunk_hash",
+            "index_generation_id",
+            "excerpt",
+            "excerpt_sha256",
+            "sha256",
+        ],
         "properties": {
+            "note_id": _identifier_schema(),
             "path": _path_schema(),
+            "content_hash": _sha256_schema(),
             "locator": {"type": "string", "minLength": 1},
+            "chunk_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "chunk_hash": _sha256_schema(),
+            "index_generation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "excerpt": {"type": "string", "minLength": 1, "maxLength": 1200},
+            "excerpt_sha256": _sha256_schema(),
             "sha256": _sha256_schema(),
         },
     }

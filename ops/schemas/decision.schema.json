@@ -44,6 +44,8 @@
     "reason_sha256",
     "reason_length",
     "approval_binds",
+    "replay_identity_sha256",
+    "journal_sha256",
     "decided_at",
     "provider_called",
     "mutation_performed"
@@ -258,6 +260,21 @@
           }
         }
       }
+    },
+    "replay_identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "journal_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "decided_at": {
       "type": "string",

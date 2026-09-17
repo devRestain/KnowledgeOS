@@ -1,30 +1,1495 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.invalid/knowledgeos/proposal.schema.json",
-  "title": "KnowledgeOS C18 proposal",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "proposal_id",
-    "action",
-    "input_sha256",
-    "requested_mutations"
-  ],
-  "properties": {
-    "proposal_id": {
-      "type": "string",
-      "format": "uuid"
+  "$id": "knowledgeos://schema/proposal-v1",
+  "title": "KnowledgeOS C27 action-specific mutation proposal",
+  "oneOf": [
+    {
+      "$id": "knowledgeos://schema/proposal/draft_note-v1",
+      "title": "KnowledgeOS draft note proposal",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "proposal_id",
+        "action",
+        "status",
+        "source",
+        "target",
+        "bindings",
+        "diff",
+        "candidate",
+        "requested_mutations",
+        "provider_called",
+        "mutation_performed",
+        "requires_human_approval_before_apply"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "proposal_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "action": {
+          "const": "draft_note"
+        },
+        "status": {
+          "const": "PROPOSED"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "note_id",
+            "type",
+            "sha256",
+            "locator",
+            "fragment_sha256",
+            "fragment_byte_length"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "note_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "locator": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_byte_length": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "type",
+            "expected_sha256",
+            "before_sha256",
+            "after_sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "expected_sha256": {
+              "type": "string",
+              "pattern": "^$|^[0-9a-f]{64}$"
+            },
+            "before_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "after_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action_config",
+            "prompt",
+            "policy",
+            "schema",
+            "candidate_set_sha256",
+            "retrieval_config_sha256",
+            "retrieval_profile_id",
+            "index_generation_id"
+          ],
+          "properties": {
+            "action_config": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256",
+                "decision"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "decision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              }
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "candidate_set_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_config_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_profile_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "index_generation_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "diff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "sha256",
+            "patch",
+            "bounded"
+          ],
+          "properties": {
+            "format": {
+              "const": "unified"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "patch": {
+              "type": "string",
+              "maxLength": 32768
+            },
+            "bounded": {
+              "const": true
+            }
+          }
+        },
+        "requested_mutations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "path",
+              "type",
+              "before_sha256",
+              "after_sha256"
+            ],
+            "properties": {
+              "operation": {
+                "const": "create_note"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "capture",
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "project",
+                  "project_note",
+                  "idea",
+                  "question",
+                  "artifact",
+                  "area",
+                  "knowledge",
+                  "source",
+                  "person",
+                  "moc",
+                  "meeting",
+                  "home",
+                  "system"
+                ]
+              },
+              "before_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "provider_called": {
+          "const": false
+        },
+        "mutation_performed": {
+          "const": false
+        },
+        "requires_human_approval_before_apply": {
+          "const": true
+        },
+        "candidate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate_id",
+            "type",
+            "title",
+            "reason",
+            "source_sha256",
+            "candidate_sha256"
+          ],
+          "properties": {
+            "candidate_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "task",
+                "idea",
+                "question",
+                "knowledge",
+                "project",
+                "source"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "source_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "candidate_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
     },
-    "action": {
-      "const": "triage"
+    {
+      "$id": "knowledgeos://schema/proposal/link_suggestions-v1",
+      "title": "KnowledgeOS link suggestions proposal",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "proposal_id",
+        "action",
+        "status",
+        "source",
+        "target",
+        "bindings",
+        "diff",
+        "candidate_set",
+        "suggested_links",
+        "requested_mutations",
+        "provider_called",
+        "mutation_performed",
+        "requires_human_approval_before_apply"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "proposal_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "action": {
+          "const": "link_suggestions"
+        },
+        "status": {
+          "const": "PROPOSED"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "note_id",
+            "type",
+            "sha256",
+            "locator",
+            "fragment_sha256",
+            "fragment_byte_length"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "note_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "locator": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_byte_length": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "type",
+            "expected_sha256",
+            "before_sha256",
+            "after_sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "expected_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "before_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "after_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action_config",
+            "prompt",
+            "policy",
+            "schema",
+            "candidate_set_sha256",
+            "retrieval_config_sha256",
+            "retrieval_profile_id",
+            "index_generation_id"
+          ],
+          "properties": {
+            "action_config": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256",
+                "decision"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "decision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              }
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "candidate_set_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_config_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_profile_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "index_generation_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "diff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "sha256",
+            "patch",
+            "bounded"
+          ],
+          "properties": {
+            "format": {
+              "const": "unified"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "patch": {
+              "type": "string",
+              "maxLength": 32768
+            },
+            "bounded": {
+              "const": true
+            }
+          }
+        },
+        "requested_mutations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "path",
+              "type",
+              "before_sha256",
+              "after_sha256"
+            ],
+            "properties": {
+              "operation": {
+                "const": "update_note"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "capture",
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "project",
+                  "project_note",
+                  "idea",
+                  "question",
+                  "artifact",
+                  "area",
+                  "knowledge",
+                  "source",
+                  "person",
+                  "moc",
+                  "meeting",
+                  "home",
+                  "system"
+                ]
+              },
+              "before_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "provider_called": {
+          "const": false
+        },
+        "mutation_performed": {
+          "const": false
+        },
+        "requires_human_approval_before_apply": {
+          "const": true
+        },
+        "candidate_set": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_id",
+              "path",
+              "note_id",
+              "type",
+              "title",
+              "content_hash",
+              "predicate",
+              "reason"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+              },
+              "note_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "capture",
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "project",
+                  "project_note",
+                  "idea",
+                  "question",
+                  "artifact",
+                  "area",
+                  "knowledge",
+                  "source",
+                  "person",
+                  "moc",
+                  "meeting",
+                  "home",
+                  "system"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "predicate": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "suggested_links": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_id",
+              "path",
+              "note_id",
+              "predicate",
+              "wikilink",
+              "content_hash",
+              "reason"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+              },
+              "note_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "predicate": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "wikilink": {
+                "type": "string",
+                "pattern": "^\\[\\[[^\\]\\n]+\\]\\]$"
+              },
+              "content_hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          }
+        }
+      }
     },
-    "input_sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
-    "requested_mutations": {
-      "type": "array",
-      "maxItems": 0
+    {
+      "$id": "knowledgeos://schema/proposal/normalize-v1",
+      "title": "KnowledgeOS normalize proposal",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "proposal_id",
+        "action",
+        "status",
+        "source",
+        "target",
+        "bindings",
+        "diff",
+        "normalization",
+        "requested_mutations",
+        "provider_called",
+        "mutation_performed",
+        "requires_human_approval_before_apply"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "proposal_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "action": {
+          "const": "normalize"
+        },
+        "status": {
+          "const": "PROPOSED"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "note_id",
+            "type",
+            "sha256",
+            "locator",
+            "fragment_sha256",
+            "fragment_byte_length"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "note_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "locator": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment_byte_length": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "type",
+            "expected_sha256",
+            "before_sha256",
+            "after_sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "capture",
+                "daily",
+                "weekly",
+                "monthly",
+                "project",
+                "project_note",
+                "idea",
+                "question",
+                "artifact",
+                "area",
+                "knowledge",
+                "source",
+                "person",
+                "moc",
+                "meeting",
+                "home",
+                "system"
+              ]
+            },
+            "expected_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "before_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "after_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action_config",
+            "prompt",
+            "policy",
+            "schema",
+            "candidate_set_sha256",
+            "retrieval_config_sha256",
+            "retrieval_profile_id",
+            "index_generation_id"
+          ],
+          "properties": {
+            "action_config": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256",
+                "decision"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "decision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              }
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "candidate_set_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_config_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retrieval_profile_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "index_generation_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "diff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "sha256",
+            "patch",
+            "bounded"
+          ],
+          "properties": {
+            "format": {
+              "const": "unified"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "patch": {
+              "type": "string",
+              "maxLength": 32768
+            },
+            "bounded": {
+              "const": true
+            }
+          }
+        },
+        "requested_mutations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "path",
+              "type",
+              "before_sha256",
+              "after_sha256"
+            ],
+            "properties": {
+              "operation": {
+                "const": "update_note"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+\\.md$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "capture",
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "project",
+                  "project_note",
+                  "idea",
+                  "question",
+                  "artifact",
+                  "area",
+                  "knowledge",
+                  "source",
+                  "person",
+                  "moc",
+                  "meeting",
+                  "home",
+                  "system"
+                ]
+              },
+              "before_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "provider_called": {
+          "const": false
+        },
+        "mutation_performed": {
+          "const": false
+        },
+        "requires_human_approval_before_apply": {
+          "const": true
+        },
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "changed_fields",
+            "before_properties_sha256",
+            "after_properties_sha256"
+          ],
+          "properties": {
+            "changed_fields": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "before_properties_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "after_properties_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
     }
-  }
+  ]
 }

@@ -17,6 +17,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from .fragments import FragmentError, verify_daily_fragment
 from .note_engine import NoteContractError, NoteEngine, UnsafePathError, resolve_vault_relative_path
 
 _CANDIDATE_TYPES = ("task", "idea", "question", "knowledge", "project", "source")
@@ -122,6 +123,14 @@ def deterministic_triage(
         return _problem("TRIAGE_PRIVACY_DENIED", "source privacy policy denies triage")
     if typed.note_type == "daily" and (locator is None or fragment_sha256 is None):
         return _problem("TRIAGE_DAILY_LOCATOR_REQUIRED", "daily sources require locator and fragment_sha256")
+    if typed.note_type == "daily":
+        try:
+            verify_daily_fragment(text, locator, fragment_sha256)
+        except FragmentError as error:
+            code = "TRIAGE_FRAGMENT_DRIFT"
+            if "does not match" not in str(error):
+                code = "TRIAGE_FRAGMENT_INVALID"
+            return _problem(code, str(error))
 
     title = str(typed.properties["title"])
     candidate_type = _candidate_type(typed.note_type, typed.properties.get("triage_hint"))
