@@ -33,6 +33,7 @@ from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_pat
 from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
+from .provider_broker import PIPELINES, SCENARIOS, run_synthetic_job
 from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
 from .retrieval import (
     RetrievalValidationError,
@@ -466,6 +467,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ai_worker.add_argument("--evaluation-file", type=Path, default=None)
     ai_worker.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_broker = ai_commands.add_parser(
+        "broker",
+        help="run one C32 synthetic provider job from an immutable runtime request",
+    )
+    ai_broker.add_argument("--job-id", required=True, help="UUIDv4 of an existing C31 runtime job")
+    ai_broker.add_argument("--pipeline", choices=PIPELINES, default=None)
+    ai_broker.add_argument("--scenario", choices=SCENARIOS, default="success")
+    ai_broker.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -982,6 +991,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     hops=args.hops,
                     expected_generation_id=args.expected_generation_id,
                 )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "broker":
+        report, exit_code = run_synthetic_job(
+            args.root or _control_root(),
+            job_id=args.job_id,
+            pipeline=args.pipeline,
+            scenario=args.scenario,
+        )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "worker":

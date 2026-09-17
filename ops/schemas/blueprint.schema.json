@@ -701,10 +701,11 @@
     },
     "llm": {
       "type": "object",
-      "required": ["default_interactive_route", "routes", "silent_provider_fallback", "live_vault_write", "output_outcomes", "triage", "draft_note", "remote_authorization", "approval_binds", "partial_relation_approval"],
+      "required": ["default_interactive_route", "routes", "silent_provider_fallback", "live_vault_write", "provider_envelopes", "output_outcomes", "triage", "draft_note", "remote_authorization", "approval_binds", "partial_relation_approval"],
       "properties": {
         "silent_provider_fallback": {"const": false},
         "live_vault_write": {"const": false},
+        "provider_envelopes": {"$ref": "#/$defs/providerEnvelopes"},
         "output_outcomes": {"$ref": "#/$defs/stringArray"},
         "routes": {"type": "object", "required": ["codex_chatgpt_login", "openai_api_relay", "local_profile"]},
         "remote_authorization": {
@@ -718,6 +719,72 @@
         },
         "approval_binds": {"$ref": "#/$defs/stringArray"},
         "partial_relation_approval": {"$ref": "#/$defs/nonEmptyObject"}
+      }
+    },
+    "providerEnvelopes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "contract_id", "runtime_root", "context_path_pattern", "request_path_pattern", "schemas", "limits", "privacy", "runner_boundary"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "contract_id": {"const": "knowledgeos-provider-envelopes-v1"},
+        "runtime_root": {"const": "runtime"},
+        "context_path_pattern": {"const": "runtime/runs/JOB_ID/context.json"},
+        "request_path_pattern": {"const": "runtime/runs/JOB_ID/request.json"},
+        "schemas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["request", "response", "receipt", "failure", "authorization", "context"],
+          "properties": {
+            "request": {"const": "ops/schemas/provider-request.schema.json"},
+            "response": {"const": "ops/schemas/provider-response.schema.json"},
+            "receipt": {"const": "ops/schemas/provider-receipt.schema.json"},
+            "failure": {"const": "ops/schemas/provider-failure.schema.json"},
+            "authorization": {"const": "ops/schemas/remote-authorization.schema.json"},
+            "context": {"const": "ops/schemas/frozen-context.schema.json"}
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_request_bytes", "max_context_bytes", "max_prompt_bytes", "max_response_bytes", "max_failure_message_bytes", "max_candidates", "max_source_hashes", "max_warnings", "max_json_depth", "max_output_tokens", "max_timeout_seconds", "max_job_age_seconds"],
+          "properties": {
+            "max_request_bytes": {"const": 65536},
+            "max_context_bytes": {"const": 1048576},
+            "max_prompt_bytes": {"const": 131072},
+            "max_response_bytes": {"const": 262144},
+            "max_failure_message_bytes": {"const": 1000},
+            "max_candidates": {"const": 50},
+            "max_source_hashes": {"const": 50},
+            "max_warnings": {"const": 20},
+            "max_json_depth": {"const": 8},
+            "max_output_tokens": {"const": 1024},
+            "max_timeout_seconds": {"const": 120},
+            "max_job_age_seconds": {"const": 3600}
+          }
+        },
+        "privacy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["raw_prompt", "raw_response", "receipt_content", "ordinary_logs"],
+          "properties": {
+            "raw_prompt": {"const": "private_runtime_only"},
+            "raw_response": {"const": "private_runtime_only"},
+            "receipt_content": {"const": "hashes_only"},
+            "ordinary_logs": {"const": "codes_and_hashes_only"}
+          }
+        },
+        "runner_boundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vault_mount", "canonical_apply", "networkless_core", "model_output_untrusted"],
+          "properties": {
+            "vault_mount": {"const": false},
+            "canonical_apply": {"const": false},
+            "networkless_core": {"const": true},
+            "model_output_untrusted": {"const": true}
+          }
+        }
       }
     },
     "projection": {

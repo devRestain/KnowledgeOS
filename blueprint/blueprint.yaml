@@ -1269,6 +1269,42 @@ llm:
     local_profile: {route_id_pattern: "local:<profile>", execution_class: local}
   silent_provider_fallback: false
   live_vault_write: false
+  provider_envelopes:
+    schema_version: 1
+    contract_id: knowledgeos-provider-envelopes-v1
+    runtime_root: runtime
+    context_path_pattern: runtime/runs/JOB_ID/context.json
+    request_path_pattern: runtime/runs/JOB_ID/request.json
+    schemas:
+      request: ops/schemas/provider-request.schema.json
+      response: ops/schemas/provider-response.schema.json
+      receipt: ops/schemas/provider-receipt.schema.json
+      failure: ops/schemas/provider-failure.schema.json
+      authorization: ops/schemas/remote-authorization.schema.json
+      context: ops/schemas/frozen-context.schema.json
+    limits:
+      max_request_bytes: 65536
+      max_context_bytes: 1048576
+      max_prompt_bytes: 131072
+      max_response_bytes: 262144
+      max_failure_message_bytes: 1000
+      max_candidates: 50
+      max_source_hashes: 50
+      max_warnings: 20
+      max_json_depth: 8
+      max_output_tokens: 1024
+      max_timeout_seconds: 120
+      max_job_age_seconds: 3600
+    privacy:
+      raw_prompt: private_runtime_only
+      raw_response: private_runtime_only
+      receipt_content: hashes_only
+      ordinary_logs: codes_and_hashes_only
+    runner_boundary:
+      vault_mount: false
+      canonical_apply: false
+      networkless_core: true
+      model_output_untrusted: true
   output_outcomes:
     - proposed
     - decision

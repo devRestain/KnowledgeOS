@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/provider-response.schema.json",
+  "title": "KnowledgeOS C31 provider response envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "job_id",
+    "response_id",
+    "request_sha256",
+    "context_sha256",
+    "received_at",
+    "completed_at",
+    "status",
+    "provider",
+    "output_schema",
+    "output",
+    "output_sha256",
+    "output_byte_length",
+    "output_token_count",
+    "warnings",
+    "runner_boundary",
+    "model_output_untrusted",
+    "response_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "knowledgeos-provider-envelopes-v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "response_id": {
+      "type": "string",
+      "pattern": "^res\\-[0-9a-f]{32}$"
+    },
+    "request_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "context_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "refused",
+        "failed",
+        "cancelled",
+        "timeout",
+        "overloaded",
+        "conflict"
+      ]
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "model_tag",
+        "model_digest",
+        "ollama_version"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "pattern": "^(?:codex_chatgpt_login|openai_api_relay|local:[a-z0-9][a-z0-9._-]{0,63})$"
+        },
+        "model_tag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(?!.*(?:^|:)latest$)[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "model_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ollama_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._+:-]{0,63}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "output_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\r\\n\\x00]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "output": {},
+    "output_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "output_byte_length": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 262144
+    },
+    "output_token_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1024
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "runner_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vault_mount",
+        "canonical_apply",
+        "network_access",
+        "raw_prompt_storage",
+        "raw_response_storage",
+        "model_output_untrusted"
+      ],
+      "properties": {
+        "vault_mount": {
+          "const": false
+        },
+        "canonical_apply": {
+          "const": false
+        },
+        "network_access": {
+          "enum": [
+            "none",
+            "separately_authorized_loopback"
+          ]
+        },
+        "raw_prompt_storage": {
+          "const": "private_runtime_only"
+        },
+        "raw_response_storage": {
+          "const": "private_runtime_only"
+        },
+        "model_output_untrusted": {
+          "const": true
+        }
+      }
+    },
+    "model_output_untrusted": {
+      "const": true
+    },
+    "response_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

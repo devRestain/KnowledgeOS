@@ -435,3 +435,57 @@ artifacts:
     generator: vaultops.schema_export:c30_local_model_config
     deployed_copy: false
     first_capability: C30
+  - path: ops/schemas/provider-request.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_provider_request_schema
+    deployed_copy: false
+    first_capability: C31
+  - path: ops/schemas/provider-response.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_provider_response_schema
+    deployed_copy: false
+    first_capability: C31
+  - path: ops/schemas/provider-receipt.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_provider_receipt_schema
+    deployed_copy: false
+    first_capability: C31
+  - path: ops/schemas/provider-failure.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_provider_failure_schema
+    deployed_copy: false
+    first_capability: C31
+  - path: ops/schemas/remote-authorization.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_remote_authorization_schema
+    deployed_copy: false
+    first_capability: C31
+  - path: ops/schemas/frozen-context.schema.json
+    owner: C31
+    status: OWNED
+    authoritative_inputs:
+      - path: blueprint/blueprint.yaml
+        selectors: [/llm/provider_envelopes]
+    generator: vaultops.provider_contract:c31_frozen_context_schema
+    deployed_copy: false
+    first_capability: C31

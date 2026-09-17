@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/remote-authorization.schema.json",
+  "title": "KnowledgeOS C31 remote authorization envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "authorization_id",
+    "job_id",
+    "decision",
+    "authorized_at",
+    "expires_at",
+    "actor",
+    "tty_confirmed",
+    "scope",
+    "provider",
+    "binds",
+    "authorization_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "knowledgeos-provider-envelopes-v1"
+    },
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^auth\\-[0-9a-f]{32}$"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "decision": {
+      "enum": [
+        "approved",
+        "denied",
+        "expired"
+      ]
+    },
+    "authorized_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "tty_confirmed": {
+      "const": true
+    },
+    "scope": {
+      "const": "one_job"
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "model_tag",
+        "model_digest",
+        "ollama_version"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "pattern": "^(?:codex_chatgpt_login|openai_api_relay|local:[a-z0-9][a-z0-9._-]{0,63})$"
+        },
+        "model_tag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(?!.*(?:^|:)latest$)[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "model_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ollama_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._+:-]{0,63}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "binds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_sha256",
+        "context_sha256",
+        "prompt_sha256",
+        "output_schema_sha256",
+        "policy_decision_sha256",
+        "candidate_set_sha256",
+        "source_hashes_sha256",
+        "index_generation_id"
+      ],
+      "properties": {
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "context_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "output_schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "policy_decision_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate_set_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_hashes_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "index_generation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "authorization_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -137,6 +137,39 @@ prefix_rule(
     justification="Run a disposable KnowledgeOS container with the verified host UID/GID 501:20",
 )
 prefix_rule(
+    pattern=[
+        "KNOWLEDGEOS_UID=501",
+        "KNOWLEDGEOS_GID=20",
+        "docker",
+        "compose",
+        "-f",
+        "ops/compose.yaml",
+        "run",
+        "--rm",
+        "dev",
+        "vaultctl",
+    ],
+    decision="allow",
+    justification="Run vaultctl in a disposable KnowledgeOS dev container with the verified host UID/GID 501:20",
+)
+prefix_rule(
+    pattern=[
+        "env",
+        "KNOWLEDGEOS_UID=501",
+        "KNOWLEDGEOS_GID=20",
+        "docker",
+        "compose",
+        "-f",
+        "ops/compose.yaml",
+        "run",
+        "--rm",
+        "dev",
+        "vaultctl",
+    ],
+    decision="allow",
+    justification="Run vaultctl in a disposable KnowledgeOS dev container with the verified host UID/GID 501:20",
+)
+prefix_rule(
     pattern=["docker", "compose", "-f", "ops/compose.yaml", "exec", "dev"],
     decision="allow",
     justification="Execute development commands inside the KnowledgeOS container",

@@ -6,7 +6,7 @@ authoritative_inputs:
 - path: blueprint/blueprint.yaml
   selectors:
   - /llm
-  sha256: a7d51a38589c4815ac4e99817d3fe9897b0277afdee5f26db74ec9b47960e759
+  sha256: 2ad3aae1a9d1f7acbbf8ee001ee2270b99ec391cac0a88c96dba427315fd43a2
 local_models:
   schema_version: 1
   provider: ollama

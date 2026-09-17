@@ -72,6 +72,21 @@ from .projection import (
     retrieval_candidate_schema,
 )
 from .proposals import apply_receipt_schema, approval_schema, decision_schema
+from .provider_contract import (
+    FROZEN_CONTEXT_SCHEMA_PATH,
+    PROVIDER_FAILURE_SCHEMA_PATH,
+    PROVIDER_RECEIPT_SCHEMA_PATH,
+    PROVIDER_REQUEST_SCHEMA_PATH,
+    PROVIDER_RESPONSE_SCHEMA_PATH,
+    REMOTE_AUTHORIZATION_SCHEMA_PATH,
+    frozen_context_schema,
+    provider_failure_schema,
+    provider_receipt_schema,
+    provider_request_schema,
+    provider_response_schema,
+    remote_authorization_schema,
+    validate_blueprint_provider_contract,
+)
 from .triage import triage_result_schema
 from .vector import vector_evaluation_schema
 from .yaml_safe import load_yaml_file
@@ -349,6 +364,60 @@ OWNED_ARTIFACTS = (
         deployed_copy=False,
         owner="C30",
         first_capability="C30",
+    ),
+    _owned(
+        PROVIDER_REQUEST_SCHEMA_PATH,
+        "c31_provider_request_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
+    ),
+    _owned(
+        PROVIDER_RESPONSE_SCHEMA_PATH,
+        "c31_provider_response_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
+    ),
+    _owned(
+        PROVIDER_RECEIPT_SCHEMA_PATH,
+        "c31_provider_receipt_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
+    ),
+    _owned(
+        PROVIDER_FAILURE_SCHEMA_PATH,
+        "c31_provider_failure_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
+    ),
+    _owned(
+        REMOTE_AUTHORIZATION_SCHEMA_PATH,
+        "c31_remote_authorization_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
+    ),
+    _owned(
+        FROZEN_CONTEXT_SCHEMA_PATH,
+        "c31_frozen_context_schema",
+        ("/llm/provider_envelopes",),
+        deployed_copy=False,
+        owner="C31",
+        first_capability="C31",
+        generator_id="vaultops.provider_contract",
     ),
 )
 
@@ -716,6 +785,24 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
             blueprint,
             source_info=_source_info(workspace, spec),
         )
+    if spec.path in {
+        PROVIDER_REQUEST_SCHEMA_PATH,
+        PROVIDER_RESPONSE_SCHEMA_PATH,
+        PROVIDER_RECEIPT_SCHEMA_PATH,
+        PROVIDER_FAILURE_SCHEMA_PATH,
+        REMOTE_AUTHORIZATION_SCHEMA_PATH,
+        FROZEN_CONTEXT_SCHEMA_PATH,
+    }:
+        validate_blueprint_provider_contract(blueprint)
+        schemas = {
+            PROVIDER_REQUEST_SCHEMA_PATH: provider_request_schema,
+            PROVIDER_RESPONSE_SCHEMA_PATH: provider_response_schema,
+            PROVIDER_RECEIPT_SCHEMA_PATH: provider_receipt_schema,
+            PROVIDER_FAILURE_SCHEMA_PATH: provider_failure_schema,
+            REMOTE_AUTHORIZATION_SCHEMA_PATH: remote_authorization_schema,
+            FROZEN_CONTEXT_SCHEMA_PATH: frozen_context_schema,
+        }
+        return schema_bytes(schemas[spec.path]())
 
     if spec.path.endswith("/properties.yaml"):
         envelope = _envelope(blueprint, spec, "property_policy", workspace)

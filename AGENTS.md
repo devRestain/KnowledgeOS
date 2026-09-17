@@ -15,17 +15,17 @@
 - Resolve design conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md`.
 - Keep executable contracts in manifests, schemas, source, tests, and commands.
 - Treat `docs/*.md` as compact agent contract indexes, not authoritative state.
-- Keep machine state only in `PROJECT_STATE.md`; update root and nested `README.md` files only for human-facing information at close.
-- Exclude every `README.md` from startup and in-task state reads.
+- Keep machine state only in `PROJECT_STATE.md`; update `README.md` only at close and exclude it from startup/in-task reads.
 
 ## Development Workflow
 
 - Use `Makefile` targets and container Python `3.12.8` with uv `0.8.14` for canonical work.
 - Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID`; fail closed when Compose values are missing.
-- Use `/goal` mode for every substantive multi-step session.
-- State the planned acceptance slice, objective, scope, dependencies, exclusions, expected artifacts, completion conditions, and handoff requirements before changing files.
-- State required checks and evidence classes before implementation.
-- Keep `/goal` aligned with `PROJECT_STATE.md`, record blockers or deferred/unrun conditions, and mark it complete only after verified evidence.
+- Use `/goal` mode for every substantive multi-step implementation session.
+- When the user requests implementation, read `PROJECT_STATE.md` and the applicable plan, then find the requested slice before registering `/goal`.
+- Register existing plans only for matching implementation requests; create a new `/goal` when the request differs.
+- Record the slice, objective, scope, dependencies, exclusions, artifacts, completion criteria, checks, evidence, and handoff in `/goal`.
+- Record blockers or deferred/unrun checks; align `/goal` with `PROJECT_STATE.md` and complete it only after verified evidence.
 - Set `token_budget` only when the user explicitly requests a goal budget.
 - Keep create-only writes inside validated targets.
 - Preserve control and Vault worktrees during every slice.

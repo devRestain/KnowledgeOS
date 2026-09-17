@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/provider-request.schema.json",
+  "title": "KnowledgeOS C31 provider request envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "job_id",
+    "request_id",
+    "created_at",
+    "context_path",
+    "context_sha256",
+    "context_byte_length",
+    "prompt_sha256",
+    "output_schema",
+    "policy_decision",
+    "index_generation_id",
+    "candidate_set_sha256",
+    "source_hashes_sha256",
+    "action",
+    "provider",
+    "inference_options",
+    "limits",
+    "runner_boundary",
+    "request_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "knowledgeos-provider-envelopes-v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^req\\-[0-9a-f]{32}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20,
+      "maxLength": 40
+    },
+    "context_path": {
+      "type": "string",
+      "pattern": "^runtime/runs/[0-9a-f-]{36}/context\\.json$"
+    },
+    "context_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "context_byte_length": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1048576
+    },
+    "prompt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "output_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\r\\n\\x00]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "policy_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "policy_sha256",
+        "privacy_policy_sha256",
+        "scope",
+        "authorization_sha256"
+      ],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "allow_local",
+            "allow_remote",
+            "deny",
+            "ask"
+          ]
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "privacy_policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "authorization_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "index_generation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_set_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_hashes_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "model_tag",
+        "model_digest",
+        "ollama_version"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "pattern": "^(?:codex_chatgpt_login|openai_api_relay|local:[a-z0-9][a-z0-9._-]{0,63})$"
+        },
+        "model_tag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(?!.*(?:^|:)latest$)[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "model_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ollama_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._+:-]{0,63}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "inference_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "num_ctx",
+        "stream",
+        "think",
+        "tools",
+        "temperature",
+        "seed",
+        "max_output_tokens",
+        "keep_alive",
+        "parallel_requests",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "num_ctx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "stream": {
+          "const": false
+        },
+        "think": {
+          "const": false
+        },
+        "tools": {
+          "const": false
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "keep_alive": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600
+        },
+        "parallel_requests": {
+          "const": 1
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_request_bytes",
+        "max_context_bytes",
+        "max_prompt_bytes",
+        "max_response_bytes",
+        "max_failure_message_bytes",
+        "max_candidates",
+        "max_source_hashes",
+        "max_warnings",
+        "max_json_depth",
+        "max_output_tokens",
+        "max_timeout_seconds",
+        "max_job_age_seconds"
+      ],
+      "properties": {
+        "max_request_bytes": {
+          "const": 65536
+        },
+        "max_context_bytes": {
+          "const": 1048576
+        },
+        "max_prompt_bytes": {
+          "const": 131072
+        },
+        "max_response_bytes": {
+          "const": 262144
+        },
+        "max_failure_message_bytes": {
+          "const": 1000
+        },
+        "max_candidates": {
+          "const": 50
+        },
+        "max_source_hashes": {
+          "const": 50
+        },
+        "max_warnings": {
+          "const": 20
+        },
+        "max_json_depth": {
+          "const": 8
+        },
+        "max_output_tokens": {
+          "const": 1024
+        },
+        "max_timeout_seconds": {
+          "const": 120
+        },
+        "max_job_age_seconds": {
+          "const": 3600
+        }
+      }
+    },
+    "runner_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vault_mount",
+        "canonical_apply",
+        "network_access",
+        "raw_prompt_storage",
+        "raw_response_storage",
+        "model_output_untrusted"
+      ],
+      "properties": {
+        "vault_mount": {
+          "const": false
+        },
+        "canonical_apply": {
+          "const": false
+        },
+        "network_access": {
+          "enum": [
+            "none",
+            "separately_authorized_loopback"
+          ]
+        },
+        "raw_prompt_storage": {
+          "const": "private_runtime_only"
+        },
+        "raw_response_storage": {
+          "const": "private_runtime_only"
+        },
+        "model_output_untrusted": {
+          "const": true
+        }
+      }
+    },
+    "request_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
