@@ -1,14 +1,16 @@
 /state version=1
 /project id=knowledgeos
-/status value=complete
-/checkpoint revision=8330b8df742c24195d5a0fa7bf70528801532e49 dirty=true updated=2026-09-17T02:11:21+09:00
+/status value=blocked
+/checkpoint revision=1637ff29f67348b50bc8ca5a8d1938680beefaf1 dirty=true updated=2026-09-17T13:58:18+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
 /goal phase=history id=C23 state=complete action="Implement cited answers and the full provider-free guestbook-horror flow"
 /goal phase=history id=C24 state=complete action="Render background artifacts and verify synthetic wake and recovery behavior"
 /goal phase=history id=E01 state=complete action="Evaluate deterministic local vector and RRF against the frozen C22 baseline"
-/goal phase=current id=C_AUDIT_20260917 state=complete action="Verify C01 C24 implementation and document available features"
+/goal phase=history id=C_AUDIT_20260917 state=complete action="Verify C01 C24 implementation and document available features"
+/goal phase=current id=E_TARGETS_20260917 state=complete action="Confirm five Mac plugin targets excluding Omnisearch"
+/goal phase=next id=E06 state=planned action="Pilot Homepage as the Mac startup experience"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -476,4 +478,27 @@
 /evidence id=E_C_AUDIT_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate state grammar and changed root whitespace"
 /evidence id=E_C_AUDIT_ROOTS class=static result=pass source="git status; git -C KnowledgeHub status; git check-ignore; find" observed="Inventory both Git roots ignored paths and empty namespaces"
 /evidence id=E_C_AUDIT_README class=static result=pass source="README.md; KnowledgeHub/Home.md; KnowledgeHub/Mobile.md; blueprint/blueprint.yaml" observed="Explain current user workflows and safety boundaries in the human-facing guide"
-/handoff state=ready action="Keep C01 C24 verified and leave D08 D09 D10 and E02 E03 E04 E05 inactive pending authorization"
+/accept id=E_TARGETS_20260917.A1 state=pass action="Confirm Homepage Note Toolbar Breadcrumbs Notebook Navigator and Meta Bind as new E targets while excluding Omnisearch" evidence=E_TARGETS_SELECTION
+/accept id=E_TARGETS_20260917.A2 state=pass action="Bind each selected target to a bounded Mac adapter role and preserve canonical Markdown YAML ownership" evidence=E_TARGETS_BOUNDARY
+/accept id=E_TARGETS_20260917.A3 state=pass action="Document selected plugin journeys and plugin free fallbacks in README" evidence=E_TARGETS_README
+/accept id=E_TARGETS_20260917.A4 state=pass action="Validate state grammar and changed Git root whitespace" evidence=E_TARGETS_STATIC
+/evidence id=E_TARGETS_SELECTION class=semantic result=pass source="blueprint/blueprint.yaml; OBSIDIAN_VAULT_BLUEPRINT.md; README.md" observed="Select five Mac plugin targets and exclude Omnisearch from the new E target batch"
+/evidence id=E_TARGETS_BOUNDARY class=semantic result=pass source="blueprint/blueprint.yaml; OBSIDIAN_VAULT_BLUEPRINT.md" observed="Preserve Markdown YAML Properties human approval and plugin free mobile boundaries for optional plugin adapters"
+/evidence id=E_TARGETS_README class=static result=pass source="README.md" observed="Document capture inbox review search navigation and canonical note journeys with selected plugins"
+/evidence id=E_TARGETS_STATIC class=static result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate the new E target state and changed root whitespace"
+/evidence id=E_TARGETS_RUNTIME class=runtime result=not_run source="none" observed="Defer plugin runtime smoke checks until each E target is installed in the Mac profile"
+/evidence id=E_TARGETS_DEVICE class=device result=not_run source="none" observed="Defer Mac app and device verification until separate installation authorization"
+/decision id=D40 state=accepted action="Adopt E06 Homepage as the Mac startup experience target" source="README.md; blueprint/blueprint.yaml"
+/decision id=D41 state=accepted action="Adopt E07 Note Toolbar as the Mac contextual command surface target" source="README.md; blueprint/blueprint.yaml"
+/decision id=D42 state=accepted action="Adopt E08 Breadcrumbs as the typed relation navigation target" source="README.md; OBSIDIAN_VAULT_BLUEPRINT.md"
+/decision id=D43 state=accepted action="Adopt E09 Notebook Navigator as the bounded navigation surface target" source="README.md; blueprint/blueprint.yaml"
+/decision id=D44 state=accepted action="Adopt E10 Meta Bind as the low risk Properties interaction target" source="README.md; blueprint/blueprint.yaml"
+/decision id=D45 state=accepted action="Exclude Omnisearch from the new E target batch" source="README.md; OBSIDIAN_VAULT_BLUEPRINT.md"
+/scope id=X28 state=in action="Plan E06 Homepage startup experience"
+/scope id=X29 state=in action="Plan E07 Note Toolbar command surface"
+/scope id=X30 state=in action="Plan E08 Breadcrumbs typed relation view"
+/scope id=X31 state=in action="Plan E09 Notebook Navigator navigation surface"
+/scope id=X32 state=in action="Plan E10 Meta Bind low risk property view"
+/scope id=X33 state=out action="Install or configure selected community plugins before separate Mac authorization"
+/blocker id=B_E_PLUGIN_AUTH state=open action="Authorize Mac plugin installation and device smoke checks for E06" source="AGENTS.md; blueprint/blueprint.yaml"
+/handoff state=blocked action="Obtain separate Mac plugin installation authorization before E06"

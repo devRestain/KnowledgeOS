@@ -44,6 +44,76 @@ AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분�
 
 처음부터 모든 폴더를 정리할 필요는 없습니다. `Home → 빠른 캡처 → Inbox → 프로젝트 또는 Knowledge` 네 화면만으로도 기본 사용을 시작할 수 있습니다.
 
+## Mac에서 플러그인으로 흐름을 줄이는 방법
+
+플러그인은 노트와 Properties를 대신 보관하는 시스템이 아니라, 이미 있는 흐름에 더 짧은 진입점을 제공하는 도구입니다. 정식 노트의 내용과 속성은 언제나 Markdown과 YAML Properties에 남고, 플러그인을 끄더라도 기본 화면에서 읽고 이어서 작업할 수 있어야 합니다.
+
+현재 Mac 프로필에서 사용하는 다섯 가지 기본 플러그인은 다음 역할을 맡습니다.
+
+| 플러그인 | 사용자가 느끼는 변화 | 잘 맞는 순간 |
+| --- | --- | --- |
+| QuickAdd | 생각, 질문, 아이디어, 프로젝트, 지식으로 들어가는 길을 단축합니다. | 지금 정리하지 않고 먼저 남겨야 할 때 |
+| Templater | 노트 종류에 맞는 제목, 날짜, 기본 속성을 채워 줍니다. | 같은 형식의 Daily·Project·Source를 만들 때 |
+| Tasks | 여러 프로젝트에 흩어진 다음 행동을 한곳에서 확인합니다. | 오늘 할 일을 고르고 주간 회고를 할 때 |
+| Linter | 사람이 작성한 노트의 서식과 Properties 표현을 정돈합니다. | 검토가 끝난 노트를 저장하거나 공유하기 전 |
+| Git | Mac에서 변경 내용을 확인하고 보존할 시점을 선택하게 합니다. | 중요한 변경을 확인한 뒤 기록하고 싶을 때 |
+
+다음 다섯 플러그인은 이 Mac 경험을 더 짧게 만들기 위한 추가 대상입니다. 실제로 켜기 전까지는 Command palette, Core Search, File Explorer, 기본 Properties가 그대로 fallback으로 동작합니다.
+
+| 추가 플러그인 | 사용자 경험 | 원래 흐름과의 관계 |
+| --- | --- | --- |
+| Homepage | Obsidian을 열면 `Home.md`나 저장해 둔 작업 화면이 바로 나타납니다. 오늘의 방향과 처리할 목록을 찾으려고 탭을 여러 개 다시 열 필요가 없습니다. | Workspaces와 Home을 여는 첫 동작을 줄이는 역할입니다. 시작할 때 다른 명령을 자동으로 실행하지 않습니다. |
+| Note Toolbar | 현재 노트에 맞는 `Capture`, `Review`, `Related`, `Back` 같은 버튼을 보며 다음 행동을 고릅니다. 폴더를 찾아 명령을 검색하는 대신, 지금 보고 있는 맥락에서 필요한 동작을 선택합니다. | 기존 QuickAdd와 Core 명령으로 연결되는 편의 계층입니다. 노트 본문을 몰래 수정하는 자동화 버튼으로 사용하지 않습니다. |
+| Breadcrumbs | Project에서 Working 메모와 Source로, Question에서 근거 Knowledge로 이동할 때 관계의 방향과 경로를 한눈에 봅니다. 링크를 하나씩 따라가며 “이 노트가 어디에 속하는가?”를 다시 기억할 필요가 줄어듭니다. | 기존 typed relation을 읽기 쉽게 보여 주는 탐색 화면입니다. 새로운 관계 이름을 자동으로 만들지 않습니다. |
+| Notebook Navigator | 폴더, 최근 노트, 태그, Properties를 한 화면에서 찾아 Capture와 Project 사이를 빠르게 오갑니다. File Explorer를 펼쳤다 접는 횟수가 줄어듭니다. | File Explorer와 최근 항목 탐색을 보강합니다. 이동·병합·삭제 같은 일괄 변경은 사람이 명시적으로 선택할 때만 합니다. |
+| Meta Bind | Project의 `status`, `priority`, `next_action`처럼 자주 확인하는 값을 노트 안에서 바로 보고, 허용된 범위 안에서 수정합니다. Properties 패널로 왕복하는 시간이 줄어듭니다. | 기존 YAML Properties를 편집하는 얇은 입력 화면입니다. `id`, 생성 시각, 원본 hash, 승인 상태처럼 추적에 필요한 값은 이 방식으로 바꾸지 않습니다. |
+
+### 아침에 시작하기
+
+1. Obsidian을 열면 Homepage가 `Home.md`를 보여 줍니다.
+2. Home에서 오늘의 방향, active 또는 blocked 프로젝트, 아직 답하지 않은 질문을 확인합니다.
+3. Note Toolbar의 `Today`, `Tasks`, `Review` 버튼으로 필요한 화면만 엽니다.
+4. Daily에 오늘의 방향을 한 줄로 적고, Meta Bind가 보이는 `today_focus`나 `next_action` 같은 허용된 필드만 조정합니다.
+
+Homepage가 없거나 꺼져 있어도 `Home.md`를 직접 열면 같은 작업을 계속할 수 있습니다. 시작 화면은 편의 기능이지 정본이 아닙니다.
+
+### 생각이 떠오를 때
+
+1. Note Toolbar의 `Capture`를 누르거나 기존 QuickAdd 단축키를 사용합니다.
+2. 원문만 빠르게 적고, 지금 분류할 수 없다면 capture로 저장합니다.
+3. Templater가 날짜와 기본 형식을 채워도 내용의 의미와 분류는 나중에 결정합니다.
+4. 계속 작업해야 한다면 `NEW_PROJECT`, 답을 찾아야 한다면 `NEW_QUESTION`으로 시작합니다.
+
+이때 Notebook Navigator로 새 capture가 실제 `00_Inbox/Captures/`에 들어갔는지 확인할 수 있습니다. 버튼을 눌렀다는 표시만 믿지 않고, 목록에서 파일을 열어 원문을 확인합니다.
+
+### Inbox를 정리할 때
+
+1. Notebook Navigator에서 최근 capture와 Inbox를 엽니다.
+2. Note Toolbar의 `Open project`, `Related`, `Review` 같은 탐색 버튼으로 관련 맥락을 확인합니다.
+3. Breadcrumbs에서 기존 Project·Question·Source 관계를 따라가며 이 capture가 어디에 기여하는지 판단합니다.
+4. 필요하면 Meta Bind로 허용된 `status`, `priority`, `next_action`을 조정하고, 원문과 중요한 provenance 필드는 그대로 둡니다.
+5. 사람이 판단한 뒤에만 capture를 idea, question, knowledge, source 또는 project로 발전시킵니다.
+
+플러그인은 “어디에 연결할지”를 찾는 시간을 줄여 주지만, 분류 결정을 대신하지 않습니다. 애매하면 capture를 유지한 채 다음 검토로 넘겨도 됩니다.
+
+### 프로젝트와 지식을 다시 사용할 때
+
+1. Home의 Bases와 Tasks에서 오늘 처리할 Project와 다음 행동을 고릅니다.
+2. Project에서 Breadcrumbs를 사용해 Working 메모, 관련 Question, 근거 Source로 이동합니다.
+3. Note Toolbar의 `Back` 또는 `Home`으로 다시 판단 화면으로 돌아옵니다.
+4. 노트 본문을 수정한 뒤 Linter로 서식을 정돈하고, 필요한 변경만 Git으로 확인합니다.
+
+검색이 필요하면 먼저 Core Search와 Home의 Bases를 사용합니다. Breadcrumbs는 검색 결과를 관계의 맥락으로 넓혀 주고, Note Toolbar는 자주 쓰는 결과 화면을 다시 여는 시간을 줄입니다. 검색 플러그인이 없더라도 본문, 링크, Properties는 그대로 검색할 수 있어야 합니다.
+
+### 하루를 닫고 다음 날 이어가기
+
+1. Daily에서 완료한 일과 남은 `next_action`을 확인합니다.
+2. Meta Bind로 허용된 상태 필드만 정리하고, 실제 판단이나 설명은 본문에 남깁니다.
+3. 끝난 capture와 Project는 바로 삭제하지 말고 필요한 링크를 확인한 뒤 Archive로 보냅니다.
+4. Mac에서 변경 diff와 Git 상태를 확인합니다.
+
+추가 플러그인이 일시적으로 작동하지 않아도 Home, Markdown, YAML Properties, Bases, Tasks로 같은 판단을 이어갈 수 있어야 합니다. 플러그인 화면과 버튼은 작업을 빠르게 하지만, 원본과 결정의 소유자는 사용자입니다.
+
 ## 기기별 역할
 
 KnowledgeOS는 기기마다 잘 맞는 작업을 다르게 둡니다.
