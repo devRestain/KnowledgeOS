@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
-/status value=blocked
-/checkpoint revision=1637ff29f67348b50bc8ca5a8d1938680beefaf1 dirty=true updated=2026-09-17T13:58:18+09:00
+/status value=planned
+/checkpoint revision=9412ff1301490e971f0d63f370330fa9fe5d8999 dirty=true updated=2026-09-17T15:21:13+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
@@ -9,8 +9,9 @@
 /goal phase=history id=C24 state=complete action="Render background artifacts and verify synthetic wake and recovery behavior"
 /goal phase=history id=E01 state=complete action="Evaluate deterministic local vector and RRF against the frozen C22 baseline"
 /goal phase=history id=C_AUDIT_20260917 state=complete action="Verify C01 C24 implementation and document available features"
-/goal phase=current id=E_TARGETS_20260917 state=complete action="Confirm five Mac plugin targets excluding Omnisearch"
-/goal phase=next id=E06 state=planned action="Pilot Homepage as the Mac startup experience"
+/goal phase=history id=E_TARGETS_20260917 state=complete action="Confirm five Mac plugin targets excluding Omnisearch"
+/goal phase=current id=C25 state=planned action="Repair central retrieval privacy gates and review corpus filtering"
+/goal phase=next id=C26 state=planned action="Bind cited evidence to exact displayed source bytes"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -494,11 +495,47 @@
 /decision id=D43 state=accepted action="Adopt E09 Notebook Navigator as the bounded navigation surface target" source="README.md; blueprint/blueprint.yaml"
 /decision id=D44 state=accepted action="Adopt E10 Meta Bind as the low risk Properties interaction target" source="README.md; blueprint/blueprint.yaml"
 /decision id=D45 state=accepted action="Exclude Omnisearch from the new E target batch" source="README.md; OBSIDIAN_VAULT_BLUEPRINT.md"
-/scope id=X28 state=in action="Plan E06 Homepage startup experience"
-/scope id=X29 state=in action="Plan E07 Note Toolbar command surface"
-/scope id=X30 state=in action="Plan E08 Breadcrumbs typed relation view"
-/scope id=X31 state=in action="Plan E09 Notebook Navigator navigation surface"
-/scope id=X32 state=in action="Plan E10 Meta Bind low risk property view"
+/scope id=X28 state=pending action="Plan E06 Homepage startup experience"
+/scope id=X29 state=pending action="Plan E07 Note Toolbar command surface"
+/scope id=X30 state=pending action="Plan E08 Breadcrumbs typed relation view"
+/scope id=X31 state=pending action="Plan E09 Notebook Navigator navigation surface"
+/scope id=X32 state=pending action="Plan E10 Meta Bind low risk property view"
 /scope id=X33 state=out action="Install or configure selected community plugins before separate Mac authorization"
-/blocker id=B_E_PLUGIN_AUTH state=open action="Authorize Mac plugin installation and device smoke checks for E06" source="AGENTS.md; blueprint/blueprint.yaml"
-/handoff state=blocked action="Obtain separate Mac plugin installation authorization before E06"
+/blocker id=B_E_PLUGIN_AUTH state=open action="Authorize Mac plugin installation only when deferred E06 resumes" source="AGENTS.md; blueprint/blueprint.yaml"
+/accept id=C25.A1 state=not_run action="Apply path type scope sensitivity and AI policy gates to every review and canonical candidate" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A2 state=not_run action="Reapply privacy gates during fusion graph expansion and model context construction" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A3 state=not_run action="Exclude confidential denied wrong type wrong path and wrong scope review notes across lexical vector and answer routes" evidence=E_C25_IMPLEMENTATION
+/accept id=C25.A4 state=not_run action="Run canonical source contract container test lint state and diff gates" evidence=E_C25_GATES
+/accept id=C26.A1 state=not_run action="Bind citations and displayed excerpts to exact locator content and chunk hashes" evidence=E_C26_IMPLEMENTATION
+/accept id=C26.A2 state=not_run action="Preserve lexical and vector chunk provenance through fusion and reject evidence drift" evidence=E_C26_IMPLEMENTATION
+/evidence id=E_C25_PROGRAM class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; ops/policies/retrieval.yaml; blueprint/blueprint.yaml" observed="Define C25 through C36 dependencies acceptance boundaries local model profiles and external gates"
+/evidence id=E_C25_IMPLEMENTATION class=runtime result=not_run source="ops/src/vaultops/retrieval.py; ops/tests/test_c22_retrieval.py; ops/tests/test_c23_answer.py" observed="Defer C25 implementation to the next execution session"
+/evidence id=E_C25_GATES class=runtime result=not_run source="none" observed="Defer canonical implementation gates until C25 code changes exist"
+/evidence id=E_C26_IMPLEMENTATION class=runtime result=not_run source="ops/src/vaultops/answer.py; ops/src/vaultops/vector.py" observed="Defer C26 implementation to its ordered execution session"
+/evidence id=E_C25_PLAN_EXTERNAL class=external_service result=pass source="Google Gemma and Ollama official documentation" observed="Verify current Gemma 4 12B tags EmbeddingGemma profiles and Ollama local API constraints"
+/evidence id=E_C25_PLAN_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check" observed="Validate source checksums foundation Blueprint semantics and generated artifact zero diff"
+/evidence id=E_C25_PLAN_TEST class=runtime result=pass source="make test" observed="Run 206 tests with all passing in Python 3.12.8"
+/evidence id=E_C25_PLAN_LINT class=static result=pass source="make lint" observed="Run Ruff checks with all checks passing"
+/evidence id=E_C25_PLAN_STATIC class=static result=pass source="scripts/validate_state.py; git diff --check; git -C KnowledgeHub diff --check" observed="Validate state grammar and both Git root whitespace checks"
+/decision id=D46 state=accepted action="Prioritize C25 through C36 before resuming E06 through E10" source="docs/IMPLEMENTATION_PLAN.md"
+/decision id=D47 state=accepted action="Order C25 through C36 and insert D10 after C32 while gating live verification through E02 after C35" source="docs/IMPLEMENTATION_PLAN.md"
+/decision id=D48 state=accepted action="Keep canonical dev networkless and exchange provider envelopes through private runtime files" source="ops/compose.yaml; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D49 state=accepted action="Adopt a project owned Ollama runner and reject third party AI plugins as canonical authorities" source="docs/IMPLEMENTATION_PLAN.md; OBSIDIAN_VAULT_WHITEPAPER.md"
+/decision id=D50 state=accepted action="Target Gemma 4 12B generation and EmbeddingGemma retrieval with exact local model digests" source="docs/IMPLEMENTATION_PLAN.md"
+/decision id=D51 state=accepted action="Keep model output schema constrained proposal only and human approved" source="OBSIDIAN_VAULT_BLUEPRINT.md; blueprint/blueprint.yaml"
+/decision id=D52 state=accepted action="Keep model installation downloads live calls plugin actions and host agents separately authorized" source="AGENTS.md; docs/OPERATIONS.md; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D53 state=accepted action="Keep a thin Obsidian client conditional on E05 friction evidence and CLI parity" source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml"
+/scope id=X34 state=pending action="Implement C27 action specific proposals after C26"
+/scope id=X35 state=pending action="Implement C28 proposal lifecycle recovery after C27"
+/scope id=X36 state=pending action="Implement C29 privacy minimized projections after C25"
+/scope id=X37 state=pending action="Implement C30 truthful diagnostics and local model configuration after C29"
+/scope id=X38 state=pending action="Implement C31 provider neutral envelopes after C30"
+/scope id=X39 state=pending action="Implement C32 executable synthetic provider brokerage after C31"
+/scope id=X40 state=pending action="Implement C33 bounded fake verified Ollama transport after D10"
+/scope id=X41 state=pending action="Implement C34 EmbeddingGemma indexing and quality gates after C33"
+/scope id=X42 state=pending action="Implement C35 Gemma 4 proposal and answer routes after C34"
+/scope id=X43 state=pending action="Implement C36 recoverable provider consumer after C32"
+/scope id=X44 state=out action="Contact install pull expose or activate Ollama during the planning session"
+/scope id=X45 state=out action="Install or activate AI plugins LaunchAgents devices remote services or Git effects during the planning session"
+/scope id=X46 state=out action="Treat third party plugin indexes proposals or approvals as canonical KnowledgeOS evidence"
+/handoff state=ready action="Start C25 privacy gate repair without provider plugin device or network effects"
