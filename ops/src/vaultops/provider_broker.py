@@ -159,6 +159,8 @@ class AdapterOutcome:
 class ProviderAdapter(Protocol):
     """The provider interface consumed by the C32 broker."""
 
+    adapter_kind: str
+
     def invoke(
         self,
         workspace: Path,
@@ -711,6 +713,7 @@ class SyntheticProviderAdapter:
 
     output_override: Any | None = None
     raw_override: bytes | None = None
+    adapter_kind = "synthetic"
 
     def invoke(
         self,
@@ -882,15 +885,17 @@ def _terminal_report(
     error: BrokerError | None = None,
     **extra: Any,
 ) -> dict[str, Any]:
+    live_provider_called = bool(extra.pop("live_provider_called", False))
+    provider_called = bool(extra.pop("provider_called", live_provider_called))
     report: dict[str, Any] = {
         "status": status,
         "operation": OPERATION,
         "capability": CAPABILITY,
         "pipeline": pipeline,
         "scenario": scenario,
-        "provider_called": False,
+        "provider_called": provider_called,
         "synthetic_provider_called": bool(extra.pop("synthetic_provider_called", False)),
-        "live_provider_called": False,
+        "live_provider_called": live_provider_called,
         "mutation_performed": False,
         "vault_mutation_performed": False,
         "canonical_apply_allowed": False,
@@ -1110,7 +1115,14 @@ def run_synthetic_job(
         ), EXIT_INPUT_INVALID
 
     selected_adapter = adapter or SyntheticProviderAdapter()
-    synthetic_called = True
+    adapter_kind = getattr(selected_adapter, "adapter_kind", "synthetic")
+    synthetic_called = adapter_kind == "synthetic"
+    live_called = adapter_kind == "live"
+    adapter_flags = {
+        "provider_called": live_called,
+        "synthetic_provider_called": synthetic_called,
+        "live_provider_called": live_called,
+    }
     try:
         outcome = selected_adapter.invoke(
             workspace,
@@ -1172,7 +1184,7 @@ def run_synthetic_job(
             request=request,
             pipeline=selected_pipeline,
             scenario=scenario,
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
             response_path=(job / _RESPONSE_FILENAME).relative_to(workspace).as_posix(),
             response_sha256=response_digest,
             response_byte_length=response_bytes,
@@ -1208,7 +1220,7 @@ def run_synthetic_job(
                 pipeline=selected_pipeline,
                 scenario=scenario,
                 error=conflict,
-                synthetic_provider_called=synthetic_called,
+                **adapter_flags,
             ), EXIT_CONFLICT if isinstance(persist_error, ProviderConflict) else EXIT_INPUT_INVALID
         return _terminal_report(
             status="FAIL",
@@ -1216,7 +1228,7 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             error=error,
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
             **details,
         ), EXIT_CONFLICT
     except ProviderConflict as error:
@@ -1226,7 +1238,7 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             error=BrokerError(error.code, str(error)),
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
         ), EXIT_CONFLICT
     except BrokerError as error:
         status = "CONFLICT" if error.code in {"C32_DIGEST_CONFLICT", "C32_RESPONSE_DIGEST_DRIFT"} else "FAIL"
@@ -1251,7 +1263,7 @@ def run_synthetic_job(
                 pipeline=selected_pipeline,
                 scenario=scenario,
                 error=persist_code,
-                synthetic_provider_called=synthetic_called,
+                **adapter_flags,
             ), EXIT_CONFLICT if isinstance(persist_error, ProviderConflict) else EXIT_INPUT_INVALID
         return _terminal_report(
             status=status,
@@ -1259,7 +1271,7 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             error=error,
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
             **details,
         ), EXIT_CONFLICT if status == "CONFLICT" else EXIT_INPUT_INVALID
     except (OSError, TypeError, ValueError):
@@ -1285,7 +1297,7 @@ def run_synthetic_job(
                 pipeline=selected_pipeline,
                 scenario=scenario,
                 error=persist_code,
-                synthetic_provider_called=synthetic_called,
+                **adapter_flags,
             ), EXIT_CONFLICT if isinstance(persist_error, ProviderConflict) else EXIT_INPUT_INVALID
         return _terminal_report(
             status="FAIL",
@@ -1293,7 +1305,7 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             error=wrapped,
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
             **details,
         ), EXIT_CONFLICT
     except RuntimeError:
@@ -1319,7 +1331,7 @@ def run_synthetic_job(
                 pipeline=selected_pipeline,
                 scenario=scenario,
                 error=persist_code,
-                synthetic_provider_called=synthetic_called,
+                **adapter_flags,
             ), EXIT_CONFLICT if isinstance(persist_error, ProviderConflict) else EXIT_INPUT_INVALID
         return _terminal_report(
             status="FAIL",
@@ -1327,7 +1339,7 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             error=wrapped,
-            synthetic_provider_called=synthetic_called,
+            **adapter_flags,
             **details,
         ), EXIT_CONFLICT
 

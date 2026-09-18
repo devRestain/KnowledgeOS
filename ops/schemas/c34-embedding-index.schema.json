@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/c34-embedding-index.schema.json",
+  "title": "KnowledgeOS C34 immutable EmbeddingGemma index manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capability",
+    "artifact_kind",
+    "index_id",
+    "generation_root",
+    "manifest_path",
+    "vectors_path",
+    "projection_generation_id",
+    "projection_source_snapshot_sha256",
+    "parser_and_chunker_version",
+    "embedding_model_tag",
+    "embedding_model_digest",
+    "embedding_dimension",
+    "query_prompt_template",
+    "document_prompt_template",
+    "query_prompt_template_sha256",
+    "document_prompt_template_sha256",
+    "indexer_version",
+    "retrieval_config_sha256",
+    "embedding_config_sha256",
+    "truncate",
+    "vector_record_count",
+    "vectors_sha256",
+    "identity_sha256",
+    "source_verified"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "capability": {
+      "const": "C34"
+    },
+    "artifact_kind": {
+      "const": "embedding_index"
+    },
+    "index_id": {
+      "type": "string",
+      "pattern": "^c34-[0-9a-f]{64}$"
+    },
+    "generation_root": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*$"
+    },
+    "manifest_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*$"
+    },
+    "vectors_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*$"
+    },
+    "projection_generation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projection_source_snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "parser_and_chunker_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "embedding_model_tag": {
+      "const": "embeddinggemma:300m-qat-q8_0"
+    },
+    "embedding_model_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "embedding_dimension": {
+      "const": 768
+    },
+    "query_prompt_template": {
+      "const": "task: search result | query: {query}"
+    },
+    "document_prompt_template": {
+      "const": "title: {title} | text: {text}"
+    },
+    "query_prompt_template_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "document_prompt_template_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "indexer_version": {
+      "const": "vaultops.embedding.v1"
+    },
+    "retrieval_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "embedding_config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "truncate": {
+      "const": false
+    },
+    "vector_record_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "vectors_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_verified": {
+      "const": true
+    }
+  }
+}

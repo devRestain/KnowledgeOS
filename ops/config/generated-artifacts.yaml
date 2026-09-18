@@ -489,3 +489,30 @@ artifacts:
     generator: vaultops.provider_contract:c31_frozen_context_schema
     deployed_copy: false
     first_capability: C31
+  - path: ops/schemas/c34-embedding-index-record.schema.json
+    owner: C34
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/embedding_index.py
+        selectors: [/embedding_contract, /embedding_index_record_schema]
+    generator: vaultops.embedding_index:c34_embedding_index_record_schema
+    deployed_copy: false
+    first_capability: C34
+  - path: ops/schemas/c34-embedding-index.schema.json
+    owner: C34
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/embedding_index.py
+        selectors: [/embedding_contract, /embedding_index_manifest_schema]
+    generator: vaultops.embedding_index:c34_embedding_index_schema
+    deployed_copy: false
+    first_capability: C34
+  - path: ops/schemas/c34-retrieval-evaluation.schema.json
+    owner: C34
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/embedding_index.py
+        selectors: [/embedding_contract, /learned_retrieval_evaluation_schema]
+    generator: vaultops.embedding_index:c34_retrieval_evaluation_schema
+    deployed_copy: false
+    first_capability: C34

@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=planned
-/checkpoint revision=0bab4802dc9515dc4b31f3918a9037f1f8e763fd dirty=true updated=2026-09-18T01:57:38+09:00
+/checkpoint revision=829faa808b45b9e6e396b0cdd7953ac882333cd3 dirty=true updated=2026-09-18T14:15:27+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
@@ -18,7 +18,9 @@
 /goal phase=history id=C30 state=complete action="Reconcile capability diagnostics and define the generated local-model configuration contract"
 /goal phase=history id=C31 state=complete action="Implement provider-neutral request response receipt and frozen-context envelopes"
 /goal phase=history id=C32 state=complete action="Implement executable synthetic provider brokerage"
-/goal phase=current id=C33 state=planned action="Implement bounded fake verified Ollama transport"
+/goal phase=history id=C33 state=complete action="Implement bounded fake verified Ollama transport"
+/goal phase=history id=C34 state=complete action="Implement immutable EmbeddingGemma index and learned retrieval quality gate"
+/goal phase=current id=C35 state=planned action="Implement schema-constrained Gemma 4 answer and proposal routes without direct Vault mutation"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -593,8 +595,8 @@
 /scope id=X37 state=out action="Implement C30 truthful diagnostics and local model configuration after C29"
 /scope id=X38 state=out action="Implement C31 provider neutral envelopes after C30"
 /scope id=X39 state=out action="Implement C32 executable synthetic provider brokerage after C31"
-/scope id=X40 state=pending action="Implement C33 bounded fake verified Ollama transport after D10"
-/scope id=X41 state=pending action="Implement C34 EmbeddingGemma indexing and quality gates after C33"
+/scope id=X40 state=out action="Implement C33 bounded fake verified Ollama transport after D10"
+/scope id=X41 state=out action="Implement C34 EmbeddingGemma indexing and quality gates after C33"
 /scope id=X42 state=pending action="Implement C35 Gemma 4 proposal and answer routes after C34"
 /scope id=X43 state=pending action="Implement C36 recoverable provider consumer after C32"
 /scope id=X44 state=out action="Contact install pull expose or activate Ollama during the planning session"
@@ -634,4 +636,41 @@
 /evidence id=E_C32_EXTERNAL class=external_service result=not_run source="none" observed="Defer live provider installation model downloads network transport host service inspection device actions and model digest capture pending separate authorization"
 /evidence id=E_D10_SYNTHETIC class=runtime result=pass source="ops/tests/test_c32_provider_broker.py; make test" observed="Verify six synthetic pipelines replay policy denial ten failure scenarios private receipts and explicit CLI brokerage with the full regression suite"
 /decision id=D58 state=accepted action="Advance the implementation lane from verified C32 synthetic brokerage to planned C33 fake loopback transport" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
-/handoff state=ready action="Start C33 bounded fake verified Ollama transport after D10 synthetic adapter verification"
+/decision id=D59 state=accepted action="Use a standard library loopback client with explicit endpoint policy and C31 adapter bindings" source="docs/IMPLEMENTATION_PLAN.md; ops/compose.yaml; ops/src/vaultops/provider_contract.py"
+/decision id=D60 state=accepted action="Advance the implementation lane from verified C33 fake transport to planned C34 learned retrieval gate" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/accept id=C33.A1 state=pass action="Enforce the explicit loopback profile and reject unsafe endpoint settings" evidence=E_C33_POLICY
+/accept id=C33.A2 state=pass action="Implement bounded no redirect HTTP transport with cloud disabled and no auto pull" evidence=E_C33_TRANSPORT
+/accept id=C33.A3 state=pass action="Implement version tags show ps chat and embed endpoint contracts with bounded JSON handling" evidence=E_C33_ENDPOINTS
+/accept id=C33.A4 state=pass action="Integrate the Ollama adapter with C31 and C32 without canonical mutation or fallback" evidence=E_C33_ADAPTER
+/accept id=C33.A5 state=pass action="Verify fake local service success replay error and safety cases" evidence=E_C33_FAKE
+/accept id=C33.A6 state=pass action="Run canonical C33 source Blueprint schema container regression and lint gates" evidence=E_C33_GATES
+/accept id=C33.A7 state=pass action="Validate C33 state both Git roots whitespace ignored paths and external service boundaries" evidence=E_C33_STATIC
+/evidence id=E_C33_POLICY class=semantic result=pass source="ops/src/vaultops/ollama.py; ops/tests/test_c33_ollama.py" observed="Enforce explicit 127.0.0.1 profiles with cloud disabled redirects proxies tunnels and auto pull rejected"
+/evidence id=E_C33_TRANSPORT class=runtime result=pass source="ops/src/vaultops/ollama.py; ops/tests/test_c33_ollama.py" observed="Exercise bounded HTTP requests with hard deadlines response caps direct connections and no redirect or fallback"
+/evidence id=E_C33_ENDPOINTS class=runtime result=pass source="ops/src/vaultops/ollama.py; ops/tests/test_c33_ollama.py" observed="Exercise version tags show ps chat and embed against one fake loopback service with validated payloads and responses"
+/evidence id=E_C33_ADAPTER class=runtime result=pass source="ops/src/vaultops/ollama.py; ops/src/vaultops/provider_broker.py; ops/tests/test_c33_ollama.py" observed="Run one C31 context through the C32 broker and persist only the validated answer envelope without canonical mutation"
+/evidence id=E_C33_FAKE class=runtime result=pass source="ops/tests/test_c33_ollama.py; make test" observed="Verify fake-service success identity checks redirect rejection oversized response rejection unpinned model rejection and truncation rejection"
+/evidence id=E_C33_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Pass source foundation Blueprint artifact contract container regression and lint gates with 275 tests passing and Ruff passing"
+/evidence id=E_C33_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; git check-ignore; find KnowledgeHub -type d -empty -print" observed="Validate C33 state grammar both Git roots whitespace ignored runtime paths and empty namespaces while preserving the pre-existing Vault change"
+/evidence id=E_C33_EXTERNAL class=external_service result=not_run source="none" observed="Defer Ollama installation model downloads live service inspection full digest capture and live provider calls pending separate authorization"
+/decision id=D61 state=accepted action="Advance the implementation lane from verified C34 learned retrieval gate to planned C35 schema constrained Gemma 4 routes" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D62 state=accepted action="Keep C34 learned retrieval opt in until E02 supplies live model accuracy privacy citation staleness latency and memory evidence" source="docs/IMPLEMENTATION_PLAN.md; ops/src/vaultops/embedding_index.py"
+/accept id=C34.A1 state=pass action="Bind immutable embedding generations to projection parser model prompt indexer and retrieval identities" evidence=E_C34_IDENTITY
+/accept id=C34.A2 state=pass action="Persist private mode 0600 vectors manifests and pointer without Vault mutation" evidence=E_C34_ARTIFACT
+/accept id=C34.A3 state=pass action="Reject model dimension digest prompt truncation and projection drift before learned queries" evidence=E_C34_FAIL_CLOSED
+/accept id=C34.A4 state=pass action="Apply C25 privacy filtering and revalidate learned candidate provenance" evidence=E_C34_PRIVACY
+/accept id=C34.A5 state=pass action="Compare lexical E01 learned and RRF channels over deterministic Korean and multilingual fixtures" evidence=E_C34_EVALUATION
+/accept id=C34.A6 state=pass action="Keep learned retrieval opt in and separate quality evaluation from E02 live promotion" evidence=E_C34_BOUNDARY
+/accept id=C34.A7 state=pass action="Run canonical C34 source Blueprint schema contract container regression and lint gates" evidence=E_C34_GATES
+/accept id=C34.A8 state=pass action="Validate C34 state roots whitespace ignored paths and empty namespaces" evidence=E_C34_STATIC
+/evidence id=E_C34_IDENTITY class=semantic result=pass source="ops/src/vaultops/embedding_index.py; ops/tests/test_c34_embedding.py; docs/IMPLEMENTATION_PLAN.md" observed="Bind each index to projection generation source snapshot parser and chunker version model tag and full digest dimension distinct prompt templates indexer version retrieval digest and truncate false"
+/evidence id=E_C34_ARTIFACT class=artifact result=pass source="ops/src/vaultops/embedding_index.py; ops/tests/test_c34_embedding.py" observed="Create or replay immutable private mode 0600 manifest vectors and current pointer artifacts under runtime without writing Vault content"
+/evidence id=E_C34_FAIL_CLOSED class=runtime result=pass source="ops/src/vaultops/embedding_index.py; ops/tests/test_c34_embedding.py" observed="Reject model digest identity drift before provider calls and reject provider reported truncation or mismatched dimensions with conflict outcomes"
+/evidence id=E_C34_PRIVACY class=semantic result=pass source="ops/src/vaultops/embedding_index.py; ops/src/vaultops/retrieval.py; ops/tests/test_c34_embedding.py" observed="Build only from the C25 privacy filtered projection and revalidate learned and fused candidates against current source provenance before returning results"
+/evidence id=E_C34_EVALUATION class=runtime result=pass source="ops/tests/fixtures/c34_embeddings/evaluation.yaml; ops/tests/test_c34_embedding.py; make test" observed="Compare lexical only E01 feature hashing learned vector and RRF over four deterministic Korean and multilingual cases with all C34 cases passing"
+/evidence id=E_C34_BOUNDARY class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; ops/src/vaultops/embedding_index.py; ops/tests/test_c34_embedding.py" observed="Keep learned retrieval explicitly opt in with live_model_evidence false and promotion_gate_passed false while fake-provider evaluation remains non-promotion evidence"
+/evidence id=E_C34_SCHEMA class=artifact result=pass source="ops/config/generated-artifacts.yaml; ops/src/vaultops/schema_export.py; ops/schemas/c34-embedding-index-record.schema.json; ops/schemas/c34-embedding-index.schema.json; ops/schemas/c34-retrieval-evaluation.schema.json; make schema-check" observed="Generate and zero-diff verify all three C34 schema artifacts"
+/evidence id=E_C34_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Pass canonical source foundation Blueprint schema contract container regression and lint gates with 279 tests passing in Python 3.12.8 and Ruff passing"
+/evidence id=E_C34_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate C34 state grammar both Git roots whitespace ignored paths and empty namespaces while preserving existing C33 control changes and the pre-existing Vault change"
+/evidence id=E_C34_EXTERNAL class=external_service result=not_run source="none" observed="Defer Ollama installation model downloads live service inspection full digest capture and live provider quality evidence pending separate E02 authorization"
+/handoff state=ready action="Start C35 schema constrained Gemma 4 answer and proposal routes without direct Vault mutation after verified C34 learned retrieval gate"

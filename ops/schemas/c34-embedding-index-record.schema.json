@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/c34-embedding-index-record.schema.json",
+  "title": "KnowledgeOS C34 immutable embedding index record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chunk_id",
+    "note_id",
+    "path",
+    "content_hash",
+    "chunk_hash",
+    "chunk_locator",
+    "prompt_sha256",
+    "embedding"
+  ],
+  "properties": {
+    "chunk_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "note_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chunk_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chunk_locator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prompt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "embedding": {
+      "type": "array",
+      "minItems": 768,
+      "maxItems": 768,
+      "items": {
+        "type": "number"
+      }
+    }
+  }
+}

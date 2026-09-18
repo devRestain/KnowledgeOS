@@ -6,7 +6,8 @@ bridge and root-sentinel schemas.  Their first capability remains recorded as
 C20 action registries and prompts are now owned deterministic artifacts, C21
 projection schemas are generated from the projection contract before a
 runtime generation is published, C24 background artifacts remain install-time
-and inactive by default, and E01 owns the local vector evaluation schema.
+and inactive by default, E01 owns the local vector evaluation schema, and C34
+owns the immutable learned-index and frozen quality-evaluation schemas.
 """
 
 from __future__ import annotations
@@ -51,6 +52,14 @@ from .bridge_contract import (
     build_bridge_response_schema,
     build_root_sentinel_schema,
     schema_bytes,
+)
+from .embedding_index import (
+    EMBEDDING_EVALUATION_SCHEMA_PATH,
+    EMBEDDING_INDEX_RECORD_SCHEMA_PATH,
+    EMBEDDING_INDEX_SCHEMA_PATH,
+    embedding_index_manifest_schema,
+    embedding_index_record_schema,
+    learned_retrieval_evaluation_schema,
 )
 from .local_models import (
     LOCAL_MODEL_AUTHORITATIVE_SELECTORS,
@@ -419,6 +428,36 @@ OWNED_ARTIFACTS = (
         first_capability="C31",
         generator_id="vaultops.provider_contract",
     ),
+    _owned(
+        EMBEDDING_INDEX_RECORD_SCHEMA_PATH,
+        "c34_embedding_index_record_schema",
+        ("/embedding_contract", "/embedding_index_record_schema"),
+        deployed_copy=False,
+        owner="C34",
+        first_capability="C34",
+        generator_id="vaultops.embedding_index",
+        inputs_path="ops/src/vaultops/embedding_index.py",
+    ),
+    _owned(
+        EMBEDDING_INDEX_SCHEMA_PATH,
+        "c34_embedding_index_schema",
+        ("/embedding_contract", "/embedding_index_manifest_schema"),
+        deployed_copy=False,
+        owner="C34",
+        first_capability="C34",
+        generator_id="vaultops.embedding_index",
+        inputs_path="ops/src/vaultops/embedding_index.py",
+    ),
+    _owned(
+        EMBEDDING_EVALUATION_SCHEMA_PATH,
+        "c34_retrieval_evaluation_schema",
+        ("/embedding_contract", "/learned_retrieval_evaluation_schema"),
+        deployed_copy=False,
+        owner="C34",
+        first_capability="C34",
+        generator_id="vaultops.embedding_index",
+        inputs_path="ops/src/vaultops/embedding_index.py",
+    ),
 )
 
 
@@ -780,6 +819,12 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         )
     if spec.path == VECTOR_EVALUATION_SCHEMA_PATH:
         return schema_bytes(vector_evaluation_schema())
+    if spec.path == EMBEDDING_INDEX_RECORD_SCHEMA_PATH:
+        return schema_bytes(embedding_index_record_schema())
+    if spec.path == EMBEDDING_INDEX_SCHEMA_PATH:
+        return schema_bytes(embedding_index_manifest_schema())
+    if spec.path == EMBEDDING_EVALUATION_SCHEMA_PATH:
+        return schema_bytes(learned_retrieval_evaluation_schema())
     if spec.path == LOCAL_MODEL_CONFIG_PATH:
         return local_model_config_bytes(
             blueprint,

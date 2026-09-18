@@ -30,6 +30,7 @@ from .diagnostics import (
 from .foundation import check_foundation, check_source_manifest
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .ollama import OllamaClient, OllamaError, OllamaProfile, run_ollama_job
 from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
@@ -475,6 +476,14 @@ def build_parser() -> argparse.ArgumentParser:
     ai_broker.add_argument("--pipeline", choices=PIPELINES, default=None)
     ai_broker.add_argument("--scenario", choices=SCENARIOS, default="success")
     ai_broker.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_ollama = ai_commands.add_parser(
+        "ollama",
+        help="run one C33 provider job through an explicit loopback Ollama profile",
+    )
+    ai_ollama.add_argument("--job-id", required=True, help="UUIDv4 of an existing C31 runtime job")
+    ai_ollama.add_argument("--base-url", required=True, help="explicit http://127.0.0.1:<port> fake or local endpoint")
+    ai_ollama.add_argument("--pipeline", choices=PIPELINES, default=None)
+    ai_ollama.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -1000,6 +1009,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             pipeline=args.pipeline,
             scenario=args.scenario,
         )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "ollama":
+        try:
+            client = OllamaClient(OllamaProfile(base_url=args.base_url))
+            report, exit_code = run_ollama_job(
+                args.root or _control_root(),
+                job_id=args.job_id,
+                client=client,
+                pipeline=args.pipeline,
+            )
+        except (OllamaError, OSError, TypeError, ValueError) as error:
+            report = {
+                "status": "FAIL",
+                "operation": "ai ollama",
+                "capability": "C33",
+                "provider_called": False,
+                "live_provider_called": False,
+                "synthetic_provider_called": False,
+                "mutation_performed": False,
+                "vault_mutation_performed": False,
+                "canonical_apply_allowed": False,
+                "errors": [{"code": getattr(error, "code", "C33_INPUT_INVALID"), "message": str(error)}],
+            }
+            exit_code = EXIT_INPUT_INVALID
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "worker":
