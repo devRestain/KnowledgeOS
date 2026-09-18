@@ -28,6 +28,7 @@ from .diagnostics import (
     plugins_audit_report,
 )
 from .foundation import check_foundation, check_source_manifest
+from .gemma_routes import C35_ROUTES, run_gemma_job
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
 from .ollama import OllamaClient, OllamaError, OllamaProfile, run_ollama_job
@@ -484,6 +485,26 @@ def build_parser() -> argparse.ArgumentParser:
     ai_ollama.add_argument("--base-url", required=True, help="explicit http://127.0.0.1:<port> fake or local endpoint")
     ai_ollama.add_argument("--pipeline", choices=PIPELINES, default=None)
     ai_ollama.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_gemma = ai_commands.add_parser(
+        "gemma",
+        help="validate one recorded Gemma 4 route response without live provider access",
+    )
+    ai_gemma.add_argument("--job-id", required=True, help="UUIDv4 of an existing C31 runtime job")
+    ai_gemma.add_argument(
+        "--recorded-response",
+        "--response-file",
+        dest="recorded_response",
+        type=Path,
+        required=True,
+        help="control-root-relative Ollama-shaped JSON response fixture",
+    )
+    ai_gemma.add_argument(
+        "--route",
+        choices=tuple(C35_ROUTES) + ("cited-answer", "draft", "draft-note", "link", "link-suggestions"),
+        default=None,
+        help="optional C35 route alias; otherwise use the C31 action",
+    )
+    ai_gemma.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -1034,6 +1055,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "errors": [{"code": getattr(error, "code", "C33_INPUT_INVALID"), "message": str(error)}],
             }
             exit_code = EXIT_INPUT_INVALID
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "gemma":
+        report, exit_code = run_gemma_job(
+            args.root or _control_root(),
+            job_id=args.job_id,
+            recorded_response_path=args.recorded_response,
+            route=args.route,
+        )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "worker":

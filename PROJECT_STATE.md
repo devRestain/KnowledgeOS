@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=planned
-/checkpoint revision=829faa808b45b9e6e396b0cdd7953ac882333cd3 dirty=true updated=2026-09-18T14:15:27+09:00
+/checkpoint revision=829faa808b45b9e6e396b0cdd7953ac882333cd3 dirty=true updated=2026-09-18T14:39:54+09:00
 /goal phase=history id=C20 state=complete action="Implement remaining proposal actions facade routes and PRD traceability"
 /goal phase=history id=C21 state=complete action="Implement deterministic JSONL projection and atomic generation pointers"
 /goal phase=history id=C22 state=complete action="Implement lexical and typed-link retrieval with a frozen evaluation baseline"
@@ -20,7 +20,8 @@
 /goal phase=history id=C32 state=complete action="Implement executable synthetic provider brokerage"
 /goal phase=history id=C33 state=complete action="Implement bounded fake verified Ollama transport"
 /goal phase=history id=C34 state=complete action="Implement immutable EmbeddingGemma index and learned retrieval quality gate"
-/goal phase=current id=C35 state=planned action="Implement schema-constrained Gemma 4 answer and proposal routes without direct Vault mutation"
+/goal phase=history id=C35 state=complete action="Implement schema-constrained Gemma 4 answer and proposal routes without direct Vault mutation"
+/goal phase=current id=C36 state=planned action="Implement recoverable one-shot provider queue consumer while background activation stays disabled"
 /goal phase=history id=C19 state=complete action="Implement provider-free proposal review approval rejection and apply closure"
 /goal phase=history id=C18 state=complete action="Implement deterministic readonly triage proposal contract"
 /goal phase=history id=D07 state=complete action="Complete MacBook deployment baseline through D07"
@@ -673,4 +674,22 @@
 /evidence id=E_C34_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make contract-check; make container-source-check; make container-verify; make test; make lint" observed="Pass canonical source foundation Blueprint schema contract container regression and lint gates with 279 tests passing in Python 3.12.8 and Ruff passing"
 /evidence id=E_C34_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate C34 state grammar both Git roots whitespace ignored paths and empty namespaces while preserving existing C33 control changes and the pre-existing Vault change"
 /evidence id=E_C34_EXTERNAL class=external_service result=not_run source="none" observed="Defer Ollama installation model downloads live service inspection full digest capture and live provider quality evidence pending separate E02 authorization"
-/handoff state=ready action="Start C35 schema constrained Gemma 4 answer and proposal routes without direct Vault mutation after verified C34 learned retrieval gate"
+/accept id=C35.A1 state=pass action="Route five schema constrained Gemma 4 actions through frozen C31 evidence" evidence=E_C35_ROUTES
+/accept id=C35.A2 state=pass action="Reject tools reasoning and injection payloads before private persistence" evidence=E_C35_FAIL_CLOSED
+/accept id=C35.A3 state=pass action="Validate citations proposals and model identity against frozen digests" evidence=E_C35_PROVENANCE
+/accept id=C35.A4 state=pass action="Persist only immutable private response and receipt artifacts with replay no op" evidence=E_C35_ARTIFACT
+/accept id=C35.A5 state=pass action="Expose a recorded response CLI route without live provider access" evidence=E_C35_CLI
+/accept id=C35.A6 state=pass action="Run canonical C35 source Blueprint schema container test and lint gates" evidence=E_C35_GATES
+/accept id=C35.A7 state=pass action="Validate C35 state both Git roots whitespace ignored paths and runtime boundaries" evidence=E_C35_STATIC
+/evidence id=E_C35_ROUTES class=runtime result=pass source="ops/src/vaultops/gemma_routes.py; ops/tests/test_c35_gemma_routes.py" observed="Validate answer triage draft_note link_suggestions and normalize recorded outputs against route schemas and frozen context"
+/evidence id=E_C35_FAIL_CLOSED class=runtime result=pass source="ops/src/vaultops/gemma_routes.py; ops/tests/test_c35_gemma_routes.py" observed="Reject malformed JSON tools reasoning unexpected fields prompt injection schema invalid output model drift and stale citations before C35 persistence"
+/evidence id=E_C35_PROVENANCE class=semantic result=pass source="ops/src/vaultops/gemma_routes.py; ops/tests/test_c35_gemma_routes.py" observed="Bind answer citations proposal sources bindings candidate sets policy retrieval generation and Gemma model identity to frozen context"
+/evidence id=E_C35_ARTIFACT class=artifact result=pass source="ops/src/vaultops/gemma_routes.py; ops/tests/test_c35_gemma_routes.py" observed="Write only mode 0600 c35 response and c35 receipt artifacts under runtime and return NO_OP for identical replay"
+/evidence id=E_C35_CLI class=runtime result=pass source="ops/src/vaultops/cli.py; ops/tests/test_c35_gemma_routes.py" observed="Expose vaultctl ai gemma for a control root recorded Ollama shaped response with provider_called false and canonical apply disabled"
+/evidence id=E_C35_GATES class=runtime result=pass source="make source-check; make verify; make blueprint-check; make schema-check; make container-source-check; make container-verify; make test; make lint" observed="Pass canonical source foundation Blueprint artifact container test and lint gates with 290 tests passing in Python 3.12.8"
+/evidence id=E_C35_STATIC class=static result=pass source="/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check; git status --short --ignored; git -C KnowledgeHub status --short --ignored; find KnowledgeHub -type d -empty -print" observed="Validate C35 state both Git roots whitespace ignored paths runtime boundaries and empty namespaces while preserving the pre existing Vault change"
+/evidence id=E_C35_EXTERNAL class=external_service result=not_run source="none" observed="Defer live Ollama service inspection model downloads full digest capture live inference E02 quality promotion C36 consumer background activation Obsidian devices plugins LaunchAgent remote and Git effects"
+/decision id=D63 state=accepted action="Advance the implementation lane from verified C35 recorded response orchestration to planned C36 one shot provider consumer" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/scope id=X43 state=out action="Implement C35 recorded response route orchestration after C34"
+/scope id=X44 state=pending action="Implement C36 one shot provider queue consumer after C35"
+/handoff state=ready action="Start C36 recoverable one shot provider queue consumer while background activation stays disabled after verified C35 recorded response orchestration"
