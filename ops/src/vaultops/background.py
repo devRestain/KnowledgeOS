@@ -13,10 +13,14 @@ does not install or activate it; that is the separately gated E03 overlay.
 from __future__ import annotations
 
 import json
+import os
 import plistlib
 import re
 import stat
+import sys
+import time
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +41,12 @@ LAUNCHD_ARTIFACT_PATH = "ops/launchd/com.knowledgeos.vaultops.plist"
 BACKGROUND_CONFIG_PATH = "ops/config/background.yaml"
 WORKER_REPORT_SCHEMA_PATH = "ops/schemas/worker-report.schema.json"
 DEFAULT_BASELINE_PATH = "ops/tests/fixtures/c24_background/evaluation.yaml"
+WORKER_STDOUT_LOG_PATH = "runtime/logs/worker.stdout.log"
+WORKER_STDERR_LOG_PATH = "runtime/logs/worker.stderr.log"
+WORKER_LOG_MAX_AGE_SECONDS = 60 * 60
+WORKER_LOG_MAX_BYTES = 16 * 1024
+WORKER_LOG_RETAIN_BYTES = 8 * 1024
+_WORKER_LOG_HEADER = b"# KnowledgeOS worker log v1\n"
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _UUID_V4_RE = re.compile(
@@ -55,6 +65,185 @@ class BackgroundError(ValueError):
 
 class BackgroundConflict(BackgroundError):
     """Raised when a background pass finds a state that must not be adopted."""
+
+
+class _BoundedTextWriter:
+    """Limit one launchd-bound text stream without changing terminal output."""
+
+    def __init__(self, stream: Any, remaining_bytes: int) -> None:
+        self._stream = stream
+        self._remaining_bytes = max(0, remaining_bytes)
+
+    def write(self, value: str) -> int:
+        if not isinstance(value, str):
+            value = str(value)
+        if self._remaining_bytes > 0:
+            encoded = value.encode("utf-8")
+            if len(encoded) <= self._remaining_bytes:
+                self._stream.write(value)
+                self._remaining_bytes -= len(encoded)
+            else:
+                bounded = encoded[: self._remaining_bytes].decode("utf-8", errors="ignore")
+                if bounded:
+                    self._stream.write(bounded)
+                self._remaining_bytes = 0
+            self._stream.flush()
+        return len(value)
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def fileno(self) -> int:
+        return self._stream.fileno()
+
+    @property
+    def encoding(self) -> str:
+        return getattr(self._stream, "encoding", "utf-8")
+
+
+def _same_regular_file(file_descriptor: int, path: Path) -> bool:
+    try:
+        descriptor_stat = os.fstat(file_descriptor)
+        path_stat = os.lstat(path)
+    except OSError:
+        return False
+    if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        return False
+    return stat.S_ISREG(descriptor_stat.st_mode) and (
+        descriptor_stat.st_dev,
+        descriptor_stat.st_ino,
+    ) == (path_stat.st_dev, path_stat.st_ino)
+
+
+def _bounded_log_tail(
+    path: Path,
+    retain_bytes: int,
+    *,
+    max_age_seconds: int = WORKER_LOG_MAX_AGE_SECONDS,
+) -> bytes:
+    """Return a bounded complete-record tail, discarding legacy log formats."""
+
+    retain_budget = max(retain_bytes - len(_WORKER_LOG_HEADER), 0)
+    try:
+        if path.is_symlink() or not path.is_file():
+            return _WORKER_LOG_HEADER
+        if time.time() - path.stat().st_mtime > max_age_seconds:
+            return _WORKER_LOG_HEADER
+        with path.open("rb") as handle:
+            if handle.read(len(_WORKER_LOG_HEADER)) != _WORKER_LOG_HEADER:
+                return _WORKER_LOG_HEADER
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            if size <= retain_bytes:
+                handle.seek(0)
+                data = handle.read(retain_bytes)
+            else:
+                handle.seek(size - retain_budget)
+                data = handle.read(retain_budget)
+    except OSError:
+        return _WORKER_LOG_HEADER
+
+    if not data.startswith(_WORKER_LOG_HEADER):
+        newline = data.find(b"\n")
+        data = data[newline + 1 :] if newline >= 0 else b""
+    if data and not data.endswith(b"\n"):
+        newline = data.rfind(b"\n")
+        data = data[: newline + 1] if newline >= 0 else b""
+    data = data.removeprefix(_WORKER_LOG_HEADER)
+    return _WORKER_LOG_HEADER + data[:retain_budget]
+
+
+def _prepare_bounded_log_fd(file_descriptor: int, path: Path) -> int | None:
+    """Compact one launchd log in place and return its retained byte count."""
+
+    if not _same_regular_file(file_descriptor, path):
+        return None
+    retained = _bounded_log_tail(path, WORKER_LOG_RETAIN_BYTES)
+    try:
+        os.lseek(file_descriptor, 0, os.SEEK_SET)
+        os.ftruncate(file_descriptor, 0)
+        offset = 0
+        while offset < len(retained):
+            offset += os.write(file_descriptor, retained[offset:])
+        os.fchmod(file_descriptor, 0o600)
+        os.fsync(file_descriptor)
+        os.lseek(file_descriptor, 0, os.SEEK_END)
+    except OSError:
+        return None
+    return len(retained)
+
+
+def configure_worker_log_streams(root: str | Path) -> bool:
+    """Bound only the two files opened by launchd, leaving terminal output unchanged."""
+
+    workspace = Path(root).expanduser()
+    if not workspace.is_absolute():
+        return False
+    try:
+        workspace = workspace.resolve()
+    except OSError:
+        return False
+
+    streams = (
+        (1, workspace / WORKER_STDOUT_LOG_PATH, "stdout"),
+        (2, workspace / WORKER_STDERR_LOG_PATH, "stderr"),
+    )
+    bounded_stdout = False
+    for file_descriptor, path, stream_name in streams:
+        try:
+            stream = getattr(sys, stream_name)
+            stream.flush()
+        except (AttributeError, OSError):
+            continue
+        retained = _prepare_bounded_log_fd(file_descriptor, path)
+        if retained is None:
+            continue
+        bounded = _BoundedTextWriter(stream, WORKER_LOG_MAX_BYTES - retained)
+        if stream_name == "stdout":
+            sys.stdout = bounded
+            bounded_stdout = True
+        else:
+            sys.stderr = bounded
+    return bounded_stdout
+
+
+def worker_log_record(
+    report: Mapping[str, Any],
+    exit_code: int,
+    *,
+    logged_at: str | None = None,
+) -> dict[str, Any]:
+    """Return a privacy-minimized, bounded summary for the launchd log."""
+
+    recovery = report.get("recovery")
+    recovery_summary = recovery.get("summary", {}) if isinstance(recovery, Mapping) else {}
+    requests = report.get("requests")
+    request_count = report.get("request_count")
+    if not isinstance(request_count, int):
+        request_count = len(requests) if isinstance(requests, Sequence) else 0
+    errors = report.get("errors")
+    return {
+        "schema_version": 1,
+        "record_type": "worker_summary",
+        "logged_at": logged_at or datetime.now(UTC).isoformat(timespec="seconds"),
+        "operation": str(report.get("operation", "ai worker")),
+        "status": str(report.get("status", "FAIL")),
+        "exit_code": int(exit_code),
+        "wake": report.get("wake", {}),
+        "request_count": request_count,
+        "recovery_status": str(
+            report.get(
+                "recovery_status",
+                recovery.get("status", "NOT_RUN") if isinstance(recovery, Mapping) else "NOT_RUN",
+            )
+        ),
+        "recovery_summary": dict(recovery_summary) if isinstance(recovery_summary, Mapping) else {},
+        "runtime_mutation_performed": bool(report.get("runtime_mutation_performed", False)),
+        "provider_called": bool(report.get("provider_called", False)),
+        "vault_mutated": bool(report.get("vault_mutated", False)),
+        "git_network_called": bool(report.get("git_network_called", False)),
+        "error_count": len(errors) if isinstance(errors, Sequence) and not isinstance(errors, (str, bytes)) else 0,
+    }
 
 
 def _issue(code: str, locator: str, message: str, **details: Any) -> dict[str, Any]:
@@ -499,6 +688,15 @@ def background_config_document(
             "git_network_called": False,
             "recovery_action": "reconcile_local_transaction_journals_without_apply",
         },
+        "logging": {
+            "format": "bounded_jsonl_summary",
+            "stdout_path": WORKER_STDOUT_LOG_PATH,
+            "stderr_path": WORKER_STDERR_LOG_PATH,
+            "max_age_seconds": WORKER_LOG_MAX_AGE_SECONDS,
+            "max_bytes": WORKER_LOG_MAX_BYTES,
+            "retain_bytes": WORKER_LOG_RETAIN_BYTES,
+            "legacy_format_action": "discard_on_first_bounded_wake",
+        },
         "launchd": {
             "label": LAUNCHD_LABEL,
             "run_at_load": False,
@@ -748,6 +946,17 @@ def render_background_artifacts(root: str | Path) -> tuple[dict[str, Any], int]:
             raise BackgroundError("C24 LaunchAgent must remain inactive by default")
         if config.get("activation", {}).get("launchd_active") is not False:
             raise BackgroundError("C24 background manifest must remain inactive")
+        logging = config.get("logging", {})
+        if logging != {
+            "format": "bounded_jsonl_summary",
+            "stdout_path": WORKER_STDOUT_LOG_PATH,
+            "stderr_path": WORKER_STDERR_LOG_PATH,
+            "max_age_seconds": WORKER_LOG_MAX_AGE_SECONDS,
+            "max_bytes": WORKER_LOG_MAX_BYTES,
+            "retain_bytes": WORKER_LOG_RETAIN_BYTES,
+            "legacy_format_action": "discard_on_first_bounded_wake",
+        }:
+            raise BackgroundError("C24 worker logging policy is invalid")
         if schema.get("$id") != "https://local.invalid/knowledgeos/worker-report.schema.json":
             raise BackgroundError("C24 worker schema identity is invalid")
     except (BackgroundError, OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError, YAMLError) as error:
@@ -817,8 +1026,14 @@ __all__ = [
     "EXIT_OK",
     "LAUNCHD_ARTIFACT_PATH",
     "LAUNCHD_LABEL",
+    "WORKER_LOG_MAX_AGE_SECONDS",
+    "WORKER_LOG_MAX_BYTES",
+    "WORKER_LOG_RETAIN_BYTES",
     "WORKER_REPORT_SCHEMA_PATH",
+    "WORKER_STDERR_LOG_PATH",
+    "WORKER_STDOUT_LOG_PATH",
     "background_config_document",
+    "configure_worker_log_streams",
     "evaluate_frozen_baseline",
     "evaluate_sleep_wake",
     "evaluate_synthetic_wake",
@@ -831,6 +1046,7 @@ __all__ = [
     "run_worker_once",
     "synthetic_wake",
     "worker",
+    "worker_log_record",
     "worker_once",
     "worker_report_schema",
 ]

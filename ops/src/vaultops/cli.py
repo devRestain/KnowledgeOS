@@ -14,8 +14,8 @@ from .action_proposals import ACTION_TYPES, generate_action_proposal
 from .ai_projection import generate_ai_projection, verify_ai_projection
 from .answer import answer_from_capture, ask
 from .answer import evaluate_frozen_baseline as evaluate_answer_frozen_baseline
+from .background import configure_worker_log_streams, run_worker, worker_log_record
 from .background import evaluate_frozen_baseline as evaluate_background_frozen_baseline
-from .background import run_worker
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
 from .bridge_publish import bridge_status, ingest_bridge_request, publish_bridge_response
@@ -1380,6 +1380,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     if args.command == "ai" and args.ai_command == "worker":
         root = args.root or _control_root()
+        bounded_log = configure_worker_log_streams(root)
         if args.evaluation_file is not None:
             report, exit_code = evaluate_background_frozen_baseline(
                 root,
@@ -1393,7 +1394,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 wake_id=args.wake_id,
                 dry_run=args.dry_run,
             )
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        if bounded_log:
+            print(
+                json.dumps(
+                    worker_log_record(report, exit_code),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "projection":
         root = args.root or _control_root()

@@ -10,7 +10,7 @@ from pathlib import Path
 from .runtime import RuntimeLayout
 from .yaml_safe import load_yaml_file
 
-MANIFEST_SHA256 = "e324f9354feca17cd022d3dfaab46c18e73ce41020fee2f7b7f959ac1856651f"
+MANIFEST_SHA256 = "c442343a221966329497f67500613d4e59d8b9a1831d6df82d8e1bc191f320cb"
 
 REQUIRED_FILES = (
     ".gitignore",

@@ -3,7 +3,7 @@
 - Read `PROJECT_STATE.md` before selecting or promoting a slice.
 - Resolve conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md` order.
 - Implement one acceptance-gated capability per session and preserve the isolated boundaries below.
-- Use fresh lane-local labels: `Cxx` for ordered core capabilities, `Dxx` for gated deployment overlays, and `Exx` for optional extensions.
+- Use fresh lane-local labels: `Cxx` for ordered core capabilities, `Dxx` for gated deployment overlays, `Exx` for optional extensions, and `Pxx` for plugin and settings plans.
 - Interpret numeric order only within the same lane; never infer ordering or authorization across lanes.
 - Treat planning, state migration, documentation maintenance, and legacy labels in Git history as non-ordering provenance.
 
@@ -44,7 +44,7 @@
 - `C33` — Implement a bounded Ollama connector and verify it against a fake local service.
 - `C34` — Implement an immutable EmbeddingGemma index and learned-retrieval quality gate.
 - `C35` — Implement schema-constrained Gemma 4 answer and proposal routes without direct Vault mutation.
-- `C36` — Implement a recoverable one-shot provider queue consumer while background activation stays disabled.
+- `C36` — Implement a recoverable one-shot provider queue consumer while provider-queue background activation stays disabled.
 
 ## C25+ acceptance sequence
 
@@ -91,7 +91,7 @@
   - Key every vector generation by projection generation, parser/chunker, embedding tag and full digest, dimension, prompt-role templates, indexer version, and retrieval configuration.
   - Use distinct query and document prompts, reject silent truncation, require the same model and dimension for index and query, and rebuild on any identity drift.
   - Implement a frozen Korean and multilingual evaluator that compares lexical-only, E01 feature hashing, learned vector, and RRF; verify its logic with deterministic fixtures in C34.
-  - Keep learned retrieval opt-in until `E02` supplies live-model accuracy, privacy, citation, staleness, latency, and memory evidence. Fake-server tests cannot satisfy that promotion gate.
+  - Keep learned retrieval opt-in until the `E02` promotion gates pass for live-model accuracy, privacy, citation, staleness, latency, and memory evidence. Fake-server tests cannot satisfy that promotion gate.
 - `C35` depends on `C26`, `C27`, `C31`, `C33`, and `C34`.
   - Add schema-constrained cited-answer, triage, draft, link, and normalize routes using frozen evidence and proposal-only outcomes.
   - Reject unexpected tool calls or reasoning payloads, do not retain chain-of-thought, and independently validate JSON despite Ollama structured-output support.
@@ -99,7 +99,7 @@
 - `C36` depends on `C28`, `C32`, and `D10`.
   - Extend C24 with an idempotent one-shot consumer using atomic claim and lease, bounded concurrency, explicit terminal states, digest-conflict quarantine, and crash recovery.
   - Adopt only a validated response envelope and publish only through the existing C17 exact-response path.
-  - Keep LaunchAgent installation, live provider access, mobile transport, and Git network effects inactive until their own gates.
+  - Keep provider-queue background activation, live provider access, mobile transport, and Git network effects inactive within C36; let E03 own any separately authorized provider-free LaunchAgent installation.
 
 ## E02 host-native live verification plan
 
@@ -179,8 +179,66 @@
 
 - `E01` — Evaluate local vector and RRF against the frozen `C22` baseline.
 - `E02` — Verify the user-installed host-native `gemma4:12b` generation profile and selected local embedding candidates through the bounded host runner, full-digest capture, Korean/multilingual quality evaluation, and measured internal-SSD-only resource evidence; exclude external-SSD connection, mount, storage, and performance tests, and keep the networkless container and canonical C34 contract unchanged until promotion passes.
-- `E03` — Install the LaunchAgent only after the `C36` consumer and rollback gates pass.
+- `E03` — Activate the provider-free LaunchAgent only after the `C36` consumer and rollback gates pass; keep `RunAtLoad=false` and provider queue consumption separately gated.
 - `E04` — Activate each remote or unattended lane through a separate decision and authorization gate.
 - `E05` — Implement a removable thin Obsidian client only after `C35` and measured repeated CLI friction justify it.
+- `P01` — Implement the canonical core-plugin and required-community-plugin setting-state registry, diagnostics, and evidence gates described below.
+
+## P01 — Core and required community-plugin setting-state contract
+
+P01 exists because a plugin being installed, enabled, configured, executable, and healthy are different claims. It must also eliminate guessed setting names: a setting is authoritative only when the current plugin version exposes the exact serialized path or the exact live UI label. A missing setting is recorded as `unknown` or `unconfigured`; it is never synthesized into a JSON file because an earlier recommendation used a similar name.
+
+### Objective and required profile
+
+- Close the E06 through E10 installation-target labels at the installed Mac-profile boundary. Migrate their unfinished setting, runtime, and device verification into P01; do not keep E06 through E10 as active work items.
+- Maintain one auditable Mac profile contract for the ten required community plugins: `quickadd`, `templater-obsidian`, `obsidian-tasks-plugin`, `obsidian-linter`, `obsidian-git`, `homepage`, `note-toolbar`, `breadcrumbs`, `notebook-navigator`, and `obsidian-meta-bind-plugin`.
+- Keep the first five roles unchanged: human capture routing, template rendering, task querying, bounded hygiene, and manual Mac Git UI. Register the new roles as startup experience, contextual command surface, typed-relation navigation, bounded navigation surface, and low-risk property view.
+- Make `blueprint/blueprint.yaml#/plugin_profiles/mac_baseline` the exact Mac community-plugin allowlist. An unexpected community-plugin ID, a missing required ID, or a duplicate ID is a semantic failure. Keep `plugin_profiles.mobile_baseline.community_plugins` empty.
+- Preserve the plugin-free canonical path: Markdown/YAML notes, Bases, `vaultctl`, and human review remain usable when any adapter is disabled or unavailable.
+
+### Authoritative sources and state vocabulary
+
+- Read core enablement from the profile's `core-plugins.json`; read serialized core settings from the profile's `app.json`, `appearance.json`, `hotkeys.json`, `workspace.json`, and any core-owned files that the current Obsidian version actually writes. Do not treat a `true` flag as proof that a workflow is correct or that the app executed it.
+- Read community installation from `community-plugins.json`, identity and version from each plugin's `manifest.json`, and serialized settings from that version's `data.json`. Use official plugin documentation to explain meaning, not to claim that a key exists in the installed build.
+- Use a live UI inspection only for settings that are not serialized. Record the exact UI label, displayed value, Obsidian/plugin version, and inspection date. Codex does not operate the Obsidian UI under the project boundary; this is a user/device evidence step.
+- Track at least these independent states for every component: `declared`, `installed`, `configured`, `enabled`, `verified`, `healthy`, and `fallback_available`. Map them to static, semantic, runtime, and device evidence rather than collapsing them into one boolean.
+- Give every setting registry entry an owner (`core`, plugin ID, or user), profile (`mac` or `mobile`), source locator, current value, desired policy, allowed value/domain, dependency, fallback, mutation risk, verification method, and rollback action. Omit a field only when the source genuinely has no such concept.
+
+### Core-plugin rules
+
+- Treat Properties, Bases, Daily notes, Templates, Search, Backlinks, Outgoing links, Bookmarks, and File recovery as the cross-device core set already declared by the Blueprint. Treat Workspaces as Mac-only. Normalize each human name to its actual Obsidian ID before auditing.
+- Classify every other serialized core flag separately as required, optional, or explicitly disabled. The current presence of Graph, Canvas, Tag pane, Outline, Word count, Sync, or another flag is an observation to review, not an automatic policy decision. P01 must not disable a core feature merely because it is outside the minimum set.
+- Bind core settings to the workflow they protect: Properties visibility and frontmatter ownership, Daily notes/templates paths, Search/Backlink/Outgoing-link navigation, Bases views, Bookmarks, File Recovery, Workspaces, and hotkeys. If a value is UI-only or version-dependent, record the evidence requirement instead of inventing an `app.json` key.
+- Require a safe fallback for each core component before changing its enabled state. For example, Notebook Navigator cannot justify disabling File Explorer until its navigation smoke test and an immediate core-explorer rollback are both recorded.
+
+### Required community-plugin policy boundaries
+
+P01 records policy boundaries first and accepts exact setting paths only after the installed version is inspected:
+
+- QuickAdd: choices must resolve to Blueprint-owned capture/template targets; online or AI behavior, secrets, and unreviewed macros remain off; a choice that cannot be traced to a human-approved command is not required.
+- Templater: the canonical template folder must be verified; system commands, shell execution, user scripts, and global new-file triggers remain off unless a separate decision authorizes them; folder/file template mappings must be exact and reversible.
+- Tasks: query and status behavior must remain read-oriented except for an explicit human completion action; JavaScript queries and unbounded automation remain off; task date/status conventions must agree with the Vault schema.
+- Linter: enable only an explicit rule allowlist after comparing it with the Property Dictionary and templates; bulk rewrite, YAML-key removal, or any rule that can destroy user-authored structure remains off until separately accepted.
+- Obsidian Git: keep pull, push, auto-commit, auto-pull, and file-change backup automation off; retain manual Mac Git UI and status visibility; Git network effects remain separately authorized.
+- Homepage: allow one approved startup target and a plugin-free fallback; verify open mode, view mode, auto-create, refresh, command list, and separate-mobile behavior only when those controls are exposed by the installed version; do not assume a setting from another release.
+- Note Toolbar: allow only reviewed folder mappings and explicit human commands; scripting and external/system actions remain off; every toolbar action must identify its target, mutation class, and rollback path.
+- Breadcrumbs: allow only Blueprint-approved typed relation fields; implied/transitive relations, automatic field creation, and unbounded external relation sources remain off until their exact behavior is verified; relation changes remain ordinary human-reviewed note edits.
+- Notebook Navigator: use it as a bounded navigation adapter; record hidden folders/tags/properties and display scope explicitly; do not authorize bulk move/delete/property operations; retain File Explorer as the immediate fallback until device smoke evidence passes.
+- Meta Bind: keep JavaScript and developer bypass modes off; allow only reviewed input/view/button declarations and approved property names; exclude templates and protected review/canonical paths from mutation; treat every write-capable control as an explicit human action requiring a rollback path.
+
+The plugin-specific bullets define safety and ownership boundaries, not guessed configuration keys. A setting that is absent from `data.json` and absent from the current UI is not “configured to false”; it is `unconfigured` and blocks a claim that depends on it.
+
+### Implementation and acceptance slice
+
+- Add a version-aware, read-only plugin/core setting registry and extend `vaultctl plugins audit --profile mac` (or a separately named P01 command) to report installation, configuration, enablement, verification, health, and fallback states independently. It must never edit `.obsidian`, plugin data, notes, or Git state.
+- Add schema and tests for exact ten-plugin membership, duplicate/unexpected IDs, manifest/data locator validity, missing-setting handling, forbidden defaults, core-to-profile ownership, and mobile empty-plugin invariants. Keep fixtures independent of the user's dirty Vault profile.
+- Record static profile evidence from the manifests and JSON files, semantic evidence from the Blueprint/schema/policy registry, runtime evidence only from an executed diagnostic or smoke path, and device evidence only from a user-authorized Mac inspection. Never promote one evidence class to another.
+- Require rollback evidence for every setting mutation: save the original bytes or UI value, make one bounded change, rerun the relevant smoke check, and restore the exact previous value on failure. Do not batch unrelated plugin settings.
+- Acceptance requires the exact ten IDs in the Mac baseline, zero unexpected IDs, an explicit core-plugin policy for every serialized flag, no invented settings, all forbidden defaults disabled or explicitly unresolved, preserved plugin-free fallbacks, and separate `not_run` records for unperformed Obsidian runtime/device checks.
+
+### Exclusions and handoff
+
+- P01 does not install, uninstall, update, or enable plugins; change the user's Mac settings; operate Obsidian; change mobile community-plugin state; authorize Git network effects; or turn any plugin into a KnowledgeOS policy/apply authority.
+- The next implementation slice starts with a read-only inventory of the current Mac profile, then adds the registry and diagnostics, then performs one plugin/core setting family at a time with static, semantic, runtime, and device evidence recorded separately in `PROJECT_STATE.md`.
 
 - `PROJECT_STATE.md` alone records which slices are current or complete. This index declares execution order and acceptance boundaries only; it never authorizes provider, model-download, plugin, host-agent, device, remote, or Git effects, and learned retrieval remains opt-in until its quality gate passes.

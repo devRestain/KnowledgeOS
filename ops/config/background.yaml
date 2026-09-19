@@ -34,6 +34,14 @@ worker:
   vault_mutated: false
   git_network_called: false
   recovery_action: reconcile_local_transaction_journals_without_apply
+logging:
+  format: bounded_jsonl_summary
+  stdout_path: runtime/logs/worker.stdout.log
+  stderr_path: runtime/logs/worker.stderr.log
+  max_age_seconds: 3600
+  max_bytes: 16384
+  retain_bytes: 8192
+  legacy_format_action: discard_on_first_bounded_wake
 launchd:
   label: com.knowledgeos.vaultops
   run_at_load: false

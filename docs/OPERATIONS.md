@@ -15,4 +15,5 @@
 - Keep Git, plugin, device, provider, remote, and LaunchAgent effects behind exact approval gates.
 - For E03, use `vaultctl launchd install --dry-run` to bind and inspect the exact root/executable without host mutation; use `--activate` only for the approved current-user `gui/<uid>/<label>` installation, and use `vaultctl launchd status` for read-only service evidence.
 - E03 rollback must boot out the exact label first and remove only an unchanged E03-owned plist; `vaultctl launchd rollback --apply` refuses foreign, changed, or unowned bytes.
+- E03 worker stdout is a bounded timestamped JSONL summary and stderr is independently bounded: each file is capped at 16 KiB, carries forward at most 8 KiB on the next wake, clears a file that has been idle for more than one hour on the next wake, and discards legacy unbounded bytes on the first bounded wake; manual terminal invocations keep their full diagnostic JSON.
 - Record every check in `PROJECT_STATE.md` with its evidence class and controlled result.

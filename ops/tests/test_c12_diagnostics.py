@@ -81,6 +81,11 @@ def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> Non
         "obsidian-tasks-plugin",
         "obsidian-linter",
         "obsidian-git",
+        "homepage",
+        "note-toolbar",
+        "breadcrumbs",
+        "notebook-navigator",
+        "obsidian-meta-bind-plugin",
     ]
     (profile_root / "community-plugins.json").write_text(json.dumps(plugin_ids), encoding="utf-8")
 

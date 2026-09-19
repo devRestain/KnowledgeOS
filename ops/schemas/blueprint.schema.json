@@ -513,9 +513,9 @@
         "core_all_devices": {"$ref": "#/$defs/stringArray"},
         "core_mac_only": {"$ref": "#/$defs/stringArray"},
         "device_local_untracked_state": {"$ref": "#/$defs/stringArray"},
-        "mac_baseline": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"$ref": "#/$defs/pluginEntry"}},
+        "mac_baseline": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/pluginEntry"}},
         "mobile_baseline": {"$ref": "#/$defs/nonEmptyObject"},
-        "optional": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": {"type": "string"}},
+        "optional": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"type": "string"}},
         "forbidden_defaults": {"$ref": "#/$defs/stringArray"}
       }
     },

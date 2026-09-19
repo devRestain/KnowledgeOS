@@ -884,6 +884,16 @@ plugin_profiles:
       role: bounded_hygiene
     - id: obsidian-git
       role: manual_mac_git_ui
+    - id: homepage
+      role: startup_experience
+    - id: note-toolbar
+      role: contextual_command_surface
+    - id: breadcrumbs
+      role: typed_relation_navigation
+    - id: notebook-navigator
+      role: bounded_navigation_surface
+    - id: obsidian-meta-bind-plugin
+      role: low_risk_property_view
   mobile_baseline:
     community_plugins: []
     git_writer: working_copy
@@ -895,7 +905,6 @@ plugin_profiles:
     - obsidian-zotero-desktop-connector
     - obsidian-excalidraw-plugin
     - obsidian-advanced-uri
-    - obsidian-meta-bind-plugin
   forbidden_defaults:
     - quickadd_ai
     - templater_system_commands

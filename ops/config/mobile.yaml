@@ -46,7 +46,7 @@ defer_gate:
   requires: [tracked, expected_head, index_clean, worktree_clean, readable_committed_blob, matching_blob_sha256]
 device_boundary:
   implementation_surface: synthetic_control_contract_only
-  actual_device_install: deferred_to_S10
-  working_copy: deferred_to_S10
-  credentials: deferred_to_S10
-  remote_push: deferred_to_S10
+  actual_device_install: deferred_to_D08
+  working_copy: deferred_to_D08
+  credentials: deferred_to_D08
+  remote_push: deferred_to_D09

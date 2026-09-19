@@ -355,7 +355,7 @@ vaultctl ai worker --once
 1. **미리보기** — `launchd install --dry-run`으로 어떤 root, `vaultctl` 실행 파일, label이 묶이는지 확인합니다. 미리보기는 LaunchAgent를 쓰거나 실행하지 않습니다.
 2. **명시적 활성화** — 승인한 경우에만 현재 사용자 LaunchAgent를 로드합니다. `RunAtLoad=false`이므로 로그인 직후 갑자기 실행되지 않고, 300초 간격의 one-shot worker로 동작합니다.
 3. **조용한 확인** — worker는 커밋된 local request와 recovery journal을 확인하고 필요한 private runtime 상태를 준비합니다. provider 호출, Ollama/Gemma 호출, 정본 Vault 수정, Git network 동작은 하지 않습니다.
-4. **결과 확인** — `vaultctl launchd status`와 worker log에서 마지막 실행 상태를 확인합니다. 문제가 있으면 조용히 덮어쓰지 않고 `CONFLICT`, `REPAIR_REQUIRED` 또는 Review 대상처럼 사람이 다음 행동을 선택할 수 있는 상태로 남깁니다.
+4. **결과 확인** — `vaultctl launchd status`와 worker log에서 마지막 실행 상태를 확인합니다. worker log는 장기 증적 저장소가 아니라 최신 상태를 잠깐 확인하는 용도이므로 stdout/stderr 파일별 16KiB 상한, 다음 wake에 최대 8KiB 이월, 1시간 이상 갱신되지 않은 파일의 다음 wake 폐기 정책을 적용합니다. 문제가 있으면 조용히 덮어쓰지 않고 `CONFLICT`, `REPAIR_REQUIRED` 또는 Review 대상처럼 사람이 다음 행동을 선택할 수 있는 상태로 남깁니다.
 5. **잠시 멈추기** — `launchd rollback --apply`는 E03가 소유하고 bytes가 변하지 않은 plist와 정확한 label만 되돌립니다. 백그라운드 호출만 멈추며 원본 capture와 private 결과를 임의로 지우지 않습니다.
 
 이 경로와 `vaultctl ai queue`는 의도적으로 분리되어 있습니다. LaunchAgent가 켜져 있어도 provider queue가 자동으로 Gemma를 호출하거나, 승인되지 않은 제안이 정본에 적용되거나, remote/unattended lane이 열리지는 않습니다.

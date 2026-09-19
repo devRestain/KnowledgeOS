@@ -11,5 +11,5 @@
 - Retain recovery items until an observed remote or local transfer receipt and retention threshold exist.
 - Keep Working Copy, Shortcuts, device credentials, profiles, sync topology, and mobile round trips behind user-approved device gates.
 - Keep bridge protocol fixtures and production events on separate evidence surfaces.
-- Keep the MacBook-first order before resuming mobile transport acceptance.
+- Keep D08 device/profile and Working Copy transport verification and D09 live mobile bridge round trip separately gated after the MacBook baseline through D07.
 - Preserve plain Markdown, wikilink, and plugin-free fallbacks when app capability is absent.
