@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=planned
-/checkpoint revision=d7864c2885cc1883 dirty=true updated=2026-09-19T23:45:54+09:00
+/checkpoint revision=813ad33 dirty=true updated=2026-09-19T23:51:42+09:00
 /goal phase=history id=C36 state=complete action="Implement recoverable one-shot provider queue consumer while background activation stays disabled"
 /goal phase=history id=C37 state=complete action="Finalize plugin profile Gemma identity generated artifacts and follow-up C plans"
 /goal phase=history id=E02 state=complete action="Implement bounded host-native Ollama runner and evidence contracts without live host effects"
@@ -9,6 +9,7 @@
 /goal phase=history id=E03_LOG_20260919 state=complete action="Implement strict bounded E03 worker log retention"
 /goal phase=history id=STATE_CLEANUP_20260919 state=complete action="Compact project-local state and status indexes"
 /goal phase=history id=CONTRACT_CLEANUP_20260919 state=complete action="Remove stale plan and contract lane references"
+/goal phase=history id=STATE_ORDER_20260919 state=complete action="Record the verified C D E F and P implementation order in project state"
 /goal phase=current id=E04 state=planned action="Activate each remote or unattended lane through a separate decision and authorization gate"
 /goal phase=next id=P01 state=planned action="Define canonical core and required community plugin setting-state rules"
 /accept id=STATE_CLEANUP_20260919.A1 state=pass action="Review project-local state-like documents and identify one machine-state authority" evidence=E_STATE_CLEANUP_REVIEW
@@ -30,6 +31,10 @@
 /accept id=P01.A3 state=not_run action="Reject guessed settings and classify missing keys as unknown or unconfigured" evidence=none
 /accept id=P01.A4 state=not_run action="Separate static semantic runtime and device evidence with plugin-free rollback" evidence=none
 /accept id=P01.A5 state=not_run action="Run P01 implementation and canonical verification gates" evidence=none
+/accept id=STATE_ORDER_20260919.A1 state=pass action="Record the lane-local implementation order and dependency branches" evidence=E_STATE_ORDER_PLAN
+/accept id=STATE_ORDER_20260919.A2 state=pass action="Preserve the promotion and authorization gates in the recorded order" evidence=E_STATE_ORDER_GATES
+/accept id=STATE_ORDER_20260919.A3 state=pass action="Preserve the current and next goals while update the execution handoff" evidence=E_STATE_ORDER_LIVE
+/accept id=STATE_ORDER_20260919.A4 state=pass action="Validate the updated state file and changed-root whitespace" evidence=E_STATE_ORDER_CHECKS
 /evidence id=P01_PROFILE class=semantic result=pass source="blueprint/blueprint.yaml; KnowledgeHub/.obsidian-mac/community-plugins.json" observed="Observe the ten-plugin Mac profile and empty mobile community-plugin contract"
 /evidence id=P01_INSTALL class=static result=pass source="KnowledgeHub/.obsidian-mac/community-plugins.json; KnowledgeHub/.obsidian-mac/plugins" observed="Observe ten installed Mac plugin IDs and ten plugin directories"
 /evidence id=P01_CORE class=static result=pass source="KnowledgeHub/.obsidian-mac/core-plugins.json; KnowledgeHub/.obsidian-mac/app.json" observed="Observe serialized Mac core flags and Properties visibility without inferring application execution"
@@ -59,6 +64,10 @@
 /evidence id=E_F_WORKTREE class=static result=pass source="git status --short --branch; git status --ignored --short; git -C KnowledgeHub status --short --branch; find KnowledgeHub -type d -empty" observed="Inventory control and Vault dirty sets ignored namespaces and two empty bridge request and response directories while preserve unrelated changes"
 /evidence id=E_F_INDEX_PROPAGATION class=semantic result=pass source="docs/DECISIONS.md; docs/ARCHITECTURE.md; docs/SOURCE_CONTRACT.md; docs/OPERATIONS.md; docs/IMPLEMENTATION_STATUS.md" observed="Propagate GUI-first ownership toolbar-first journey bounded Templater status-only adapter and separate evidence boundaries without claim implementation"
 /evidence id=E_F_INDEX_CHECKS class=runtime result=pass source="make source-check; make verify; scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Pass source checksum foundation state syntax and changed-root whitespace checks after propagating F decisions"
+/evidence id=E_STATE_ORDER_PLAN class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; docs/IMPLEMENTATION_STATUS.md" observed="Record the lane-local order and dependency branches for C D E F and P"
+/evidence id=E_STATE_ORDER_GATES class=semantic result=pass source="docs/IMPLEMENTATION_PLAN.md; PROJECT_STATE.md" observed="Preserve the E02 promotion E04 authorization E05 decision D08 D09 device and C19 proposal-only gates"
+/evidence id=E_STATE_ORDER_LIVE class=semantic result=pass source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md" observed="Preserve E04 as current goal P01 as next goal and the ordered implementation handoff"
+/evidence id=E_STATE_ORDER_CHECKS class=runtime result=pass source="scripts/validate_state.py PROJECT_STATE.md; git diff --check; git -C KnowledgeHub diff --check" observed="Validate the updated state file and changed-root whitespace"
 /blocker id=B_E02_PROMOTION_GATES state=open action="Measure host resource placement and evaluate model quality citation privacy and staleness gates before model promotion" source="docs/IMPLEMENTATION_PLAN.md; PROJECT_STATE.md"
 /blocker id=B_C08_DIRTY_VAULT state=open action="Reconcile the pre-existing dirty Weekly Review dashboard before claiming full-suite green" source="KnowledgeHub/99_System/Dashboards/Weekly_Review.md; ops/tests/test_c08_dashboard.py"
 /decision id=D01 state=accepted action="Keep control KnowledgeHub and runtime boundaries" source="AGENTS.md"
@@ -78,6 +87,11 @@
 /decision id=D93 state=accepted action="Assign daily creation to Obsidian Core and weekly monthly creation to Notebook Navigator with Templater rendering and vaultctl validation" source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml; KnowledgeHub/99_System/Templates/T11_Weekly.md; KnowledgeHub/99_System/Templates/T12_Monthly.md"
 /decision id=D94 state=accepted action="Expose only vaultctl obsidian status as the initial official CLI adapter and forbid raw pass-through or document writes" source="docs/IMPLEMENTATION_PLAN.md; blueprint/blueprint.yaml"
 /decision id=D95 state=accepted action="Propagate F decisions into static decision architecture source and operations indexes while retain PROJECT_STATE as the sole machine-state authority" source="docs/DECISIONS.md; docs/ARCHITECTURE.md; docs/SOURCE_CONTRACT.md; docs/OPERATIONS.md; docs/IMPLEMENTATION_STATUS.md"
+/decision id=D96 state=accepted action="Preserve E04 as an authorization gate and follow with P01 after decision or deferral" source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md"
+/decision id=D97 state=accepted action="Preserve F01 through F06 in the documented GUI first sequence after P01 setting evidence" source="docs/IMPLEMENTATION_PLAN.md; docs/IMPLEMENTATION_STATUS.md"
+/decision id=D98 state=accepted action="Preserve C38 and C39 as parallel preparation followed by E02 promotion C40 C41 C42 and C43" source="docs/IMPLEMENTATION_PLAN.md; PROJECT_STATE.md"
+/decision id=D99 state=accepted action="Preserve D08 then D09 as a separately authorized mobile branch and keep D10 as a prior synthetic verification dependency" source="docs/IMPLEMENTATION_PLAN.md; docs/MOBILE.md; PROJECT_STATE.md"
+/decision id=D100 state=accepted action="Preserve E05 as a separate client decision before C41 and keep remote or unattended activation independently authorized" source="docs/IMPLEMENTATION_PLAN.md; PROJECT_STATE.md"
 /scope id=X01 state=in action="Maintain project-local state and status indexes"
 /scope id=X02 state=out action="Operate Obsidian UI or change Mac plugin settings"
 /scope id=X03 state=out action="Activate remote or unattended lanes without separate authorization"
@@ -88,4 +102,5 @@
 /scope id=X08 state=out action="Operate Obsidian UI or mutate plugin settings during F plan registration"
 /scope id=X09 state=out action="Use the official Obsidian CLI as a writer or expose a second period-note production writer"
 /scope id=X10 state=in action="Maintain aligned F decisions across static project indexes"
-/handoff state=ready action="Continue with separately authorized E04 lanes or begin planned P01 read-only inventory while use F01 through F06 and the propagated static indexes as the registered GUI-first refactor and preserve the provider-free gui/501 LaunchAgent boundary the C38-C43 evidence gates and the dirty Vault dashboard"
+/scope id=X11 state=in action="Preserve the verified C D E F and P implementation order in project state"
+/handoff state=ready action="Continue with separately authorized E04 lanes or begin planned P01 read-only inventory while preserve the recorded C D E F and P order the provider-free gui/501 LaunchAgent boundary the C38-C43 evidence gates and the dirty Vault dashboard"
