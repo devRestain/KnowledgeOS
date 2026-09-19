@@ -21,7 +21,9 @@ Inbox에서 다시 보기
     ↓
 필요할 때만 AI 제안 또는 cited answer 요청하기
     ↓
-개인 runtime 큐에서 한 번만 안전하게 처리하기
+private runtime에서 처리 대상을 안전하게 준비하기
+    ├─ 필요할 때 `ai queue` one-shot을 명시적으로 실행
+    └─ E03를 켠 경우 local worker가 300초마다 bridge·recovery를 한 번 확인
     ↓
 검증된 결과·검토 필요·보류·충돌 중 하나로 확인하기
     ↓
@@ -310,14 +312,14 @@ AI Review의 상태는 대략 다음 의미를 가집니다.
 
 ### AI 작업이 처리되는 방식
 
-사용자가 AI 작업을 요청하면 결과가 바로 정본 노트에 쓰이지 않습니다. 작업은 private runtime에 임시로 기록되고, 명시적으로 실행한 한 번의 worker가 다음 순서로 처리합니다.
+사용자가 AI 작업을 요청하면 결과가 바로 정본 노트에 쓰이지 않습니다. 작업은 private runtime에 임시로 기록되고, 사용자가 명시적으로 실행한 `ai queue` one-shot이 다음 순서로 처리합니다. E03 LaunchAgent는 이 provider queue를 몰래 소비하는 장치가 아니라, 별도의 provider-free local worker를 깨워 bridge request와 recovery 상태를 확인하는 경로입니다.
 
 ```text
 AI 작업 요청
     ↓
 원본·검색 결과·정책·출력 schema를 고정
     ↓
-private queue에서 작업 하나를 claim하고 lease를 발급
+`ai queue`가 private queue에서 작업 하나를 claim하고 lease를 발급
     ↓
 허용된 local 또는 synthetic 경로 실행
     ↓
@@ -331,6 +333,32 @@ private queue에서 작업 하나를 claim하고 lease를 발급
 ```
 
 worker가 처리 중 멈추면 만료된 lease를 회수해 같은 private artifact를 다시 검증합니다. 이미 완료한 작업은 동일한 digest를 다시 적용하지 않습니다. 이 때문에 사용자는 “실행 버튼을 여러 번 눌렀으니 노트가 여러 번 바뀌었을까?”를 걱정하기보다 Review와 terminal 상태를 확인하면 됩니다. queue가 live provider나 자동 실행을 허용하지 않는 경로를 만나면 작업은 `deferred`로 남고, 임의의 fallback을 선택하지 않습니다.
+
+### 백그라운드로 처리될 때의 사용자 경험
+
+E03가 닫힌 뒤에도 “백그라운드에서 모든 것을 자동으로 끝낸다”는 방식은 아닙니다. 사용자가 정확한 control root와 실행 파일을 확인한 뒤 LaunchAgent를 명시적으로 활성화했을 때만, 현재 사용자 세션의 `gui/<uid>` 영역에서 다음과 같은 짧은 wake가 시작됩니다.
+
+```text
+LaunchAgent가 300초 간격으로 wake
+    ↓
+vaultctl ai worker --once
+    ↓
+커밋된 local bridge request와 recovery 상태 확인
+    ↓
+필요한 private runtime queue·recovery artifact만 준비하고 상태 반환
+    ↓
+필요한 경우 사용자가 별도로 `ai queue`를 실행하고 AI Review에서 결과 확인
+```
+
+사용자가 체감하는 순서는 다음과 같습니다.
+
+1. **미리보기** — `launchd install --dry-run`으로 어떤 root, `vaultctl` 실행 파일, label이 묶이는지 확인합니다. 미리보기는 LaunchAgent를 쓰거나 실행하지 않습니다.
+2. **명시적 활성화** — 승인한 경우에만 현재 사용자 LaunchAgent를 로드합니다. `RunAtLoad=false`이므로 로그인 직후 갑자기 실행되지 않고, 300초 간격의 one-shot worker로 동작합니다.
+3. **조용한 확인** — worker는 커밋된 local request와 recovery journal을 확인하고 필요한 private runtime 상태를 준비합니다. provider 호출, Ollama/Gemma 호출, 정본 Vault 수정, Git network 동작은 하지 않습니다.
+4. **결과 확인** — `vaultctl launchd status`와 worker log에서 마지막 실행 상태를 확인합니다. 문제가 있으면 조용히 덮어쓰지 않고 `CONFLICT`, `REPAIR_REQUIRED` 또는 Review 대상처럼 사람이 다음 행동을 선택할 수 있는 상태로 남깁니다.
+5. **잠시 멈추기** — `launchd rollback --apply`는 E03가 소유하고 bytes가 변하지 않은 plist와 정확한 label만 되돌립니다. 백그라운드 호출만 멈추며 원본 capture와 private 결과를 임의로 지우지 않습니다.
+
+이 경로와 `vaultctl ai queue`는 의도적으로 분리되어 있습니다. LaunchAgent가 켜져 있어도 provider queue가 자동으로 Gemma를 호출하거나, 승인되지 않은 제안이 정본에 적용되거나, remote/unattended lane이 열리지는 않습니다.
 
 ### 로컬 Ollama와 Gemma를 사용할 때
 
@@ -346,7 +374,7 @@ E02 검증 경로는 내부 SSD에 있는 선택된 모델의 identity, full dig
 4. 검증을 통과한 결과만 답변 또는 Review 제안으로 보입니다.
 5. 사람은 citation, 원본, diff를 확인한 뒤 승인·거절·보류를 선택합니다.
 
-모델 다운로드, 모델 교체, 지속적인 provider daemon, LaunchAgent 활성화는 이 one-shot 검증과 별개의 운영 선택입니다. 따라서 E02가 완료되어도 “모든 AI 요청이 자동으로 Gemma를 호출한다”는 의미는 아닙니다. 기본 경험은 계속 local-first, proposal-only, human-approved입니다.
+모델 다운로드, 모델 교체, 지속적인 provider daemon은 이 one-shot 검증과 별개의 운영 선택입니다. E03에서는 C36과 rollback gate를 확인한 뒤 provider-free `vaultctl ai worker --once` LaunchAgent만 명시적으로 설치했습니다. 이 LaunchAgent는 `RunAtLoad=false`로 로그인 직후 실행되지 않고, 300초 간격으로 커밋된 local bridge request와 recovery state를 관찰합니다. `vaultctl ai queue`를 대신 실행하지도 않으므로, LaunchAgent가 켜져 있다는 사실만으로 Gemma 호출이나 provider queue 소비가 시작되지 않습니다. 따라서 E02 완료나 E03 설치가 “모든 AI 요청이 자동으로 Gemma를 호출한다”는 의미는 아닙니다. 기본 경험은 계속 local-first, proposal-only, human-approved입니다.
 
 ## 검색하고 답을 확인하는 법
 
@@ -478,7 +506,7 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 - 모바일은 capture·조회·보류를 우선하고, canonical apply는 Mac에서 합니다.
 - private queue는 bounded one-shot 처리와 lease recovery를 사용하며, 위조되거나 digest가 달라진 artifact는 격리합니다.
 - 자동 pull, 자동 commit, 자동 push, force push는 기본값이 아닙니다.
-- 항상 켜진 worker와 LaunchAgent는 기본 비활성입니다.
+- provider queue와 remote/unattended lane은 기본 비활성입니다. E03 LaunchAgent는 사용자가 명시적으로 설치한 경우에만 provider-free `ai worker --once`를 300초 간격으로 깨우며, `RunAtLoad=false`이고 Vault 정본 변경·Git network·provider 호출을 수행하지 않습니다. `ai queue` 실행과 정본 apply는 여전히 사용자가 별도로 시작하고 승인해야 합니다.
 
 이 원칙 때문에 KnowledgeOS는 조금 느리게 느껴질 수 있습니다. 대신 빠르게 담는 단계와 신중하게 확정하는 단계를 분리해, 나중에 원본과 판단의 경계를 다시 확인할 수 있게 합니다.
 
@@ -493,12 +521,12 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 - lexical search, typed-link retrieval, 근거가 붙은 cited answer를 사용할 수 있습니다.
 - vector/RRF는 기본 검색을 바꾸지 않는 선택 기능입니다.
 - action별 AI 제안과 schema 검사는 원본·정책·citation에 묶여 있으며, provider 결과가 곧바로 정본을 바꾸지 않습니다.
-- background worker는 필요할 때 명시적으로 실행하는 provider-free 보조 기능이며, 항상 켜진 provider queue나 LaunchAgent는 활성화되어 있지 않습니다.
+- background worker는 필요할 때 명시적으로 실행하거나, E03에서 설치된 LaunchAgent를 통해 provider-free 방식으로 깨울 수 있습니다. 현재 E03 label은 `gui/501/com.knowledgeos.vaultops`에 로드되어 있으며 `ai worker --once`를 300초 간격으로 호출하지만, C36 provider queue를 소비하거나 Ollama/Gemma를 호출하지 않고 remote/unattended lane도 활성화하지 않습니다.
 - private provider queue는 `vaultctl ai queue`로 한 번만 명시적으로 처리할 수 있으며, bounded local/synthetic 작업을 claim하고 lease를 회수하며, 결과를 재검증한 뒤 응답 또는 Review 제안으로만 공개합니다. 이 명령은 live provider, LaunchAgent, 자동 실행 또는 정본 apply를 활성화하지 않습니다.
 - E02 host-native Ollama verification은 내부 SSD·loopback·cloud-off 조건에서 generation과 embedding profile을 확인하는 별도 one-shot 경로로 완료되었습니다. 모델 identity와 resource evidence는 기록되지만, 모델 다운로드·자동 fallback·지속적인 provider daemon은 기본 사용 범위에 포함되지 않습니다.
-- 실제 live provider를 일상적인 요청 경로로 승격하거나 LaunchAgent를 설치하는 일은 E02/C36 완료와 별도의 운영 결정입니다. 현재 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
+- 실제 live provider를 일상적인 요청 경로로 승격하거나 remote/unattended lane을 활성화하는 일은 E04의 별도 운영 결정입니다. E03 LaunchAgent의 상태는 `vaultctl launchd status --root /Users/yuk/DevFolder/CodePractice/WorkingProject/KnowledgeOS`로 확인하고, rollback은 E03가 소유한 동일 bytes를 검증한 뒤 `vaultctl launchd rollback --apply`로 수행합니다. 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
 
-모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결, LaunchAgent 활성화는 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름을 그대로 사용하면 됩니다.
+모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결은 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름과 E03의 provider-free worker 경계를 그대로 사용하면 됩니다.
 
 ## 관련 화면
 

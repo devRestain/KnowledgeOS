@@ -13,4 +13,6 @@
 - Keep runtime payloads durable where classified and never treat ignored as disposable by default.
 - Keep ignored Obsidian baselines separate from disposable app-smoke evidence.
 - Keep Git, plugin, device, provider, remote, and LaunchAgent effects behind exact approval gates.
+- For E03, use `vaultctl launchd install --dry-run` to bind and inspect the exact root/executable without host mutation; use `--activate` only for the approved current-user `gui/<uid>/<label>` installation, and use `vaultctl launchd status` for read-only service evidence.
+- E03 rollback must boot out the exact label first and remove only an unchanged E03-owned plist; `vaultctl launchd rollback --apply` refuses foreign, changed, or unowned bytes.
 - Record every check in `PROJECT_STATE.md` with its evidence class and controlled result.

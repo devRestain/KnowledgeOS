@@ -15,7 +15,7 @@ from .ai_projection import generate_ai_projection, verify_ai_projection
 from .answer import answer_from_capture, ask
 from .answer import evaluate_frozen_baseline as evaluate_answer_frozen_baseline
 from .background import evaluate_frozen_baseline as evaluate_background_frozen_baseline
-from .background import launchd_install, run_worker
+from .background import run_worker
 from .blueprint import validate_blueprint
 from .bootstrap import bootstrap
 from .bridge_publish import bridge_status, ingest_bridge_request, publish_bridge_response
@@ -42,6 +42,7 @@ from .e02 import (
 )
 from .foundation import check_foundation, check_source_manifest
 from .gemma_routes import C35_ROUTES, run_gemma_job
+from .launchd import launchd_install, launchd_rollback, launchd_status
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
 from .ollama import OllamaClient, OllamaError, OllamaProfile, run_ollama_job
@@ -730,19 +731,65 @@ def build_parser() -> argparse.ArgumentParser:
 
     launchd = commands.add_parser(
         "launchd",
-        help="preview the inactive C24 LaunchAgent artifact",
+        help="manage the explicitly gated E03 LaunchAgent overlay",
     )
     launchd_commands = launchd.add_subparsers(dest="launchd_command", required=True)
     launchd_install_command = launchd_commands.add_parser(
         "install",
-        help="preview E03 installation; C24 refuses activation",
+        help="preview or explicitly activate the E03 LaunchAgent",
     )
     launchd_install_command.add_argument(
         "--dry-run",
         action="store_true",
         help="preview without activation",
     )
+    launchd_install_command.add_argument(
+        "--activate",
+        action="store_true",
+        help="publish and bootstrap the exact current-user LaunchAgent",
+    )
+    launchd_install_command.add_argument(
+        "--executable",
+        type=Path,
+        default=None,
+        help="absolute executable path for the host vaultctl command",
+    )
+    launchd_install_command.add_argument(
+        "--install-path",
+        type=Path,
+        default=None,
+        help="exact absolute LaunchAgent plist path; defaults to ~/Library/LaunchAgents/<label>.plist",
+    )
     launchd_install_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    launchd_rollback_command = launchd_commands.add_parser(
+        "rollback",
+        help="preview or apply rollback for an E03-owned LaunchAgent",
+    )
+    launchd_rollback_command.add_argument(
+        "--apply",
+        action="store_true",
+        help="boot out the exact label and remove the unchanged E03-owned plist",
+    )
+    launchd_rollback_command.add_argument(
+        "--install-path",
+        type=Path,
+        default=None,
+        help="exact absolute LaunchAgent plist path; defaults to ~/Library/LaunchAgents/<label>.plist",
+    )
+    launchd_rollback_command.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    launchd_status_command = launchd_commands.add_parser(
+        "status",
+        help="inspect the exact E03 plist and current-user service without mutation",
+    )
+    launchd_status_command.add_argument(
+        "--install-path",
+        type=Path,
+        default=None,
+        help="exact absolute LaunchAgent plist path; defaults to ~/Library/LaunchAgents/<label>.plist",
+    )
+    launchd_status_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     yaml_command = commands.add_parser("yaml", help="exercise the safe control YAML loader")
     yaml_command.add_argument("path", type=Path, help="UTF-8 YAML file")
@@ -947,6 +994,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         report, exit_code = launchd_install(
             args.root or _control_root(),
             dry_run=args.dry_run,
+            activate=args.activate,
+            executable=args.executable,
+            install_path=args.install_path,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "launchd" and args.launchd_command == "rollback":
+        report, exit_code = launchd_rollback(
+            args.root or _control_root(),
+            apply=args.apply,
+            install_path=args.install_path,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "launchd" and args.launchd_command == "status":
+        report, exit_code = launchd_status(
+            args.root or _control_root(),
+            install_path=args.install_path,
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code

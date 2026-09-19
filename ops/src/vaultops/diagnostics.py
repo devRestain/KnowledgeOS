@@ -20,6 +20,7 @@ from .ai_projection import load_current_ai_projection
 from .background import render_background_artifacts
 from .blueprint import validate_blueprint
 from .bridge_contract import remote_identity_sha256, validate_root_sentinel
+from .launchd import launchd_status
 from .local_models import LOCAL_MODEL_CONFIG_PATH, inspect_local_model_config
 from .projection import load_current_projection
 from .runtime import RuntimeLayout
@@ -660,6 +661,46 @@ def _background_capability(roots: ProjectRoots) -> tuple[dict[str, Any], list[di
             ),
             [_issue("C24_ARTIFACT_INVALID", "/background", "C24 background artifacts are not valid")],
         )
+    try:
+        installed, installed_code = launchd_status(roots.control)
+    except (OSError, TypeError, ValueError) as error:
+        return (
+            _inactive_capability(
+                reason="E03_launchd_status_inspection_failed",
+                configured="invalid",
+                state="degraded",
+                evidence_class="deployment",
+                evidence=["ops/src/vaultops/launchd.py", "~/Library/LaunchAgents/com.knowledgeos.vaultops.plist"],
+            ),
+            [_issue("E03_STATUS_INSPECTION_FAILED", "/launchd", str(error))],
+        )
+    if installed_code != 0 or installed.get("status") != "PASS":
+        return (
+            _inactive_capability(
+                reason="E03_launchd_state_conflict",
+                configured="invalid",
+                state="degraded",
+                evidence_class="deployment",
+                evidence=["ops/src/vaultops/launchd.py", "~/Library/LaunchAgents/com.knowledgeos.vaultops.plist"],
+            ),
+            [_issue("E03_STATUS_CONFLICT", "/launchd", "E03 LaunchAgent state is not safely inspectable")],
+        )
+    if installed.get("launchd_active") is True:
+        active_report = _capability(
+            state="enabled",
+            declared="declared",
+            configured="configured",
+            reachable="reachable",
+            authorized="authorized",
+            verified="verified",
+            enabled="enabled",
+            healthy="healthy",
+            reason="E03_launchd_agent_is_active_for_the_exact_control_root",
+            evidence_class="deployment",
+            evidence=["ops/src/vaultops/launchd.py", "~/Library/LaunchAgents/com.knowledgeos.vaultops.plist"],
+        )
+        active_report["e03_status"] = dict(installed)
+        return active_report, []
     return (
         _capability(
             state="inactive",
@@ -670,9 +711,13 @@ def _background_capability(roots: ProjectRoots) -> tuple[dict[str, Any], list[di
             verified="verified",
             enabled="disabled",
             healthy="healthy",
-            reason="C24_artifacts_verified_but_activation_is_deferred",
+            reason="C24_artifacts_verified_but_E03_activation_is_not_active",
             evidence_class="artifact",
-            evidence=["ops/config/background.yaml", "ops/launchd/com.knowledgeos.vaultops.plist"],
+            evidence=[
+                "ops/config/background.yaml",
+                "ops/launchd/com.knowledgeos.vaultops.plist",
+                "ops/src/vaultops/launchd.py",
+            ],
         ),
         [],
     )

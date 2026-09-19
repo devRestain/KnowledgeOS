@@ -270,6 +270,11 @@ def test_worker_fails_closed_on_recovery_conflict(tmp_path: Path) -> None:
 
 def test_c24_artifacts_and_cli_keep_launchd_inactive(tmp_path: Path, capsys) -> None:
     root = _fresh_control_copy(tmp_path)
+    executable = tmp_path / "vaultctl"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+    launchd_path = tmp_path / "LaunchAgents" / "com.knowledgeos.vaultops.plist"
+    launchd_path.parent.mkdir()
 
     artifacts, artifact_code = render_background_artifacts(root)
     assert artifact_code == EXIT_OK
@@ -287,15 +292,44 @@ def test_c24_artifacts_and_cli_keep_launchd_inactive(tmp_path: Path, capsys) -> 
     cli_evaluation = json.loads(capsys.readouterr().out)
     assert cli_evaluation["status"] == "PASS"
 
-    assert main(["launchd", "install", "--dry-run", "--root", str(root)]) == EXIT_OK
+    assert (
+        main(
+            [
+                "launchd",
+                "install",
+                "--dry-run",
+                "--executable",
+                str(executable),
+                "--install-path",
+                str(launchd_path),
+                "--root",
+                str(root),
+            ]
+        )
+        == EXIT_OK
+    )
     preview = json.loads(capsys.readouterr().out)
     assert preview["installed"] is False
     assert preview["launchd_active"] is False
 
-    assert main(["launchd", "install", "--root", str(root)]) == EXIT_CONFLICT
+    assert (
+        main(
+            [
+                "launchd",
+                "install",
+                "--executable",
+                str(executable),
+                "--install-path",
+                str(launchd_path),
+                "--root",
+                str(root),
+            ]
+        )
+        == EXIT_CONFLICT
+    )
     deferred = json.loads(capsys.readouterr().out)
     assert deferred["status"] == "CONFLICT"
-    assert deferred["errors"][0]["code"] == "LAUNCHD_INSTALL_DEFERRED"
+    assert deferred["errors"][0]["code"] == "LAUNCHD_ACTIVATION_REQUIRED"
     assert deferred["launchd_active"] is False
 
 
