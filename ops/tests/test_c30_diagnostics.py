@@ -19,7 +19,7 @@ def test_c30_generated_local_model_contract_is_disabled_and_pinned_to_safe_basel
     assert report["enabled_by_default"] is False
     assert report["profiles"]["generation"] == {
         "task": "generation",
-        "model_tag": "gemma4:12b-it-q4_K_M",
+        "model_tag": "gemma4:12b",
         "enabled": False,
         "state": "disabled",
     }

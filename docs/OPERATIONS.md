@@ -13,6 +13,11 @@
 - Keep runtime payloads durable where classified and never treat ignored as disposable by default.
 - Keep ignored Obsidian baselines separate from disposable app-smoke evidence.
 - Keep Git, plugin, device, provider, remote, and LaunchAgent effects behind exact approval gates.
+- Keep the normal period-note operation GUI-first: use Core Daily Notes for daily notes, Notebook Navigator for weekly/monthly notes, Templater for bounded rendering, and `vaultctl note validate` for explicit contract checks; do not schedule or invoke terminal period creation.
+- Keep Home and Note Toolbar as the primary user-facing entry points for recurring Obsidian actions. Treat Command Palette as a recovery/diagnostic fallback, not as the intended operating procedure.
+- Keep external automation calling `vaultctl` only. When F05 is implemented, route the official `obsidian` CLI through one fixed-argv, shell-free, bounded `vaultctl obsidian status` adapter; do not expose raw pass-through or document/plugin control commands.
+- Keep serialized plugin settings, adapter tests, and fake executables separate from GUI/device/deployment evidence. App connection, PATH discovery, Vault identity, Notebook Navigator generation, Templater execution, toolbar behavior, and no-overwrite behavior require their own authorized evidence class.
+- Keep period templates non-operational: no shell, system command, user script, network, AI, Git, `vaultctl`, automatic canonical apply, or automatic AI-summary insertion.
 - For E03, use `vaultctl launchd install --dry-run` to bind and inspect the exact root/executable without host mutation; use `--activate` only for the approved current-user `gui/<uid>/<label>` installation, and use `vaultctl launchd status` for read-only service evidence.
 - E03 rollback must boot out the exact label first and remove only an unchanged E03-owned plist; `vaultctl launchd rollback --apply` refuses foreign, changed, or unowned bytes.
 - E03 worker stdout is a bounded timestamped JSONL summary and stderr is independently bounded: each file is capped at 16 KiB, carries forward at most 8 KiB on the next wake, clears a file that has been idle for more than one hour on the next wake, and discards legacy unbounded bytes on the first bounded wake; manual terminal invocations keep their full diagnostic JSON.

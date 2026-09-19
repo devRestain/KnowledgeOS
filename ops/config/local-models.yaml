@@ -6,7 +6,7 @@ authoritative_inputs:
 - path: blueprint/blueprint.yaml
   selectors:
   - /llm
-  sha256: 2ad3aae1a9d1f7acbbf8ee001ee2270b99ec391cac0a88c96dba427315fd43a2
+  sha256: bdae82d1754783f23243f325214cf1f0a794aae53767ed90b128f7cee8105d46
 local_models:
   schema_version: 1
   provider: ollama
@@ -26,7 +26,7 @@ local_models:
   profiles:
     generation:
       task: generation
-      model_tag: gemma4:12b-it-q4_K_M
+      model_tag: gemma4:12b
       model_digest: null
       enabled: false
       options:

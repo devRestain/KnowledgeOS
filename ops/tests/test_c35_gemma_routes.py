@@ -273,7 +273,7 @@ def test_c35_rejects_recorded_model_identity_drift(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     job_id, context = _job(root, "answer")
     recorded = _recorded(MappingLike(_output(root, context, "answer")))
-    recorded["model"] = "gemma4:12b-mlx"
+    recorded["model"] = "other-model:1b"
 
     report, exit_code = run_gemma_job(root, job_id=job_id, recorded_response=recorded)
 

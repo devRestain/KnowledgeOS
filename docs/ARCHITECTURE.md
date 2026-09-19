@@ -17,4 +17,9 @@
 - Keep LLM output schema-constrained and proposal-only until approval binds source, target, policy, schema, and digest.
 - Keep privacy defaults conservative and exclude denied or local-only material from remote candidate sets.
 - Keep confidential or institutionally restricted material outside this Vault until a separate boundary is approved.
+- Keep Obsidian GUI as the canonical human editing and review environment. Assign daily creation to Core Daily Notes, weekly/monthly creation and opening to Notebook Navigator, bounded period-field rendering to Templater, and existing-note contract validation to `vaultctl note validate`.
+- Keep period-note ownership single-sourced: the F lane removes the `vaultctl period create` production writer while the internal template engine remains for non-period typed notes, captures, projects, proposals, AI artifacts, and deterministic fixtures.
+- Keep `vaultctl note create` strict and general-purpose; do not expand it into a period-note writer or use the official Obsidian CLI as a canonical Markdown writer, validator replacement, or GUI-period generator.
+- Keep Home and Note Toolbar as the primary GUI navigation layer and Command Palette as fallback recovery. Toolbar actions must be explicit, reviewed, bounded, and free of arbitrary shell, script, network, Git, AI, or canonical-apply authority.
+- Keep external automation and future Obsidian CLI access behind `vaultctl`; the initial official CLI surface is a status-only adapter with fixed arguments, bounded output, fail-closed identity checks, and no raw command pass-through.
 - Review large-binary storage and Git LFS only after observed asset size and remote policy justify it.

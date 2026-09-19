@@ -44,7 +44,7 @@ EXIT_CONFLICT = 30
 
 CAPABILITY = "C35"
 OPERATION = "ai gemma"
-GEMMA_MODEL_TAG = "gemma4:12b-it-q4_K_M"
+GEMMA_MODEL_TAG = "gemma4:12b"
 
 RESPONSE_FILENAME = "c35-response.json"
 RECEIPT_FILENAME = "c35-receipt.json"

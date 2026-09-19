@@ -55,7 +55,7 @@ class _FakeE02Client:
             "models": [
                 {
                     "model": DEFAULT_GENERATION_TAG,
-                    "name": "gemma4:12b-it-q4_K_M",
+                    "name": "gemma4:12b",
                     "digest": f"sha256:{MODEL_DIGEST}",
                     "size": 123,
                 }
@@ -74,7 +74,7 @@ class _FakeE02Client:
         return {
             "models": [
                 {
-                    "name": "gemma4:12b-it-q4_K_M",
+                    "name": "gemma4:12b",
                     "backend": "metal",
                     "device": "gpu",
                     "processor": "100% GPU",
@@ -245,7 +245,7 @@ def test_e02_inspection_records_requested_and_resolved_identity_without_promotio
     assert code == 0
     assert report["status"] == "PASS"
     assert report["service"]["requested_model_tag"] == DEFAULT_GENERATION_TAG
-    assert report["service"]["resolved_model_name"] == "gemma4:12b-it-q4_K_M"
+    assert report["service"]["resolved_model_name"] == "gemma4:12b"
     assert report["service"]["model_digest"] == MODEL_DIGEST
     assert report["service"]["storage_scope"] == "internal_ssd"
     assert report["promotion"]["gate_passed"] is False
@@ -347,7 +347,7 @@ def test_e02_generation_benchmark_requires_exact_model_and_internal_storage(tmp_
         benchmark_generation(
             client,
             ["bounded prompt"],
-            model_tag="gemma4:12b-it-q4_K_M",
+            model_tag="other-model:1b",
             authorized=True,
             storage_path=storage,
             storage_root=tmp_path,

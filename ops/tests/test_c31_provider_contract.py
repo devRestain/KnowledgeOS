@@ -69,7 +69,7 @@ def _candidate(*, eligibility: str = "local_eligible", rank: int = 1) -> dict[st
 def _provider(route: str = "local:baseline") -> dict[str, object]:
     return {
         "route": route,
-        "model_tag": "gemma4:12b-it-q4_K_M",
+        "model_tag": "gemma4:12b",
         "model_digest": "6" * 64,
         "ollama_version": "0.11.0",
     }

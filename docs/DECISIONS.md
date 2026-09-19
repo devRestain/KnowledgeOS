@@ -8,4 +8,10 @@
 - Keep plugin-free Markdown and wikilink fallbacks available when plugins or device features are unavailable.
 - Keep the E03 LaunchAgent provider-free; keep provider promotion, E04 remote or unattended lanes, plugin settings, device actions, and Git network effects behind their own gates.
 - Keep learned retrieval and model promotion inactive until E02 quality, privacy, citation, staleness, latency, and resource evidence passes.
+- Keep Obsidian GUI as the canonical human interaction and review surface: Obsidian Core Daily Notes owns daily creation, Notebook Navigator owns weekly/monthly creation and opening, Templater renders bounded period fields, and `vaultctl note validate` checks the resulting document contract.
+- Keep Home and Note Toolbar buttons as the intended primary GUI journey and retain Command Palette only as a recovery or diagnostic fallback; do not design normal user flows around command search.
+- Keep one production writer per responsibility: retain the KnowledgeOS internal template engine for general typed notes and deterministic fixtures, remove the period-note production writer through F01, and keep `vaultctl note create` limited to strict general typed notes.
+- Keep external automation in the `vaultctl` boundary; expose the official Obsidian CLI only through a bounded, status-only internal adapter with fixed argv, no shell, no raw pass-through, and no document or plugin control API.
+- Keep Templater non-executing and proposal boundaries intact: no shell, system command, script, network, AI, Git, `vaultctl`, automatic canonical apply, or automatic AI-summary insertion from a period template.
+- Keep plugin configuration, GUI execution, and device behavior as separately authorized evidence; serialized manifests and settings never prove that a plugin or GUI workflow ran successfully.
 - Remove superseded rationale, resolved decisions, historical counts, and legacy session-order claims from this index; use `IMPLEMENTATION_PLAN.md` for detailed execution order.

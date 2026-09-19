@@ -42,7 +42,7 @@ LOCAL_MODEL_DECLARATION: dict[str, Any] = {
     "profiles": {
         "generation": {
             "task": "generation",
-            "model_tag": "gemma4:12b-it-q4_K_M",
+            "model_tag": "gemma4:12b",
             "model_digest": None,
             "enabled": False,
             "options": {
