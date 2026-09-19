@@ -176,7 +176,11 @@ class RecoveryJournal:
     def exists(self) -> bool:
         if self.job_dir.is_symlink():
             raise RecoveryCorruption("recovery job directory must not be a symlink")
-        return self.job_dir.exists()
+        # C31 private provider envelopes share the per-job runtime directory
+        # with later local transaction journals.  A job directory by itself
+        # is therefore not evidence that this operation has started; the
+        # operation-specific journal file is the durable identity.
+        return self.path.is_file()
 
     def _prepare_run_directories(self) -> None:
         _ensure_private_directory(self.runtime)
@@ -218,6 +222,23 @@ class RecoveryJournal:
             if canonical_json_bytes(existing) != canonical_json_bytes(intent):
                 raise RecoveryConflict("same job_id has a different recovery intent")
             return records
+        if self.job_dir.exists():
+            if self.job_dir.is_symlink() or not self.job_dir.is_dir():
+                raise RecoveryCorruption("recovery job directory is missing or unsafe")
+            if stat.S_IMODE(self.job_dir.stat().st_mode) != 0o700:
+                raise RecoveryError("recovery job directory mode must be 0700")
+            first = self._record(sequence=1, state="intent", payload=intent, previous_record_sha256=None)
+            try:
+                _write_exclusive(self.path, first)
+            except FileExistsError:
+                records = self.records()
+                if canonical_json_bytes(records[0]["payload"]) != canonical_json_bytes(intent):
+                    raise RecoveryConflict("same job_id has a different recovery intent")
+                return records
+            fsync_directory(self.job_dir)
+            fsync_directory(self.runs)
+            fsync_directory(self.runtime)
+            return self.records()
         try:
             self.job_dir.mkdir(mode=0o700)
         except FileExistsError:
@@ -362,4 +383,3 @@ class RecoveryJournal:
         fsync_directory(quarantine_root)
         fsync_directory(self.runtime)
         return destination.relative_to(self.workspace).as_posix()
-

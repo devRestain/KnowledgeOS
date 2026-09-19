@@ -126,6 +126,16 @@ for foundation_path in runtime $foundation_required_directories; do
     esac
 done
 
+# The D80 host runner is a private executable environment, not a runtime
+# artifact spool. Its virtualenv needs executable/package modes and may use
+# interpreter symlinks, while its containing boundary remains owner-only.
+if [ -e runtime/host-runner ]; then
+    [ ! -L runtime/host-runner ] || foundation_fail 'host runner environment must not be a symlink'
+    [ -d runtime/host-runner ] || foundation_fail 'host runner environment must be a directory'
+    foundation_host_runner_mode=$(stat -f '%Lp' runtime/host-runner)
+    [ "$foundation_host_runner_mode" = 700 ] || foundation_fail "host runner environment mode must be 0700: $foundation_host_runner_mode"
+fi
+
 [ ! -e bridge ] || foundation_fail 'obsolete top-level bridge/ exists; canonical transport is KnowledgeHub/.vault-bridge/'
 grep -Fqx '/KnowledgeHub/' .gitignore || foundation_fail 'control .gitignore must contain /KnowledgeHub/'
 grep -Fqx '/runtime/' .gitignore || foundation_fail 'control .gitignore must contain /runtime/'
@@ -182,7 +192,7 @@ do
     grep -Fqx "$foundation_pattern" KnowledgeHub/.gitignore || foundation_fail "Vault profile deny rule missing: $foundation_pattern"
 done
 
-foundation_bad_runtime_files=$(find runtime -type f ! -perm 600 -print)
+foundation_bad_runtime_files=$(find runtime -path runtime/host-runner -prune -o -type f ! -perm 600 -print)
 [ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
 foundation_manifest_expected='e324f9354feca17cd022d3dfaab46c18e73ce41020fee2f7b7f959ac1856651f'
@@ -208,14 +218,21 @@ for foundation_relative in $foundation_required_vault_files; do
     [ -f "KnowledgeHub/$foundation_relative" ] || foundation_fail "missing required Vault file: $foundation_relative"
 done
 
-foundation_literal_matches=$(find KnowledgeHub ops runtime -type d \( \
+foundation_literal_matches=$(find KnowledgeHub ops -type d \( \
     -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \
     -name PROJECT_NAME -o -name JOB_ID \
 \) -print)
 [ -z "$foundation_literal_matches" ] || foundation_fail "literal placeholder directories found: $foundation_literal_matches"
+foundation_literal_matches_runtime=$(find runtime -path runtime/host-runner -prune -o -type d \( \
+    -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \
+    -name PROJECT_NAME -o -name JOB_ID \
+\) -print)
+[ -z "$foundation_literal_matches_runtime" ] || foundation_fail "literal placeholder directories found: $foundation_literal_matches_runtime"
 
-foundation_symlink_matches=$(find KnowledgeHub ops runtime -type l -print)
+foundation_symlink_matches=$(find KnowledgeHub ops -type l -print)
 [ -z "$foundation_symlink_matches" ] || foundation_fail "unexpected symlinks found: $foundation_symlink_matches"
+foundation_symlink_matches_runtime=$(find runtime -path runtime/host-runner -prune -o -type l -print)
+[ -z "$foundation_symlink_matches_runtime" ] || foundation_fail "unexpected symlinks found: $foundation_symlink_matches_runtime"
 
 foundation_control_git=$(git -C "$foundation_root" rev-parse --show-toplevel 2>/dev/null || true)
 foundation_vault_git=$(git -C "$foundation_root/KnowledgeHub" rev-parse --show-toplevel 2>/dev/null || true)

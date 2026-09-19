@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+host_environment="$project_root/runtime/host-runner/.venv"
+if [ ! -x "$host_environment/bin/python" ] || ! "$host_environment/bin/python" -c 'import jsonschema' >/dev/null 2>&1; then
+    echo "E02 host environment is missing; run scripts/e02-host-sync first" >&2
+    exit 10
+fi
+
+export UV_PROJECT_ENVIRONMENT="$host_environment"
+export UV_CACHE_DIR="$project_root/runtime/host-runner/.cache"
+cd "$project_root"
+exec mise exec -- uv run --project "$project_root/ops" --frozen --no-sync --no-dev \
+    python "$project_root/scripts/e02_live_fallback.py" "$@"

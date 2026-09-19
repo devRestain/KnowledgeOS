@@ -21,6 +21,40 @@ services:
       - knowledgeos-uv-cache:/home/vaultops/.cache/uv
     network_mode: none
 
+  e02-live:
+    profiles: ["e02-live"]
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile
+      target: e02-live
+      args:
+        KNOWLEDGEOS_UID: ${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make}
+        KNOWLEDGEOS_GID: ${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make}
+        UV_VERSION: ${KNOWLEDGEOS_UV_VERSION:-0.8.14}
+    user: "${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make}:${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make}"
+    working_dir: /opt/knowledgeos/ops
+    environment:
+      HOME: /tmp
+      PYTHONPATH: /opt/knowledgeos/ops/src
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_ORIGINS: ""
+    volumes:
+      - type: bind
+        source: ${E02_JOB_DIR:-/private/knowledgeos-e02-unconfigured}
+        target: /runtime/runs/${E02_JOB_ID:-00000000-0000-4000-8000-000000000000}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev
+    network_mode: none
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    cpus: "2.0"
+    mem_limit: 4g
+    pids_limit: 64
+    restart: "no"
+
 volumes:
   knowledgeos-uv-cache:
     driver: local

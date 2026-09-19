@@ -19,6 +19,8 @@ import http.client
 import json
 import math
 import re
+import socket
+import stat
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -100,6 +102,7 @@ class OllamaProfile:
     max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES
     max_embed_items: int = DEFAULT_MAX_EMBED_ITEMS
     max_embedding_dimensions: int = DEFAULT_MAX_EMBED_DIMENSIONS
+    relay_socket: str | Path | None = None
 
     def endpoint(self) -> SplitResult:
         return validate_loopback_profile(self)
@@ -158,6 +161,12 @@ def validate_loopback_profile(profile: OllamaProfile) -> SplitResult:
         raise OllamaError("OLLAMA_EMBED_LIMIT_INVALID", "max_embed_items exceeds the bounded item limit")
     if not isinstance(profile.max_embedding_dimensions, int) or not 0 < profile.max_embedding_dimensions <= 16384:
         raise OllamaError("OLLAMA_EMBED_DIMENSION_LIMIT_INVALID", "max_embedding_dimensions is invalid")
+    if profile.relay_socket is not None:
+        relay_socket = Path(profile.relay_socket).expanduser()
+        if not relay_socket.is_absolute():
+            raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket must be an absolute path")
+        if relay_socket.is_symlink():
+            raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket must not be a symlink")
     return endpoint
 
 
@@ -238,6 +247,23 @@ def _validate_model_records(value: Mapping[str, Any], *, label: str) -> list[dic
     return result
 
 
+class _UnixHTTPConnection(http.client.HTTPConnection):
+    """HTTPConnection that sends one request through a private Unix socket."""
+
+    def __init__(self, socket_path: Path, *, timeout: float) -> None:
+        self.socket_path = socket_path
+        super().__init__("localhost", timeout=timeout)
+
+    def connect(self) -> None:
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.settimeout(self.timeout)
+        try:
+            self.sock.connect(str(self.socket_path))
+        except BaseException:
+            self.close()
+            raise
+
+
 class OllamaClient:
     """Bounded client for the allowlisted local Ollama API endpoints."""
 
@@ -246,6 +272,9 @@ class OllamaClient:
             profile = OllamaProfile(base_url=profile)
         self.profile = profile or OllamaProfile()
         self._endpoint = validate_loopback_profile(self.profile)
+        self._relay_socket = (
+            Path(self.profile.relay_socket).expanduser() if self.profile.relay_socket is not None else None
+        )
 
     @property
     def base_url(self) -> str:
@@ -267,11 +296,27 @@ class OllamaClient:
             headers["Content-Type"] = "application/json"
             headers["Content-Length"] = str(len(body))
         deadline = time.monotonic() + float(self.profile.timeout_seconds)
-        connection = http.client.HTTPConnection(
-            self._endpoint.hostname,
-            self._endpoint.port,
-            timeout=float(self.profile.timeout_seconds),
-        )
+        if self._relay_socket is not None:
+            if self._relay_socket.is_symlink() or not self._relay_socket.exists():
+                raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket is missing or a symlink")
+            try:
+                relay_mode = self._relay_socket.stat().st_mode
+                if not stat.S_ISSOCK(relay_mode):
+                    raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket is not a Unix socket")
+                if stat.S_IMODE(relay_mode) != 0o600:
+                    raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket must be mode 0600")
+            except OSError as error:
+                raise OllamaError("OLLAMA_RELAY_SOCKET_INVALID", "relay_socket cannot be inspected") from error
+            connection: http.client.HTTPConnection = _UnixHTTPConnection(
+                self._relay_socket,
+                timeout=float(self.profile.timeout_seconds),
+            )
+        else:
+            connection = http.client.HTTPConnection(
+                self._endpoint.hostname,
+                self._endpoint.port,
+                timeout=float(self.profile.timeout_seconds),
+            )
         try:
             connection.request(method, path, body=body if payload is not None else None, headers=headers)
             remaining = deadline - time.monotonic()

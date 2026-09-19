@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+host_environment="$project_root/runtime/host-runner/.venv"
+host_cache="$project_root/runtime/host-runner/.cache"
+export UV_PROJECT_ENVIRONMENT="$host_environment"
+export UV_CACHE_DIR="$host_cache"
+
+cd "$project_root"
+exec mise exec -- uv sync --project "$project_root/ops" --locked --no-dev

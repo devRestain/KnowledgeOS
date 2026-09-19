@@ -516,3 +516,12 @@ artifacts:
     generator: vaultops.embedding_index:c34_retrieval_evaluation_schema
     deployed_copy: false
     first_capability: C34
+  - path: ops/schemas/e02-verification-report.schema.json
+    owner: E02
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/e02.py
+        selectors: [/e02_contract, /e02_verification_report_schema]
+    generator: vaultops.e02:e02_verification_report_schema
+    deployed_copy: false
+    first_capability: E02

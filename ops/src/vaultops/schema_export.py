@@ -6,8 +6,9 @@ bridge and root-sentinel schemas.  Their first capability remains recorded as
 C20 action registries and prompts are now owned deterministic artifacts, C21
 projection schemas are generated from the projection contract before a
 runtime generation is published, C24 background artifacts remain install-time
-and inactive by default, E01 owns the local vector evaluation schema, and C34
-owns the immutable learned-index and frozen quality-evaluation schemas.
+and inactive by default, E01 owns the local vector evaluation schema, C34
+owns the immutable learned-index and frozen quality-evaluation schemas, and
+E02 owns the host-native verification report schema.
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ from .bridge_contract import (
     build_root_sentinel_schema,
     schema_bytes,
 )
+from .e02 import REPORT_SCHEMA_PATH, e02_verification_report_schema
 from .embedding_index import (
     EMBEDDING_EVALUATION_SCHEMA_PATH,
     EMBEDDING_INDEX_RECORD_SCHEMA_PATH,
@@ -106,6 +108,7 @@ GENERATOR_ID = "vaultops.schema_export"
 PROPERTY_DICTIONARY_PATH = "ops/expected/Property_Dictionary.md"
 DEPLOYED_PROPERTY_DICTIONARY_PATH = "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
 VECTOR_EVALUATION_SCHEMA_PATH = "ops/schemas/e01-vector-evaluation.schema.json"
+E02_VERIFICATION_SCHEMA_PATH = REPORT_SCHEMA_PATH
 
 
 @dataclass(frozen=True)
@@ -457,6 +460,16 @@ OWNED_ARTIFACTS = (
         first_capability="C34",
         generator_id="vaultops.embedding_index",
         inputs_path="ops/src/vaultops/embedding_index.py",
+    ),
+    _owned(
+        E02_VERIFICATION_SCHEMA_PATH,
+        "e02_verification_report_schema",
+        ("/e02_contract", "/e02_verification_report_schema"),
+        deployed_copy=False,
+        owner="E02",
+        first_capability="E02",
+        generator_id="vaultops.e02",
+        inputs_path="ops/src/vaultops/e02.py",
     ),
 )
 
@@ -825,6 +838,8 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         return schema_bytes(embedding_index_manifest_schema())
     if spec.path == EMBEDDING_EVALUATION_SCHEMA_PATH:
         return schema_bytes(learned_retrieval_evaluation_schema())
+    if spec.path == E02_VERIFICATION_SCHEMA_PATH:
+        return schema_bytes(e02_verification_report_schema())
     if spec.path == LOCAL_MODEL_CONFIG_PATH:
         return local_model_config_bytes(
             blueprint,

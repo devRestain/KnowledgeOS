@@ -26,6 +26,7 @@ RUNTIME_DIRECTORIES = (
     "cache",
     "logs",
 )
+PRIVATE_TOOL_DIRECTORIES = ("host-runner",)
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,19 @@ class RuntimeLayout:
                 continue
             if directory.stat().st_mode & 0o777 != 0o700:
                 problems.append(f"runtime directory mode must be 0700: {directory}")
+        private_tools = tuple(self.root / name for name in PRIVATE_TOOL_DIRECTORIES)
+        for directory in private_tools:
+            if directory.is_symlink():
+                problems.append(f"private tool directory is a symlink: {directory}")
+            elif not directory.exists():
+                continue
+            elif not directory.is_dir():
+                problems.append(f"private tool directory must be a directory: {directory}")
+            elif directory.stat().st_mode & 0o777 != 0o700:
+                problems.append(f"private tool directory mode must be 0700: {directory}")
         for payload in self.root.rglob("*"):
+            if any(payload == directory or directory in payload.parents for directory in private_tools):
+                continue
             if payload.is_file() and payload.stat().st_mode & 0o777 != 0o600:
                 problems.append(f"runtime file mode must be 0600: {payload}")
             if payload.is_symlink():

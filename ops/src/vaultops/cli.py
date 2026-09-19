@@ -27,6 +27,19 @@ from .diagnostics import (
     git_status_report,
     plugins_audit_report,
 )
+from .e02 import DEFAULT_BASE_URL as E02_DEFAULT_BASE_URL
+from .e02 import (
+    DEFAULT_GENERATION_TAG,
+    E02Error,
+    benchmark_embeddings,
+    benchmark_generation,
+    build_client,
+    e02_contract,
+    evaluate_e02_rankings,
+    inspect_e02_service,
+    run_e02_host_job,
+    write_e02_report,
+)
 from .foundation import check_foundation, check_source_manifest
 from .gemma_routes import C35_ROUTES, run_gemma_job
 from .local_commands import capture_text, capture_url, create_note, format_notes
@@ -36,6 +49,13 @@ from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
 from .provider_broker import PIPELINES, SCENARIOS, run_synthetic_job
+from .provider_queue import (
+    DEFAULT_LEASE_SECONDS,
+    DEFAULT_MAX_CONCURRENCY,
+    DEFAULT_MAX_JOBS,
+    MAX_CONCURRENCY,
+    consume_provider_queue,
+)
 from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
 from .retrieval import (
     RetrievalValidationError,
@@ -477,6 +497,25 @@ def build_parser() -> argparse.ArgumentParser:
     ai_broker.add_argument("--pipeline", choices=PIPELINES, default=None)
     ai_broker.add_argument("--scenario", choices=SCENARIOS, default="success")
     ai_broker.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_queue = ai_commands.add_parser(
+        "queue",
+        help="consume one bounded local provider queue batch and publish through the exact bridge path",
+    )
+    ai_queue.add_argument("--max-jobs", type=int, default=DEFAULT_MAX_JOBS)
+    ai_queue.add_argument(
+        "--max-concurrency",
+        type=int,
+        choices=tuple(range(1, MAX_CONCURRENCY + 1)),
+        default=DEFAULT_MAX_CONCURRENCY,
+    )
+    ai_queue.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
+    ai_queue.add_argument("--job-id", default=None, help="limit the one-shot wake to one UUIDv4 job")
+    ai_queue.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="inspect eligible queue state without claiming, invoking, or publishing",
+    )
+    ai_queue.add_argument("--root", type=Path, default=None, help="mounted control root")
     ai_ollama = ai_commands.add_parser(
         "ollama",
         help="run one C33 provider job through an explicit loopback Ollama profile",
@@ -485,6 +524,76 @@ def build_parser() -> argparse.ArgumentParser:
     ai_ollama.add_argument("--base-url", required=True, help="explicit http://127.0.0.1:<port> fake or local endpoint")
     ai_ollama.add_argument("--pipeline", choices=PIPELINES, default=None)
     ai_ollama.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_e02 = ai_commands.add_parser(
+        "e02",
+        help="inspect or run the explicitly authorized host-native E02 verification lane",
+    )
+    e02_commands = ai_e02.add_subparsers(dest="e02_command", required=True)
+    e02_commands.add_parser(
+        "contract",
+        help="print the disabled E02 host-native profile and promotion boundary",
+    )
+    e02_inspect = e02_commands.add_parser(
+        "inspect",
+        help="read Ollama identity and host placement without pulling or mutating",
+    )
+    e02_inspect.add_argument("--model-tag", default=DEFAULT_GENERATION_TAG)
+    e02_inspect.add_argument("--storage-path", type=Path, required=True)
+    e02_inspect.add_argument("--storage-root", type=Path, required=True)
+    e02_inspect.add_argument("--base-url", default=E02_DEFAULT_BASE_URL)
+    e02_inspect.add_argument(
+        "--authorize-live-service",
+        action="store_true",
+        help="explicitly authorize read-only host service inspection for this invocation",
+    )
+    e02_run = e02_commands.add_parser(
+        "run",
+        help="run one C31 generation job through a job-spool-only host runner",
+    )
+    e02_run.add_argument("--job-dir", type=Path, required=True)
+    e02_run.add_argument("--storage-root", type=Path, required=True)
+    e02_run.add_argument("--base-url", default=E02_DEFAULT_BASE_URL)
+    e02_run.add_argument(
+        "--relay-socket",
+        type=Path,
+        default=None,
+        help="optional private Unix relay socket used only by the isolated e02-live fallback",
+    )
+    e02_run.add_argument(
+        "--authorize-live-service",
+        action="store_true",
+        help="explicitly authorize one host inference call for this invocation",
+    )
+    e02_benchmark = e02_commands.add_parser(
+        "benchmark",
+        help="run one bounded serial generation or embedding measurement profile",
+    )
+    e02_benchmark_commands = e02_benchmark.add_subparsers(dest="e02_benchmark_command", required=True)
+    e02_generation = e02_benchmark_commands.add_parser("generation", help="measure cold, warm, and unload generation")
+    e02_generation.add_argument("--prompt", action="append", required=True, help="one bounded benchmark prompt; repeat at most once")
+    e02_generation.add_argument("--storage-path", type=Path, default=None)
+    e02_generation.add_argument("--storage-root", type=Path, default=None)
+    e02_generation.add_argument("--base-url", default=E02_DEFAULT_BASE_URL)
+    e02_generation.add_argument("--authorize-live-service", action="store_true")
+    e02_embedding = e02_benchmark_commands.add_parser("embedding", help="measure selected embedding candidates")
+    e02_embedding.add_argument("--input", action="append", required=True, help="one query or document input; provide one or two")
+    e02_embedding.add_argument("--model-tag", action="append", dest="model_tags", default=None)
+    e02_embedding.add_argument("--storage-path", type=Path, default=None)
+    e02_embedding.add_argument("--storage-root", type=Path, default=None)
+    e02_embedding.add_argument("--base-url", default=E02_DEFAULT_BASE_URL)
+    e02_embedding.add_argument("--authorize-live-service", action="store_true")
+    e02_evaluate = e02_commands.add_parser(
+        "evaluate",
+        help="evaluate recorded frozen-fixture rankings without changing C34",
+    )
+    e02_evaluate.add_argument("--evaluation-file", type=Path, required=True)
+    e02_evaluate.add_argument("--candidate-id", required=True)
+    e02_evaluate.add_argument("--live-model-evidence", action="store_true")
+    e02_evaluate.add_argument("--privacy-gate-passed", action="store_true")
+    e02_evaluate.add_argument("--citation-gate-passed", action="store_true")
+    e02_evaluate.add_argument("--staleness-gate-passed", action="store_true")
+    e02_evaluate.add_argument("--resource-gate-passed", action="store_true")
+    e02_evaluate.add_argument("--external-storage-used", action="store_true")
     ai_gemma = ai_commands.add_parser(
         "gemma",
         help="validate one recorded Gemma 4 route response without live provider access",
@@ -1032,6 +1141,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
+    if args.command == "ai" and args.ai_command == "queue":
+        report, exit_code = consume_provider_queue(
+            args.root or _control_root(),
+            max_jobs=args.max_jobs,
+            max_concurrency=args.max_concurrency,
+            lease_seconds=args.lease_seconds,
+            job_id=args.job_id,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
     if args.command == "ai" and args.ai_command == "ollama":
         try:
             client = OllamaClient(OllamaProfile(base_url=args.base_url))
@@ -1057,6 +1177,133 @@ def main(argv: Sequence[str] | None = None) -> int:
             exit_code = EXIT_INPUT_INVALID
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
+    if args.command == "ai" and args.ai_command == "e02":
+        if args.e02_command == "contract":
+            print(json.dumps(e02_contract(), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
+        if args.e02_command == "inspect":
+            client = build_client(args.base_url) if args.authorize_live_service else None
+            if client is None:
+                report, exit_code = inspect_e02_service(
+                    object(),
+                    requested_model_tag=args.model_tag,
+                    storage_path=args.storage_path,
+                    storage_root=args.storage_root,
+                    authorized=False,
+                    base_url=args.base_url,
+                )
+            else:
+                report, exit_code = inspect_e02_service(
+                    client,
+                    requested_model_tag=args.model_tag,
+                    storage_path=args.storage_path,
+                    storage_root=args.storage_root,
+                    authorized=True,
+                    base_url=args.base_url,
+                )
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+            return exit_code
+        if args.e02_command == "run":
+            client = (
+                build_client(args.base_url, relay_socket=args.relay_socket)
+                if args.authorize_live_service
+                else None
+            )
+            if client is None:
+                report, exit_code = run_e02_host_job(
+                    args.job_dir,
+                    object(),
+                    storage_root=args.storage_root,
+                    authorized=False,
+                    base_url=args.base_url,
+                )
+            else:
+                report, exit_code = run_e02_host_job(
+                    args.job_dir,
+                    client,
+                    storage_root=args.storage_root,
+                    authorized=True,
+                    base_url=args.base_url,
+                )
+            if report["status"] != "DEFERRED":
+                try:
+                    write_e02_report(args.job_dir, report, storage_root=args.storage_root)
+                except (E02Error, OSError, TypeError, ValueError) as error:
+                    report["status"] = "CONFLICT" if getattr(error, "code", "") == "E02_IMMUTABLE_CONFLICT" else "FAIL"
+                    report["errors"] = [{
+                        "code": getattr(error, "code", "E02_REPORT_WRITE_FAILED"),
+                        "message": str(error),
+                    }]
+                    exit_code = 20 if report["status"] == "CONFLICT" else 10
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+            return exit_code
+        if args.e02_command == "benchmark":
+            try:
+                if args.e02_benchmark_command == "generation":
+                    client = build_client(args.base_url) if args.authorize_live_service else object()
+                    report, exit_code = benchmark_generation(
+                        client,
+                        args.prompt,
+                        authorized=args.authorize_live_service,
+                        base_url=args.base_url,
+                        storage_path=args.storage_path,
+                        storage_root=args.storage_root,
+                    )
+                else:
+                    client = build_client(args.base_url) if args.authorize_live_service else object()
+                    report, exit_code = benchmark_embeddings(
+                        client,
+                        args.input,
+                        model_tags=args.model_tags,
+                        authorized=args.authorize_live_service,
+                        base_url=args.base_url,
+                        storage_path=args.storage_path,
+                        storage_root=args.storage_root,
+                    )
+            except (E02Error, OSError, TypeError, ValueError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": "e02 benchmark",
+                    "capability": "E02",
+                    "errors": [{"code": getattr(error, "code", "E02_INPUT_INVALID"), "message": str(error)}],
+                    "provider_called": False,
+                    "live_provider_called": False,
+                    "mutation_performed": False,
+                    "vault_mutation_performed": False,
+                    "canonical_apply_allowed": False,
+                }
+                exit_code = 10
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+            return exit_code
+        if args.e02_command == "evaluate":
+            try:
+                payload = json.loads(args.evaluation_file.read_text(encoding="utf-8"))
+                cases = payload["cases"] if isinstance(payload, dict) and "cases" in payload else payload
+                report, exit_code = evaluate_e02_rankings(
+                    cases,
+                    candidate_id=args.candidate_id,
+                    live_model_evidence=args.live_model_evidence,
+                    privacy_gate_passed=args.privacy_gate_passed,
+                    citation_gate_passed=args.citation_gate_passed,
+                    staleness_gate_passed=args.staleness_gate_passed,
+                    resource_gate_passed=args.resource_gate_passed,
+                    external_storage_used=args.external_storage_used,
+                )
+            except (E02Error, OSError, TypeError, ValueError, KeyError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": "e02 evaluate",
+                    "capability": "E02",
+                    "errors": [{"code": getattr(error, "code", "E02_INPUT_INVALID"), "message": str(error)}],
+                    "provider_called": False,
+                    "live_provider_called": False,
+                    "mutation_performed": False,
+                    "vault_mutation_performed": False,
+                    "canonical_apply_allowed": False,
+                }
+                exit_code = 10
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+            return exit_code
     if args.command == "ai" and args.ai_command == "gemma":
         report, exit_code = run_gemma_job(
             args.root or _control_root(),

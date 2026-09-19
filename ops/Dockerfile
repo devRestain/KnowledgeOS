@@ -1,4 +1,4 @@
-FROM python:3.12.8-slim-bookworm
+FROM python:3.12.8-slim-bookworm AS knowledgeos-dev
 
 ARG KNOWLEDGEOS_UID
 ARG KNOWLEDGEOS_GID
@@ -40,3 +40,9 @@ WORKDIR /workspace/control/ops
 USER ${KNOWLEDGEOS_UID}:${KNOWLEDGEOS_GID}
 
 CMD ["vaultctl", "--help"]
+
+FROM knowledgeos-dev AS e02-live
+
+LABEL org.knowledgeos.capability="E02" \
+      org.knowledgeos.lifecycle="one-shot" \
+      org.knowledgeos.network="none"

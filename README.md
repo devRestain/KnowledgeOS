@@ -4,10 +4,12 @@ KnowledgeOS는 생각과 자료를 빠르게 담아 두고, 나중에 판단할 
 
 이 공간의 중심은 “무엇이든 자동으로 정리해 주는 AI”가 아닙니다. 먼저 원본을 안전하게 보존하고, 사람이 검토할 수 있는 형태로 만들고, 확정한 내용만 정식 노트와 프로젝트에 반영합니다. 그래서 짧은 메모는 부담 없이 남길 수 있고, 중요한 판단은 나중에 근거를 확인하면서 내릴 수 있습니다.
 
-## KnowledgeOS를 사용하는 기본 흐름
+## KnowledgeOS에서 실제로 일어나는 흐름
 
 ```text
 빠르게 담기
+    ↓
+원본·노트 유형·공개 범위 확인
     ↓
 Inbox에서 다시 보기
     ↓
@@ -15,21 +17,42 @@ Inbox에서 다시 보기
     ↓
 정본 노트 또는 프로젝트로 확정하기
     ↓
-Home·Bases·검색으로 다시 사용하기
+검증된 읽기용 색인에서 검색하고 근거 확인하기
     ↓
-끝난 맥락은 Archive에 보존하기
+필요할 때만 AI 제안 또는 cited answer 요청하기
+    ↓
+개인 runtime 큐에서 한 번만 안전하게 처리하기
+    ↓
+검증된 결과·검토 필요·보류·충돌 중 하나로 확인하기
+    ↓
+AI Review에서 원본·변경·근거를 확인하기
+    ↓
+사람이 승인한 변경만 정본에 적용하기
+    ↓
+Home·Bases·검색으로 다시 사용하고 끝난 맥락은 Archive에 보존하기
 ```
 
 각 단계의 역할은 분명합니다.
 
 1. **담기** — 생각, 질문, URL, 인용문, 음성에서 얻은 요점, 파일을 원본 그대로 남깁니다.
-2. **다시 보기** — Inbox에 쌓인 항목을 한 번에 처리하지 않고, 지금 결정할 수 있는 것만 고릅니다.
-3. **분류하기** — task, idea, question, knowledge, source, project 중 적절한 맥락을 정합니다.
-4. **확정하기** — 정식 Markdown 노트와 속성을 만들고, 관련 프로젝트나 지식 노트에 연결합니다.
-5. **사용하기** — 오늘 할 일, 진행 중인 프로젝트, 열린 질문, 지식의 근거를 Home과 검색에서 다시 찾습니다.
-6. **보존하기** — 끝난 capture와 프로젝트를 Archive로 옮기되, 노트의 정체성과 링크는 유지합니다.
+2. **확인하기** — 노트 유형, 원본, 민감도와 AI 사용 정책을 확인해 어떤 맥락까지 사용할지 정합니다.
+3. **다시 보기** — Inbox에 쌓인 항목을 한 번에 처리하지 않고, 지금 결정할 수 있는 것만 고릅니다.
+4. **분류하기** — task, idea, question, knowledge, source, project 중 적절한 맥락을 정합니다.
+5. **확정하기** — 정식 Markdown 노트와 속성을 만들고, 관련 프로젝트나 지식 노트에 연결합니다.
+6. **찾고 이해하기** — 본문 검색과 허용된 typed link로 관련 맥락을 넓히고, 필요하면 정확한 근거가 붙은 답을 확인합니다.
+7. **검토하고 적용하기** — AI가 만든 분류·요약·링크·초안은 Review에서 원본과 diff를 확인한 뒤에만 정본에 반영합니다.
+8. **보존하기** — 끝난 capture와 프로젝트를 Archive로 옮기되, 노트의 정체성과 링크는 유지합니다.
 
 AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분류, 요약, 링크, 새 노트 작성은 사람이 확인하기 전까지 정본이 되지 않습니다.
+
+### 이 흐름이 사용자에게 주는 변화
+
+- **빠르게 남기고 나중에 판단할 수 있습니다.** Capture는 먼저 원문을 보존하고, 분류는 Inbox에서 이어서 합니다.
+- **검색 결과를 다시 확인할 수 있습니다.** 답변은 어떤 노트의 어느 위치를 근거로 했는지 보여 주며, 원본이 바뀌면 이전 근거를 그대로 사용하지 않습니다.
+- **AI의 역할이 단계별로 나뉩니다.** triage, 요약, 초안, 링크 제안, 정규화, cited answer는 각각 검토 가능한 제안으로 남고, 한 번의 모호한 명령이 정본을 바꾸지 않습니다.
+- **민감한 내용이 조용히 섞이지 않습니다.** `confidential` 또는 `ai_policy: deny`인 내용은 AI 맥락에서 제외되고, local-only 자료는 허용된 로컬 경로에서만 다뤄집니다.
+- **중복 작업이 정본을 흔들지 않습니다.** 한 작업은 private queue에서 한 번만 claim되고, 중단되면 lease가 만료된 뒤 다시 처리할 수 있으며, 같은 결과를 다시 받으면 중복 적용 없이 끝납니다.
+- **문제가 생기면 조용히 덮어쓰지 않습니다.** 원본·정책·근거·결과의 digest가 달라지면 충돌 또는 격리 상태로 멈추고, 사람이 확인할 수 있는 다음 행동을 남깁니다.
 
 ## 처음 사용하는 방법
 
@@ -266,10 +289,13 @@ Capture의 원문은 먼저 보존하고, 정식 노트로 옮길 때도 원본 
 AI Review는 정식 노트를 대신 쓰는 곳이 아니라, 사람이 판단하기 전의 제안을 보는 곳입니다.
 
 1. capture, Daily, Source처럼 원본이 있는 항목을 선택합니다.
-2. 분류, 요약, 링크, 정식 노트 초안 중 필요한 제안을 요청합니다.
-3. 제안의 원본 경로, 관련 프로젝트, 변경 내용을 확인합니다.
-4. 맞으면 승인하고, 아니면 수정하거나 거절합니다.
-5. 승인된 변경만 정본 노트에 적용합니다.
+2. 분류, 요약, 링크, 정식 노트 초안, 질문에 대한 cited answer 중 필요한 작업을 요청합니다.
+3. KnowledgeOS가 현재 원본·검색 결과·정책을 묶어 만든 검토 맥락을 기준으로 결과를 검사합니다.
+4. 제안의 원본 경로, 관련 프로젝트, 인용 위치, 변경 내용을 확인합니다.
+5. 맞으면 승인하고, 아니면 수정하거나 거절합니다. 판단을 미루려면 pending 상태로 남겨도 됩니다.
+6. 승인된 변경만 최신 원본과 다시 대조한 뒤 정본 노트에 적용합니다.
+
+모델이 만든 텍스트는 항상 신뢰하지 않은 입력으로 취급합니다. 예상하지 않은 도구 호출, reasoning payload, 잘못된 JSON, 근거가 바뀐 citation, 정책에 맞지 않는 내용은 Review에 도달하기 전에 거절됩니다. 이 검사는 결과를 더 그럴듯하게 만드는 장치가 아니라, 사람이 확인할 수 있는 범위 밖의 변경을 막는 장치입니다.
 
 AI Review의 상태는 대략 다음 의미를 가집니다.
 
@@ -281,6 +307,46 @@ AI Review의 상태는 대략 다음 의미를 가집니다.
 - **expired** — 승인할 수 있는 시간이 지나 다시 만들어야 하는 제안
 
 원본이 바뀐 상태에서 예전 제안을 억지로 적용하지 않습니다. 충돌이 나면 최신 원본을 기준으로 다시 검토합니다. 외부 AI provider를 사용하더라도 민감도와 `ai_policy`를 먼저 확인하며, 조용한 provider fallback이나 자동 정본 변경은 사용하지 않습니다.
+
+### AI 작업이 처리되는 방식
+
+사용자가 AI 작업을 요청하면 결과가 바로 정본 노트에 쓰이지 않습니다. 작업은 private runtime에 임시로 기록되고, 명시적으로 실행한 한 번의 worker가 다음 순서로 처리합니다.
+
+```text
+AI 작업 요청
+    ↓
+원본·검색 결과·정책·출력 schema를 고정
+    ↓
+private queue에서 작업 하나를 claim하고 lease를 발급
+    ↓
+허용된 local 또는 synthetic 경로 실행
+    ↓
+결과 schema·원본 digest·근거·정책을 다시 검증
+    ├─ answer_ready  → 응답을 확인
+    ├─ needs_review  → AI Review에서 제안과 diff를 확인
+    ├─ deferred      → 조건이 맞을 때 다시 처리
+    └─ conflict      → 변경된 파일이나 위조된 artifact를 격리
+    ↓
+사람이 승인한 경우에만 정본에 적용
+```
+
+worker가 처리 중 멈추면 만료된 lease를 회수해 같은 private artifact를 다시 검증합니다. 이미 완료한 작업은 동일한 digest를 다시 적용하지 않습니다. 이 때문에 사용자는 “실행 버튼을 여러 번 눌렀으니 노트가 여러 번 바뀌었을까?”를 걱정하기보다 Review와 terminal 상태를 확인하면 됩니다. queue가 live provider나 자동 실행을 허용하지 않는 경로를 만나면 작업은 `deferred`로 남고, 임의의 fallback을 선택하지 않습니다.
+
+### 로컬 Ollama와 Gemma를 사용할 때
+
+KnowledgeOS의 로컬 AI 검증은 물리 컴퓨터에 설치된 Ollama를 대상으로 합니다. 모델을 canonical Compose 컨테이너 안으로 옮기거나, Vault를 Ollama 프로세스에 직접 노출하지 않습니다.
+
+E02 검증 경로는 내부 SSD에 있는 선택된 모델의 identity, full digest, loopback 연결, cloud-off 정책, generation·embedding latency와 resource 결과를 한 번에 확인하는 host-native one-shot 작업입니다. 이 결과는 모델이 어떤 조건에서 안전하게 동작하는지 확인하는 evidence이며, 그 자체로 정본 노트를 수정하거나 background provider를 켜지 않습니다.
+
+사용자가 체감하는 순서는 다음과 같습니다.
+
+1. 필요한 경우에만 로컬 AI 작업을 명시적으로 요청합니다.
+2. 작업은 물리 컴퓨터의 `127.0.0.1` Ollama와 private runtime spool 사이에서 한 번만 실행됩니다.
+3. Ollama의 결과는 신뢰하지 않은 입력으로 취급되고, container-side 검증에서 schema·source·policy·digest를 다시 확인합니다.
+4. 검증을 통과한 결과만 답변 또는 Review 제안으로 보입니다.
+5. 사람은 citation, 원본, diff를 확인한 뒤 승인·거절·보류를 선택합니다.
+
+모델 다운로드, 모델 교체, 지속적인 provider daemon, LaunchAgent 활성화는 이 one-shot 검증과 별개의 운영 선택입니다. 따라서 E02가 완료되어도 “모든 AI 요청이 자동으로 Gemma를 호출한다”는 의미는 아닙니다. 기본 경험은 계속 local-first, proposal-only, human-approved입니다.
 
 ## 검색하고 답을 확인하는 법
 
@@ -299,9 +365,27 @@ KnowledgeOS의 검색은 한 번에 “그럴듯한 답”을 만드는 것보�
 
 ### 인용이 필요한 답
 
-`ask` 흐름은 질문이나 capture를 기준으로 답을 만들고, 답과 함께 근거 노트, 위치, evidence digest, uncertainty를 돌려주는 방식입니다. 근거가 부족하면 억지로 채우지 않고 insufficient input 또는 refused 결과를 남깁니다.
+`ask` 흐름은 질문이나 capture를 기준으로 답을 만들고, 답과 함께 근거 노트, 정확한 위치, 표시된 excerpt, evidence digest, uncertainty를 돌려주는 방식입니다. 답을 읽은 뒤에는 citation을 열어 원문을 직접 확인할 수 있습니다. 근거가 부족하거나 원본이 바뀌었으면 억지로 채우지 않고 insufficient input, conflict 또는 refused 결과를 남깁니다.
 
-기본 검색은 lexical-first이며, vector/RRF는 선택적인 실험 경로입니다. 따라서 검색 결과를 재현하고 싶을 때도 먼저 어떤 generation과 어떤 원본 노트를 기준으로 했는지 확인할 수 있습니다.
+기본 검색은 lexical-first이며, typed-link 확장은 허용된 관계와 제한된 범위 안에서만 일어납니다. vector/RRF와 learned retrieval은 기본 검색을 몰래 바꾸지 않는 선택 경로입니다. 따라서 검색 결과를 재현하고 싶을 때도 어떤 읽기용 generation, 원본 노트, 검색 경로를 기준으로 했는지 확인할 수 있습니다.
+
+### 질문에서 정본으로 돌아오는 짧은 경로
+
+```text
+질문 또는 capture 선택
+    ↓
+검색 결과와 관련 노트 확인
+    ↓
+cited answer 읽기
+    ↓
+citation으로 원문 확인
+    ↓
+필요하면 Question·Knowledge·Project를 사람이 작성
+    ↓
+AI 제안은 Review → 승인 → 최신 원본 재검증 → 적용
+```
+
+답변 자체를 정본으로 복사하지 않아도 됩니다. 답변은 판단을 돕는 읽기 화면이고, 오래 남겨야 하는 결론은 사람이 근거와 함께 Question, Knowledge 또는 Project에 확정합니다.
 
 ## Daily와 Weekly Review
 
@@ -392,6 +476,7 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 - `confidential` 자료는 remote provider로 보내지 않는 것을 기본으로 합니다.
 - 사람·회의 자료는 기본적으로 더 보수적인 privacy 정책을 적용합니다.
 - 모바일은 capture·조회·보류를 우선하고, canonical apply는 Mac에서 합니다.
+- private queue는 bounded one-shot 처리와 lease recovery를 사용하며, 위조되거나 digest가 달라진 artifact는 격리합니다.
 - 자동 pull, 자동 commit, 자동 push, force push는 기본값이 아닙니다.
 - 항상 켜진 worker와 LaunchAgent는 기본 비활성입니다.
 
@@ -407,7 +492,11 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 - AI 제안은 preview·review·approval을 거치는 구조입니다.
 - lexical search, typed-link retrieval, 근거가 붙은 cited answer를 사용할 수 있습니다.
 - vector/RRF는 기본 검색을 바꾸지 않는 선택 기능입니다.
-- background worker는 필요할 때 명시적으로 실행하는 보조 기능이며, 자동 활성화되어 있지 않습니다.
+- action별 AI 제안과 schema 검사는 원본·정책·citation에 묶여 있으며, provider 결과가 곧바로 정본을 바꾸지 않습니다.
+- background worker는 필요할 때 명시적으로 실행하는 provider-free 보조 기능이며, 항상 켜진 provider queue나 LaunchAgent는 활성화되어 있지 않습니다.
+- private provider queue는 `vaultctl ai queue`로 한 번만 명시적으로 처리할 수 있으며, bounded local/synthetic 작업을 claim하고 lease를 회수하며, 결과를 재검증한 뒤 응답 또는 Review 제안으로만 공개합니다. 이 명령은 live provider, LaunchAgent, 자동 실행 또는 정본 apply를 활성화하지 않습니다.
+- E02 host-native Ollama verification은 내부 SSD·loopback·cloud-off 조건에서 generation과 embedding profile을 확인하는 별도 one-shot 경로로 완료되었습니다. 모델 identity와 resource evidence는 기록되지만, 모델 다운로드·자동 fallback·지속적인 provider daemon은 기본 사용 범위에 포함되지 않습니다.
+- 실제 live provider를 일상적인 요청 경로로 승격하거나 LaunchAgent를 설치하는 일은 E02/C36 완료와 별도의 운영 결정입니다. 현재 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
 
 모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결, LaunchAgent 활성화는 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름을 그대로 사용하면 됩니다.
 
