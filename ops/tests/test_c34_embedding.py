@@ -12,6 +12,8 @@ from vaultops.embedding_index import (
     DEFAULT_MODEL_DIMENSION,
     DEFAULT_MODEL_TAG,
     EMBEDDING_CONFIG_SHA256,
+    UNKNOWN_QUERY_ABSTENTION_THRESHOLD,
+    _apply_unknown_query_abstention,
     build_embedding_index,
     embedding_index_manifest_schema,
     evaluate_c34_baseline,
@@ -168,6 +170,21 @@ def test_c34_learned_evaluation_compares_all_channels_without_promotion(tmp_path
 
 
 def test_c34_owned_schemas_match_executable_contracts() -> None:
-    assert embedding_index_manifest_schema()["properties"]["embedding_dimension"]["const"] == 768
+    assert embedding_index_manifest_schema()["properties"]["embedding_dimension"]["const"] == DEFAULT_MODEL_DIMENSION
     assert embedding_index_manifest_schema()["properties"]["truncate"]["const"] is False
     assert learned_retrieval_evaluation_schema()["properties"]["live_model_evidence"]["const"] is False
+
+
+def test_c34_unknown_query_abstention_is_frozen_and_fail_closed() -> None:
+    known = [{"vector_score_and_rank": {"score": 0.583974046833}}]
+    unknown = [{"vector_score_and_rank": {"score": 0.245790569561}}]
+
+    retained, known_report = _apply_unknown_query_abstention(known)
+    assert retained == known
+    assert known_report["abstained"] is False
+    assert known_report["threshold"] == UNKNOWN_QUERY_ABSTENTION_THRESHOLD
+
+    retained, unknown_report = _apply_unknown_query_abstention(unknown)
+    assert retained == []
+    assert unknown_report["abstained"] is True
+    assert unknown_report["reason"] == "top_vector_score_below_threshold"

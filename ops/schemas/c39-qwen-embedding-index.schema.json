@@ -1,13 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.invalid/knowledgeos/c34-embedding-index.schema.json",
-  "title": "KnowledgeOS C34 immutable Qwen index manifest",
+  "$id": "https://local.invalid/knowledgeos/c39-qwen-embedding-index.schema.json",
+  "title": "KnowledgeOS C39 immutable Qwen candidate embedding index manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
     "capability",
     "artifact_kind",
+    "candidate_only",
+    "canonical_c34_mutated",
     "index_id",
     "generation_root",
     "manifest_path",
@@ -36,14 +38,20 @@
       "const": 1
     },
     "capability": {
-      "const": "C34"
+      "const": "C39"
     },
     "artifact_kind": {
-      "const": "embedding_index"
+      "const": "candidate_embedding_index"
+    },
+    "candidate_only": {
+      "const": true
+    },
+    "canonical_c34_mutated": {
+      "const": false
     },
     "index_id": {
       "type": "string",
-      "pattern": "^c34-[0-9a-f]{64}$"
+      "pattern": "^c39-qwen-[0-9a-f]{64}$"
     },
     "generation_root": {
       "type": "string",
@@ -97,7 +105,7 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "indexer_version": {
-      "const": "vaultops.embedding.v1"
+      "const": "vaultops.qwen_embedding.v1"
     },
     "retrieval_config_sha256": {
       "type": "string",

@@ -24,6 +24,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .generation_identity import generation_inference_options
 from .recovery import fsync_directory
 
 SCHEMA_VERSION = 1
@@ -63,18 +64,10 @@ LIMITS: dict[str, int] = {
     "max_job_age_seconds": 3600,
 }
 
-DEFAULT_INFERENCE_OPTIONS: dict[str, Any] = {
-    "num_ctx": 8192,
-    "stream": False,
-    "think": False,
-    "tools": False,
-    "temperature": 0,
-    "seed": 0,
-    "max_output_tokens": LIMITS["max_output_tokens"],
-    "keep_alive": 0,
-    "parallel_requests": 1,
-    "timeout_seconds": LIMITS["max_timeout_seconds"],
-}
+DEFAULT_INFERENCE_OPTIONS: dict[str, Any] = generation_inference_options(
+    max_output_tokens=LIMITS["max_output_tokens"],
+    timeout_seconds=LIMITS["max_timeout_seconds"],
+)
 
 ALLOWED_ACTIONS = (
     "triage",

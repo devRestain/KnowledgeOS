@@ -1,0 +1,26 @@
+schema_version: 1
+capability: E02
+profile: portable_core
+fixture_id: e02-qwen-contradiction-v1
+privacy:
+  corpus: temporary_local_eligible_notes
+  raw_content_storage: private_runtime_only
+  canonical_vault_mutation: false
+query: "게스트북 호러 플레이 루프의 현재 결정"
+contradictory_sources:
+  - path: 40_Knowledge/Notes/E02 Contradiction Approved.md
+    stance: approved
+  - path: 40_Knowledge/Notes/E02 Contradiction Superseded.md
+    stance: superseded
+expected_paths:
+  - 40_Knowledge/Notes/E02 Contradiction Approved.md
+  - 40_Knowledge/Notes/E02 Contradiction Superseded.md
+assertions:
+  require_both_sources: true
+  require_citation_identity: true
+  require_no_generated_conclusion: true
+  generation_refusal: not_applicable
+  canonical_mutation: false
+unknown_query:
+  query: "quantum banana satellite taxonomy"
+  abstention_threshold: 0.4

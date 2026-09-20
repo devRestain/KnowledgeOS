@@ -1,4 +1,4 @@
-"""C34 immutable EmbeddingGemma indexing and learned retrieval evaluation.
+"""C34 immutable Qwen indexing and learned retrieval evaluation.
 
 The C34 surface is an opt-in overlay on top of the C21 projection and C25
 privacy gate.  It stores only private runtime vectors and provenance, never
@@ -63,9 +63,9 @@ from .yaml_safe import load_yaml_text
 
 CAPABILITY = "C34"
 INDEXER_VERSION = "vaultops.embedding.v1"
-DEFAULT_MODEL_TAG = "embeddinggemma:300m-qat-q8_0"
-DEFAULT_MODEL_DIMENSION = 768
-DEFAULT_BATCH_SIZE = 50
+DEFAULT_MODEL_TAG = "qwen3-embedding:8b-q4_K_M"
+DEFAULT_MODEL_DIMENSION = 4096
+DEFAULT_BATCH_SIZE = 2
 DEFAULT_LIMIT = 10
 DEFAULT_BASELINE_PATH = "ops/tests/fixtures/c34_embeddings/evaluation.yaml"
 INDEX_ROOT = "index/embeddings"
@@ -74,14 +74,18 @@ CURRENT_POINTER = f"{INDEX_ROOT}/current.json"
 EMBEDDING_INDEX_RECORD_SCHEMA_PATH = "ops/schemas/c34-embedding-index-record.schema.json"
 EMBEDDING_INDEX_SCHEMA_PATH = "ops/schemas/c34-embedding-index.schema.json"
 EMBEDDING_EVALUATION_SCHEMA_PATH = "ops/schemas/c34-retrieval-evaluation.schema.json"
-QUERY_PROMPT_TEMPLATE = "task: search result | query: {query}"
+QUERY_PROMPT_TEMPLATE = (
+    "Instruct: Given a KnowledgeOS search query, retrieve note passages that answer or directly support the query\n"
+    "Query: {query}"
+)
 DOCUMENT_PROMPT_TEMPLATE = "title: {title} | text: {text}"
+UNKNOWN_QUERY_ABSTENTION_THRESHOLD = 0.40
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _MODEL_TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _INDEX_ID_RE = re.compile(r"^c34-[0-9a-f]{64}$")
 _GENERATION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-_LINE_BREAKS = ("\r", "\v", "\f", "\x85", "\u2028", "\u2029")
+_LINE_BREAKS = ("\n", "\r", "\v", "\f", "\x85", "\u2028", "\u2029")
 
 
 class EmbeddingIndexError(ValueError):
@@ -155,8 +159,8 @@ def _validate_model_tag(value: object, label: str = "model_tag") -> str:
     lowered = value.casefold()
     if lowered in {"latest", "embeddinggemma"} or lowered.endswith(":latest"):
         raise EmbeddingIndexValidationError(f"{label} must not use an unpinned alias")
-    if not lowered.startswith("embeddinggemma:"):
-        raise EmbeddingIndexValidationError(f"{label} must identify an EmbeddingGemma model")
+    if lowered != DEFAULT_MODEL_TAG.casefold():
+        raise EmbeddingIndexValidationError(f"{label} must identify the user-approved Qwen model")
     return value
 
 
@@ -177,7 +181,7 @@ def _validate_generation_id(value: object, label: str) -> str:
 
 
 def embedding_contract() -> dict[str, Any]:
-    """Return the frozen C34 embedding identity and prompt-role contract."""
+    """Return the accepted C34 Qwen identity and prompt-role contract."""
 
     return {
         "schema_version": 1,
@@ -192,6 +196,13 @@ def embedding_contract() -> dict[str, Any]:
         "parser_and_chunker_version": PARSER_AND_CHUNKER_VERSION,
         "indexer_version": INDEXER_VERSION,
         "retrieval_baseline": "lexical_and_e01_feature_hash",
+        "live_default_selector": True,
+        "activation_mode": "explicit_serial",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+        "unknown_query_abstention_threshold": UNKNOWN_QUERY_ABSTENTION_THRESHOLD,
         "promotion_gate": "E02_live_model_quality_privacy_citation_staleness_latency_memory",
     }
 
@@ -206,7 +217,7 @@ EMBEDDING_CONFIG_SHA256 = embedding_config_sha256()
 
 
 def query_prompt(query: str) -> str:
-    """Render the distinct EmbeddingGemma query role."""
+    """Render the distinct Qwen query role."""
 
     if not isinstance(query, str) or not query.strip() or "\x00" in query:
         raise EmbeddingIndexValidationError("query must be non-empty text without NUL")
@@ -217,7 +228,7 @@ def query_prompt(query: str) -> str:
 
 
 def document_prompt(*, title: str, text: str) -> str:
-    """Render the distinct EmbeddingGemma document role."""
+    """Render the distinct Qwen document role."""
 
     if not isinstance(title, str) or not isinstance(text, str):
         raise EmbeddingIndexValidationError("document title and text must be strings")
@@ -286,6 +297,48 @@ def _zero_lexical() -> dict[str, Any]:
         "query_terms": [],
         "matched_terms": [],
         "field_hits": {"title": [], "properties": [], "body": []},
+    }
+
+
+def _apply_unknown_query_abstention(
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    threshold: float = UNKNOWN_QUERY_ABSTENTION_THRESHOLD,
+    lexical_supported: bool = False,
+) -> tuple[list[Mapping[str, Any]], dict[str, Any]]:
+    """Abstain when every eligible learned match falls below the frozen threshold."""
+
+    if not isinstance(threshold, (int, float)) or isinstance(threshold, bool) or not 0.0 <= float(threshold) <= 1.0:
+        raise EmbeddingIndexValidationError("unknown-query abstention threshold must be between zero and one")
+    scores: list[float] = []
+    for candidate in candidates:
+        vector = candidate.get("vector_score_and_rank")
+        if isinstance(vector, Mapping):
+            score = vector.get("score")
+            if isinstance(score, (int, float)) and not isinstance(score, bool) and math.isfinite(float(score)):
+                scores.append(float(score))
+    top_score = max(scores, default=None)
+    abstained = not lexical_supported and top_score is not None and top_score < float(threshold)
+    if abstained:
+        retained: list[Mapping[str, Any]] = []
+        reason = "top_vector_score_below_threshold"
+    else:
+        retained = list(candidates)
+        reason = (
+            "lexical_support"
+            if lexical_supported
+            else "no_eligible_candidates"
+            if top_score is None
+            else "top_vector_score_meets_threshold"
+        )
+    return retained, {
+        "enabled": True,
+        "abstained": abstained,
+        "threshold": float(threshold),
+        "top_vector_score": top_score,
+        "candidate_count_before": len(candidates),
+        "candidate_count_after": len(retained),
+        "reason": reason,
     }
 
 
@@ -377,7 +430,7 @@ def embedding_index_manifest_schema() -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://local.invalid/knowledgeos/c34-embedding-index.schema.json",
-        "title": "KnowledgeOS C34 immutable EmbeddingGemma index manifest",
+        "title": "KnowledgeOS C34 immutable Qwen index manifest",
         "type": "object",
         "additionalProperties": False,
         "required": [
@@ -1172,7 +1225,7 @@ def _learned_candidates(
             graph_path=[],
         )
         candidate["vector_score_and_rank"] = {
-            "algorithm": "cosine_embeddinggemma_v1",
+            "algorithm": "cosine_qwen3_embedding_v1",
             "score": round(float(score), 12),
             "rank": rank,
             "dimension": index.dimension,
@@ -1190,6 +1243,17 @@ def _learned_candidates(
             raise EmbeddingIndexValidationError(f"learned candidate is invalid: {errors[0].message}")
         learned.append(candidate)
     learned = _revalidate_candidates(projection, retrieval, learned, options=options)
+    lexical_probe = _lexical_candidates(
+        included,
+        normalized_query,
+        query_sha256,
+        _terms,
+        str(projection.manifest["generation_id"]),
+        policy_hash,
+        retrieval_config_sha256,
+    )
+    lexical_probe = _revalidate_candidates(projection, retrieval, lexical_probe, options=options)
+    learned, abstention = _apply_unknown_query_abstention(learned, lexical_supported=bool(lexical_probe))
     return {
         "query_sha256": query_sha256,
         "policy_decision_sha256": policy_hash,
@@ -1200,6 +1264,7 @@ def _learned_candidates(
         "embedding_enabled": True,
         "retrieval_mode": "learned_rrf" if fuse else "learned_vector",
         "candidates": learned,
+        "abstention": abstention,
         "filters": {
             "scope": options.scope,
             "path_prefix": options.path_prefix,
@@ -1330,7 +1395,7 @@ def _learned_projection(
         hops=hops,
         fuse=fuse,
     )
-    if not fuse:
+    if not fuse or learned_result["abstention"]["abstained"]:
         return learned_result
     normalized_query, query_sha256, terms, options, included, excluded, normalized_limit, normalized_hops, policy_hash = _retrieval_context(
         projection,
@@ -1878,6 +1943,7 @@ __all__ = [
     "CAPABILITY",
     "CURRENT_POINTER",
     "DEFAULT_BASELINE_PATH",
+    "DEFAULT_BATCH_SIZE",
     "DEFAULT_MODEL_DIMENSION",
     "DEFAULT_MODEL_TAG",
     "DOCUMENT_PROMPT_TEMPLATE",
@@ -1887,6 +1953,7 @@ __all__ = [
     "EMBEDDING_INDEX_SCHEMA_PATH",
     "INDEXER_VERSION",
     "QUERY_PROMPT_TEMPLATE",
+    "UNKNOWN_QUERY_ABSTENTION_THRESHOLD",
     "EmbeddingIndex",
     "EmbeddingIndexConflict",
     "EmbeddingIndexError",

@@ -34,6 +34,13 @@ from typing import Any, Protocol
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .embedding_index import UNKNOWN_QUERY_ABSTENTION_THRESHOLD
+from .generation_identity import (
+    GENERATION_CONTEXT,
+    GENERATION_MODEL_TAG,
+    GENERATION_SEED,
+    generation_model_options,
+)
 from .ollama import OllamaClient, OllamaError, OllamaProfile
 from .provider_broker import EXIT_CONFLICT, EXIT_INPUT_INVALID, EXIT_OK
 from .provider_contract import (
@@ -53,9 +60,9 @@ CAPABILITY = "E02"
 REPORT_SCHEMA_VERSION = 1
 REPORT_SCHEMA_PATH = "ops/schemas/e02-verification-report.schema.json"
 DEFAULT_BASE_URL = "http://127.0.0.1:11434"
-DEFAULT_GENERATION_TAG = "gemma4:12b"
-DEFAULT_GENERATION_CONTEXT = 8192
-DEFAULT_GENERATION_SEED = 0
+DEFAULT_GENERATION_TAG = GENERATION_MODEL_TAG
+DEFAULT_GENERATION_CONTEXT = GENERATION_CONTEXT
+DEFAULT_GENERATION_SEED = GENERATION_SEED
 DEFAULT_MAX_QUEUE = 1
 REPORT_FILENAME = "verification-report.json"
 DEFAULT_EMBEDDING_QUERY_INSTRUCTION = (
@@ -511,57 +518,35 @@ def _validate_host_environment(base_url: str) -> None:
 def generation_profile() -> dict[str, Any]:
     """Return the immutable E02 Gemma generation baseline."""
 
+    options = generation_model_options()
+    options["max_queue"] = DEFAULT_MAX_QUEUE
     return {
         "task": "generation",
         "requested_model_tag": DEFAULT_GENERATION_TAG,
-        "options": {
-            "num_ctx": DEFAULT_GENERATION_CONTEXT,
-            "stream": False,
-            "think": False,
-            "tools": False,
-            "temperature": 0,
-            "seed": DEFAULT_GENERATION_SEED,
-            "max_output_tokens": LIMITS["max_output_tokens"],
-            "keep_alive": 0,
-            "parallel_requests": 1,
-            "max_queue": DEFAULT_MAX_QUEUE,
-        },
+        "options": options,
         "context_comparison_profiles": [8192, 16384, 32768],
     }
 
 
 def embedding_profiles() -> list[dict[str, Any]]:
-    """Return E02 candidates without changing the frozen C34 profile."""
+    """Return only the user-approved E02 embedding profiles.
+
+    Qwen is the default-quality candidate.  EmbeddingGemma remains available
+    as the explicit emergency resource fallback.  The Qwen live-default
+    selector still requires the explicit serial activation policy.
+    """
 
     return [
         {
             "requested_model_tag": "qwen3-embedding:8b-q4_K_M",
-            "quality_tier": "quality_candidate",
+            "quality_tier": "default_embedding",
             "expected_dimension": 4096,
             "recommended": True,
         },
         {
-            "requested_model_tag": "qwen3-embedding:4b-q8_0",
-            "quality_tier": "balanced_operational_baseline",
-            "expected_dimension": 2560,
-            "recommended": True,
-        },
-        {
-            "requested_model_tag": "qwen3-embedding:0.6b-q8_0",
-            "quality_tier": "low_resource_control",
-            "expected_dimension": 1024,
-            "recommended": False,
-        },
-        {
             "requested_model_tag": "embeddinggemma:300m-qat-q8_0",
-            "quality_tier": "c34_compatibility_control",
+            "quality_tier": "emergency_resource_fallback",
             "expected_dimension": 768,
-            "recommended": False,
-        },
-        {
-            "requested_model_tag": "bge-m3:567m",
-            "quality_tier": "optional_multilingual_control",
-            "expected_dimension": 1024,
             "recommended": False,
         },
     ]
@@ -577,11 +562,30 @@ def e02_contract() -> dict[str, Any]:
         "endpoint": _endpoint_report(),
         "generation": generation_profile(),
         "embeddings": embedding_profiles(),
+        "embedding_selection": {
+            "default_model_tag": "qwen3-embedding:8b-q4_K_M",
+            "emergency_resource_fallback_model_tag": "embeddinggemma:300m-qat-q8_0",
+            "default_selector_state": "live_default",
+            "fallback_selector_state": "emergency_resource_fallback",
+        },
         "embedding_query_instruction": DEFAULT_EMBEDDING_QUERY_INSTRUCTION,
         "embedding_document_template": DEFAULT_EMBEDDING_DOCUMENT_TEMPLATE,
         "storage_scope": "internal_ssd_only",
         "external_storage_allowed": False,
         "canonical_c34_mutation_allowed": False,
+        "canonical_promotion_authority": "vaultops.qwen_embedding_index.evaluate_qwen_promotion",
+        "resource_policy": {
+            "mode": "serial_only",
+            "one_model_loaded": True,
+            "concurrent_requests": False,
+            "unattended_activation": False,
+            "accepted_min_free_memory_percent": 24,
+        },
+        "coverage_policy": {
+            "embedding_only_generation_refusal": "not_applicable",
+            "unknown_query_abstention_threshold": UNKNOWN_QUERY_ABSTENTION_THRESHOLD,
+            "contradiction_fixture": "ops/tests/fixtures/e02_retrieval/contradiction.yaml",
+        },
         "promotion_gate": [
             "live_external_service_identity",
             "privacy",

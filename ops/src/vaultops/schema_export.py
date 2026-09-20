@@ -63,6 +63,7 @@ from .embedding_index import (
     embedding_index_record_schema,
     learned_retrieval_evaluation_schema,
 )
+from .generation_identity import IDENTITY_SCHEMA_PATH, generation_identity_schema
 from .local_models import (
     LOCAL_MODEL_AUTHORITATIVE_SELECTORS,
     LOCAL_MODEL_CONFIG_PATH,
@@ -97,6 +98,12 @@ from .provider_contract import (
     provider_response_schema,
     remote_authorization_schema,
     validate_blueprint_provider_contract,
+)
+from .qwen_embedding_index import (
+    QWEN_INDEX_RECORD_SCHEMA_PATH,
+    QWEN_INDEX_SCHEMA_PATH,
+    qwen_embedding_index_manifest_schema,
+    qwen_embedding_index_record_schema,
 )
 from .triage import triage_result_schema
 from .vector import vector_evaluation_schema
@@ -462,6 +469,26 @@ OWNED_ARTIFACTS = (
         inputs_path="ops/src/vaultops/embedding_index.py",
     ),
     _owned(
+        QWEN_INDEX_RECORD_SCHEMA_PATH,
+        "c39_qwen_embedding_index_record_schema",
+        ("/qwen_embedding_contract", "/qwen_embedding_index_record_schema"),
+        deployed_copy=False,
+        owner="C39",
+        first_capability="C39",
+        generator_id="vaultops.qwen_embedding_index",
+        inputs_path="ops/src/vaultops/qwen_embedding_index.py",
+    ),
+    _owned(
+        QWEN_INDEX_SCHEMA_PATH,
+        "c39_qwen_embedding_index_schema",
+        ("/qwen_embedding_contract", "/qwen_embedding_index_manifest_schema"),
+        deployed_copy=False,
+        owner="C39",
+        first_capability="C39",
+        generator_id="vaultops.qwen_embedding_index",
+        inputs_path="ops/src/vaultops/qwen_embedding_index.py",
+    ),
+    _owned(
         E02_VERIFICATION_SCHEMA_PATH,
         "e02_verification_report_schema",
         ("/e02_contract", "/e02_verification_report_schema"),
@@ -470,6 +497,16 @@ OWNED_ARTIFACTS = (
         first_capability="E02",
         generator_id="vaultops.e02",
         inputs_path="ops/src/vaultops/e02.py",
+    ),
+    _owned(
+        IDENTITY_SCHEMA_PATH,
+        "generation_identity_schema",
+        ("/canonical_generation_profile", "/generation_identity_schema"),
+        deployed_copy=False,
+        owner="C38",
+        first_capability="C38",
+        generator_id="vaultops.generation_identity",
+        inputs_path="ops/src/vaultops/generation_identity.py",
     ),
 )
 
@@ -838,8 +875,14 @@ def _generated_bytes(workspace: Path, blueprint: Mapping[str, Any], spec: Artifa
         return schema_bytes(embedding_index_manifest_schema())
     if spec.path == EMBEDDING_EVALUATION_SCHEMA_PATH:
         return schema_bytes(learned_retrieval_evaluation_schema())
+    if spec.path == QWEN_INDEX_RECORD_SCHEMA_PATH:
+        return schema_bytes(qwen_embedding_index_record_schema())
+    if spec.path == QWEN_INDEX_SCHEMA_PATH:
+        return schema_bytes(qwen_embedding_index_manifest_schema())
     if spec.path == E02_VERIFICATION_SCHEMA_PATH:
         return schema_bytes(e02_verification_report_schema())
+    if spec.path == IDENTITY_SCHEMA_PATH:
+        return schema_bytes(generation_identity_schema())
     if spec.path == LOCAL_MODEL_CONFIG_PATH:
         return local_model_config_bytes(
             blueprint,

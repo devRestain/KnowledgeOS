@@ -516,6 +516,24 @@ artifacts:
     generator: vaultops.embedding_index:c34_retrieval_evaluation_schema
     deployed_copy: false
     first_capability: C34
+  - path: ops/schemas/c39-qwen-embedding-index-record.schema.json
+    owner: C39
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/qwen_embedding_index.py
+        selectors: [/qwen_embedding_contract, /qwen_embedding_index_record_schema]
+    generator: vaultops.qwen_embedding_index:c39_qwen_embedding_index_record_schema
+    deployed_copy: false
+    first_capability: C39
+  - path: ops/schemas/c39-qwen-embedding-index.schema.json
+    owner: C39
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/qwen_embedding_index.py
+        selectors: [/qwen_embedding_contract, /qwen_embedding_index_manifest_schema]
+    generator: vaultops.qwen_embedding_index:c39_qwen_embedding_index_schema
+    deployed_copy: false
+    first_capability: C39
   - path: ops/schemas/e02-verification-report.schema.json
     owner: E02
     status: OWNED
@@ -525,3 +543,12 @@ artifacts:
     generator: vaultops.e02:e02_verification_report_schema
     deployed_copy: false
     first_capability: E02
+  - path: ops/schemas/c38-generation-identity.schema.json
+    owner: C38
+    status: OWNED
+    authoritative_inputs:
+      - path: ops/src/vaultops/generation_identity.py
+        selectors: [/canonical_generation_profile, /generation_identity_schema]
+    generator: vaultops.generation_identity:generation_identity_schema
+    deployed_copy: false
+    first_capability: C38

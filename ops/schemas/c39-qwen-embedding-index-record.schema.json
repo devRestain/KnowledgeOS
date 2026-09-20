@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.invalid/knowledgeos/c34-embedding-index-record.schema.json",
-  "title": "KnowledgeOS C34 immutable embedding index record",
+  "$id": "https://local.invalid/knowledgeos/c39-qwen-embedding-index-record.schema.json",
+  "title": "KnowledgeOS C39 Qwen candidate embedding index record",
   "type": "object",
   "additionalProperties": false,
   "required": [

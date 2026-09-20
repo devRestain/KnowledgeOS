@@ -42,7 +42,7 @@
 - `C31` — Implement provider-neutral request, response, receipt, and frozen-context envelopes.
 - `C32` — Implement the executable pipeline broker and deterministic synthetic provider adapter.
 - `C33` — Implement a bounded Ollama connector and verify it against a fake local service.
-- `C34` — Implement an immutable EmbeddingGemma index and learned-retrieval quality gate.
+- `C34` — Operate the immutable Qwen index and learned-retrieval quality gate after the accepted E02 promotion.
 - `C35` — Implement schema-constrained Gemma 4 answer and proposal routes without direct Vault mutation.
 - `C36` — Implement a recoverable one-shot provider queue consumer while provider-queue background activation stays disabled.
 - `C37` — Finalize the Mac plugin-profile Blueprint and canonical `gemma4:12b` identity, then regenerate owned artifacts.
@@ -52,6 +52,13 @@
 - `C41` — Implement the removable Obsidian thin client behind the authenticated loopback broker.
 - `C42` — Close privacy, citation, quality, and observability gates.
 - `C43` — Operate and roll back local AI safely across independently authorized lanes.
+
+## Parallel lane rule
+
+- `P01` remains an independent core/community-plugin setting-state lane; it does not gate starting C38 and it never operates Obsidian or changes a live profile.
+- `F01` through `F06` remain a separate GUI-first period-note and `vaultctl` boundary lane; F work consumes explicitly recorded P01 evidence only where its plan declares that dependency.
+- `C38` starts as its own local-generation identity lane. C38 may centralize the `gemma4:12b` profile and validate private evidence bindings without importing P01 or F implementation work.
+- Cross-lane sequencing exists only where a capability explicitly declares a dependency, such as C41 consuming P01 setting-state evidence; numeric labels do not impose ordering across P, F, and C lanes.
 
 ## C25+ acceptance sequence
 
@@ -130,8 +137,8 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 
 ### C39 — Add the local embedding adapter and a non-destructive index promotion gate
 
-- Dependencies: C25, C29, C34, C37, and E02 embedding measurements.
-- Define a provider-neutral local embedding interface that supports distinct query/document templates, explicit dimensions, normalization, truncation refusal, full model digest capture, parser/chunker identity, and indexer version binding. Keep the current C34 compatibility control and 768-dimension canonical index frozen until a new profile is promoted.
+  - Dependencies: C25, C29, C34, C37, and E02 embedding measurements.
+- Define a provider-neutral local embedding interface that supports distinct query/document templates, explicit dimensions, normalization, truncation refusal, full model digest capture, parser/chunker identity, and indexer version binding. Make Qwen3-Embedding 8B the live default selection, keep EmbeddingGemma as the emergency resource fallback, and validate the accepted Qwen identity through a temporary privacy-eligible C34 canonical build at the E02 gate while defer durable pointer materialization until KnowledgeOS implementation completion.
 - Compare the selected local candidates on the same privacy-filtered Korean and multilingual fixture against lexical-only, E01 feature hashing, the current learned baseline, and RRF. Record Recall@k or the fixture's required-path predicates, MRR/nDCG where applicable, citation freshness, cold/warm latency, throughput, memory/device placement, refusal/truncation, index size, and replay behavior.
 - Rebuild into a new immutable generation on any model, dimension, prompt, parser, chunker, or policy drift. Never mutate the canonical index in place, silently switch dimensions, or let a plugin-owned index become KnowledgeOS evidence.
 - Acceptance requires a measured quality/resource/privacy gate and a reviewable promotion receipt; fake loopback responses can verify orchestration only and cannot satisfy live promotion.
@@ -194,14 +201,14 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 - Keep E02 production verification independent of external storage. If an experimental model exists only on an external SSD, record it as unavailable for E02; do not auto-mount, auto-download, silently fall back, or promote it until the model and its derived index are copied to the internal SSD and the complete E02 profile is rerun without the external SSD.
 - Use `gemma4:12b` as the only permitted generation model identity across C30, E02, and later provider routes. Reject aliases, quantization or runtime variants, and silent rewrites; record the exact requested tag plus the locally resolved name and full digest when Ollama reports identity. The existing C30 disabled configuration remains a declaration baseline until this live identity is observed and approved.
 - Start generation with `num_ctx=8192`, text-only input, `stream=false`, `think=false`, no tools, temperature `0`, a fixed evaluation seed, bounded output, `keep_alive=0`, one loaded model, one parallel request, and a small bounded queue. Add 16K and 32K context profiles only as measured comparisons; record requested and observed context separately and do not infer runtime capacity from Gemma's advertised maximum.
-- Make Qwen3-Embedding the primary E02 embedding family because it supports Korean and more than 100 languages, instruction-aware query encoding, flexible dimensions, and a quality/size ladder:
-  - `qwen3-embedding:8b-q4_K_M` is the quality candidate. It exposes the 8B model's 4096-dimension identity while using an Ollama-listed 4.7 GB Q4 artifact; use it when the host's measured memory and generation contention budget permit.
-  - `qwen3-embedding:4b-q8_0` is the balanced operational baseline. It exposes the 4B model's 2560-dimension identity and is the first candidate to try when Gemma 4 12B and embedding work must share the host without serializing every interaction.
-  - `qwen3-embedding:0.6b-q8_0` is the low-resource control. It provides a 1024-dimension, 32K-context profile for measuring the quality/latency/storage floor, not the recommended final quality target.
-  - Keep `embeddinggemma:300m-qat-q8_0` as the existing C34 compatibility control and add `bge-m3:567m` only as an optional multilingual/dense-sparse comparison. BGE-M3 is useful if later retrieval needs its multi-functionality, but its 1024-dimension dense result alone does not replace the Qwen quality candidate.
-- Recommendation for E02 is therefore `qwen3-embedding:8b-q4_K_M` for maximum expected retrieval quality and `qwen3-embedding:4b-q8_0` as the likely day-to-day default if co-residency with `gemma4:12b` matters. The final selection is evidence-gated by the frozen Korean/multilingual KnowledgeOS fixture plus host memory and latency measurements, not by public benchmark rank alone.
+- Make `qwen3-embedding:8b-q4_K_M` the live default E02 embedding selector. It exposes the 8B model's 4096-dimension identity while using the user-approved Ollama-listed 4.7 GB Q4 artifact; use it only through the measured, loopback, internal-SSD boundary and the explicit serial activation policy.
+  - Keep `embeddinggemma:300m-qat-q8_0` as the explicit `emergency_resource_fallback`. It is available when the Qwen resource profile is unacceptable, but it is not the default embedding selection.
+  - The current E02 host scope contains only `gemma4:12b`, `qwen3-embedding:8b-q4_K_M`, and `embeddinggemma:300m-qat-q8_0`; uninstalled Qwen size variants and other embedding families are not E02 candidates in this branch.
+- The default selection is therefore Qwen, with EmbeddingGemma opened only as a resource-emergency fallback. Selection remains evidence-gated by the frozen Korean/multilingual KnowledgeOS fixture plus host memory and latency measurements, not by public benchmark rank alone.
 - Do not reuse the EmbeddingGemma prompt contract for Qwen3. Use an English query-side instruction such as `Given a KnowledgeOS search query, retrieve note passages that answer or directly support the query`; send documents as stable title/text content without a query instruction, set `truncate=false`, request an explicit dimension for any MRL comparison, normalize vectors, and use cosine similarity. Bind the exact query/document templates, dimension, normalization, model tag, full digest, parser/chunker, and indexer version into the index identity.
-- Keep C34's current `embeddinggemma:300m-qat-q8_0`, 768-dimension schema, generated artifact, and fake-provider tests frozen during this planning change. An accepted Qwen or BGE-M3 result requires a separate implementation slice to revise the C34 model validator, schema constants, algorithm label, generated configuration, prompt templates, rebuild-on-identity-drift rules, and tests; E02 must not mutate the canonical index in place.
+- Validate replacement of the C34 canonical model identity with the accepted Qwen `4096`-dimension index through the E02 temporary eligible-source build and preserve the separate C39 candidate path as an immutable audit artifact. Defer durable pointer materialization until KnowledgeOS implementation completion; EmbeddingGemma remains the separately named emergency fallback and is not loaded concurrently with Qwen.
+- Accept the observed Gemma4 `24%` free-memory floor only under `serial_only`, `one_model_loaded`, `concurrent_requests=false`, and `unattended_activation=false`; reject concurrent or unattended activation.
+- For the C39 embedding-only lane record generation refusal as `not_applicable`, evaluate the frozen contradiction fixture, and apply the `0.40` unknown-query abstention threshold to the top learned score.
 - Compare lexical-only, E01 feature hashing, the frozen C34 learned baseline, each selected live embedding candidate, and RRF on the same privacy-filtered C34 fixture. Record Recall@1/3/5 or the fixture's equivalent prefix/required-path predicates, MRR or nDCG where applicable, Korean and multilingual error cases, citation/source freshness, cold and warm latency, throughput, peak memory/VRAM, device placement, truncation/refusal rate, index size, and replay/digest behavior. Promote only when the candidate improves the agreed retrieval gate without privacy leakage, stale-source acceptance, citation drift, or unsafe resource pressure.
 - Require `OLLAMA_NO_CLOUD=1`, loopback-only binding, no proxy or tunnel, no wildcard origins, no automatic pull, and pre/post checks of Ollama version, full model digest, capability, quantization, and effective context.
 - Keep provisioning separate from inference: installation, model download, live service inspection, and full-digest capture require explicit host/network authorization and produce `external_service` evidence under `E02`. A plan or checked-in model tag never proves that a host model is installed, reachable, GPU-resident, or healthy.
@@ -222,9 +229,9 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 ## External implementation references
 
 - Confirm the current Gemma release and model shape against [Google Gemma releases](https://ai.google.dev/gemma/docs/releases) and the [Gemma 4 model card](https://ai.google.dev/gemma/docs/core/model_card_4).
-- Confirm exact available tags at the time of provisioning from the [Ollama Gemma 4 tags](https://ollama.com/library/gemma4/tags), [Qwen3-Embedding tags](https://ollama.com/library/qwen3-embedding/tags), [BGE-M3 model](https://ollama.com/library/bge-m3), and [EmbeddingGemma tags](https://ollama.com/library/embeddinggemma/tags); bind the full local digest returned by the installed service rather than the abbreviated website value.
+- Confirm exact available tags at the time of provisioning from the [Ollama Gemma 4 tags](https://ollama.com/library/gemma4/tags), [Qwen3-Embedding tags](https://ollama.com/library/qwen3-embedding/tags), and [EmbeddingGemma tags](https://ollama.com/library/embeddinggemma/tags); bind the full local digest returned by the installed service rather than the abbreviated website value.
 - Implement chat, schemas, embedding, context, keep-alive, loopback, and cloud-off behavior from the official [chat API](https://docs.ollama.com/api/chat), [structured outputs](https://docs.ollama.com/capabilities/structured-outputs), [embed API](https://docs.ollama.com/api/embed), and [FAQ](https://docs.ollama.com/faq).
-- Keep the Qwen3 query instruction, document role, dimension, and multilingual assumptions aligned with the official [Qwen3-Embedding repository](https://github.com/QwenLM/Qwen3-Embedding) and [Qwen3-Embedding model card](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B); keep the BGE-M3 fallback aligned with the [BAAI model card](https://huggingface.co/BAAI/bge-m3), and keep the existing compatibility control aligned with the [EmbeddingGemma model card](https://ai.google.dev/gemma/docs/embeddinggemma/model_card).
+- Keep the Qwen3 query instruction, document role, dimension, and multilingual assumptions aligned with the official [Qwen3-Embedding repository](https://github.com/QwenLM/Qwen3-Embedding) and [Qwen3-Embedding model card](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B), and keep the existing compatibility control aligned with the [EmbeddingGemma model card](https://ai.google.dev/gemma/docs/embeddinggemma/model_card).
 - Treat third-party plugins as unsandboxed application code under the [Obsidian plugin security boundary](https://github.com/obsidianmd/obsidian-help/blob/master/en/Extending%20Obsidian/Plugin%20security.md).
 - Compare only UX patterns from [Local LLM Helper](https://github.com/manimohans/obsidian-local-llm-helper), [Smart Connections](https://smartconnections.app/smart-principles), [Copilot for Obsidian](https://docs.obsidiancopilot.com/llm-providers/), and [Local GPT](https://github.com/pfrankov/obsidian-local-gpt); none of these sources supersede project policy or evidence contracts.
 
@@ -244,11 +251,11 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 ## Optional extension lane
 
 - `E01` — Evaluate local vector and RRF against the frozen `C22` baseline.
-- `E02` — Verify the user-installed host-native `gemma4:12b` generation profile and selected local embedding candidates through the bounded host runner, full-digest capture, Korean/multilingual quality evaluation, and measured internal-SSD-only resource evidence; exclude external-SSD connection, mount, storage, and performance tests, and keep the networkless container and canonical C34 contract unchanged until promotion passes.
+- `E02` — Verify the user-installed host-native `gemma4:12b` generation profile and selected local embedding candidates through the bounded host runner, full-digest capture, Korean/multilingual quality evaluation, contradiction and abstention coverage, and measured internal-SSD-only resource evidence; exclude external-SSD connection, mount, storage, and performance tests, and validate C34 canonical replacement through a temporary eligible-source build after the accepted Qwen promotion decision while defer durable pointer materialization until KnowledgeOS implementation completion.
 - `E03` — Activate the provider-free LaunchAgent only after the `C36` consumer and rollback gates pass; keep `RunAtLoad=false` and provider queue consumption separately gated.
-- `E04` — Activate each remote or unattended lane through a separate decision and authorization gate.
+- `E04` — For the current branch, pursue local Ollama as the only provider lane and defer remote model routes; prepare and separately authorize local activation through C38-C43 while keeping queue, scheduler, LaunchAgent, and canonical apply effects independently gated.
 - `E05` — Implement a removable thin Obsidian client only after `C35` and measured repeated CLI friction justify it.
-- `P01` — Implement the canonical core-plugin and required-community-plugin setting-state registry, diagnostics, and evidence gates described below.
+- `P01` — Implement the canonical core-plugin and required-community-plugin setting-state registry, diagnostics, and evidence gates described below in its independent lane.
 
 ## P01 — Core and required community-plugin setting-state contract
 
@@ -317,7 +324,7 @@ The F lane is a deliberate fork from the C/D/E/P lanes because it changes owners
 - `C13` remains the owner of strict create-only general note creation. F removes only the period-note production writer and keeps general typed-note validation, collision checks, and overwrite prevention unchanged.
 - `D04` remains the separately gated installation and audit boundary for Templater. F may define the Templater contract and static fixture requirements, but it does not install, enable, or configure the plugin.
 - `P01` remains the owner of version-aware core/community-plugin setting state. F consumes P01 evidence for Notebook Navigator and Note Toolbar mappings and never invents serialized setting keys or UI command IDs.
-- `E04` remains the independent remote/unattended authorization lane. F does not activate a scheduler, remote provider, LaunchAgent, Git network effect, or background writer.
+- `E04` remains the independent local Ollama activation lane; remote model routes are deferred for the current branch. F does not activate a scheduler, provider, LaunchAgent, Git network effect, or background writer.
 - `E05` remains the optional AI thin-client lane. The F05 status adapter is a bounded Obsidian connectivity diagnostic, not an AI client, retrieval route, provider transport, or canonical writer.
 
 The normal human journey is GUI-first: Home or a contextual Note Toolbar button opens the approved Obsidian action; Obsidian Core owns daily creation; Notebook Navigator owns weekly/monthly creation and opening; Templater renders the bounded period fields; the user reviews the note; and `vaultctl note validate` is used when a contract check is needed. Command Palette remains a recovery and diagnostic fallback, never the intended primary journey. No F session operates Obsidian or changes a live plugin profile without separate user/device authorization.
@@ -383,6 +390,6 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 
 ### F lane sequencing and non-goals
 
-The intended order is `F01 → F02 → F03 → F04 → F05 → F06`. `F02` can retain deterministic fixture support from `C07`; `F03` and `F04` consume `P01`'s exact setting-state evidence; `F05` extends the diagnostic boundary from `C12`; and `F06` closes the evidence contract. `E04` remote/unattended activation, `E05` AI thin-client implementation, `D04` plugin installation/audit, and any device/UI action remain separately gated and are not silently pulled into an F session.
+The intended order is `F01 → F02 → F03 → F04 → F05 → F06`. `F02` can retain deterministic fixture support from `C07`; `F03` and `F04` consume `P01`'s exact setting-state evidence; `F05` extends the diagnostic boundary from `C12`; and `F06` closes the evidence contract. `E04` local Ollama activation, deferred remote routes, `E05` AI thin-client implementation, `D04` plugin installation/audit, and any device/UI action remain separately gated and are not silently pulled into an F session.
 
 F explicitly excludes direct Obsidian manipulation, plugin installation or setting mutation, Notebook Navigator/Templater runtime claims from static files, official CLI document writes, a second production period writer, command-palette-first UX, automatic AI summary insertion, canonical apply, Git network effects, and any new provider or remote authority.

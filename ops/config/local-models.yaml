@@ -12,6 +12,15 @@ local_models:
   provider: ollama
   route: local_profile
   enabled_by_default: false
+  default_embedding_profile: embedding
+  emergency_embedding_fallback_profile: embedding_fallback
+  activation_policy:
+    selected_embedding_profile: embedding
+    mode: explicit_serial
+    one_model_loaded: true
+    concurrent_requests: false
+    unattended_activation: false
+    accepted_min_free_memory_percent: 24
   endpoint:
     base_url: http://127.0.0.1:11434
     loopback_only: true
@@ -41,6 +50,21 @@ local_models:
         parallel_requests: 1
     embedding:
       task: embedding
+      selection: live_default
+      model_tag: qwen3-embedding:8b-q4_K_M
+      model_digest: 64b933495768fbd3b87c20583d379728a07471e0c66733a9df87cd1901b3c44b
+      enabled: true
+      options:
+        dimension: 4096
+        truncate: false
+        query_prefix: 'Instruct: Given a KnowledgeOS search query, retrieve note passages that answer or directly support
+          the query
+
+          Query: {query}'
+        document_prefix: 'title: {title} | text: {text}'
+    embedding_fallback:
+      task: embedding
+      selection: emergency_resource_fallback
       model_tag: embeddinggemma:300m-qat-q8_0
       model_digest: null
       enabled: false

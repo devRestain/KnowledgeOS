@@ -11,7 +11,7 @@ from vaultops.schema_export import export_schema_artifacts
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_c30_generated_local_model_contract_is_disabled_and_pinned_to_safe_baselines() -> None:
+def test_c30_generated_local_model_contract_selects_qwen_as_explicit_serial_live_default() -> None:
     report, errors = inspect_local_model_config(CONTROL_ROOT)
 
     assert errors == []
@@ -25,11 +25,28 @@ def test_c30_generated_local_model_contract_is_disabled_and_pinned_to_safe_basel
     }
     assert report["profiles"]["embedding"] == {
         "task": "embedding",
+        "model_tag": "qwen3-embedding:8b-q4_K_M",
+        "enabled": True,
+        "state": "live_default",
+    }
+    assert report["profiles"]["embedding_fallback"] == {
+        "task": "embedding",
         "model_tag": "embeddinggemma:300m-qat-q8_0",
         "enabled": False,
         "state": "disabled",
     }
-    assert report["model_digests"] == {"generation": None, "embedding": None}
+    assert report["model_digests"] == {
+        "generation": None,
+        "embedding": "64b933495768fbd3b87c20583d379728a07471e0c66733a9df87cd1901b3c44b",
+        "embedding_fallback": None,
+    }
+    assert report["activation_policy"] == {
+        "mode": "explicit_serial",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+    }
 
 
 def test_c30_local_model_config_is_owned_by_zero_diff_generation() -> None:
@@ -63,7 +80,7 @@ def test_c30_doctor_separates_filesystem_evidence_from_live_and_device_proof() -
     assert local_model["reachable"] == "not_run"
     assert local_model["authorized"] == "not_authorized"
     assert local_model["verified"] == "not_verified"
-    assert local_model["enabled"] == "disabled"
+    assert local_model["enabled"] == "enabled"
     assert local_model["healthy"] == "not_ready"
     assert report["plugins"]["filesystem_evidence"] == "pass"
     assert report["plugins"]["device_proof"]["state"] == "not_inferred"

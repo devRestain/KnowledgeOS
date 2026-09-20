@@ -1,10 +1,9 @@
 """C30 generated local-model configuration and read-only inspection.
 
-The configuration is a contract for a future, explicitly authorized local
-runner.  It is intentionally disabled and does not discover services, pull
-models, or make network requests.  A live model digest or a reachable service
-is evidence for a later external-service gate, not something this module may
-infer from the checked-in configuration.
+The configuration selects one explicitly authorized live-default embedding
+profile while keeping automatic startup, concurrent requests, and fallback
+activation disabled.  Inspection remains read-only and does not discover
+services, pull models, or make network requests.
 """
 
 from __future__ import annotations
@@ -17,18 +16,36 @@ from typing import Any
 
 import yaml
 
+from .generation_identity import GENERATION_MODEL_TAG, generation_model_options
+from .qwen_embedding_index import (
+    QWEN_DOCUMENT_PROMPT_TEMPLATE,
+    QWEN_MODEL_DIMENSION,
+    QWEN_MODEL_TAG,
+    QWEN_QUERY_PROMPT_TEMPLATE,
+)
 from .yaml_safe import load_yaml_file
 
 LOCAL_MODEL_CONFIG_PATH = "ops/config/local-models.yaml"
 LOCAL_MODEL_AUTHORITATIVE_SELECTORS = ("/llm",)
 LOCAL_MODEL_ARTIFACT_KIND = "local_model_config"
 LOCAL_MODEL_SCHEMA_VERSION = 1
+QWEN_MODEL_DIGEST = "64b933495768fbd3b87c20583d379728a07471e0c66733a9df87cd1901b3c44b"
 
 LOCAL_MODEL_DECLARATION: dict[str, Any] = {
     "schema_version": 1,
     "provider": "ollama",
     "route": "local_profile",
     "enabled_by_default": False,
+    "default_embedding_profile": "embedding",
+    "emergency_embedding_fallback_profile": "embedding_fallback",
+    "activation_policy": {
+        "selected_embedding_profile": "embedding",
+        "mode": "explicit_serial",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+    },
     "endpoint": {
         "base_url": "http://127.0.0.1:11434",
         "loopback_only": True,
@@ -42,23 +59,27 @@ LOCAL_MODEL_DECLARATION: dict[str, Any] = {
     "profiles": {
         "generation": {
             "task": "generation",
-            "model_tag": "gemma4:12b",
+            "model_tag": GENERATION_MODEL_TAG,
             "model_digest": None,
             "enabled": False,
-            "options": {
-                "num_ctx": 8192,
-                "stream": False,
-                "think": False,
-                "tools": False,
-                "temperature": 0,
-                "seed": 0,
-                "max_output_tokens": 1024,
-                "keep_alive": 0,
-                "parallel_requests": 1,
-            },
+            "options": generation_model_options(),
         },
         "embedding": {
             "task": "embedding",
+            "selection": "live_default",
+            "model_tag": QWEN_MODEL_TAG,
+            "model_digest": QWEN_MODEL_DIGEST,
+            "enabled": True,
+            "options": {
+                "dimension": QWEN_MODEL_DIMENSION,
+                "truncate": False,
+                "query_prefix": QWEN_QUERY_PROMPT_TEMPLATE,
+                "document_prefix": QWEN_DOCUMENT_PROMPT_TEMPLATE,
+            },
+        },
+        "embedding_fallback": {
+            "task": "embedding",
+            "selection": "emergency_resource_fallback",
             "model_tag": "embeddinggemma:300m-qat-q8_0",
             "model_digest": None,
             "enabled": False,
@@ -110,6 +131,23 @@ def _local_model_declaration(blueprint: Mapping[str, Any]) -> Mapping[str, Any]:
         raise LocalModelConfigError("/llm/local_models/schema_version must be 1")
     if declaration.get("enabled_by_default") is not False:
         raise LocalModelConfigError("local model profiles must remain disabled by default")
+    if declaration.get("default_embedding_profile") != "embedding":
+        raise LocalModelConfigError("the default embedding profile must be /profiles/embedding")
+    if declaration.get("emergency_embedding_fallback_profile") != "embedding_fallback":
+        raise LocalModelConfigError(
+            "the emergency embedding fallback must be /profiles/embedding_fallback"
+        )
+    activation = _mapping(declaration.get("activation_policy"), "/llm/local_models/activation_policy")
+    expected_activation = {
+        "selected_embedding_profile": "embedding",
+        "mode": "explicit_serial",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+    }
+    if dict(activation) != expected_activation:
+        raise LocalModelConfigError("local model activation policy must remain explicit serial and one-model-loaded")
     return declaration
 
 
@@ -177,6 +215,39 @@ def _semantic_errors(document: Mapping[str, Any]) -> list[dict[str, str]]:
                 "local model execution must remain disabled by default",
             )
         )
+    if declaration.get("default_embedding_profile") != "embedding":
+        errors.append(
+            _error(
+                "LOCAL_MODEL_DEFAULT_EMBEDDING_INVALID",
+                "/local_models/default_embedding_profile",
+                "the default embedding profile must be embedding",
+            )
+        )
+    if declaration.get("emergency_embedding_fallback_profile") != "embedding_fallback":
+        errors.append(
+            _error(
+                "LOCAL_MODEL_EMBEDDING_FALLBACK_INVALID",
+                "/local_models/emergency_embedding_fallback_profile",
+                "the emergency embedding fallback must be embedding_fallback",
+            )
+        )
+    activation = declaration.get("activation_policy")
+    expected_activation = {
+        "selected_embedding_profile": "embedding",
+        "mode": "explicit_serial",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+    }
+    if not isinstance(activation, Mapping) or dict(activation) != expected_activation:
+        errors.append(
+            _error(
+                "LOCAL_MODEL_ACTIVATION_POLICY_INVALID",
+                "/local_models/activation_policy",
+                "activation must select one explicit serial Qwen profile with no unattended activation",
+            )
+        )
     endpoint = declaration.get("endpoint")
     if not isinstance(endpoint, Mapping):
         errors.append(_error("LOCAL_MODEL_ENDPOINT_INVALID", "/local_models/endpoint", "endpoint must be a mapping"))
@@ -221,7 +292,7 @@ def _semantic_errors(document: Mapping[str, Any]) -> list[dict[str, str]]:
     if not isinstance(profiles, Mapping):
         errors.append(_error("LOCAL_MODEL_PROFILES_INVALID", "/local_models/profiles", "profiles must be a mapping"))
     else:
-        for profile_name in ("generation", "embedding"):
+        for profile_name in ("generation", "embedding", "embedding_fallback"):
             profile = profiles.get(profile_name)
             if not isinstance(profile, Mapping):
                 errors.append(
@@ -232,12 +303,32 @@ def _semantic_errors(document: Mapping[str, Any]) -> list[dict[str, str]]:
                     )
                 )
                 continue
-            if profile.get("enabled") is not False:
+            expected_enabled = profile_name == "embedding"
+            if profile.get("enabled") is not expected_enabled:
                 errors.append(
                     _error(
                         "LOCAL_MODEL_PROFILE_ENABLED",
                         f"/local_models/profiles/{profile_name}/enabled",
-                        "local model profile must remain disabled until a later gate",
+                        "only the accepted Qwen live-default profile may be enabled",
+                    )
+                )
+            expected_selection = "live_default" if profile_name == "embedding" else None
+            if profile_name == "embedding" and profile.get("selection") != expected_selection:
+                errors.append(
+                    _error(
+                        "LOCAL_MODEL_DEFAULT_SELECTION_INVALID",
+                        f"/local_models/profiles/{profile_name}/selection",
+                        "embedding profile must be the live default selector",
+                    )
+                )
+            if profile_name == "embedding" and (
+                profile.get("model_tag") != QWEN_MODEL_TAG or profile.get("model_digest") != QWEN_MODEL_DIGEST
+            ):
+                errors.append(
+                    _error(
+                        "LOCAL_MODEL_QWEN_IDENTITY_INVALID",
+                        f"/local_models/profiles/{profile_name}",
+                        "live-default embedding must bind the approved Qwen tag and full digest",
                     )
                 )
             if profile.get("model_digest") is not None:
@@ -299,14 +390,20 @@ def inspect_local_model_config(root: str | Path) -> tuple[dict[str, Any], list[d
         if isinstance(profiles, Mapping):
             profile_report: dict[str, Any] = {}
             digests: dict[str, Any] = {}
-            for name in ("generation", "embedding"):
+            for name in ("generation", "embedding", "embedding_fallback"):
                 profile = profiles.get(name)
                 if isinstance(profile, Mapping):
                     profile_report[name] = {
                         "task": profile.get("task"),
                         "model_tag": profile.get("model_tag"),
                         "enabled": profile.get("enabled"),
-                        "state": "disabled" if profile.get("enabled") is False else "enabled",
+                        "state": (
+                            "live_default"
+                            if name == "embedding" and profile.get("enabled") is True
+                            else "disabled"
+                            if profile.get("enabled") is False
+                            else "enabled"
+                        ),
                     }
                     digests[name] = profile.get("model_digest")
             base["profiles"] = profile_report
@@ -318,8 +415,17 @@ def inspect_local_model_config(root: str | Path) -> tuple[dict[str, Any], list[d
         **base,
         "status": "PASS",
         "profile_state": "configured",
-        "reason": "declared_but_disabled",
+        "reason": "explicit_serial_live_default",
+        "default_embedding_profile": "embedding",
+        "emergency_embedding_fallback_profile": "embedding_fallback",
         "enabled_by_default": False,
+        "activation_policy": {
+            "mode": "explicit_serial",
+            "one_model_loaded": True,
+            "concurrent_requests": False,
+            "unattended_activation": False,
+            "accepted_min_free_memory_percent": 24,
+        },
         "config_sha256": _sha256_bytes(path.read_bytes()),
     }, []
 

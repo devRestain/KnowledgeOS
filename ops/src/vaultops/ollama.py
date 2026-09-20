@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import SplitResult, urlsplit
 
+from .generation_identity import GENERATION_CONTEXT
 from .provider_broker import AdapterOutcome, SyntheticAdapterError, run_synthetic_job
 from .provider_contract import LIMITS, ProviderContractError, canonical_json_bytes
 
@@ -53,7 +54,7 @@ _ENDPOINTS = frozenset(
     }
 )
 _CHAT_OPTION_LIMITS: dict[str, tuple[float, float]] = {
-    "num_ctx": (1, 8192),
+    "num_ctx": (1, GENERATION_CONTEXT),
     "num_predict": (1, LIMITS["max_output_tokens"]),
     "temperature": (0, 2),
     "seed": (0, 2147483647),

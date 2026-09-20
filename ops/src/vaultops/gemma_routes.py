@@ -26,6 +26,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .generation_identity import GENERATION_MODEL_TAG
 from .provider_contract import (
     LIMITS,
     ProviderConflict,
@@ -44,7 +45,7 @@ EXIT_CONFLICT = 30
 
 CAPABILITY = "C35"
 OPERATION = "ai gemma"
-GEMMA_MODEL_TAG = "gemma4:12b"
+GEMMA_MODEL_TAG = GENERATION_MODEL_TAG
 
 RESPONSE_FILENAME = "c35-response.json"
 RECEIPT_FILENAME = "c35-receipt.json"

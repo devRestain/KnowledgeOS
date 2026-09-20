@@ -567,15 +567,15 @@ def plugins_audit_report(root: str | Path, profile: str = "mac") -> tuple[dict[s
 def _local_model_capability(report: Mapping[str, Any]) -> dict[str, Any]:
     if report.get("status") == "PASS":
         return _capability(
-            state="inactive",
+            state="configured",
             declared="declared",
             configured="configured",
             reachable="not_run",
             authorized="not_authorized",
             verified="not_verified",
-            enabled="disabled",
+            enabled="enabled",
             healthy="not_ready",
-            reason="generated_profile_is_disabled_and_live_service_probe_is_deferred",
+            reason="explicit_serial_live_default_selector_without_service_probe",
             evidence_class="artifact",
             evidence=[LOCAL_MODEL_CONFIG_PATH, "blueprint/blueprint.yaml#/llm"],
         )

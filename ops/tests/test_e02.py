@@ -189,6 +189,29 @@ def test_e02_contract_keeps_live_and_c34_boundaries_explicit() -> None:
     assert contract["endpoint"]["loopback_only"] is True
     assert contract["generation"]["requested_model_tag"] == DEFAULT_GENERATION_TAG
     assert contract["embeddings"][0]["requested_model_tag"] == "qwen3-embedding:8b-q4_K_M"
+    assert [item["requested_model_tag"] for item in contract["embeddings"]] == [
+        "qwen3-embedding:8b-q4_K_M",
+        "embeddinggemma:300m-qat-q8_0",
+    ]
+    assert contract["embeddings"][1]["quality_tier"] == "emergency_resource_fallback"
+    assert contract["embedding_selection"] == {
+        "default_model_tag": "qwen3-embedding:8b-q4_K_M",
+        "emergency_resource_fallback_model_tag": "embeddinggemma:300m-qat-q8_0",
+        "default_selector_state": "live_default",
+        "fallback_selector_state": "emergency_resource_fallback",
+    }
+    assert contract["resource_policy"] == {
+        "mode": "serial_only",
+        "one_model_loaded": True,
+        "concurrent_requests": False,
+        "unattended_activation": False,
+        "accepted_min_free_memory_percent": 24,
+    }
+    assert contract["coverage_policy"] == {
+        "embedding_only_generation_refusal": "not_applicable",
+        "unknown_query_abstention_threshold": 0.4,
+        "contradiction_fixture": "ops/tests/fixtures/e02_retrieval/contradiction.yaml",
+    }
     assert contract["canonical_c34_mutation_allowed"] is False
     assert e02_verification_report_schema()["properties"]["capability"]["const"] == "E02"
 
@@ -313,7 +336,7 @@ def test_e02_embedding_benchmark_uses_distinct_query_and_document_roles(tmp_path
     report, code = benchmark_embeddings(
         client,
         ["한국어 검색 질의", "stable note passage"],
-        model_tags=["qwen3-embedding:4b-q8_0"],
+        model_tags=["qwen3-embedding:8b-q4_K_M"],
         authorized=True,
         storage_path=storage,
         storage_root=tmp_path,
@@ -372,14 +395,14 @@ def test_e02_promotion_requires_live_evidence_and_never_mutates_c34() -> None:
             "expected_paths": ["note-a"],
             "rankings": {
                 "c34_learned": ["note-a", "note-b"],
-                "qwen3-embedding:4b-q8_0": ["note-a", "note-b"],
+                "qwen3-embedding:8b-q4_K_M": ["note-a", "note-b"],
             },
         }
     ]
 
     report, code = evaluate_e02_rankings(
         cases,
-        candidate_id="qwen3-embedding:4b-q8_0",
+        candidate_id="qwen3-embedding:8b-q4_K_M",
         live_model_evidence=False,
         privacy_gate_passed=True,
         citation_gate_passed=True,
