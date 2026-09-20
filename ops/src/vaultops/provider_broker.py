@@ -16,7 +16,7 @@ import os
 import re
 import stat
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -171,6 +171,12 @@ class ProviderAdapter(Protocol):
         scenario: str,
     ) -> AdapterOutcome:
         """Return bounded raw bytes or a controlled terminal outcome."""
+
+
+OutputValidator = Callable[
+    [Path, Mapping[str, Any], Mapping[str, Any], str],
+    Mapping[str, Any],
+]
 
 
 def _sha256(value: bytes) -> str:
@@ -1020,6 +1026,7 @@ def _replayed_report(
     *,
     pipeline: str,
     scenario: str,
+    output_validator: OutputValidator | None = None,
 ) -> dict[str, Any]:
     job = _job_directory(workspace, str(request["job_id"]))
     response, response_raw = _read_private_json(job / _RESPONSE_FILENAME, label="provider response")
@@ -1041,6 +1048,8 @@ def _replayed_report(
         pipeline = _resolve_pipeline(str(request["action"]), pipeline)
         _reject_prompt_injection(response["output"])
         _validate_output_schema(workspace, context, response["output"], pipeline=pipeline)
+        if output_validator is not None:
+            output_validator(workspace, context, response["output"], pipeline)
     receipt_path = job / "receipts" / _RECEIPT_FILENAME
     receipt, receipt_raw = _read_private_json(receipt_path, label="provider receipt")
     _validate_envelope_schema(receipt, "receipt")
@@ -1075,6 +1084,7 @@ def run_synthetic_job(
     scenario: str = "success",
     pipeline: str | None = None,
     adapter: ProviderAdapter | None = None,
+    output_validator: OutputValidator | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Execute one validated C31 job through the synthetic C32 adapter."""
 
@@ -1093,6 +1103,7 @@ def run_synthetic_job(
                 request,
                 pipeline=selected_pipeline,
                 scenario=scenario,
+                output_validator=output_validator,
             )
             return replay, EXIT_OK
         _check_policy(context)
@@ -1140,6 +1151,13 @@ def run_synthetic_job(
             output,
             pipeline=selected_pipeline,
         )
+        if output_validator is not None:
+            schema_report = {
+                **schema_report,
+                "route_validation": dict(
+                    output_validator(workspace, context, output, selected_pipeline)
+                ),
+            }
         response_request: Mapping[str, Any] = request
         if scenario == "digest_conflict":
             tampered = dict(request)
@@ -1241,7 +1259,13 @@ def run_synthetic_job(
             **adapter_flags,
         ), EXIT_CONFLICT
     except BrokerError as error:
-        status = "CONFLICT" if error.code in {"C32_DIGEST_CONFLICT", "C32_RESPONSE_DIGEST_DRIFT"} else "FAIL"
+        status = (
+            "CONFLICT"
+            if error.code in {"C32_DIGEST_CONFLICT", "C32_RESPONSE_DIGEST_DRIFT"}
+            or "DRIFT" in error.code
+            or "CONFLICT" in error.code
+            else "FAIL"
+        )
         try:
             details = _persist_terminal(
                 workspace,
@@ -1369,6 +1393,7 @@ __all__ = [
     "USER_ACTION_ROUTES",
     "AdapterOutcome",
     "BrokerError",
+    "OutputValidator",
     "ProviderAdapter",
     "SyntheticAdapterError",
     "SyntheticProviderAdapter",

@@ -62,6 +62,132 @@ _CORE_PLUGIN_IDS = {
     "Workspaces": "workspaces",
 }
 
+_P01_STATE_DIMENSIONS = (
+    "declared",
+    "installed",
+    "configured",
+    "enabled",
+    "verified",
+    "healthy",
+    "fallback_available",
+)
+
+_P01_CORE_POLICIES = {
+    "Properties": {
+        "desired_policy": "preserve_properties_visibility",
+        "allowed_value_domain": "visible|hidden|unknown",
+        "dependency": "frontmatter_and_property_dictionary",
+    },
+    "Bases": {
+        "desired_policy": "retain_declared_bases_workflow",
+        "allowed_value_domain": "boolean",
+        "dependency": "blueprint_base_contracts",
+    },
+    "Daily notes": {
+        "desired_policy": "retain_core_daily_note_creation",
+        "allowed_value_domain": "boolean",
+        "dependency": "core_daily_note_workflow",
+    },
+    "Templates": {
+        "desired_policy": "retain_core_template_access",
+        "allowed_value_domain": "boolean",
+        "dependency": "bounded_template_contract",
+    },
+    "Search": {
+        "desired_policy": "retain_core_search_fallback",
+        "allowed_value_domain": "boolean",
+        "dependency": "plugin_free_retrieval_fallback",
+    },
+    "Backlinks": {
+        "desired_policy": "retain_core_backlink_navigation",
+        "allowed_value_domain": "boolean",
+        "dependency": "typed_relation_navigation",
+    },
+    "Outgoing links": {
+        "desired_policy": "retain_core_outgoing_link_navigation",
+        "allowed_value_domain": "boolean",
+        "dependency": "typed_relation_navigation",
+    },
+    "Bookmarks": {
+        "desired_policy": "retain_core_bookmark_navigation",
+        "allowed_value_domain": "boolean",
+        "dependency": "review_and_navigation_fallback",
+    },
+    "File recovery": {
+        "desired_policy": "retain_core_file_recovery",
+        "allowed_value_domain": "boolean",
+        "dependency": "safe_rollback",
+    },
+    "Workspaces": {
+        "desired_policy": "retain_mac_workspace_layouts",
+        "allowed_value_domain": "boolean",
+        "dependency": "mac_only_layout_state",
+    },
+}
+
+_P01_PLUGIN_POLICIES = {
+    "quickadd": {
+        "desired_policy": "allow_reviewed_capture_routes_only",
+        "allowed_value_domain": "blueprint_owned_capture_targets",
+        "dependency": "human_review",
+        "mutation_risk": "write_capable_human_action",
+    },
+    "templater-obsidian": {
+        "desired_policy": "allow_bounded_template_rendering_only",
+        "allowed_value_domain": "verified_template_folder_and_mappings",
+        "dependency": "bounded_template_contract",
+        "mutation_risk": "write_capable_template_action",
+    },
+    "obsidian-tasks-plugin": {
+        "desired_policy": "allow_read_oriented_task_queries",
+        "allowed_value_domain": "bounded_query_and_explicit_completion",
+        "dependency": "task_schema_and_status_conventions",
+        "mutation_risk": "explicit_human_task_completion",
+    },
+    "obsidian-linter": {
+        "desired_policy": "allow_explicit_rule_allowlist_only",
+        "allowed_value_domain": "property_dictionary_compatible_rules",
+        "dependency": "property_dictionary_and_templates",
+        "mutation_risk": "bulk_note_rewrite",
+    },
+    "obsidian-git": {
+        "desired_policy": "retain_manual_mac_git_ui_only",
+        "allowed_value_domain": "manual_actions_with_automation_off",
+        "dependency": "independent_git_status",
+        "mutation_risk": "git_network_and_worktree_mutation",
+    },
+    "homepage": {
+        "desired_policy": "allow_one_startup_target_with_plugin_free_fallback",
+        "allowed_value_domain": "approved_note_or_workspace_target",
+        "dependency": "canonical_home",
+        "mutation_risk": "startup_and_auto_create",
+    },
+    "note-toolbar": {
+        "desired_policy": "allow_reviewed_contextual_commands_only",
+        "allowed_value_domain": "reviewed_targets_and_commands",
+        "dependency": "human_review_and_rollback",
+        "mutation_risk": "write_capable_human_action",
+    },
+    "breadcrumbs": {
+        "desired_policy": "allow_blueprint_typed_relation_fields_only",
+        "allowed_value_domain": "declared_relation_properties",
+        "dependency": "typed_relation_contract",
+        "mutation_risk": "relation_property_mutation",
+    },
+    "notebook-navigator": {
+        "desired_policy": "allow_bounded_navigation_only",
+        "allowed_value_domain": "declared_folders_tags_and_properties",
+        "dependency": "file_explorer_fallback",
+        "mutation_risk": "bulk_move_delete_or_property_action",
+    },
+    "obsidian-meta-bind-plugin": {
+        "desired_policy": "allow_reviewed_property_views_and_inputs_only",
+        "allowed_value_domain": "approved_properties_and_protected_paths",
+        "dependency": "property_dictionary_and_human_review",
+        "mutation_risk": "write_capable_property_control",
+    },
+}
+
 _CAPABILITY_DIMENSIONS = (
     "declared",
     "configured",
@@ -478,12 +604,220 @@ def _sentinel_overlay(roots: ProjectRoots, vault_report: Mapping[str, Any]) -> t
     }, []
 
 
+def _p01_relative_path(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _p01_optional_object(
+    path: Path,
+    *,
+    root: Path,
+    errors: list[dict[str, str]],
+) -> dict[str, Any] | None:
+    if not path.is_file() or path.is_symlink():
+        return None
+    try:
+        return _read_json_object(path)
+    except DiagnosticError as error:
+        source_kind = {
+            "core-plugins.json": "CORE_CONFIG",
+            "manifest.json": "MANIFEST",
+            "data.json": "DATA",
+        }.get(path.name, "SETTING_SOURCE")
+        errors.append(
+            _issue(
+                f"PLUGIN_{source_kind}_INVALID",
+                _p01_relative_path(root, path),
+                str(error),
+            )
+        )
+        return None
+
+
+def _p01_registry(
+    roots: ProjectRoots,
+    *,
+    profile: str,
+    profile_root: Path,
+    expected: list[dict[str, str]],
+    installed: list[str],
+    errors: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Build a read-only P01 registry without exposing serialized values."""
+
+    core_flags_path = profile_root / "core-plugins.json"
+    core_flags = _p01_optional_object(core_flags_path, root=roots.control, errors=errors)
+    serialized_sources: dict[str, dict[str, Any] | None] = {}
+    for filename in ("app.json", "appearance.json", "hotkeys.json", "workspace.json"):
+        serialized_sources[filename] = _p01_optional_object(
+            profile_root / filename,
+            root=roots.control,
+            errors=errors,
+        )
+
+    entries: list[dict[str, Any]] = []
+    core_locator = _p01_relative_path(roots.control, core_flags_path)
+    serialized_locators = [
+        _p01_relative_path(roots.control, profile_root / filename)
+        for filename, value in serialized_sources.items()
+        if value is not None
+    ]
+    for name, plugin_id in _CORE_PLUGIN_IDS.items():
+        policy = _P01_CORE_POLICIES[name]
+        enabled_value = core_flags.get(plugin_id) if core_flags is not None else None
+        if enabled_value is not None and not isinstance(enabled_value, bool):
+            errors.append(
+                _issue(
+                    "PLUGIN_CORE_FLAG_INVALID",
+                    f"{core_locator}#/{plugin_id}",
+                    f"core plugin flag must be boolean: {name}",
+                )
+            )
+        enabled_state = (
+            "enabled"
+            if enabled_value is True
+            else "disabled"
+            if enabled_value is False
+            else "unknown"
+        )
+        setting_paths = []
+        if name == "Properties" and serialized_sources.get("app.json") is not None:
+            app_settings = serialized_sources["app.json"] or {}
+            if "propertiesInDocument" in app_settings:
+                setting_paths.append("app.json#/propertiesInDocument")
+        entries.append(
+            {
+                "component_id": f"core:{plugin_id}",
+                "component": name,
+                "owner": "core",
+                "profile": profile,
+                "source_locator": {
+                    "core_flags": core_locator,
+                    "serialized_settings": serialized_locators,
+                },
+                "current_value": {
+                    "enabled": enabled_value if isinstance(enabled_value, bool) else None,
+                    "observed_setting_paths": setting_paths,
+                },
+                "desired_policy": policy["desired_policy"],
+                "allowed_value_domain": policy["allowed_value_domain"],
+                "dependency": policy["dependency"],
+                "fallback": "plugin_free_core_markdown_and_cli_surface",
+                "mutation_risk": "core_profile_mutation",
+                "verification_method": "authorized_observation_only",
+                "rollback_action": "restore_original_profile_bytes",
+                "states": {
+                    "declared": "declared",
+                    "installed": "not_applicable",
+                    "configured": "configured" if enabled_value is not None else "unconfigured",
+                    "enabled": enabled_state,
+                    "verified": "not_run",
+                    "healthy": "not_run",
+                    "fallback_available": "available",
+                },
+            }
+        )
+
+    community_locator = _p01_relative_path(roots.control, profile_root / "community-plugins.json")
+    for item in expected:
+        plugin_id = item["id"]
+        plugin_root = profile_root / "plugins" / plugin_id
+        manifest_path = plugin_root / "manifest.json"
+        data_path = plugin_root / "data.json"
+        manifest = _p01_optional_object(manifest_path, root=roots.control, errors=errors)
+        data = _p01_optional_object(data_path, root=roots.control, errors=errors)
+        if manifest is not None and manifest.get("id") != plugin_id:
+            errors.append(
+                _issue(
+                    "PLUGIN_MANIFEST_ID_MISMATCH",
+                    _p01_relative_path(roots.control, manifest_path),
+                    f"plugin manifest id does not match profile id: {plugin_id}",
+                )
+            )
+        policy = _P01_PLUGIN_POLICIES.get(
+            plugin_id,
+            {
+                "desired_policy": "unresolved",
+                "allowed_value_domain": "unresolved",
+                "dependency": "unresolved",
+                "mutation_risk": "unresolved",
+            },
+        )
+        entries.append(
+            {
+                "component_id": f"plugin:{plugin_id}",
+                "component": plugin_id,
+                "owner": plugin_id,
+                "role": item["role"],
+                "profile": profile,
+                "source_locator": {
+                    "community_manifest": community_locator,
+                    "manifest": _p01_relative_path(roots.control, manifest_path),
+                    "data": _p01_relative_path(roots.control, data_path),
+                },
+                "current_value": {
+                    "manifest_version": manifest.get("version") if manifest is not None else None,
+                    "serialized_keys": sorted(data) if data is not None else [],
+                },
+                "desired_policy": policy["desired_policy"],
+                "allowed_value_domain": policy["allowed_value_domain"],
+                "dependency": policy["dependency"],
+                "fallback": "canonical_markdown_and_plugin_free_surface_available",
+                "mutation_risk": policy["mutation_risk"],
+                "verification_method": "authorized_observation_only",
+                "rollback_action": "restore_original_plugin_data_bytes",
+                "states": {
+                    "declared": "declared",
+                    "installed": "installed" if plugin_id in installed else "not_installed",
+                    "configured": "configured" if data is not None else "unconfigured",
+                    "enabled": "enabled" if plugin_id in installed else "disabled",
+                    "verified": "not_run",
+                    "healthy": "not_run" if not errors else "not_ready",
+                    "fallback_available": "available",
+                },
+            }
+        )
+
+    mobile_baseline = load_yaml_file(roots.control / "blueprint/blueprint.yaml")["plugin_profiles"].get(
+        "mobile_baseline", {}
+    )
+    mobile_plugins = mobile_baseline.get("community_plugins", [])
+    return {
+        "schema_version": 1,
+        "profile": profile,
+        "state_dimensions": list(_P01_STATE_DIMENSIONS),
+        "entries": entries,
+        "mobile_community_plugins": {
+            "declared": list(mobile_plugins),
+            "state": "empty" if not mobile_plugins else "degraded",
+            "source_locator": "blueprint/blueprint.yaml#/plugin_profiles/mobile_baseline/community_plugins",
+        },
+        "fallback": "canonical_markdown_and_plugin_free_surface_available",
+        "device_evidence": {
+            "state": "not_run",
+            "evidence_class": "device",
+            "reason": "diagnostics_do_not_operate_obsidian",
+        },
+    }
+
+
 def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, Any], list[dict[str, str]]]:
     blueprint = load_yaml_file(roots.control / "blueprint/blueprint.yaml")
     profile_root = roots.vault / (".obsidian-mac" if profile == "mac" else ".obsidian")
     baseline = blueprint["plugin_profiles"]["mac_baseline"] if profile == "mac" else []
     expected = [{"id": item["id"], "role": item["role"]} for item in baseline]
     if not profile_root.is_dir() or profile_root.is_symlink():
+        registry = _p01_registry(
+            roots,
+            profile=profile,
+            profile_root=profile_root,
+            expected=expected,
+            installed=[],
+            errors=[],
+        )
         return {
             "profile": profile,
             "profile_root": str(profile_root),
@@ -491,6 +825,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             "profile_state": "not_configured",
             "community_plugins": [{**item, "state": "inactive", "reason": "profile_missing"} for item in expected],
             "fallback": "canonical_markdown_and_plugin_free_surface_available",
+            "setting_registry": registry,
             "capability": _inactive_capability(
                 reason="profile_missing",
                 evidence_class="static",
@@ -515,6 +850,14 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
     for item in expected:
         result_plugins.append({**item, "state": "installed" if item["id"] in installed else "inactive"})
     unexpected = sorted(set(installed) - {item["id"] for item in expected})
+    registry = _p01_registry(
+        roots,
+        profile=profile,
+        profile_root=profile_root,
+        expected=expected,
+        installed=installed,
+        errors=errors,
+    )
     filesystem_pass = not errors and not unexpected and all(item["state"] == "installed" for item in result_plugins)
     result = {
         "profile": profile,
@@ -524,6 +867,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         "community_plugins": result_plugins,
         "unexpected_community_plugins": unexpected,
         "fallback": "canonical_markdown_and_plugin_free_surface_available",
+        "setting_registry": registry,
         "capability": _capability(
             state="configured" if filesystem_pass else "degraded",
             declared="declared",

@@ -53,6 +53,22 @@ _ENDPOINTS = frozenset(
         "/api/embed",
     }
 )
+_OLLAMA_CHAT_RESPONSE_KEYS = frozenset(
+    {
+        "model",
+        "created_at",
+        "message",
+        "done",
+        "done_reason",
+        "total_duration",
+        "load_duration",
+        "prompt_eval_count",
+        "prompt_eval_duration",
+        "eval_count",
+        "eval_duration",
+    }
+)
+_OLLAMA_CHAT_MESSAGE_KEYS = frozenset({"role", "content"})
 _CHAT_OPTION_LIMITS: dict[str, tuple[float, float]] = {
     "num_ctx": (1, GENERATION_CONTEXT),
     "num_predict": (1, LIMITS["max_output_tokens"]),
@@ -614,7 +630,7 @@ class OllamaAdapterError(SyntheticAdapterError):
             code, status = "PROVIDER_TIMEOUT", "timeout"
         elif error.code == "OLLAMA_HTTP_ERROR" and error.status_code == 429:
             code, status = "PROVIDER_OVERLOADED", "overloaded"
-        elif error.code in {"OLLAMA_MODEL_DIGEST_CONFLICT"}:
+        elif error.code in {"OLLAMA_MODEL_DIGEST_CONFLICT", "OLLAMA_MODEL_RESPONSE_DRIFT"}:
             code, status = "DIGEST_CONFLICT", "conflict"
         elif error.code in {"OLLAMA_RESPONSE_TOO_LARGE"}:
             code, status = "OUTPUT_TOO_LARGE", "failed"
@@ -687,9 +703,30 @@ class OllamaProviderAdapter:
                 format="json",
                 keep_alive=0,
             )
+            unexpected_response = set(response) - _OLLAMA_CHAT_RESPONSE_KEYS
+            if unexpected_response:
+                raise OllamaError(
+                    "OLLAMA_RESPONSE_UNSUPPORTED",
+                    f"Ollama chat response contains unsupported fields: {sorted(unexpected_response)}",
+                )
+            if response.get("model") != provider["model_tag"]:
+                raise OllamaError(
+                    "OLLAMA_MODEL_RESPONSE_DRIFT",
+                    "Ollama response model differs from the bound provider identity",
+                )
             message = response["message"]
             if not isinstance(message, Mapping):
                 raise OllamaError("OLLAMA_RESPONSE_SCHEMA_INVALID", "chat message is not an object")
+            unexpected_message = set(message) - _OLLAMA_CHAT_MESSAGE_KEYS
+            if unexpected_message:
+                raise OllamaError(
+                    "OLLAMA_RESPONSE_UNSUPPORTED",
+                    f"Ollama chat message contains unsupported fields: {sorted(unexpected_message)}",
+                )
+            if message.get("role") != "assistant":
+                raise OllamaError("OLLAMA_RESPONSE_SCHEMA_INVALID", "chat message is not an assistant message")
+            if not isinstance(message.get("content"), str) or not message["content"]:
+                raise OllamaError("OLLAMA_RESPONSE_SCHEMA_INVALID", "chat content must be non-empty text")
             raw_output = message["content"].encode("utf-8")
             if len(raw_output) > LIMITS["max_response_bytes"]:
                 raise OllamaError("OLLAMA_RESPONSE_TOO_LARGE", "chat content exceeds the C31 response limit")

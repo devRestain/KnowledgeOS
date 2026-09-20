@@ -45,7 +45,7 @@ from .gemma_routes import C35_ROUTES, run_gemma_job
 from .launchd import launchd_install, launchd_rollback, launchd_status
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
-from .ollama import OllamaClient, OllamaError, OllamaProfile, run_ollama_job
+from .ollama import OllamaClient, OllamaError, OllamaProfile
 from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
@@ -57,6 +57,7 @@ from .provider_queue import (
     MAX_CONCURRENCY,
     consume_provider_queue,
 )
+from .provider_routes import C40_LOCAL_PIPELINES, run_local_route
 from .reconcile import apply_repair_plan, reconcile_transactions, repair_plan, verify_receipts
 from .retrieval import (
     RetrievalValidationError,
@@ -519,11 +520,16 @@ def build_parser() -> argparse.ArgumentParser:
     ai_queue.add_argument("--root", type=Path, default=None, help="mounted control root")
     ai_ollama = ai_commands.add_parser(
         "ollama",
-        help="run one C33 provider job through an explicit loopback Ollama profile",
+        help="run one explicitly enabled C40 local proposal route through loopback Ollama",
     )
     ai_ollama.add_argument("--job-id", required=True, help="UUIDv4 of an existing C31 runtime job")
     ai_ollama.add_argument("--base-url", required=True, help="explicit http://127.0.0.1:<port> fake or local endpoint")
-    ai_ollama.add_argument("--pipeline", choices=PIPELINES, default=None)
+    ai_ollama.add_argument("--pipeline", choices=C40_LOCAL_PIPELINES, default=None)
+    ai_ollama.add_argument(
+        "--authorize-live-service",
+        action="store_true",
+        help="explicitly authorize this one-shot local provider invocation",
+    )
     ai_ollama.add_argument("--root", type=Path, default=None, help="mounted control root")
     ai_e02 = ai_commands.add_parser(
         "e02",
@@ -1219,18 +1225,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     if args.command == "ai" and args.ai_command == "ollama":
         try:
-            client = OllamaClient(OllamaProfile(base_url=args.base_url))
-            report, exit_code = run_ollama_job(
+            client = (
+                OllamaClient(OllamaProfile(base_url=args.base_url))
+                if args.authorize_live_service
+                else None
+            )
+            report, exit_code = run_local_route(
                 args.root or _control_root(),
                 job_id=args.job_id,
                 client=client,
                 pipeline=args.pipeline,
+                enabled=args.authorize_live_service,
+                authorized=args.authorize_live_service,
             )
         except (OllamaError, OSError, TypeError, ValueError) as error:
             report = {
                 "status": "FAIL",
                 "operation": "ai ollama",
-                "capability": "C33",
+                "capability": "C40",
                 "provider_called": False,
                 "live_provider_called": False,
                 "synthetic_provider_called": False,

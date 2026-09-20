@@ -256,6 +256,7 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 - `E04` — For the current branch, pursue local Ollama as the only provider lane and defer remote model routes; prepare and separately authorize local activation through C38-C43 while keeping queue, scheduler, LaunchAgent, and canonical apply effects independently gated.
 - `E05` — Implement a removable thin Obsidian client only after `C35` and measured repeated CLI friction justify it.
 - `P01` — Implement the canonical core-plugin and required-community-plugin setting-state registry, diagnostics, and evidence gates described below in its independent lane.
+- `P02` through `P12` — Plan and verify one bounded Core or required-community-plugin setting family per session after P01, without treating the plan itself as Obsidian UI, plugin, device, or Git authorization.
 
 ## P01 — Core and required community-plugin setting-state contract
 
@@ -315,6 +316,123 @@ The plugin-specific bullets define safety and ownership boundaries, not guessed 
 - The next implementation slice starts with a read-only inventory of the current Mac profile, then adds the registry and diagnostics, then performs one plugin/core setting family at a time with static, semantic, runtime, and device evidence recorded separately in `PROJECT_STATE.md`.
 
 - `PROJECT_STATE.md` alone records which slices are current or complete. This index declares execution order and acceptance boundaries only; it never authorizes provider, model-download, plugin, host-agent, device, remote, or Git effects, and learned retrieval remains opt-in until its quality gate passes.
+
+## P02-P12 — Per-component setting-state planning sessions
+
+P01 now owns the read-only registry, diagnostics, exact ten-plugin membership, Core ownership vocabulary, missing-setting classification, and evidence separation. The following sessions split the remaining setting-policy work into one bounded planning task per Core or required community-plugin area. Each label is a separate future session: adding these sections does not configure Obsidian, change plugin data, operate a device, or promote runtime/device evidence.
+
+The default order is `P02 → P03 → P04 → P05 → P06 → P07 → P08 → P09 → P10 → P11 → P12`. Numeric order is local to the P lane; F sessions may consume a completed P contract but do not silently absorb its setting ownership.
+
+### P02 — Define the Obsidian Core setting-state and fallback contract
+
+- Dependencies: `P01`, `blueprint/blueprint.yaml#/plugin_profiles`, the installed `core-plugins.json`, `app.json`, `appearance.json`, `hotkeys.json`, and `workspace.json` observations.
+- Plan one normalized Core setting registry for Properties, Bases, Daily notes, Templates, Search, Backlinks, Outgoing links, Bookmarks, File recovery, and Mac-only Workspaces. Bind each entry to its workflow, source locator, allowed domain, fallback, mutation risk, and verification method.
+- Define the exact Daily Notes folder/date/template contract (`10_Journal/Daily`, the approved date format, and `99_System/Templates/T10_Daily.md`) and the Core Templates folder without inventing keys for UI-only values.
+- Classify every other serialized Core flag as required, optional, or explicitly disabled. Do not disable Graph, Canvas, Tag pane, Outline, Word count, Sync, File Explorer, or another observed flag merely because it is outside the minimum set.
+- Acceptance: every observed Core flag has an explicit policy; UI-only settings are `unknown` until exact UI evidence exists; Properties visibility and Daily Notes/template ownership are unambiguous; File Explorer and Markdown/Bases fallbacks remain available; mobile Core policy is not inferred from Mac state.
+- Evidence: static and semantic registry checks. Obsidian runtime, device UI, and setting mutation remain `not_run` unless separately authorized.
+- Exclusions: no Core plugin enable/disable, no Obsidian UI operation, no mobile change, no note rewrite, and no replacement of `vaultctl` validation authority.
+
+### P03 — Define the QuickAdd capture-routing contract
+
+- Dependencies: `P01`, `P02`, the Blueprint `quickadd_choices`, the template inventory, and the current QuickAdd manifest/data locator.
+- Plan the primary Home capture choices: `CAPTURE_THOUGHT`, `NEW_IDEA`, `NEW_PROJECT`, `NEW_QUESTION`, and `NEW_KNOWLEDGE`. Register secondary Blueprint choices only when each has an exact human-approved template and target path.
+- For every choice, record the command/choice identity, template, target pattern, create-only behavior, collision behavior, prompt fields, hotkey if any, and plugin-free fallback. Keep `99_System/Templates` as the only canonical template folder.
+- Keep AI, online features, secrets, URI callbacks, unreviewed macros, shell/system execution, and arbitrary path selection out of the allowed domain. A choice with no traceable Blueprint target remains `unconfigured`, not guessed.
+- Acceptance: each required choice maps to one Blueprint-owned target; no choice can overwrite or silently mutate an existing canonical note; primary Home actions and hotkeys have exact installed-version command evidence; the current zero-choice state is either deliberately configured or explicitly recorded as incomplete.
+- Evidence: static `data.json`/manifest inspection and semantic target comparison; QuickAdd runtime and device capture smoke remain separate.
+- Exclusions: no QuickAdd installation/update/enablement, no live capture, no AI/provider call, no URI callback, and no Vault mutation.
+
+### P04 — Define the Templater bounded-rendering contract
+
+- Dependencies: `P01`, `P02`, the Templater manifest/data locator, `T10_Daily.md`, `T11_Weekly.md`, `T12_Monthly.md`, and the F02 template contract.
+- Plan the canonical template folder, exact installed-version setting labels, permitted template syntax, explicit invocation boundary, and ownership split between Core Daily Notes, Notebook Navigator, and Templater.
+- Keep system commands, shell execution, user scripts, startup templates, arbitrary folder/file mappings, network, AI, Git, `vaultctl`, canonical apply, and global new-file triggers outside the allowed domain.
+- Resolve the `{{...}}` versus Templater-expression boundary explicitly. If current period templates remain Notebook Navigator built-in templates, Templater stays manual/bounded; if F02 migrates a template to Templater syntax, record the exact one-time renderer path and prevent a second global trigger.
+- Acceptance: the template owner and renderer are unique for each note type; the canonical folder is verified; all forbidden execution capabilities are disabled or explicitly unresolved; mappings are reversible; F02 can consume the contract without inventing a setting key.
+- Evidence: static and semantic policy checks first; rendered fixture/runtime/device evidence belongs to F02 or a separately authorized UI session.
+- Exclusions: no Templater installation/update/enablement, no template conversion, no Obsidian UI operation, no shell/script execution, and no existing-note rewrite.
+
+### P05 — Define the Tasks query and human-completion contract
+
+- Dependencies: `P01`, `P02`, the Vault task/status schema, the Tasks manifest/data locator, and the existing task query fixtures.
+- Plan the global filter, status mapping, created/done/cancelled date policy, recurrence representation, auto-suggest behavior, query ownership, and human completion action.
+- Keep task querying read-oriented. JavaScript queries, `filter by function` execution, unbounded automation, automatic canonical apply, and provider-backed task changes remain outside the allowed domain.
+- Record whether an absent JavaScript setting is `unknown` or `unconfigured`; do not infer `false` from the absence of a serialized key. Keep `#task` and status conventions aligned with the Property Dictionary and note templates.
+- Acceptance: every status and date behavior has a schema owner; query results do not become a write authority; JS/unbounded capabilities are off or explicitly unresolved; completion is an explicit human action; the Markdown task fallback remains valid.
+- Evidence: static/semantic query and status registry checks; Tasks runtime and device completion smoke remain separate.
+- Exclusions: no Tasks plugin operation, no bulk task rewrite, no automatic completion, no JavaScript query execution, and no external task service.
+
+### P06 — Define the Linter bounded-hygiene contract
+
+- Dependencies: `P01`, `P02`, the generated Property Dictionary, all canonical templates, and the installed Linter manifest/data locator.
+- Plan a small, explicit, version-aware rule allowlist. Each candidate rule must identify the fields it can change, the affected note types, the destructive-risk class, the before/after evidence, and the rollback action.
+- Keep lint-on-save, lint-on-file-change, bulk rewrite, YAML-key removal, tag migration, filename changes, timestamp overwrites, and rules that infer canonical structure off until separately accepted.
+- Start from a safe all-rules-off/manual-only baseline. Do not invent rule IDs or enable a rule merely because its name appeared in an external Linter release.
+- Acceptance: every enabled rule is traceable to the Property Dictionary/templates; no rule can remove user-authored structure; manual execution is the only default trigger; a one-file rollback exists; zero enabled rules is correctly reported as safe baseline rather than healthy hygiene completion.
+- Evidence: static rule/data inspection and semantic allowlist review; Linter runtime/file-change evidence remains separate.
+- Exclusions: no bulk lint, no automatic rewrite, no plugin setting mutation, and no modification of canonical notes during planning.
+
+### P07 — Define the Obsidian Git manual-Mac contract
+
+- Dependencies: `P01`, `P02`, the Git boundary in `blueprint/blueprint.yaml`, the Obsidian Git manifest/data locator, and the separately authorized Git identity/deployment policy.
+- Plan manual status visibility, staged-set review, commit behavior, branch display, pull/push controls, and the exact separation between local UI configuration and Git network authorization.
+- Keep auto-save, auto-commit, auto-push, auto-pull, pull-on-boot, pull-before-push, file-change backup, and unattended sync disabled. Record the fallback as ordinary Git or no Git operation, not as an automatic recovery path.
+- Acceptance: every automation interval and boolean has a policy; status visibility remains available without network calls; pull/push are separately authorized; no setting implies that a successful local status check proves remote synchronization.
+- Evidence: static/semantic settings and authorization checks; Git runtime/network/device evidence remains `not_run` unless separately authorized.
+- Exclusions: no Git pull/push/commit, no identity mutation, no remote write, no automatic backup, and no plugin installation/update.
+
+### P08 — Define the Homepage startup and plugin-free fallback contract
+
+- Dependencies: `P01`, `P02`, the canonical `Home.md`, the Homepage manifest/data locator, and the Home/dashboard action inventory.
+- Plan one Mac startup target, open mode, view mode, empty-state behavior, auto-create policy, refresh/command policy, and the explicit fallback path when Homepage is unavailable.
+- Target `Home.md` with Reading view and replace-last-note behavior. Keep startup command lists empty unless a command is individually reviewed; do not let Homepage auto-run QuickAdd, Templater, Git, Sync, AI, shell, or canonical apply actions.
+- Keep mobile independent: do not infer a mobile Homepage profile from Mac settings, and preserve a plain `Mobile.md`/Markdown fallback.
+- Acceptance: one approved startup target exists; `Home.md` opens without Homepage; auto-create/refresh/commands/mobile values are exact installed-version evidence or explicitly unresolved; the Home action list points only to reviewed commands/files.
+- Evidence: static/semantic Homepage registry checks; actual startup/view behavior is runtime/device evidence and remains separate.
+- Exclusions: no Homepage installation/update, no startup UI operation, no auto-run command, no Dataview dependency, and no mobile profile mutation.
+
+### P09 — Define the Breadcrumbs typed-relation contract
+
+- Dependencies: `P01`, `P02`, the Blueprint relation registry, the Property Dictionary, and the Breadcrumbs manifest/data locator.
+- Plan the exact edge fields, context/semantic groups, view set, link direction, and human review boundary. The allowed relation fields remain `projects`, `sources`, `related`, `supports`, `contradicts`, `explains`, `applies_to`, `derived_from`, `implements`, and `raises`.
+- Keep implied/transitive relations, automatic field creation, external relation sources, arbitrary relation builders, and automatic inverse materialization off or explicitly unresolved until exact installed-version behavior is verified.
+- Acceptance: every displayed relation has a Blueprint field owner; relation changes remain ordinary reviewed note edits; views are read/navigation surfaces; transitive or implied output cannot silently become canonical frontmatter; Backlinks/Outgoing links remain the fallback.
+- Evidence: static/semantic edge-field and view registry checks; relation rendering and device navigation remain separate.
+- Exclusions: no relation rewrite, no automatic field generation, no bulk note mutation, no plugin operation, and no device smoke claim.
+
+### P10 — Define the Notebook Navigator bounded-calendar contract
+
+- Dependencies: `P01`, `P02`, `P04`, the F02/F03 period-note contracts, the installed Notebook Navigator manifest/data locator, and the Core File Explorer fallback.
+- Plan the exact weekly/monthly folder, filename pattern, template, template engine, calendar command, profile, hidden-scope, display-scope, confirmation, and existing-file behavior. Daily ownership remains Core Daily Notes even if Notebook Navigator can open daily notes.
+- Align weekly/monthly navigation with `10_Journal/Weekly`, `10_Journal/Monthly`, `T11_Weekly.md`, and `T12_Monthly.md` through exact installed-version settings. Do not guess keys, token names, or command IDs from another release.
+- Choose and record one template ownership mode. The recommended current baseline is explicit Notebook Navigator built-in rendering for current `{{...}}` tokens with Templater global trigger off; a Templater-owned mode requires the separate F02 syntax/fixture decision.
+- Keep hidden folders/tags/properties explicit, bulk move/delete/property operations unavailable, confirmation enabled, and File Explorer as the immediate fallback.
+- Acceptance: weekly/monthly mapping is represented by exact settings or an explicit incompatibility decision; daily duplication is rejected; template engine ownership is unique; calendar commands have version evidence; plugin-free navigation remains usable.
+- Evidence: static/semantic mapping and ownership checks; actual creation/opening, no-overwrite, and device behavior belong to F03 or separately authorized runtime/device work.
+- Exclusions: no Notebook Navigator setting mutation, no note creation/move/delete, no daily-note ownership change, no device smoke claim, and no File Explorer disablement.
+
+### P11 — Define the Note Toolbar contextual-surface contract
+
+- Dependencies: `P01`, `P08`, `P09`, `P10`, the current toolbar mappings, the Home action inventory, and the installed Note Toolbar manifest/data locator.
+- Plan the primary Home/contextual actions for Today, weekly/monthly opening, capture, review, navigation, Backlinks, Outgoing links, Breadcrumbs, and Bases. Every action must resolve to a reviewed file link or exact installed command ID.
+- Keep scripting, URI callbacks, shell/system actions, external processes, network, Git, AI, `vaultctl`, and approval-free canonical mutation off. Write-capable buttons must identify the human action, target property/file, mutation class, and rollback path.
+- Keep Command Palette as recovery/diagnostic fallback only. Do not create a toolbar entry whose command ID is inferred from an older version or whose target cannot be verified.
+- Acceptance: the intended normal journey starts from Home or a contextual toolbar; every mapping has a source/target/rollback record; toolbar configuration is presentation/navigation rather than authority; plugin-free fallback and Command Palette recovery remain available.
+- Evidence: static/semantic mapping and capability checks; F04 owns actual GUI execution/device smoke and must consume this contract.
+- Exclusions: no Note Toolbar scripting, no live toolbar editing, no external command, no canonical apply, and no device evidence from JSON alone.
+
+### P12 — Define the Meta Bind low-risk property-view contract
+
+- Dependencies: `P01`, `P02`, the generated Property Dictionary, approved note types, the Meta Bind manifest/data locator, and protected review/template paths.
+- Plan the approved input/view declarations for `status`, `priority`, `next_action`, and `today_focus`, including allowed values, note-type scope, write target, mutation class, and rollback behavior.
+- Keep JavaScript, developer mode, code-block restriction bypass, arbitrary buttons, shell/system actions, network, AI, Git, and automatic canonical apply off. Button templates remain empty until each button has a human-action contract.
+- Verify folder exclusion semantics for `99_System/Templates`, `01_AI_Review/Pending`, and other protected paths using the installed version's exact UI label/value. Do not assume that a shorthand `templates` entry excludes the canonical `99_System/Templates` path.
+- Acceptance: every input field maps to an approved property; no protected path exposes a write control; JS/dev bypass is off or explicitly unresolved; every write-capable control has a rollback path; YAML/frontmatter remains usable without Meta Bind.
+- Evidence: static/semantic field and exclusion checks; actual property editing and device behavior remain separately authorized.
+- Exclusions: no Meta Bind input/button execution, no protected-note mutation, no JavaScript, no plugin setting change, and no device smoke claim.
+
+The P02-P12 sessions are planning and setting-state contracts. They do not supersede P01, F01-F06, D03-D07, or the user/device authorization boundary. A future implementation turn must start only one label, read `PROJECT_STATE.md`, preserve unrelated dirty changes, and update the machine-state evidence for that label only after its checks have actually run.
 
 ## F lane — GUI-first period notes and `vaultctl` boundary refactor
 
