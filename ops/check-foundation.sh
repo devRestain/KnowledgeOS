@@ -195,7 +195,7 @@ done
 foundation_bad_runtime_files=$(find runtime -path runtime/host-runner -prune -o -type f ! -perm 600 -print)
 [ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
-foundation_manifest_expected='82b8a69fabba92f846762ba4ae916fef77121efab206b60e74d89e8387e2eaba'
+foundation_manifest_expected='dd3e09cc6af335fedd5b5d332ed5e9332989e8971131c8b649c56412fea4c2aa'
 foundation_manifest_actual=$(shasum -a 256 blueprint/CHECKSUMS.sha256 | awk '{print $1}')
 [ "$foundation_manifest_actual" = "$foundation_manifest_expected" ] || foundation_fail "checksum manifest hash mismatch: expected=$foundation_manifest_expected actual=$foundation_manifest_actual"
 

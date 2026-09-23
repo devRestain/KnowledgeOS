@@ -19,14 +19,24 @@ from typing import Any
 from .ai_projection import load_current_ai_projection
 from .background import render_background_artifacts
 from .blueprint import validate_blueprint
+from .breadcrumbs_settings import build_breadcrumbs_setting_registry
 from .bridge_contract import remote_identity_sha256, validate_root_sentinel
 from .core_settings import build_core_setting_registry
 from .gui_contracts import inspect_gui_contract
+from .homepage_settings import build_homepage_setting_registry
 from .launchd import launchd_status
+from .linter_settings import build_linter_setting_registry
 from .local_models import LOCAL_MODEL_CONFIG_PATH, inspect_local_model_config
+from .meta_bind_settings import build_meta_bind_setting_registry
+from .note_toolbar_settings import build_note_toolbar_setting_registry
+from .notebook_navigator_settings import build_notebook_navigator_setting_registry
+from .obsidian_git_settings import build_obsidian_git_setting_registry
 from .projection import load_current_projection
+from .quickadd_settings import build_quickadd_setting_registry
 from .runtime import RuntimeLayout
 from .schema_export import export_schema_artifacts
+from .tasks_settings import build_tasks_setting_registry
+from .templater_settings import build_templater_setting_registry
 from .vector import vector_config_sha256, vector_contract
 from .yaml_safe import load_yaml_file
 
@@ -799,6 +809,66 @@ def _p01_registry(
         serialized_sources=serialized_sources,
     )
     errors.extend(core_registry_errors)
+    quickadd_setting_registry, quickadd_registry_errors = build_quickadd_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(quickadd_registry_errors)
+    templater_setting_registry, templater_registry_errors = build_templater_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(templater_registry_errors)
+    tasks_setting_registry, tasks_registry_errors = build_tasks_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(tasks_registry_errors)
+    linter_setting_registry, linter_registry_errors = build_linter_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(linter_registry_errors)
+    obsidian_git_setting_registry, obsidian_git_registry_errors = build_obsidian_git_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(obsidian_git_registry_errors)
+    homepage_setting_registry, homepage_registry_errors = build_homepage_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(homepage_registry_errors)
+    breadcrumbs_setting_registry, breadcrumbs_registry_errors = build_breadcrumbs_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(breadcrumbs_registry_errors)
+    notebook_navigator_setting_registry, notebook_navigator_registry_errors = build_notebook_navigator_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(notebook_navigator_registry_errors)
+    note_toolbar_setting_registry, note_toolbar_registry_errors = build_note_toolbar_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(note_toolbar_registry_errors)
+    meta_bind_setting_registry, meta_bind_registry_errors = build_meta_bind_setting_registry(
+        root=roots.control,
+        profile_root=profile_root,
+        blueprint=blueprint,
+    )
+    errors.extend(meta_bind_registry_errors)
     mobile_baseline = blueprint["plugin_profiles"].get("mobile_baseline", {})
     mobile_plugins = mobile_baseline.get("community_plugins", [])
     return {
@@ -807,6 +877,16 @@ def _p01_registry(
         "state_dimensions": list(_P01_STATE_DIMENSIONS),
         "entries": entries,
         "core_setting_registry": core_setting_registry,
+        "quickadd_setting_registry": quickadd_setting_registry,
+        "templater_setting_registry": templater_setting_registry,
+        "tasks_setting_registry": tasks_setting_registry,
+        "linter_setting_registry": linter_setting_registry,
+        "obsidian_git_setting_registry": obsidian_git_setting_registry,
+        "homepage_setting_registry": homepage_setting_registry,
+        "breadcrumbs_setting_registry": breadcrumbs_setting_registry,
+        "notebook_navigator_setting_registry": notebook_navigator_setting_registry,
+        "note_toolbar_setting_registry": note_toolbar_setting_registry,
+        "meta_bind_setting_registry": meta_bind_setting_registry,
         "mobile_community_plugins": {
             "declared": list(mobile_plugins),
             "state": "empty" if not mobile_plugins else "degraded",

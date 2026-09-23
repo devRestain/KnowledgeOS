@@ -792,7 +792,7 @@ dashboards:
       - name: quick_capture
         actions: [CAPTURE_THOUGHT, NEW_IDEA, NEW_PROJECT, NEW_QUESTION, NEW_KNOWLEDGE]
         baseline_launcher: quickadd_verified_command_ids_with_hotkeys
-        hotkeys: [option_command_i, option_command_j, option_command_p, option_command_q, option_command_k]
+        hotkeys: [option_command_c, option_command_j, option_command_p, option_command_q, option_command_k]
       - name: now
         source: Projects.base
         view: Now
