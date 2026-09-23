@@ -272,7 +272,6 @@ EXPECTED_COMMANDS = (
     "vaultctl search",
     "vaultctl retrieve",
     "vaultctl ask",
-    "vaultctl period create",
     "vaultctl reconcile",
     "vaultctl git status",
     "vaultctl commit",
@@ -281,7 +280,7 @@ EXPECTED_COMMANDS = (
     "vaultctl launchd install",
     "vaultctl repair plan",
     "vaultctl repair apply",
-    "vaultctl obsidian",
+    "vaultctl obsidian status",
     "vaultctl ui",
 )
 

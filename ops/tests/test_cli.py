@@ -4,7 +4,9 @@ import json
 import shutil
 from pathlib import Path
 
-from vaultops.cli import main
+import pytest
+
+from vaultops.cli import build_parser, main
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
@@ -100,18 +102,10 @@ def test_c07_cli_commands_expose_dry_run_and_create_only_workflows(tmp_path: Pat
         "20_Projects/CLI Demo Project/Artifacts",
     ]
 
-    assert main(
-        [
-            "period",
-            "create",
-            "--kind",
-            "weekly",
-            "--date",
-            "2024-12-30",
-            "--root",
-            root,
-        ]
-    ) == 0
-    period_report = json.loads(capsys.readouterr().out)
-    assert period_report["status"] == "PASS"
-    assert period_report["path"] == "10_Journal/Weekly/2025/2025-W01.md"
+
+
+def test_period_writer_is_absent_from_the_public_parser() -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit) as error:
+        parser.parse_args(["period", "create", "--kind", "weekly"])
+    assert error.value.code == 2

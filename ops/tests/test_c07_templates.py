@@ -15,7 +15,6 @@ from vaultops.template_engine import (
     template_source,
 )
 from vaultops.workflows import (
-    create_period_note,
     create_project_bundle,
     project_local_link_resolves,
 )
@@ -274,19 +273,56 @@ def test_project_bundle_refuses_an_existing_project_root(tmp_path: Path) -> None
     assert list(project_dir.iterdir()) == []
 
 
-def test_period_renderer_handles_iso_year_boundary_and_month_end(tmp_path: Path) -> None:
-    root = _control_copy(tmp_path, fresh_vault=True)
-    weekly = create_period_note(root, kind="weekly", selected_date="2024-12-30")
-    assert weekly["status"] == "PASS"
-    assert weekly["path"] == "10_Journal/Weekly/2025/2025-W01.md"
-    assert weekly["period_start"] == "2024-12-30"
-    assert weekly["period_end"] == "2025-01-05"
-    monthly = create_period_note(root, kind="monthly", selected_date="2026-02-18")
-    assert monthly["status"] == "PASS"
-    assert monthly["period_end"] == "2026-02-28"
-    daily = create_period_note(root, kind="daily", selected_date="2026-09-09")
-    assert daily["status"] == "PASS"
-    assert create_period_note(root, kind="daily", selected_date="2026-09-09")["status"] == "CONFLICT"
+def test_gui_period_fixtures_preserve_iso_boundaries_month_ends_and_no_overwrite_contract() -> None:
+    engine = NoteEngine.from_root(CONTROL_ROOT)
+
+    weekly = render_note_template(
+        "T11_Weekly.md",
+        {"title": "2025-W01", "date": date(2024, 12, 30)},
+    )
+    assert weekly.properties["id"] == "weekly-2025-w01"
+    assert weekly.properties["title"] == "2025-W01"
+    assert weekly.properties["period_start"] == "2024-12-30"
+    assert weekly.properties["period_end"] == "2025-01-05"
+    assert "# 2025 [W]01" in weekly.body
+    assert weekly.body.count("- [[") == 7
+    assert "vaultops:weekly-summary:begin" in weekly.body
+    assert engine.validate_text("10_Journal/Weekly/2025/2025-W01.md", weekly.markdown).passed
+
+    expected_month_ends = {
+        "2024-02": "2024-02-29",
+        "2025-02": "2025-02-28",
+        "2026-04": "2026-04-30",
+        "2026-07": "2026-07-31",
+    }
+    for month_label, expected_end in expected_month_ends.items():
+        monthly = render_note_template(
+            "T12_Monthly.md",
+            {"title": month_label, "date": date.fromisoformat(f"{month_label}-18")},
+        )
+        assert monthly.properties["id"] == f"monthly-{month_label}"
+        assert monthly.properties["period_start"] == f"{month_label}-01"
+        assert monthly.properties["period_end"] == expected_end
+        assert engine.validate_text(
+            f"10_Journal/Monthly/{month_label[:4]}/{month_label}.md", monthly.markdown
+        ).passed
+
+    assert engine.validate_text(
+        "10_Journal/Weekly/2025/2025-W01.md", weekly.markdown
+    ).passed, "an existing GUI-created period note is validated without a writer or overwrite"
+
+
+def test_gui_period_template_sources_are_bounded_templater_and_remove_unsupported_month_end_token() -> None:
+    weekly_source = template_source("T11_Weekly.md")
+    monthly_source = template_source("T12_Monthly.md")
+    for source in (weekly_source, monthly_source):
+        assert "tp.user" not in source
+        assert "tp.system" not in source
+        assert "tp.file.include" not in source
+        assert "vaultctl" not in source
+        assert "month_end:" not in source
+        assert "moment(" in source
+    assert "vaultops:weekly-summary:begin" in weekly_source
 
 
 def test_project_local_links_resolve_to_one_parent_project() -> None:

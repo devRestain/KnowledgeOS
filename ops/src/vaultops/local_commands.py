@@ -49,6 +49,10 @@ _NOTE_CREATE_TYPES = frozenset(
     }
 )
 _FORMAT_EXCLUDED_TYPES = frozenset({"home", "system"})
+PERIOD_NOTE_GUI_MESSAGE = (
+    "daily, weekly, and monthly notes must be created in Obsidian through the approved GUI workflow; "
+    "use vaultctl note validate to validate an existing period note"
+)
 
 
 class LocalCommandInputError(ValueError):
@@ -407,9 +411,11 @@ def create_note(
 ) -> tuple[dict[str, Any], int]:
     operation = "note create"
     try:
+        if note_type in {"daily", "weekly", "monthly"}:
+            raise LocalCommandInputError(PERIOD_NOTE_GUI_MESSAGE)
         if note_type not in _NOTE_CREATE_TYPES:
             raise LocalCommandInputError(
-                f"note type {note_type!r} is not createable in C13; use period or project create"
+                f"note type {note_type!r} is not createable in C13; use the approved note workflow"
             )
         safe_title = _safe_title(title)
         body = read_content(stdin=body_stdin, file_path=body_file, label="note body", required=False)
@@ -430,8 +436,6 @@ def create_note(
 
         target_types: dict[str, str] | None = None
 
-        if note_type in {"daily", "weekly", "monthly"}:
-            raise LocalCommandInputError("period notes must use period create")
         if note_type == "capture":
             if body is None:
                 raise LocalCommandInputError("capture note requires --body-stdin or --body-file")

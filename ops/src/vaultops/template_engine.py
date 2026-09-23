@@ -214,24 +214,32 @@ TEMPLATE_SOURCES: dict[str, str] = {
     ),
     "T11_Weekly.md": _source(
         r"""
+        <%*
+        const period = moment(tp.file.title, "GGGG-[W]WW", true);
+        if (!period.isValid()) throw new Error("weekly filename must be YYYY-Www");
+        const periodStart = period.clone().startOf("isoWeek");
+        const periodEnd = periodStart.clone().add(6, "days");
+        const periodLabel = periodStart.format("GGGG-[W]WW");
+        const periodId = periodLabel.toLowerCase();
+        -%>
         ---
         schema_version: 1
-        id: "weekly-{{date:GGGG-[W]WW-lower}}"
+        id: "weekly-<% periodId %>"
         type: weekly
-        title: "{{date:GGGG-[W]WW}}"
+        title: "<% periodLabel %>"
         status: open
-        created: {{monday:YYYY-MM-DD}}T00:00:00+09:00
-        modified: {{monday:YYYY-MM-DD}}T00:00:00+09:00
+        created: <% periodStart.format("YYYY-MM-DD") %>T00:00:00+09:00
+        modified: <% periodStart.format("YYYY-MM-DD") %>T00:00:00+09:00
         aliases: []
         tags:
           - journal/weekly
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        period_start: {{monday:YYYY-MM-DD}}
-        period_end: {{sunday:YYYY-MM-DD}}
+        period_start: <% periodStart.format("YYYY-MM-DD") %>
+        period_end: <% periodEnd.format("YYYY-MM-DD") %>
         ---
-        # {{date:GGGG [W]WW}}
+        # <% periodStart.format("GGGG [W]WW") %>
 
         ## 이번 주 결과
 
@@ -241,13 +249,13 @@ TEMPLATE_SOURCES: dict[str, str] = {
 
         ## 일간 기록
 
-        - [[{{monday:YYYY-MM-DD}}]]
-        - [[{{tuesday:YYYY-MM-DD}}]]
-        - [[{{wednesday:YYYY-MM-DD}}]]
-        - [[{{thursday:YYYY-MM-DD}}]]
-        - [[{{friday:YYYY-MM-DD}}]]
-        - [[{{saturday:YYYY-MM-DD}}]]
-        - [[{{sunday:YYYY-MM-DD}}]]
+        - [[<% periodStart.format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(1, "days").format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(2, "days").format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(3, "days").format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(4, "days").format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(5, "days").format("YYYY-MM-DD") %>]]
+        - [[<% periodStart.clone().add(6, "days").format("YYYY-MM-DD") %>]]
 
         ## 프로젝트 점검
 
@@ -266,24 +274,31 @@ TEMPLATE_SOURCES: dict[str, str] = {
     ),
     "T12_Monthly.md": _source(
         r"""
+        <%*
+        const period = moment(tp.file.title, "YYYY-MM", true);
+        if (!period.isValid()) throw new Error("monthly filename must be YYYY-MM");
+        const monthStart = period.clone().startOf("month");
+        const monthEnd = monthStart.clone().endOf("month");
+        const monthId = monthStart.format("YYYY-MM");
+        -%>
         ---
         schema_version: 1
-        id: "monthly-{{date:YYYY-MM}}"
+        id: "monthly-<% monthId %>"
         type: monthly
-        title: "{{date:YYYY-MM}}"
+        title: "<% monthId %>"
         status: open
-        created: {{date:YYYY-MM-01}}T00:00:00+09:00
-        modified: {{date:YYYY-MM-01}}T00:00:00+09:00
+        created: <% monthStart.format("YYYY-MM-DD") %>T00:00:00+09:00
+        modified: <% monthStart.format("YYYY-MM-DD") %>T00:00:00+09:00
         aliases: []
         tags:
           - journal/monthly
         sensitivity: personal
         ai_policy: ask
         ai_status: idle
-        period_start: {{date:YYYY-MM-01}}
-        period_end: {{month_end:YYYY-MM-DD}}
+        period_start: <% monthStart.format("YYYY-MM-DD") %>
+        period_end: <% monthEnd.format("YYYY-MM-DD") %>
         ---
-        # {{date:YYYY-MM}}
+        # <% monthId %>
 
         ## 이달의 방향
 
@@ -974,9 +989,15 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
         elif note_type == "weekly":
             days = [start + timedelta(days=index) for index in range(7)]
             links = "\n".join(f"- [[{item.isoformat()}]]" for item in days)
-            body = _body(context, f"# {label.replace('-', ' [W]')}\n\n## 이번 주 결과\n\n1.\n2.\n3.\n\n## 일간 기록\n\n{links}\n\n## 프로젝트 점검\n")
+            body = _body(
+                context,
+                f"# {label.replace('-W', ' [W]')}\n\n## 이번 주 결과\n\n1.\n2.\n3.\n\n## 일간 기록\n\n{links}\n\n## 프로젝트 점검\n\n## 완료·미완료·대기\n\n## 다음 주로 넘길 것\n\n- [ ] #task\n\n<!-- vaultops:weekly-summary:begin -->\n<!-- 승인된 자동 요약만 이 구간을 교체할 수 있다. -->\n<!-- vaultops:weekly-summary:end -->\n",
+            )
         else:
-            body = _body(context, f"# {label}\n\n## 이달의 방향\n\n\n## 결과와 증거\n\n\n## 프로젝트·영역 review\n")
+            body = _body(
+                context,
+                f"# {label}\n\n## 이달의 방향\n\n\n## 결과와 증거\n\n\n## 프로젝트·영역 review\n\n\n## 배운 것\n\n\n## 다음 달에 중단·시작·지속할 것\n\n- 중단:\n- 시작:\n- 지속:\n",
+            )
     elif note_type == "project":
         properties.update(
             {
@@ -1084,7 +1105,6 @@ def render_template_source(filename: str, context: Mapping[str, object]) -> str:
     values.setdefault("date:YYYY-MM", str(context.get("month_label", "")))
     values.setdefault("date:GGGG [W]WW", str(context.get("week_heading", context.get("week_label", ""))))
     values.setdefault("date:YYYY-MM-01", str(context.get("month_start", "")))
-    values.setdefault("month_end:YYYY-MM-DD", str(context.get("month_end", "")))
     values.setdefault("monday:YYYY-MM-DD", str(context.get("monday", "")))
     values.setdefault("sunday:YYYY-MM-DD", str(context.get("sunday", "")))
     values.setdefault("time:HH:mm", str(context.get("time", "")))
@@ -1110,6 +1130,49 @@ def render_template_source(filename: str, context: Mapping[str, object]) -> str:
     values.setdefault("saturday:YYYY-MM-DD", str(context.get("saturday", "")))
     values.setdefault("monday:YYYY-MM-DD", str(context.get("monday", context.get("date", ""))))
     values.setdefault("sunday:YYYY-MM-DD", str(context.get("sunday", context.get("date", ""))))
+    values.setdefault(
+        "periodId",
+        str(
+            context.get(
+                "week_label" if filename == "T11_Weekly.md" else "month_label",
+                context.get("week_id", ""),
+            )
+        ).lower(),
+    )
+    values.setdefault(
+        "periodLabel",
+        str(
+            context.get(
+                "week_label" if filename == "T11_Weekly.md" else "month_label",
+                context.get("title", ""),
+            )
+        ),
+    )
+    values.setdefault(
+        'periodStart.format("YYYY-MM-DD")',
+        str(context.get("monday", context.get("month_start", context.get("date", "")))),
+    )
+    values.setdefault(
+        'periodEnd.format("YYYY-MM-DD")',
+        str(context.get("sunday", context.get("month_end", context.get("date", "")))),
+    )
+    values.setdefault(
+        'periodStart.format("GGGG [W]WW")',
+        str(context.get("week_heading", context.get("week_label", ""))),
+    )
+    for index, name in enumerate(
+        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    ):
+        values.setdefault(
+            f'periodStart.clone().add({index}, "days").format("YYYY-MM-DD")',
+            str(context.get(name, "")),
+        )
+    values.setdefault("monthId", str(context.get("month_label", "")))
+    values.setdefault(
+        'monthStart.format("YYYY-MM-DD")',
+        str(context.get("month_start", context.get("date", ""))),
+    )
+    values.setdefault('monthEnd.format("YYYY-MM-DD")', str(context.get("month_end", "")))
 
     result = _RAW_CODE_BLOCK.sub("", source)
 

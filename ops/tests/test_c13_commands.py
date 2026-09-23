@@ -6,7 +6,10 @@ import shutil
 import sys
 from pathlib import Path
 
+import pytest
+
 from vaultops.cli import main
+from vaultops.local_commands import PERIOD_NOTE_GUI_MESSAGE
 from vaultops.note_engine import NoteEngine
 from vaultops.workflows import create_project_bundle
 
@@ -31,6 +34,28 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
 
 def _json_output(capsys) -> dict[str, object]:
     return json.loads(capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("note_type", ("daily", "weekly", "monthly"))
+def test_period_note_create_is_rejected_with_the_gui_workflow_contract(
+    tmp_path: Path, capsys, note_type: str
+) -> None:
+    root = _fresh_control_copy(tmp_path)
+    assert main(
+        [
+            "note",
+            "create",
+            "--type",
+            note_type,
+            "--title",
+            "2026-09-23",
+            "--root",
+            str(root),
+        ]
+    ) == 10
+    report = _json_output(capsys)
+    assert report["status"] == "FAIL"
+    assert report["errors"][0]["message"] == PERIOD_NOTE_GUI_MESSAGE
 
 
 def test_capture_text_is_typed_create_only_and_replay_is_a_conflict(

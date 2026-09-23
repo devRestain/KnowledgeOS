@@ -1,12 +1,11 @@
-"""C07 create-only project and deterministic period workflows."""
+"""C07 create-only project workflow and deterministic fixtures."""
 
 from __future__ import annotations
 
-import calendar
 import re
 import shutil
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -211,53 +210,6 @@ def create_project_bundle(
             "errors": [{"code": "PROJECT_INPUT_INVALID", "locator": "/", "message": str(error)}],
             "created": [],
         }
-
-
-def _period_target(kind: str, selected: date) -> tuple[str, date, date, str]:
-    if kind == "daily":
-        return f"10_Journal/Daily/{selected:%Y}/{selected:%Y-%m-%d}.md", selected, selected, selected.strftime("%Y-%m-%d")
-    if kind == "weekly":
-        monday = selected - timedelta(days=selected.weekday())
-        sunday = monday + timedelta(days=6)
-        iso_year, iso_week, _ = selected.isocalendar()
-        label = f"{iso_year:04d}-W{iso_week:02d}"
-        return f"10_Journal/Weekly/{iso_year:04d}/{label}.md", monday, sunday, label
-    if kind == "monthly":
-        start = selected.replace(day=1)
-        end = selected.replace(day=calendar.monthrange(selected.year, selected.month)[1])
-        label = start.strftime("%Y-%m")
-        return f"10_Journal/Monthly/{selected:%Y}/{label}.md", start, end, label
-    raise ValueError("kind must be daily, weekly, or monthly")
-
-
-def create_period_note(root: str | Path, *, kind: str, selected_date: str | date | None = None, dry_run: bool = False) -> dict[str, Any]:
-    """Create one daily, ISO-weekly, or calendar-monthly note create-only."""
-
-    try:
-        selected = (
-            datetime.now(CANONICAL_TIMEZONE).date()
-            if selected_date is None
-            else (selected_date if isinstance(selected_date, date) else date.fromisoformat(selected_date))
-        )
-        relative, start, end, label = _period_target(kind, selected)
-        workspace = _workspace(root)
-        vault_root = workspace / "KnowledgeHub"
-        if vault_root.is_symlink() or not vault_root.is_dir():
-            raise ValueError("Vault root is missing or is a symlink")
-        target = _safe_target(vault_root, relative)
-        state = _preflight_existing(target)
-        if state != "CREATE":
-            return {"status": "CONFLICT", "operation": "period create", "kind": kind, "path": relative, "path_status": state, "created": []}
-        rendered = render_note_template(f"T{ {'daily':'10','weekly':'11','monthly':'12'}[kind] }_{kind.title()}.md", {"title": label, "date": selected})
-        validation = NoteEngine.from_root(workspace).validate_text(relative, rendered.markdown)
-        if not validation.passed:
-            return {"status": "FAIL", "operation": "period create", "kind": kind, "path": relative, "errors": [issue.as_dict() for issue in validation.errors], "created": []}
-        if dry_run:
-            return {"status": "PASS", "operation": "period create", "mode": "dry-run", "kind": kind, "path": relative, "period_start": start.isoformat(), "period_end": end.isoformat(), "would_create": [relative], "created": []}
-        write_note_file(target, rendered.markdown)
-        return {"status": "PASS", "operation": "period create", "mode": "apply", "kind": kind, "path": relative, "period_start": start.isoformat(), "period_end": end.isoformat(), "created": [relative]}
-    except (OSError, UnicodeError, TypeError, ValueError, UnsafePathError, TemplateRenderError, KeyError) as error:
-        return {"status": "FAIL", "operation": "period create", "kind": kind, "errors": [{"code": "PERIOD_INPUT_INVALID", "locator": "/", "message": str(error)}], "created": []}
 
 
 def project_local_link_resolves(relative_path: str, project_link: str, project_root_relative: str) -> bool:

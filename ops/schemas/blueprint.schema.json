@@ -124,8 +124,8 @@
     "git": {"$ref": "#/$defs/git"},
     "commands": {
       "type": "array",
-      "minItems": 47,
-      "maxItems": 47,
+      "minItems": 46,
+      "maxItems": 46,
       "uniqueItems": true,
       "items": {"type": "string", "pattern": "^vaultctl(?: [a-z][a-z0-9-]*)+$"},
       "allOf": [

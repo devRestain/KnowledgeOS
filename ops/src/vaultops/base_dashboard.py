@@ -85,7 +85,7 @@ def dashboard_sources() -> dict[str, str]:
 
             ## 빠른 캡처
 
-            - `⌥⌘I` `CAPTURE_THOUGHT` — 생각 포착
+            - `⌥⌘C` `CAPTURE_THOUGHT` — 생각 포착
             - `⌥⌘J` `NEW_IDEA` — 아이디어
             - `⌥⌘P` `NEW_PROJECT` — 프로젝트
             - `⌥⌘Q` `NEW_QUESTION` — 질문·결정

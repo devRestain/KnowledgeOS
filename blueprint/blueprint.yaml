@@ -1656,7 +1656,6 @@ commands:
   - vaultctl search
   - vaultctl retrieve
   - vaultctl ask
-  - vaultctl period create
   - vaultctl reconcile
   - vaultctl git status
   - vaultctl commit
@@ -1665,7 +1664,7 @@ commands:
   - vaultctl launchd install
   - vaultctl repair plan
   - vaultctl repair apply
-  - vaultctl obsidian
+  - vaultctl obsidian status
   - vaultctl ui
 command_content_transport:
   stdin_or_validated_file_required_for: [capture_body, source_url, url_comment, rejection_reason, search_query, retrieval_query, answer_question]

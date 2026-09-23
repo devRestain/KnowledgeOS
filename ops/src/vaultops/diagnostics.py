@@ -20,6 +20,8 @@ from .ai_projection import load_current_ai_projection
 from .background import render_background_artifacts
 from .blueprint import validate_blueprint
 from .bridge_contract import remote_identity_sha256, validate_root_sentinel
+from .core_settings import build_core_setting_registry
+from .gui_contracts import inspect_gui_contract
 from .launchd import launchd_status
 from .local_models import LOCAL_MODEL_CONFIG_PATH, inspect_local_model_config
 from .projection import load_current_projection
@@ -651,7 +653,13 @@ def _p01_registry(
     core_flags_path = profile_root / "core-plugins.json"
     core_flags = _p01_optional_object(core_flags_path, root=roots.control, errors=errors)
     serialized_sources: dict[str, dict[str, Any] | None] = {}
-    for filename in ("app.json", "appearance.json", "hotkeys.json", "workspace.json"):
+    for filename in (
+        "app.json",
+        "appearance.json",
+        "hotkeys.json",
+        "workspace.json",
+        "daily-notes.json",
+    ):
         serialized_sources[filename] = _p01_optional_object(
             profile_root / filename,
             root=roots.control,
@@ -781,15 +789,24 @@ def _p01_registry(
             }
         )
 
-    mobile_baseline = load_yaml_file(roots.control / "blueprint/blueprint.yaml")["plugin_profiles"].get(
-        "mobile_baseline", {}
+    blueprint = load_yaml_file(roots.control / "blueprint/blueprint.yaml")
+    core_setting_registry, core_registry_errors = build_core_setting_registry(
+        root=roots.control,
+        profile=profile,
+        profile_root=profile_root,
+        blueprint=blueprint,
+        core_flags=core_flags,
+        serialized_sources=serialized_sources,
     )
+    errors.extend(core_registry_errors)
+    mobile_baseline = blueprint["plugin_profiles"].get("mobile_baseline", {})
     mobile_plugins = mobile_baseline.get("community_plugins", [])
     return {
         "schema_version": 1,
         "profile": profile,
         "state_dimensions": list(_P01_STATE_DIMENSIONS),
         "entries": entries,
+        "core_setting_registry": core_setting_registry,
         "mobile_community_plugins": {
             "declared": list(mobile_plugins),
             "state": "empty" if not mobile_plugins else "degraded",
@@ -818,6 +835,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             installed=[],
             errors=[],
         )
+        gui_contract = inspect_gui_contract(roots.control, profile)
         return {
             "profile": profile,
             "profile_root": str(profile_root),
@@ -826,6 +844,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             "community_plugins": [{**item, "state": "inactive", "reason": "profile_missing"} for item in expected],
             "fallback": "canonical_markdown_and_plugin_free_surface_available",
             "setting_registry": registry,
+            "gui_contract": gui_contract,
             "capability": _inactive_capability(
                 reason="profile_missing",
                 evidence_class="static",
@@ -858,6 +877,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         installed=installed,
         errors=errors,
     )
+    gui_contract = inspect_gui_contract(roots.control, profile)
     filesystem_pass = not errors and not unexpected and all(item["state"] == "installed" for item in result_plugins)
     result = {
         "profile": profile,
@@ -868,6 +888,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         "unexpected_community_plugins": unexpected,
         "fallback": "canonical_markdown_and_plugin_free_surface_available",
         "setting_registry": registry,
+        "gui_contract": gui_contract,
         "capability": _capability(
             state="configured" if filesystem_pass else "degraded",
             declared="declared",

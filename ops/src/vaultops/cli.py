@@ -45,6 +45,7 @@ from .gemma_routes import C35_ROUTES, run_gemma_job
 from .launchd import launchd_install, launchd_rollback, launchd_status
 from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .obsidian_status import obsidian_status
 from .ollama import OllamaClient, OllamaError, OllamaProfile
 from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
@@ -70,7 +71,7 @@ from .schema_export import export_schema_artifacts
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
 from .vector import evaluate_vector_baseline, vector_retrieve, vector_search
-from .workflows import create_period_note, create_project_bundle
+from .workflows import create_project_bundle
 from .yaml_safe import load_yaml_file
 
 
@@ -212,14 +213,6 @@ def build_parser() -> argparse.ArgumentParser:
     project_create.add_argument("--dry-run", action="store_true", help="plan without writing")
     project_create.add_argument("--root", type=Path, default=None, help="mounted control root")
 
-    period = commands.add_parser("period", help="deterministic journal period workflows")
-    period_commands = period.add_subparsers(dest="period_command", required=True)
-    period_create = period_commands.add_parser("create", help="create a daily, weekly, or monthly note")
-    period_create.add_argument("--kind", required=True, choices=("daily", "weekly", "monthly"))
-    period_create.add_argument("--date", dest="selected_date", default=None, help="YYYY-MM-DD")
-    period_create.add_argument("--dry-run", action="store_true", help="plan without writing")
-    period_create.add_argument("--root", type=Path, default=None, help="mounted control root")
-
     capture = commands.add_parser("capture", help="create one capture note without overwriting")
     capture_commands = capture.add_subparsers(dest="capture_command", required=True)
     capture_text_command = capture_commands.add_parser("text", help="capture bounded text from stdin")
@@ -255,6 +248,17 @@ def build_parser() -> argparse.ArgumentParser:
     plugins_audit = plugins_commands.add_parser("audit", help="audit the configured Mac plugin profile")
     plugins_audit.add_argument("--profile", choices=("mac",), default="mac")
     plugins_audit.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    obsidian = commands.add_parser(
+        "obsidian",
+        help="bounded read-only status for the official Obsidian CLI",
+    )
+    obsidian_commands = obsidian.add_subparsers(dest="obsidian_command", required=True)
+    obsidian_status_command = obsidian_commands.add_parser(
+        "status",
+        help="inspect the fixed version probe without exposing document or plugin control",
+    )
+    obsidian_status_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     foundation = commands.add_parser("foundation", help="run portable foundation checks")
     foundation_commands = foundation.add_subparsers(dest="foundation_command", required=True)
@@ -844,15 +848,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if report["status"] == "PASS" else 1
-    if args.command == "period" and args.period_command == "create":
-        report = create_period_note(
-            args.root or _control_root(),
-            kind=args.kind,
-            selected_date=args.selected_date,
-            dry_run=args.dry_run,
-        )
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0 if report["status"] == "PASS" else 1
     if args.command == "capture" and args.capture_command == "text":
         report, exit_code = capture_text(
             args.root or _control_root(),
@@ -994,6 +989,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     if args.command == "plugins" and args.plugins_command == "audit":
         report, exit_code = plugins_audit_report(args.root or _control_root(), args.profile)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "obsidian" and args.obsidian_command == "status":
+        report, exit_code = obsidian_status(args.root or _control_root())
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "launchd" and args.launchd_command == "install":
