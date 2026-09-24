@@ -47,6 +47,13 @@ from .local_commands import capture_text, capture_url, create_note, format_notes
 from .note_engine import NoteEngine, UnsafePathError, resolve_vault_relative_path
 from .obsidian_status import obsidian_status
 from .ollama import OllamaClient, OllamaError, OllamaProfile
+from .operations import (
+    OperationsError,
+    dry_run_operation,
+    recover_operation,
+    rollback_operation,
+    verify_operation,
+)
 from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
@@ -67,7 +74,9 @@ from .retrieval import (
     retrieve,
     search,
 )
+from .safety_gates import SafetyGateError, evaluate_quality_fixture
 from .schema_export import export_schema_artifacts
+from .thin_client import ThinClientError, client_contract_report, render_markdown_fallback
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
 from .vector import evaluate_vector_baseline, vector_retrieve, vector_search
@@ -77,6 +86,20 @@ from .yaml_safe import load_yaml_file
 
 def _control_root() -> Path:
     return Path(os.environ.get("KNOWLEDGEOS_CONTROL_ROOT", "/workspace/control"))
+
+
+def _read_control_json(root: Path, path: Path, label: str) -> dict[str, object]:
+    """Read one regular JSON file constrained to the selected control root."""
+
+    workspace = root.resolve()
+    candidate = path if path.is_absolute() else workspace / path
+    resolved = candidate.resolve()
+    if candidate.is_symlink() or not resolved.is_relative_to(workspace) or not resolved.is_file():
+        raise ValueError(f"{label} must be a regular file inside the control root")
+    value = json.loads(resolved.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise TypeError(f"{label} must contain a JSON object")
+    return value
 
 
 def _add_retrieval_arguments(
@@ -625,6 +648,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional C35 route alias; otherwise use the C31 action",
     )
     ai_gemma.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_client = ai_commands.add_parser(
+        "client",
+        help="validate one removable brokered thin-client request and render its Markdown fallback",
+    )
+    ai_client.add_argument("--request-file", type=Path, required=True, help="control-root-relative JSON request")
+    ai_client.add_argument(
+        "--markdown",
+        action="store_true",
+        help="include the plugin-free review-only Markdown fallback in the report",
+    )
+    ai_client.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_safety = ai_commands.add_parser(
+        "safety",
+        help="evaluate the frozen C42 privacy, citation, quality, and redaction fixture",
+    )
+    ai_safety.add_argument("--evaluation-file", type=Path, required=True, help="control-root-relative JSON fixture")
+    ai_safety.add_argument("--root", type=Path, default=None, help="mounted control root")
+    ai_operations = ai_commands.add_parser(
+        "operations",
+        help="inspect C43 dry-run, recovery, rollback, and receipt boundaries",
+    )
+    operations_commands = ai_operations.add_subparsers(dest="operations_command", required=True)
+    operations_dry_run = operations_commands.add_parser("dry-run", help="plan without creating runtime state")
+    operations_dry_run.add_argument("--operation-id", required=True)
+    operations_dry_run.add_argument(
+        "--component",
+        required=True,
+        choices=("broker", "host_runner", "model_identity", "embedding_index", "thin_client"),
+    )
+    operations_dry_run.add_argument("--action", required=True, choices=("install", "upgrade", "disable"))
+    operations_dry_run.add_argument("--before-file", type=Path, required=True)
+    operations_dry_run.add_argument("--target-file", type=Path, required=True)
+    operations_dry_run.add_argument("--root", type=Path, default=None, help="mounted control root")
+    for operations_command in ("recover", "rollback", "verify"):
+        operation_command = operations_commands.add_parser(
+            operations_command,
+            help=f"{operations_command} one C43 operation",
+        )
+        operation_command.add_argument("--operation-id", required=True)
+        operation_command.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     note = commands.add_parser("note", help="validate one Markdown note against the strict registry")
     note_commands = note.add_subparsers(dest="note_command", required=True)
@@ -1387,6 +1450,70 @@ def main(argv: Sequence[str] | None = None) -> int:
             recorded_response_path=args.recorded_response,
             route=args.route,
         )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "client":
+        root = args.root or _control_root()
+        try:
+            request = _read_control_json(root, args.request_file, "thin-client request")
+            report = client_contract_report(request)
+            if args.markdown:
+                report["markdown"] = render_markdown_fallback(request)
+            exit_code = 0
+        except (OSError, UnicodeError, TypeError, ValueError, ThinClientError) as error:
+            report = {
+                "status": "FAIL",
+                "operation": "ai thin client",
+                "capability": "C41",
+                "errors": [{"code": getattr(error, "code", "C41_INPUT_INVALID"), "message": str(error)}],
+            }
+            exit_code = EXIT_INPUT_INVALID
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "safety":
+        root = args.root or _control_root()
+        try:
+            fixture = _read_control_json(root, args.evaluation_file, "C42 evaluation fixture")
+            report = evaluate_quality_fixture(fixture)
+            exit_code = 0 if report["status"] == "PASS" else EXIT_VALIDATION_FAILED
+        except (OSError, UnicodeError, TypeError, ValueError, SafetyGateError) as error:
+            report = {
+                "status": "FAIL",
+                "operation": "ai safety gates",
+                "capability": "C42",
+                "errors": [{"code": getattr(error, "code", "C42_INPUT_INVALID"), "message": str(error)}],
+            }
+            exit_code = EXIT_INPUT_INVALID
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "operations":
+        root = args.root or _control_root()
+        try:
+            if args.operations_command == "dry-run":
+                before = _read_control_json(root, args.before_file, "C43 before profile")
+                target = _read_control_json(root, args.target_file, "C43 target profile")
+                report = dry_run_operation(
+                    operation_id=args.operation_id,
+                    component=args.component,
+                    action=args.action,
+                    before_profile=before,
+                    target_profile=target,
+                )
+            elif args.operations_command == "recover":
+                report, _ = recover_operation(root, args.operation_id)
+            elif args.operations_command == "rollback":
+                report, _ = rollback_operation(root, args.operation_id)
+            else:
+                report = verify_operation(root, args.operation_id)
+            exit_code = 0
+        except (OSError, UnicodeError, TypeError, ValueError, OperationsError) as error:
+            report = {
+                "status": "FAIL",
+                "operation": "ai safe operations",
+                "capability": "C43",
+                "errors": [{"code": getattr(error, "code", "C43_INPUT_INVALID"), "message": str(error)}],
+            }
+            exit_code = EXIT_INPUT_INVALID
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code
     if args.command == "ai" and args.ai_command == "worker":

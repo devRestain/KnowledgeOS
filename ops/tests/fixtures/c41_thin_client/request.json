@@ -1,0 +1,36 @@
+{
+  "action": "answer",
+  "broker": {
+    "audience": "knowledgeos-broker",
+    "auth_sha256": "f696ba2d01a2dc2f9a0b903884870b17ced129fc2f00f7b855b03213cc78dc05",
+    "endpoint": "http://127.0.0.1:17900/broker",
+    "transport": "loopback"
+  },
+  "canonical_apply_allowed": false,
+  "capability": "C41",
+  "created_at": "2026-09-24T00:00:00+00:00",
+  "job_id": "11111111-1111-4111-8111-111111111111",
+  "operation": "ai thin client",
+  "policy": {
+    "index_generation_id": "c41-fixture",
+    "policy_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "privacy_policy_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "proposal_only": true,
+  "question": {
+    "byte_length": 43,
+    "sha256": "328893e6890aafc987aa92493e488b4705effd218013bf06baf49851aef43974",
+    "text": "What changed in the bounded review fixture?"
+  },
+  "request_id": "22222222-2222-4222-8222-222222222222",
+  "request_sha256": "f1909ba56a1c210f00576effffc898d206acffb34d6b6b186f98bd655a87b9fe",
+  "schema_version": 1,
+  "scope": {
+    "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "kind": "selection",
+    "locator": "# Evidence",
+    "path": "40_Knowledge/Notes/C41 Fixture.md",
+    "selection_byte_length": 18,
+    "selection_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  }
+}

@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=complete
-/checkpoint revision=p12-meta-bind-contract-20260924 dirty=true updated=2026-09-24T00:56:36+09:00
+/checkpoint revision=c41-c43-closure-20260924 dirty=true updated=2026-09-24T01:35:10+09:00
 /goal phase=history id=C36 state=complete action="Implement recoverable one-shot provider queue consumer while background activation stays disabled"
 /goal phase=history id=C37 state=complete action="Finalize plugin profile Gemma identity generated artifacts and follow-up C plans"
 /goal phase=history id=C38 state=complete action="Implement the independent local generation identity and private evidence lane"
@@ -28,7 +28,11 @@
 /goal phase=history id=P09 state=complete action="Define the Breadcrumbs typed-relation contract"
 /goal phase=history id=P10 state=complete action="Define the Notebook Navigator bounded-calendar contract"
 /goal phase=history id=P11 state=complete action="Define the Note Toolbar contextual-surface contract"
-/goal phase=current id=P12 state=complete action="Define the Meta Bind low-risk property-view contract"
+/goal phase=history id=P12 state=complete action="Define the Meta Bind low-risk property-view contract"
+/goal phase=current id=C41_C43_20260924 state=complete action="Implement and close the C41 C42 and C43 removable client safety and rollback contracts"
+/accept id=C41_C43_20260924.A1 state=pass action="Implement the removable brokered thin-client contract and plugin-free fallback" evidence=E_C41_CONTRACT
+/accept id=C41_C43_20260924.A2 state=pass action="Implement privacy citation quality and bounded-observability gates with deterministic regressions" evidence=E_C42_GATES
+/accept id=C41_C43_20260924.A3 state=pass action="Implement dry-run crash recovery receipts ownership checks and exact rollback without external effects" evidence=E_C43_OPERATIONS
 /accept id=STATE_CLEANUP_20260919.A1 state=pass action="Review project-local state-like documents and identify one machine-state authority" evidence=E_STATE_CLEANUP_REVIEW
 /accept id=STATE_CLEANUP_20260919.A2 state=pass action="Remove superseded history and duplicate status snapshots" evidence=E_STATE_CLEANUP_COMPACT
 /accept id=STATE_CLEANUP_20260919.A3 state=pass action="Preserve current goals blockers boundaries and P01 preflight evidence" evidence=E_STATE_CLEANUP_LIVE
@@ -231,6 +235,7 @@
 /decision id=D114 state=accepted action="Close the authorized F01 F02 F05 and F06 control and artifact implementation while retain the F03 Navigator mapping blocker and F04 GUI execution boundary" source="docs/IMPLEMENTATION_PLAN.md; docs/IMPLEMENTATION_STATUS.md; ops/src/vaultops/gui_contracts.py; ops/src/vaultops/obsidian_status.py"
 /decision id=D115 state=accepted action="Use the explicit one-session user authorization to operate Obsidian and mutate only the installed Mac Notebook Navigator and Note Toolbar profile for F03 and F04 closure while exclude Git provider remote and unrelated Vault effects" source="user request 2026-09-23; AGENTS.md"
 /decision id=D116 state=accepted action="Use Option-Command-C as the canonical CAPTURE_THOUGHT display and Blueprint hotkey while keep the unconfigured QuickAdd command identity unclaimed" source="user decision 2026-09-23; P01_CAPTURE_CONTRACT; blueprint/blueprint.yaml; KnowledgeHub/Home.md"
+/decision id=D117 state=accepted action="Start the bounded C41 through C43 implementation and closure slice without activating external services or devices" source="user request 2026-09-24; docs/IMPLEMENTATION_PLAN.md; AGENTS.md"
 /scope id=X01 state=in action="Maintain project-local state and status indexes"
 /scope id=X02 state=out action="Operate Obsidian UI or change Mac plugin settings"
 /scope id=X03 state=out action="Activate remote model or remote unattended lanes in the selected local branch"
@@ -267,6 +272,8 @@
 /scope id=X34 state=out action="Execute Navigator calendar creation opening movement deletion property mutation or operate Obsidian UI during P10"
 /scope id=X35 state=in action="Define the read-only P11 Note Toolbar contextual-surface contract"
 /scope id=X36 state=out action="Execute toolbar commands edit toolbar settings mutate canonical notes or operate Obsidian UI during P11"
+/scope id=X37 state=in action="Implement C41 C42 and C43 code fixtures tests and private runtime contract evidence"
+/scope id=X38 state=out action="Install or operate Obsidian plugins activate Ollama LaunchAgent or remote lanes mutate Git or apply canonical Vault changes during C41 through C43"
 /blocker id=B_F03_NAVIGATOR_MAPPING state=resolved action="Align the installed Notebook Navigator 3.4.1 profile to year-nested weekly and monthly paths and verify creation opening and existing-note no-overwrite behavior" source="user request 2026-09-23; KnowledgeHub/.obsidian-mac/plugins/notebook-navigator/data.json; KnowledgeHub/10_Journal/Weekly/2026/2026-W39.md; KnowledgeHub/10_Journal/Monthly/2026/2026-09.md"
 /blocker id=B_F04_TOOLBAR_NAVIGATION state=resolved action="Configure reviewed current weekly and monthly Note Toolbar file links and execute both links without scripting or unverified commands" source="user request 2026-09-23; KnowledgeHub/.obsidian-mac/plugins/note-toolbar/data.json; ops/src/vaultops/gui_contracts.py"
 /accept id=E04_REMAINDER_20260921.A6 state=pass action="Execute the user-authorized Obsidian runtime smoke and validate both current Daily notes" evidence=P01_RUNTIME
@@ -465,4 +472,20 @@
 /accept id=P12.A4 state=pass action="Attach a human-action requirement mutation class and rollback path to every write-capable input and preserve the YAML frontmatter fallback" evidence=E_P12_FALLBACK
 /accept id=P12.A5 state=pass action="Record Meta Bind rendering editing runtime device and canonical mutation evidence as not_run or out_of_scope" evidence=E_P12_BOUNDARIES
 /accept id=P12.A6 state=pass action="Run the focused P12 tests plugin audit source foundation Blueprint lint state and whitespace checks while preserve pre-existing wider and schema gaps" evidence=E_P12_GATES
-/handoff state=ready action="Retain the closed P02-P12 setting-state lane while preserve the unresolved Meta Bind folder-exclusion semantics and separate runtime device wider-test and generated-artifact gaps"
+/evidence id=E_C41_CONTRACT class=static result=pass source="ops/src/vaultops/thin_client.py; ops/tests/fixtures/c41_thin_client/request.json" observed="Implement exact loopback request scope citation diff review and plugin-free fallback boundaries"
+/evidence id=E_C41_BROKER_RECHECK class=semantic result=pass source="ops/src/vaultops/thin_client.py; docs/IMPLEMENTATION_PLAN.md" observed="Require authenticated broker content policy and index digest rechecks while keep direct provider and canonical apply authority absent"
+/evidence id=E_C41_TESTS class=runtime result=pass source="docker compose -f ops/compose.yaml run --rm dev uv run --frozen --no-sync pytest tests/test_c41_thin_client.py" observed="Pass six C41 request broker citation diff decision fallback and CLI fixture tests"
+/evidence id=E_C41_DEVICE_GAP class=device result=not_run source="AGENTS.md; docs/IMPLEMENTATION_PLAN.md" observed="Leave plugin installation Obsidian execution settings mutation and device behavior unrun"
+/evidence id=E_C42_GATES class=semantic result=pass source="ops/src/vaultops/safety_gates.py; ops/tests/test_c42_safety_gates.py; ops/tests/fixtures/c42_quality/evaluation.json" observed="Reapply profile path type scope sensitivity ai_policy and citation channel provenance gates before context and route presentation"
+/evidence id=E_C42_OBSERVABILITY class=runtime result=pass source="ops/tests/test_c42_safety_gates.py; ops/tests/fixtures/c42_quality/evaluation.json; vaultctl ai safety" observed="Pass nine frozen Korean multilingual safety cases with privacy citation quality observability and raw-content redaction gates"
+/evidence id=E_C42_TESTS class=runtime result=pass source="docker compose -f ops/compose.yaml run --rm dev uv run --frozen --no-sync pytest tests/test_c42_safety_gates.py" observed="Pass five C42 privacy citation injection scope redaction and fixture tests"
+/evidence id=E_C43_OPERATIONS class=semantic result=pass source="ops/src/vaultops/operations.py; docs/IMPLEMENTATION_PLAN.md" observed="Allowlist broker host runner model identity embedding index and thin client receipts with disabled network device Git provider Vault and canonical apply effects"
+/evidence id=E_C43_RUNTIME class=runtime result=pass source="ops/tests/test_c43_operations.py; vaultctl ai operations dry-run" observed="Pass dry-run simulated crash recovery rollback replay and tamper-evident receipt behavior"
+/evidence id=E_C43_ARTIFACT class=artifact result=pass source="ops/src/vaultops/operations.py; ops/tests/test_c43_operations.py" observed="Create private 0700 operation directories and create-only 0600 intent receipt and rollback artifacts bound by SHA-256"
+/evidence id=E_C43_DEPLOYMENT_GAP class=deployment result=not_run source="AGENTS.md; docs/IMPLEMENTATION_PLAN.md" observed="Leave broker host runner model index thin-client installation upgrade and LaunchAgent deployment unrun"
+/evidence id=E_C43_EXTERNAL_GAP class=external_service result=not_run source="AGENTS.md; docs/IMPLEMENTATION_PLAN.md; PROJECT_STATE.md" observed="Leave live Ollama and external provider activation unrun because C41 through C43 do not grant service authorization"
+/evidence id=E_C41_C43_TESTS class=runtime result=pass source="docker compose -f ops/compose.yaml run --rm dev uv run --frozen --no-sync pytest tests/test_c41_thin_client.py tests/test_c42_safety_gates.py tests/test_c43_operations.py" observed="Pass fourteen focused C41 C42 and C43 tests"
+/evidence id=E_C41_C43_FULL_TEST class=runtime result=blocked source="make test; ops/tests/test_c22_retrieval.py; ops/tests/test_c30_diagnostics.py; ops/tests/test_c31_provider_contract.py; ops/tests/test_c34_embedding.py; ops/tests/test_c39_qwen_embedding.py; ops/tests/test_e01_vector.py" observed="Run 409 tests with 380 passing and 29 pre-existing retrieval authoritative-input hash and generated model diagnostic failures"
+/evidence id=E_C41_C43_SCHEMA_GAP class=artifact result=blocked source="make schema-check; ops/config/generated-artifacts.yaml" observed="Observe pre-existing generated-artifact mismatches in portable policies Property Dictionary background LaunchAgent and local-model files while preserve all bytes"
+/evidence id=E_C41_C43_GATES class=runtime result=pass source="scripts/validate_state.py PROJECT_STATE.md; make lint; make source-check; make verify; make blueprint-check; git diff --check; git -C KnowledgeHub diff --check" observed="Pass state syntax Ruff source checksum foundation Blueprint semantic and both Git-root whitespace checks for the closure slice"
+/handoff state=ready action="Retain the closed C41 through C43 contracts while preserve separate live activation device deployment canonical apply full-suite and generated-artifact gaps"
