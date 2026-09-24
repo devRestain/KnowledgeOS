@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
-/status value=complete
-/checkpoint revision=c41-c43-closure-20260924 dirty=true updated=2026-09-24T01:35:10+09:00
+/status value=planned
+/checkpoint revision=h01-macbook-20260924 dirty=true updated=2026-09-24T11:29:10+09:00
 /goal phase=history id=C36 state=complete action="Implement recoverable one-shot provider queue consumer while background activation stays disabled"
 /goal phase=history id=C37 state=complete action="Finalize plugin profile Gemma identity generated artifacts and follow-up C plans"
 /goal phase=history id=C38 state=complete action="Implement the independent local generation identity and private evidence lane"
@@ -30,6 +30,7 @@
 /goal phase=history id=P11 state=complete action="Define the Note Toolbar contextual-surface contract"
 /goal phase=history id=P12 state=complete action="Define the Meta Bind low-risk property-view contract"
 /goal phase=current id=C41_C43_20260924 state=complete action="Implement and close the C41 C42 and C43 removable client safety and rollback contracts"
+/goal phase=next id=H01 state=planned action="Plan generated artifact and retrieval drift repair local activation and MacBook environment completion after C41 C42 and C43"
 /accept id=C41_C43_20260924.A1 state=pass action="Implement the removable brokered thin-client contract and plugin-free fallback" evidence=E_C41_CONTRACT
 /accept id=C41_C43_20260924.A2 state=pass action="Implement privacy citation quality and bounded-observability gates with deterministic regressions" evidence=E_C42_GATES
 /accept id=C41_C43_20260924.A3 state=pass action="Implement dry-run crash recovery receipts ownership checks and exact rollback without external effects" evidence=E_C43_OPERATIONS
@@ -236,6 +237,7 @@
 /decision id=D115 state=accepted action="Use the explicit one-session user authorization to operate Obsidian and mutate only the installed Mac Notebook Navigator and Note Toolbar profile for F03 and F04 closure while exclude Git provider remote and unrelated Vault effects" source="user request 2026-09-23; AGENTS.md"
 /decision id=D116 state=accepted action="Use Option-Command-C as the canonical CAPTURE_THOUGHT display and Blueprint hotkey while keep the unconfigured QuickAdd command identity unclaimed" source="user decision 2026-09-23; P01_CAPTURE_CONTRACT; blueprint/blueprint.yaml; KnowledgeHub/Home.md"
 /decision id=D117 state=accepted action="Start the bounded C41 through C43 implementation and closure slice without activating external services or devices" source="user request 2026-09-24; docs/IMPLEMENTATION_PLAN.md; AGENTS.md"
+/decision id=D118 state=accepted action="Prioritize generated artifact and retrieval drift repair before separately authorized live activation deployment and MacBook environment completion" source="user request 2026-09-24; make schema-check; make test; docs/IMPLEMENTATION_PLAN.md"
 /scope id=X01 state=in action="Maintain project-local state and status indexes"
 /scope id=X02 state=out action="Operate Obsidian UI or change Mac plugin settings"
 /scope id=X03 state=out action="Activate remote model or remote unattended lanes in the selected local branch"
@@ -274,8 +276,12 @@
 /scope id=X36 state=out action="Execute toolbar commands edit toolbar settings mutate canonical notes or operate Obsidian UI during P11"
 /scope id=X37 state=in action="Implement C41 C42 and C43 code fixtures tests and private runtime contract evidence"
 /scope id=X38 state=out action="Install or operate Obsidian plugins activate Ollama LaunchAgent or remote lanes mutate Git or apply canonical Vault changes during C41 through C43"
+/scope id=X39 state=in action="Maintain the H01 remaining-work plan and blocker-ordering lane"
+/scope id=X40 state=out action="Activate external services perform live deployment mutate MacBook plugin settings or apply canonical Vault changes during H01 planning"
 /blocker id=B_F03_NAVIGATOR_MAPPING state=resolved action="Align the installed Notebook Navigator 3.4.1 profile to year-nested weekly and monthly paths and verify creation opening and existing-note no-overwrite behavior" source="user request 2026-09-23; KnowledgeHub/.obsidian-mac/plugins/notebook-navigator/data.json; KnowledgeHub/10_Journal/Weekly/2026/2026-W39.md; KnowledgeHub/10_Journal/Monthly/2026/2026-09.md"
 /blocker id=B_F04_TOOLBAR_NAVIGATION state=resolved action="Configure reviewed current weekly and monthly Note Toolbar file links and execute both links without scripting or unverified commands" source="user request 2026-09-23; KnowledgeHub/.obsidian-mac/plugins/note-toolbar/data.json; ops/src/vaultops/gui_contracts.py"
+/blocker id=B_H01_ARTIFACT_DRIFT state=open action="Repair generated artifact zero diff and retrieval authoritative input drift before full suite closure" source="E_H01_SCHEMA_GAP; E_H01_FULL_TEST; ops/config/generated-artifacts.yaml"
+/blocker id=B_H02_CANONICAL_CORPUS state=open action="Provide an eligible canonical corpus before durable Qwen C34 pointer materialization" source="E_E02_CANONICAL_SOURCE_20260920; docs/IMPLEMENTATION_PLAN.md"
 /accept id=E04_REMAINDER_20260921.A6 state=pass action="Execute the user-authorized Obsidian runtime smoke and validate both current Daily notes" evidence=P01_RUNTIME
 /accept id=E04_REMAINDER_20260921.A7 state=pass action="Observe the user-authorized Mac Obsidian device surfaces and preserve no-network no-setting-mutation boundaries" evidence=P01_DEVICE
 /accept id=E04_REMAINDER_20260921.A8 state=pass action="Set the CAPTURE_THOUGHT contract to the Option-Command-C display" evidence=P01_CAPTURE_CONTRACT
@@ -488,4 +494,9 @@
 /evidence id=E_C41_C43_FULL_TEST class=runtime result=blocked source="make test; ops/tests/test_c22_retrieval.py; ops/tests/test_c30_diagnostics.py; ops/tests/test_c31_provider_contract.py; ops/tests/test_c34_embedding.py; ops/tests/test_c39_qwen_embedding.py; ops/tests/test_e01_vector.py" observed="Run 409 tests with 380 passing and 29 pre-existing retrieval authoritative-input hash and generated model diagnostic failures"
 /evidence id=E_C41_C43_SCHEMA_GAP class=artifact result=blocked source="make schema-check; ops/config/generated-artifacts.yaml" observed="Observe pre-existing generated-artifact mismatches in portable policies Property Dictionary background LaunchAgent and local-model files while preserve all bytes"
 /evidence id=E_C41_C43_GATES class=runtime result=pass source="scripts/validate_state.py PROJECT_STATE.md; make lint; make source-check; make verify; make blueprint-check; git diff --check; git -C KnowledgeHub diff --check" observed="Pass state syntax Ruff source checksum foundation Blueprint semantic and both Git-root whitespace checks for the closure slice"
-/handoff state=ready action="Retain the closed C41 through C43 contracts while preserve separate live activation device deployment canonical apply full-suite and generated-artifact gaps"
+/evidence id=E_H01_PLAN class=semantic result=pass source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md; docs/IMPLEMENTATION_STATUS.md" observed="Define the H01 dependency-aware order across artifact repair and MacBook environment completion"
+/evidence id=E_H01_CHECKS class=runtime result=pass source="scripts/validate_state.py PROJECT_STATE.md; make source-check; make verify; make blueprint-check; make lint; git diff --check; git -C KnowledgeHub diff --check" observed="Pass current state source foundation Blueprint lint and both Git-root whitespace checks"
+/evidence id=E_H01_SCHEMA_GAP class=artifact result=blocked source="make schema-check; ops/config/generated-artifacts.yaml" observed="Observe generated artifact zero-diff failure across owned policy Property Dictionary background LaunchAgent and local-model files"
+/evidence id=E_H01_FULL_TEST class=runtime result=blocked source="make test; tests/test_c12_diagnostics.py; tests/test_c22_retrieval.py; tests/test_c23_answer.py; tests/test_c26_provenance.py; tests/test_c30_diagnostics.py; tests/test_c31_provider_contract.py; tests/test_c34_embedding.py; tests/test_c38_generation_identity.py; tests/test_c39_qwen_embedding.py; tests/test_e01_vector.py" observed="Observe 380 passing tests and 29 retrieval hash and generated diagnostic failures"
+/evidence id=E_H01_EXTERNAL_GAPS class=deployment result=not_run source="PROJECT_STATE.md; docs/IMPLEMENTATION_PLAN.md" observed="Leave live activation deployment and MacBook environment gates unrun pending separate authorization"
+/handoff state=ready action="Plan artifact and retrieval drift repair before separately authorized activation deployment and MacBook environment completion"
