@@ -28,6 +28,7 @@ P10_MONTHLY_PATTERN = "[Monthly]/YYYY/YYYY-MM"
 P10_DAILY_TEMPLATE = "99_System/Templates/T10_Daily.md"
 P10_WEEKLY_TEMPLATE = "99_System/Templates/T11_Weekly.md"
 P10_MONTHLY_TEMPLATE = "99_System/Templates/T12_Monthly.md"
+P10_FILE_VISIBILITY = "all"
 
 _PROFILE_EMPTY_LISTS = (
     "hiddenFolders",
@@ -345,7 +346,7 @@ def _profile_scope(
         return {
             "state": "unknown",
             "fields": {key: {"observed": None, "expected": [], "state": "unknown"} for key in _PROFILE_EMPTY_LISTS},
-            "file_visibility": {"observed": None, "expected": "supported", "state": "unknown"},
+            "file_visibility": {"observed": None, "expected": P10_FILE_VISIBILITY, "state": "unknown"},
         }
     fields = {
         key: _list_setting(
@@ -366,15 +367,15 @@ def _profile_scope(
             )
     file_visibility = _exact_setting(
         profile.get("fileVisibility"),
-        "supported",
-        policy="retain supported file visibility for the plugin-free File Explorer fallback",
+        P10_FILE_VISIBILITY,
+        policy="retain the user-selected all file visibility without expanding hidden or property-filter scope",
     )
     if file_visibility["state"] in {"drift", "invalid"}:
         errors.append(
             _error(
                 "P10_FILE_VISIBILITY_DRIFT",
                 _relative(root, data_path) + "#/vaultProfiles/-1/fileVisibility",
-                "active profile fileVisibility must remain supported",
+                f"active profile fileVisibility must remain {P10_FILE_VISIBILITY}",
             )
         )
     return {
@@ -803,6 +804,7 @@ def build_notebook_navigator_setting_registry(
 
 
 __all__ = [
+    "P10_FILE_VISIBILITY",
     "P10_NOTEBOOK_NAVIGATOR_REGISTRY_SCHEMA_VERSION",
     "P10_PLUGIN_ID",
     "build_notebook_navigator_setting_registry",

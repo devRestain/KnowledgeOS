@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 from vaultops.diagnostics import plugins_audit_report
-from vaultops.notebook_navigator_settings import build_notebook_navigator_setting_registry
+from vaultops.notebook_navigator_settings import (
+    P10_FILE_VISIBILITY,
+    build_notebook_navigator_setting_registry,
+)
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +70,9 @@ def test_p10_registry_binds_exact_period_mapping_and_single_template_owners_with
     assert registry["template_settings"]["template_commands"]["state"] == "pass"
     assert registry["scope"]["profile"]["state"] == "pass"
     assert all(record["state"] == "pass" for record in registry["scope"]["profile"]["fields"].values())
+    assert registry["scope"]["profile"]["file_visibility"]["observed"] == P10_FILE_VISIBILITY
+    assert registry["scope"]["profile"]["file_visibility"]["expected"] == P10_FILE_VISIBILITY
+    assert registry["scope"]["profile"]["file_visibility"]["state"] == "pass"
     assert registry["scope"]["display"]["observed"]["calendar_show_hidden_items"]["state"] == "pass"
 
     confirmation = registry["confirmation_policy"]

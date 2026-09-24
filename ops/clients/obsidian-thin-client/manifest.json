@@ -1,0 +1,9 @@
+{
+  "id": "knowledgeos-thin-client",
+  "name": "KnowledgeOS Thin Client",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Removable proposal-only Obsidian presentation client for the KnowledgeOS loopback broker.",
+  "author": "KnowledgeOS",
+  "isDesktopOnly": true
+}

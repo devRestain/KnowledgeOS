@@ -31,12 +31,17 @@ EXIT_CONFIG_INVALID = 11
 
 OBSIDIAN_EXECUTABLE = "obsidian"
 FIXED_ARGV = ("version",)
-PROBE_TIMEOUT_SECONDS = 2.0
+# The macOS CLI may need a few seconds to complete its IPC round-trip even
+# when the desktop app is already running.  Keep the bound finite while
+# leaving enough room for that startup path.
+PROBE_TIMEOUT_SECONDS = 5.0
 MAX_OUTPUT_BYTES = 4096
 MAX_VERSION_LENGTH = 128
 
+_VERSION_COMPONENT_PATTERN = r"[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?"
 _VERSION_PATTERN = re.compile(
-    r"^(?:Obsidian\s+)?v?(?P<version>[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?)$",
+    rf"^(?:Obsidian\s+)?v?(?P<version>{_VERSION_COMPONENT_PATTERN})"
+    rf"(?:\s+\(installer\s+v?{_VERSION_COMPONENT_PATTERN}\))?$",
     re.IGNORECASE,
 )
 _VAULT_PATTERN = re.compile(r"^Vault:\s*(?P<name>[A-Za-z0-9][A-Za-z0-9 ._-]{0,127})$")
@@ -180,11 +185,21 @@ def _bounded_probe(executable: str, *, timeout: float, output_limit: int) -> _Pr
         timed_out = False
         output_limited = False
         while selector.get_map():
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                timed_out = True
-                break
-            events = selector.select(min(remaining, 0.05))
+            # Pipe EOF is not a reliable process-liveness signal: a GUI CLI
+            # can exit after spawning a helper that inherits stdout/stderr.
+            # Once the direct command is gone, drain bytes that are already
+            # available and stop instead of waiting for that helper's EOF.
+            process_exited = process.poll() is not None
+            if process_exited:
+                events = selector.select(0)
+                if not events:
+                    break
+            else:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    timed_out = True
+                    break
+                events = selector.select(min(remaining, 0.05))
             if not events:
                 continue
             for key, _ in events:
@@ -394,4 +409,3 @@ def obsidian_status(root: str | Path) -> tuple[dict[str, Any], int]:
     """Run the only public Obsidian adapter command."""
 
     return _collect_status(root)
-

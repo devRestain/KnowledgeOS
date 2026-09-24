@@ -174,6 +174,51 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 - Define installation, upgrade, disable, rollback, and recovery receipts for the broker, host runner, model identity, embedding index generations, and thin client. A failed check must leave the prior profile and canonical Vault unchanged.
 - Acceptance requires dry-run and simulated crash evidence, exact ownership checks, no Git/network/device side effects unless separately authorized, and a user-facing handoff that lists the next gate and any `not_run` evidence.
 
+## E05 lane — Removable desktop Obsidian thin client
+
+E05 is the optional AI presentation lane adopted by `D111`. It consumes the
+C41 request and response contract but does not replace the C19 review/apply
+authority, the C42 safety gates, or the C43 deployment and rollback gates.
+
+- Dependencies: C41-C43, the accepted P01 setting-state vocabulary, and the
+  authenticated broker deployment contract. The artifact may be prepared
+  without installing or operating Obsidian.
+- Package a removable desktop plugin under
+  `ops/clients/obsidian-thin-client/` with only fixed review entry points:
+  `open-review` and `ask-current-note`. Support `current_note` and `selection`
+  scope, exact citation opening, bounded diff presentation, and explicit
+  approve/reject presentation.
+- Build the exact C41 request in the plugin: canonical JSON, content and
+  selection digests, policy/privacy/index bindings, authenticated
+  `127.0.0.1` loopback endpoint, and proposal-only flags. Persist only
+  non-secret endpoint and digest settings; accept the broker token for one
+  in-memory request and clear it after the call.
+- Keep the control-side broker seam in
+  `ops/src/vaultops/thin_client_http.py`. Its HTTP adapter accepts only one
+  canonical JSON `POST /broker` request over an explicit IPv4 loopback
+  binding, compares the bearer token in memory, and dispatches through
+  `VaultThinClientBroker`. The broker rechecks the persisted note bytes, the
+  retrieval and privacy policy digests, and the current immutable index
+  generation before calling the existing provider-free `vaultctl ask` path.
+  Drift returns a bounded C41 conflict; it never becomes a provider, Vault,
+  Git, scheduler, or canonical-apply authority.
+- Expose that same seam through the explicit control-side command
+  `vaultctl ai client --serve --token-file <mode-0600-file>` or
+  `vaultctl ai client --serve --token-stdin`. The command reads one bounded
+  token into memory, binds only `127.0.0.1`, and emits a token-free readiness
+  record before serving; it is a separately operated deployment seam and does
+  not give the plugin shell-launch authority. Persistent service operation
+  remains separate deployment evidence.
+- Keep the plugin presentation-only. It must not expose an arbitrary
+  `vaultctl`/shell launcher, call Ollama, bind LAN or wildcard origins, write
+  notes or plugin settings as part of review, persist raw prompt/response
+  bytes, perform Git effects, or grant canonical apply authority.
+- Acceptance: the removable manifest/contract, provider-free broker seam, and
+  ephemeral authenticated loopback tests pass; JavaScript syntax and C41
+  request/response boundary checks pass; live plugin installation, Obsidian
+  execution, broker deployment, provider activation, and device behavior
+  remain separate `not_run` evidence until explicitly authorized.
+
 ## E02 host-native live verification plan
 
 - Treat `E02` as an explicitly authorized host-native external-service verification slice that uses the internal SSD only. Ollama and the selected models run on the user's physical machine so its native CPU, unified memory, GPU, or Metal/CUDA/ROCm backend remains available; do not install Ollama in Compose, add GPU passthrough to `ops`, or make the container a model host.

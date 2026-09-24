@@ -37,6 +37,7 @@ MAX_LOCATOR_BYTES = 512
 MAX_SELECTION_BYTES = 16 * 1024
 MAX_DIFF_BYTES = 32 * 1024
 MAX_FALLBACK_BYTES = 64 * 1024
+MAX_RESPONSE_BYTES = 128 * 1024
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _UUID4 = re.compile(
@@ -204,8 +205,13 @@ def build_thin_client_request(
     if request_id is None:
         request_id = str(uuid.uuid4())
     _validate_uuid(request_id, "request_id")
-    if not isinstance(authorization_token, str) or not authorization_token or len(authorization_token) > 256:
-        raise ThinClientError("C41_AUTH_INVALID", "authorization token must be bounded and non-empty")
+    if (
+        not isinstance(authorization_token, str)
+        or not authorization_token
+        or len(authorization_token.encode("utf-8")) > 256
+        or any(character.isspace() for character in authorization_token)
+    ):
+        raise ThinClientError("C41_AUTH_INVALID", "authorization token must be bounded non-whitespace text")
     if not isinstance(action, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{1,63}", action):
         raise ThinClientError("C41_ACTION_INVALID", "action must be a bounded lower-case identifier")
     _validate_hash(policy_sha256, "policy_sha256")
@@ -368,16 +374,22 @@ def _broker_response(response: Mapping[str, Any], request: Mapping[str, Any]) ->
         raise ThinClientError("C41_RESPONSE_INVALID", "broker response status is invalid")
     if not isinstance(response.get("result"), Mapping):
         raise ThinClientError("C41_RESPONSE_INVALID", "broker result must be an object")
+    try:
+        response_bytes = canonical_json_bytes(response)
+    except (TypeError, ValueError) as error:
+        raise ThinClientError("C41_RESPONSE_INVALID", "broker response is not serializable") from error
+    if len(response_bytes) > MAX_RESPONSE_BYTES:
+        raise ThinClientError("C41_RESPONSE_TOO_LARGE", "broker response exceeds the bounded byte limit")
     return dict(response)
 
 
-def dispatch_thin_client(
+def dispatch_thin_client_response(
     request: Mapping[str, Any],
     broker: ThinClientBroker | Callable[[Mapping[str, Any]], Mapping[str, Any]],
     *,
     authorization_token: str,
 ) -> dict[str, Any]:
-    """Dispatch exactly one request through an authenticated broker seam."""
+    """Return the exact C41 response from one authenticated broker dispatch."""
 
     normalized = validate_thin_client_request(request)
     if not isinstance(authorization_token, str) or not authorization_token:
@@ -392,6 +404,23 @@ def dispatch_thin_client(
     if not isinstance(raw_response, Mapping):
         raise ThinClientError("C41_RESPONSE_INVALID", "broker returned a non-object response")
     response = _broker_response(raw_response, normalized)
+    return response
+
+
+def dispatch_thin_client(
+    request: Mapping[str, Any],
+    broker: ThinClientBroker | Callable[[Mapping[str, Any]], Mapping[str, Any]],
+    *,
+    authorization_token: str,
+) -> dict[str, Any]:
+    """Dispatch exactly one request through an authenticated broker seam."""
+
+    normalized = validate_thin_client_request(request)
+    response = dispatch_thin_client_response(
+        normalized,
+        broker,
+        authorization_token=authorization_token,
+    )
     return {
         "status": "PASS",
         "operation": OPERATION,
@@ -617,6 +646,7 @@ __all__ = [
     "build_thin_client_request",
     "client_contract_report",
     "dispatch_thin_client",
+    "dispatch_thin_client_response",
     "render_markdown_fallback",
     "validate_thin_client_request",
 ]

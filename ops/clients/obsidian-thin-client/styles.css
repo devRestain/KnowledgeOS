@@ -1,0 +1,73 @@
+.kos-thin-client-modal {
+  max-width: 720px;
+}
+
+.kos-thin-client-label {
+  display: block;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.kos-thin-client-question,
+.kos-thin-client-token,
+.kos-thin-client-modal select,
+.kos-thin-client-section input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.kos-thin-client-question {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.kos-thin-client-modal select,
+.kos-thin-client-token,
+.kos-thin-client-section input {
+  padding: 6px 8px;
+}
+
+.kos-thin-client-description,
+.kos-thin-client-muted {
+  color: var(--text-muted);
+}
+
+.kos-thin-client-status {
+  margin: 12px 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.kos-thin-client-error {
+  color: var(--text-error);
+}
+
+.kos-thin-client-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.kos-thin-client-results {
+  margin-top: 18px;
+}
+
+.kos-thin-client-section {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.kos-thin-client-summary,
+.kos-thin-client-diff,
+.kos-thin-client-receipt {
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.kos-thin-client-section button {
+  margin: 4px 6px 4px 0;
+}

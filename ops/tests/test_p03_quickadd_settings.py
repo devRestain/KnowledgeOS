@@ -24,9 +24,10 @@ def test_p03_registry_binds_primary_choices_to_blueprint_targets_without_inventi
         "observed": "99_System/Templates",
         "state": "pass",
     }
+    expected_observed_choice_ids = sorted({"KOS_HELPERS", *P03_PRIMARY_CHOICES})
     assert registry["observed_choices"] == {
-        "state": "unconfigured",
-        "ids": [],
+        "state": "observed",
+        "ids": expected_observed_choice_ids,
         "required_primary_actions": list(P03_PRIMARY_CHOICES),
         "runtime_and_device_evidence": "not_run",
     }

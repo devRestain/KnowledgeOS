@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "capability": "C41",
+  "surface": "removable_desktop_obsidian_presentation",
+  "commands": [
+    "open-review",
+    "ask-current-note"
+  ],
+  "scope_kinds": [
+    "current_note",
+    "selection"
+  ],
+  "broker": {
+    "transport": "authenticated_http_loopback",
+    "host": "127.0.0.1",
+    "path": "/broker",
+    "control_adapter": "vaultops.thin_client_http",
+    "answer_route": "vaultctl ai ask",
+    "server_entrypoint": "vaultctl ai client --serve",
+    "token_sources": [
+      "--token-file",
+      "--token-stdin"
+    ],
+    "endpoint_is_configurable": true,
+    "token_persistence": "none"
+  },
+  "effects": {
+    "direct_provider_called": false,
+    "plugin_mutation_performed": false,
+    "vault_mutation_performed": false,
+    "canonical_apply_allowed": false,
+    "git_effects": false,
+    "network_scope": "127.0.0.1_only"
+  },
+  "evidence_boundary": {
+    "artifact": "implemented",
+    "installation": "not_run",
+    "device": "not_run",
+    "broker_deployment": "not_run",
+    "provider_activation": "not_run"
+  }
+}

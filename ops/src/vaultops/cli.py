@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -77,6 +78,13 @@ from .retrieval import (
 from .safety_gates import SafetyGateError, evaluate_quality_fixture
 from .schema_export import export_schema_artifacts
 from .thin_client import ThinClientError, client_contract_report, render_markdown_fallback
+from .thin_client_http import (
+    MAX_BEARER_TOKEN_BYTES,
+    ThinClientHttpService,
+    VaultThinClientBroker,
+    create_thin_client_server,
+    serve_thin_client,
+)
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
 from .vector import evaluate_vector_baseline, vector_retrieve, vector_search
@@ -100,6 +108,39 @@ def _read_control_json(root: Path, path: Path, label: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise TypeError(f"{label} must contain a JSON object")
     return value
+
+
+def _read_broker_token(path: Path | None, *, from_stdin: bool) -> str:
+    """Read one bounded broker token without persisting or echoing it."""
+
+    if from_stdin:
+        stream = getattr(sys.stdin, "buffer", None)
+        if stream is not None:
+            raw = stream.read(MAX_BEARER_TOKEN_BYTES + 1)
+        else:
+            raw = sys.stdin.read(MAX_BEARER_TOKEN_BYTES + 1).encode("utf-8")
+    elif path is not None:
+        candidate = path.expanduser()
+        if candidate.is_symlink() or not candidate.is_file():
+            raise ThinClientError("C41_AUTH_INVALID", "broker token file must be a regular file")
+        if stat.S_IMODE(candidate.stat().st_mode) != 0o600:
+            raise ThinClientError("C41_AUTH_INVALID", "broker token file must use mode 0600")
+        try:
+            with candidate.open("rb") as token_stream:
+                raw = token_stream.read(MAX_BEARER_TOKEN_BYTES + 1)
+        except OSError as error:
+            raise ThinClientError("C41_AUTH_INVALID", "broker token file could not be read") from error
+    else:
+        raise ThinClientError("C41_AUTH_INVALID", "broker serving requires --token-file or --token-stdin")
+    if len(raw) > MAX_BEARER_TOKEN_BYTES:
+        raise ThinClientError("C41_AUTH_INVALID", "broker token is too large")
+    try:
+        token = raw.decode("utf-8").strip()
+    except UnicodeDecodeError as error:
+        raise ThinClientError("C41_AUTH_INVALID", "broker token must be UTF-8") from error
+    if not token or any(character.isspace() for character in token):
+        raise ThinClientError("C41_AUTH_INVALID", "broker token must be bounded non-whitespace text")
+    return token
 
 
 def _add_retrieval_arguments(
@@ -650,14 +691,37 @@ def build_parser() -> argparse.ArgumentParser:
     ai_gemma.add_argument("--root", type=Path, default=None, help="mounted control root")
     ai_client = ai_commands.add_parser(
         "client",
-        help="validate one removable brokered thin-client request and render its Markdown fallback",
+        help="validate one thin-client request or serve the authenticated loopback broker",
     )
-    ai_client.add_argument("--request-file", type=Path, required=True, help="control-root-relative JSON request")
+    ai_client.add_argument(
+        "--request-file",
+        type=Path,
+        required=False,
+        help="control-root-relative JSON request; required unless --serve is selected",
+    )
     ai_client.add_argument(
         "--markdown",
         action="store_true",
         help="include the plugin-free review-only Markdown fallback in the report",
     )
+    ai_client.add_argument(
+        "--serve",
+        action="store_true",
+        help="serve one authenticated provider-free C41 broker on 127.0.0.1",
+    )
+    broker_token = ai_client.add_mutually_exclusive_group()
+    broker_token.add_argument(
+        "--token-file",
+        type=Path,
+        default=None,
+        help="private mode-0600 file containing the in-memory broker token",
+    )
+    broker_token.add_argument(
+        "--token-stdin",
+        action="store_true",
+        help="read the one in-memory broker token from stdin",
+    )
+    ai_client.add_argument("--port", type=int, default=17900, help="explicit loopback broker port")
     ai_client.add_argument("--root", type=Path, default=None, help="mounted control root")
     ai_safety = ai_commands.add_parser(
         "safety",
@@ -1454,6 +1518,59 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     if args.command == "ai" and args.ai_command == "client":
         root = args.root or _control_root()
+        if args.serve:
+            try:
+                if args.request_file is not None:
+                    raise ThinClientError("C41_INPUT_INVALID", "--serve cannot be combined with --request-file")
+                if args.port == 0:
+                    raise ThinClientError("C41_BINDING_INVALID", "a serving broker requires an explicit port")
+                token = _read_broker_token(args.token_file, from_stdin=args.token_stdin)
+                service = ThinClientHttpService(
+                    VaultThinClientBroker(root),
+                    authorization_token=token,
+                )
+                server = create_thin_client_server(service, port=args.port)
+                print(
+                    json.dumps(
+                        {
+                            "status": "READY",
+                            "operation": "ai thin client broker",
+                            "capability": "C41",
+                            "host": "127.0.0.1",
+                            "port": server.server_address[1],
+                            "path": "/broker",
+                            "provider_called": False,
+                            "mutation_performed": False,
+                            "canonical_apply_allowed": False,
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                try:
+                    serve_thin_client(server)
+                except KeyboardInterrupt:
+                    return 0
+                return 0
+            except (OSError, UnicodeError, TypeError, ValueError, ThinClientError) as error:
+                report = {
+                    "status": "FAIL",
+                    "operation": "ai thin client broker",
+                    "capability": "C41",
+                    "errors": [{"code": getattr(error, "code", "C41_INPUT_INVALID"), "message": str(error)}],
+                }
+                print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+                return EXIT_INPUT_INVALID
+        if args.request_file is None:
+            report = {
+                "status": "FAIL",
+                "operation": "ai thin client",
+                "capability": "C41",
+                "errors": [{"code": "C41_INPUT_INVALID", "message": "--request-file is required unless --serve is selected"}],
+            }
+            print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+            return EXIT_INPUT_INVALID
         try:
             request = _read_control_json(root, args.request_file, "thin-client request")
             report = client_contract_report(request)
