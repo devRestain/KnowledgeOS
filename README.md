@@ -6,32 +6,83 @@ KnowledgeOS는 생각과 자료를 빠르게 담아 두고, 나중에 판단할 
 
 ## KnowledgeOS에서 실제로 일어나는 흐름
 
-```text
-빠르게 담기
-    ↓
-원본·노트 유형·공개 범위 확인
-    ↓
-Inbox에서 다시 보기
-    ↓
-분류하고 연결하기
-    ↓
-정본 노트 또는 프로젝트로 확정하기
-    ↓
-검증된 읽기용 색인에서 검색하고 근거 확인하기
-    ↓
-필요할 때만 AI 제안 또는 cited answer 요청하기
-    ↓
-private runtime에서 처리 대상을 안전하게 준비하기
-    ├─ 필요할 때 `ai queue` one-shot을 명시적으로 실행
-    └─ E03를 켠 경우 local worker가 300초마다 bridge·recovery를 한 번 확인
-    ↓
-검증된 결과·검토 필요·보류·충돌 중 하나로 확인하기
-    ↓
-AI Review에서 원본·변경·근거를 확인하기
-    ↓
-사람이 승인한 변경만 정본에 적용하기
-    ↓
-Home·Bases·검색으로 다시 사용하고 끝난 맥락은 Archive에 보존하기
+정상적인 사용 흐름은 GUI-first입니다. Obsidian이 사람의 작성·검토 화면을 맡고, `vaultctl`은 캡처 검증, 검색, 제안, 승인, 적용과 증적을 담당합니다. AI 출력은 사람이 확인하기 전까지 정본이 아닙니다.
+
+### 사용자 워크플로우
+
+```mermaid
+flowchart TD
+    A[Home / Note Toolbar / QuickAdd] --> B{사용자 행동}
+    B -->|Daily| C[Obsidian Core Daily Notes]
+    B -->|Weekly 또는 Monthly| D[Notebook Navigator]
+    B -->|Capture| E[vaultctl capture text 또는 url]
+    C --> H[사람이 원본과 맥락 검토]
+    D --> F[Templater bounded period fields]
+    E --> G[00_Inbox/Captures create-only]
+    F --> H
+    G --> H
+    H --> I[vaultctl note validate]
+    I --> J{AI 도움이 필요한가?}
+    J -->|아니오| K[Markdown / Search / Bases로 계속 작업]
+    J -->|예| L[Thin Client 또는 명시적 vaultctl AI 제안]
+    L --> M[AI Review: citation와 diff 확인]
+    M --> N{사람의 결정}
+    N -->|hold / reject| O[보류·거절·충돌 receipt]
+    N -->|approve| P[C19 digest-bound apply]
+    P --> Q[Canonical Vault 변경과 receipt]
+```
+
+### `vaultctl` 파이프라인
+
+```mermaid
+flowchart LR
+    A[Vault source 또는 capture] --> B[Capture finalize / note validate]
+    B --> C[Path·schema·SHA-256 guard]
+    C --> D[Privacy·ai_policy gate]
+    D --> E[Index build/verify와 lexical·typed-link retrieval]
+    E --> F[Frozen evidence와 context]
+    F --> G{명시된 실행 경로}
+    G -->|provider-free| H[ask / triage / proposal]
+    G -->|explicit local| I[ai ollama: C31·C40·C35]
+    H --> J[Schema·provenance·citation·digest 검증]
+    I --> J
+    J --> K[읽기 답변 또는 pending proposal]
+    K --> L[사람의 Review]
+    L --> M{결정}
+    M -->|hold / reject| N[보류·거절·충돌 receipt]
+    M -->|approve| O[Digest-bound C19 approval]
+    O --> P[vaultctl ai apply]
+    P --> Q[Canonical Vault mutation과 receipt]
+```
+
+이 경로에서 provider 결과는 Vault에 직접 쓰이지 않습니다. 기존 정본을 바꾸는 유일한 닫힌 경로는 최신 digest를 다시 확인하는 C19 승인·적용 단계입니다.
+
+### Local AI 접점의 파이프라인
+
+Thin Client의 presentation 경로와 명시적인 local provider 경로는 서로 다른 접점입니다. Thin Client는 Ollama를 직접 호출하지 않고 provider-free `vaultctl ask`를 표시하며, Ollama 경로는 별도의 운영자 실행과 proposal 경계를 요구합니다.
+
+```mermaid
+flowchart TD
+    U[Obsidian Thin Client] --> R[Canonical JSON + memory-only bearer token]
+    R --> B[Authenticated 127.0.0.1 broker]
+    B --> X{Note·policy·index digest 재확인}
+    X -->|drift| Y[Bounded conflict: provider 없음·mutation 없음]
+    X -->|match| A[Provider-free vaultctl ask]
+    A --> V[Citation·answer·diff presentation]
+    V --> H[사람의 Review / C19 경계]
+
+    O[운영자: vaultctl ai ollama] --> J[Existing C31 frozen job]
+    J --> L[C40 route enabled + authorized]
+    L --> M[Ollama 127.0.0.1:11434 / gemma4:12b]
+    M --> S[C35 schema·provenance 검증]
+    S --> T[Proposal-only output]
+    T --> H
+    H --> N[Approve 후 C19 apply]
+    N --> Q[Canonical Vault mutation]
+
+    W[E03 LaunchAgent: ai worker --once] --> Z[Bridge·recovery 확인만 수행]
+    Z -. provider 호출·Vault apply 없음 .-> H
+    B -. Thin Client는 Ollama를 직접 호출하지 않음 .-> M
 ```
 
 각 단계의 역할은 분명합니다.
@@ -73,25 +124,23 @@ AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분�
 
 플러그인은 노트와 Properties를 대신 보관하는 시스템이 아니라, 이미 있는 흐름에 더 짧은 진입점을 제공하는 도구입니다. 정식 노트의 내용과 속성은 언제나 Markdown과 YAML Properties에 남고, 플러그인을 끄더라도 기본 화면에서 읽고 이어서 작업할 수 있어야 합니다.
 
-현재 Mac 프로필에서 사용하는 다섯 가지 기본 플러그인은 다음 역할을 맡습니다.
+현재 Mac baseline에는 커뮤니티 플러그인 11개가 명시되어 있습니다. 이 목록은 사용자 경험을 줄이는 역할 목록이지, 노트·retrieval·provider·Vault write·Git·canonical apply의 권한 목록이 아닙니다.
 
-| 플러그인 | 사용자가 느끼는 변화 | 잘 맞는 순간 |
+| 플러그인 | 역할 | 경계 |
 | --- | --- | --- |
-| QuickAdd | 생각, 질문, 아이디어, 프로젝트, 지식으로 들어가는 길을 단축합니다. | 지금 정리하지 않고 먼저 남겨야 할 때 |
-| Templater | 노트 종류에 맞는 제목, 날짜, 기본 속성을 채워 줍니다. | 같은 형식의 Daily·Project·Source를 만들 때 |
-| Tasks | 여러 프로젝트에 흩어진 다음 행동을 한곳에서 확인합니다. | 오늘 할 일을 고르고 주간 회고를 할 때 |
-| Linter | 사람이 작성한 노트의 서식과 Properties 표현을 정돈합니다. | 검토가 끝난 노트를 저장하거나 공유하기 전 |
-| Git | Mac에서 변경 내용을 확인하고 보존할 시점을 선택하게 합니다. | 중요한 변경을 확인한 뒤 기록하고 싶을 때 |
+| QuickAdd | 사람의 capture 진입점 | 원문을 먼저 남기고 분류는 사람이 결정 |
+| Templater | bounded template field renderer | shell, network, AI, `vaultctl`, 자동 apply 없음 |
+| Tasks | 다음 행동 query | 정본 Properties의 소유자가 아님 |
+| Linter | bounded Markdown hygiene | 사람의 판단을 대신하지 않음 |
+| Obsidian Git | Mac의 수동 Git 확인·작업 | 자동 commit/push 없음 |
+| Homepage | `Home.md` 시작 화면 | 시작 시 다른 명령을 자동 실행하지 않음 |
+| Note Toolbar | 현재 맥락의 command surface | 본문을 몰래 수정하지 않음 |
+| Breadcrumbs | typed relation navigation | 새 관계를 자동 생성하지 않음 |
+| Notebook Navigator | bounded note navigation | 일괄 이동·병합·삭제는 명시적 선택 필요 |
+| Meta Bind | low-risk property view/edit | 추적용 id·hash·승인 필드는 이 경로로 변경하지 않음 |
+| `knowledgeos-thin-client` | proposal-only presentation client | retrieval·provider·Vault write·Git·canonical apply 권한 없음 |
 
-다음 다섯 플러그인은 이 Mac 경험을 더 짧게 만들기 위한 추가 대상입니다. 실제로 켜기 전까지는 Command palette, Core Search, File Explorer, 기본 Properties가 그대로 fallback으로 동작합니다.
-
-| 추가 플러그인 | 사용자 경험 | 원래 흐름과의 관계 |
-| --- | --- | --- |
-| Homepage | Obsidian을 열면 `Home.md`나 저장해 둔 작업 화면이 바로 나타납니다. 오늘의 방향과 처리할 목록을 찾으려고 탭을 여러 개 다시 열 필요가 없습니다. | Workspaces와 Home을 여는 첫 동작을 줄이는 역할입니다. 시작할 때 다른 명령을 자동으로 실행하지 않습니다. |
-| Note Toolbar | 현재 노트에 맞는 `Capture`, `Review`, `Related`, `Back` 같은 버튼을 보며 다음 행동을 고릅니다. 폴더를 찾아 명령을 검색하는 대신, 지금 보고 있는 맥락에서 필요한 동작을 선택합니다. | 기존 QuickAdd와 Core 명령으로 연결되는 편의 계층입니다. 노트 본문을 몰래 수정하는 자동화 버튼으로 사용하지 않습니다. |
-| Breadcrumbs | Project에서 Working 메모와 Source로, Question에서 근거 Knowledge로 이동할 때 관계의 방향과 경로를 한눈에 봅니다. 링크를 하나씩 따라가며 “이 노트가 어디에 속하는가?”를 다시 기억할 필요가 줄어듭니다. | 기존 typed relation을 읽기 쉽게 보여 주는 탐색 화면입니다. 새로운 관계 이름을 자동으로 만들지 않습니다. |
-| Notebook Navigator | 폴더, 최근 노트, 태그, Properties를 한 화면에서 찾아 Capture와 Project 사이를 빠르게 오갑니다. File Explorer를 펼쳤다 접는 횟수가 줄어듭니다. | File Explorer와 최근 항목 탐색을 보강합니다. 이동·병합·삭제 같은 일괄 변경은 사람이 명시적으로 선택할 때만 합니다. |
-| Meta Bind | Project의 `status`, `priority`, `next_action`처럼 자주 확인하는 값을 노트 안에서 바로 보고, 허용된 범위 안에서 수정합니다. Properties 패널로 왕복하는 시간이 줄어듭니다. | 기존 YAML Properties를 편집하는 얇은 입력 화면입니다. `id`, 생성 시각, 원본 hash, 승인 상태처럼 추적에 필요한 값은 이 방식으로 바꾸지 않습니다. |
+모바일 community-plugin baseline은 비어 있습니다. Mac 플러그인이 꺼져 있거나 unavailable이어도 Home, Markdown, YAML Properties, Core Search, File Explorer, Bases와 Command Palette fallback으로 같은 판단을 이어갈 수 있어야 합니다.
 
 ### 아침에 시작하기
 
@@ -137,7 +186,7 @@ Homepage가 없거나 꺼져 있어도 `Home.md`를 직접 열면 같은 작업�
 3. 끝난 capture와 Project는 바로 삭제하지 말고 필요한 링크를 확인한 뒤 Archive로 보냅니다.
 4. Mac에서 변경 diff와 Git 상태를 확인합니다.
 
-추가 플러그인이 일시적으로 작동하지 않아도 Home, Markdown, YAML Properties, Bases, Tasks로 같은 판단을 이어갈 수 있어야 합니다. 플러그인 화면과 버튼은 작업을 빠르게 하지만, 원본과 결정의 소유자는 사용자입니다.
+플러그인이 일시적으로 작동하지 않아도 Home, Markdown, YAML Properties, Bases, Tasks로 같은 판단을 이어갈 수 있어야 합니다. 플러그인 화면과 버튼은 작업을 빠르게 하지만, 원본과 결정의 소유자는 사용자입니다.
 
 ## 기기별 역할
 
@@ -362,19 +411,16 @@ vaultctl ai worker --once
 
 ### 로컬 Ollama와 Gemma를 사용할 때
 
-KnowledgeOS의 로컬 AI 검증은 물리 컴퓨터에 설치된 Ollama를 대상으로 합니다. 모델을 canonical Compose 컨테이너 안으로 옮기거나, Vault를 Ollama 프로세스에 직접 노출하지 않습니다.
+KnowledgeOS의 local AI에는 서로 다른 두 운영 경로가 있습니다. 둘 다 물리 컴퓨터의 loopback Ollama를 사용할 수 있지만, Thin Client와 E03 worker는 Ollama를 직접 호출하지 않습니다.
 
-E02 검증 경로는 내부 SSD에 있는 선택된 모델의 identity, full digest, loopback 연결, cloud-off 정책, generation·embedding latency와 resource 결과를 한 번에 확인하는 host-native one-shot 작업입니다. 이 결과는 모델이 어떤 조건에서 안전하게 동작하는지 확인하는 evidence이며, 그 자체로 정본 노트를 수정하거나 background provider를 켜지 않습니다.
+- **E02 host verification** — 내부 SSD, `127.0.0.1`, cloud-off 조건에서 모델 identity, digest, generation·embedding resource/latency를 측정한 host-native one-shot evidence입니다. 이 측정 결과만으로 provider를 자동 활성화하거나 정본을 수정하지 않습니다.
+- **E05 explicit local route** — 운영자가 기존 C31 job과 명시적 authorization으로 `vaultctl ai ollama`를 실행합니다. 현재 허용된 generation identity는 `gemma4:12b`이며, live exercise는 `127.0.0.1:11434`와 600초 bound를 사용했습니다. 결과는 C35 schema·provenance 검증을 거친 proposal-only output입니다.
 
-사용자가 체감하는 순서는 다음과 같습니다.
+로컬 provider 결과는 신뢰하지 않은 입력으로 취급합니다. model identity, cloud-off·loopback 정책, source/policy/index provenance와 output digest를 다시 확인한 뒤에만 답변 또는 Review 제안으로 공개합니다. 모델 다운로드, alias 자동 변환, 자동 fallback, 지속적인 provider daemon은 이 경로에 포함되지 않습니다.
 
-1. 필요한 경우에만 로컬 AI 작업을 명시적으로 요청합니다.
-2. 작업은 물리 컴퓨터의 `127.0.0.1` Ollama와 private runtime spool 사이에서 한 번만 실행됩니다.
-3. Ollama의 결과는 신뢰하지 않은 입력으로 취급되고, container-side 검증에서 schema·source·policy·digest를 다시 확인합니다.
-4. 검증을 통과한 결과만 답변 또는 Review 제안으로 보입니다.
-5. 사람은 citation, 원본, diff를 확인한 뒤 승인·거절·보류를 선택합니다.
+Thin Client는 이 local provider route를 호출하지 않습니다. Thin Client는 인증된 `127.0.0.1` broker를 통해 현재 note·selection과 digest를 전달하고 provider-free `vaultctl ask`의 citation·answer·diff를 표시합니다. E03 LaunchAgent 역시 `vaultctl ai worker --once`로 bridge·recovery 상태만 확인하며, provider queue를 소비하거나 Ollama/Gemma를 호출하지 않습니다.
 
-모델 다운로드, 모델 교체, 지속적인 provider daemon은 이 one-shot 검증과 별개의 운영 선택입니다. E03에서는 C36과 rollback gate를 확인한 뒤 provider-free `vaultctl ai worker --once` LaunchAgent만 명시적으로 설치했습니다. 이 LaunchAgent는 `RunAtLoad=false`로 로그인 직후 실행되지 않고, 300초 간격으로 커밋된 local bridge request와 recovery state를 관찰합니다. `vaultctl ai queue`를 대신 실행하지도 않으므로, LaunchAgent가 켜져 있다는 사실만으로 Gemma 호출이나 provider queue 소비가 시작되지 않습니다. 따라서 E02 완료나 E03 설치가 “모든 AI 요청이 자동으로 Gemma를 호출한다”는 의미는 아닙니다. 기본 경험은 계속 local-first, proposal-only, human-approved입니다.
+E05에서 local Gemma route가 통과한 사실과 별도로, provider-free frozen proposal 하나가 C19 review → approve → apply → receipt 경로를 통과했습니다. 즉 local provider response가 곧바로 canonical Vault를 변경한 것은 아닙니다. 기본 경험은 계속 local-first, proposal-only, human-approved입니다.
 
 ## 검색하고 답을 확인하는 법
 
@@ -515,16 +561,16 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 현재 가장 안정적인 사용 범위는 MacBook 중심의 Obsidian workflow입니다.
 
 - Home, Mobile, Bases, Dashboard, Templates를 사용할 수 있습니다.
-- Mac에서는 QuickAdd, Templater, Tasks, Linter, Obsidian Git을 역할별로 사용할 수 있습니다.
+- Mac baseline에는 QuickAdd, Templater, Tasks, Linter, Obsidian Git, Homepage, Note Toolbar, Breadcrumbs, Notebook Navigator, Meta Bind, `knowledgeos-thin-client`가 포함됩니다. 모바일 community-plugin baseline은 비어 있습니다.
 - capture, typed note, Daily/Weekly/Monthly, project bundle, asset provenance, archive를 사용할 수 있습니다.
 - AI 제안은 preview·review·approval을 거치는 구조입니다.
 - lexical search, typed-link retrieval, 근거가 붙은 cited answer를 사용할 수 있습니다.
 - vector/RRF는 기본 검색을 바꾸지 않는 선택 기능입니다.
 - action별 AI 제안과 schema 검사는 원본·정책·citation에 묶여 있으며, provider 결과가 곧바로 정본을 바꾸지 않습니다.
-- background worker는 필요할 때 명시적으로 실행하거나, E03에서 설치된 LaunchAgent를 통해 provider-free 방식으로 깨울 수 있습니다. 현재 E03 label은 `gui/501/com.knowledgeos.vaultops`에 로드되어 있으며 `ai worker --once`를 300초 간격으로 호출하지만, C36 provider queue를 소비하거나 Ollama/Gemma를 호출하지 않고 remote/unattended lane도 활성화하지 않습니다.
+- background worker는 필요할 때 명시적으로 실행하거나, E03에서 설치된 LaunchAgent를 통해 provider-free 방식으로 깨울 수 있습니다. 현재 E03 label은 `gui/501/com.knowledgeos.vaultops`에 로드되어 있으며 `ai worker --once`를 300초 간격으로 호출하지만, provider queue를 소비하거나 Ollama/Gemma를 호출하지 않고 remote/unattended lane도 활성화하지 않습니다.
 - private provider queue는 `vaultctl ai queue`로 한 번만 명시적으로 처리할 수 있으며, bounded local/synthetic 작업을 claim하고 lease를 회수하며, 결과를 재검증한 뒤 응답 또는 Review 제안으로만 공개합니다. 이 명령은 live provider, LaunchAgent, 자동 실행 또는 정본 apply를 활성화하지 않습니다.
 - E02 host-native Ollama verification은 내부 SSD·loopback·cloud-off 조건에서 generation과 embedding profile을 확인하는 별도 one-shot 경로로 완료되었습니다. 모델 identity와 resource evidence는 기록되지만, 모델 다운로드·자동 fallback·지속적인 provider daemon은 기본 사용 범위에 포함되지 않습니다.
-- 실제 live provider를 일상적인 요청 경로로 승격하거나 remote/unattended lane을 활성화하는 일은 E04의 별도 운영 결정입니다. E03 LaunchAgent의 상태는 `vaultctl launchd status --root /Users/yuk/DevFolder/CodePractice/WorkingProject/KnowledgeOS`로 확인하고, rollback은 E03가 소유한 동일 bytes를 검증한 뒤 `vaultctl launchd rollback --apply`로 수행합니다. 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
+- E05의 explicit local `gemma4:12b` route는 bounded one-shot evidence와 proposal 경계 안에서만 사용할 수 있습니다. Thin Client의 일상적인 경로로 provider를 승격하거나 remote/unattended lane을 활성화하는 결정은 별도로 deferred 상태입니다. E03 LaunchAgent의 상태는 프로젝트 루트에서 `vaultctl launchd status`로 확인하고, rollback은 E03가 소유한 동일 bytes를 검증한 뒤 `vaultctl launchd rollback --apply`로 수행합니다. 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
 
 모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결은 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름과 E03의 provider-free worker 경계를 그대로 사용하면 됩니다.
 

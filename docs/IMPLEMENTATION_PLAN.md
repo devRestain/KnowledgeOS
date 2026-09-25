@@ -122,7 +122,7 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 ### C37 — Finalize the plugin profile and canonical Gemma identity
 
 - Dependencies: C30, C31, C35, C36, and the accepted Mac plugin profile decision.
-- Freeze `blueprint/blueprint.yaml#/plugin_profiles/mac_baseline` as the ten-plugin Mac allowlist and keep the mobile community-plugin list empty. The five newly profiled adapters remain UX roles only: startup experience, contextual commands, typed-relation navigation, bounded navigation, and low-risk property viewing.
+- Freeze `blueprint/blueprint.yaml#/plugin_profiles/mac_baseline` as the eleven-plugin Mac allowlist and keep the mobile community-plugin list empty. The six newly profiled adapters remain UX roles only: startup experience, contextual commands, typed-relation navigation, bounded navigation, low-risk property viewing, and proposal-only Thin Client presentation.
 - Make `gemma4:12b` the only generation identity in C30 configuration, C31 fixtures, C35 route validation, E02 defaults, documentation, and generated artifacts. Reject aliases, quantization variants, runtime variants, and silent rewrites; a live service may supply only the resolved name and full digest as evidence for the same requested identity.
 - Regenerate every owned artifact from the current Blueprint SHA, including the deployed Property Dictionary copy, and keep the generated-artifact ownership contract byte-for-byte zero-diff.
 - Acceptance: Blueprint semantic validation, source checksum, generated artifact export/check, C30/C31/C35/E02 identity regressions, state validation, and changed-root whitespace checks pass. Any pre-existing dirty Vault content outside the generated scope remains preserved and is reported separately.
@@ -157,7 +157,7 @@ The C37-C43 lane records the remaining local-AI and Obsidian-assistance work aft
 - Keep the finalized plugin profile as optional presentation adapters. The client may collect a question, current note or selection scope, open an exact citation, show a bounded diff, and expose explicit approve/reject controls. It may not become policy, retrieval, index, provider, or apply authority.
 - Route every request through an authenticated KnowledgeOS loopback broker that rechecks content/policy/index digests. Keep embeddings, prompts, responses, session state, and receipts in ignored private `runtime/`, never `.obsidian`, `.smart-env`, Git, or a synchronized Vault path.
 - Prefer a plugin-free CLI and Markdown fallback for every surface. Direct Ollama calls, wildcard origins, LAN binding, autonomous agent/tool modes, synchronized secrets, and plugin-owned RAG indexes are prohibited.
-- Acceptance is a removable client contract plus static fixtures and a user-reviewed device test plan. Installation, Obsidian execution, settings mutation, and mobile behavior remain separate deployment/device evidence and stay `not_run` until authorized.
+- Acceptance is a removable client contract plus static fixtures and a user-reviewed device test plan. Installation, Obsidian execution, settings mutation, and mobile behavior remain separate deployment/device evidence; the authorized E05 live slice records its completed results separately from this contract.
 
 ### C42 — Close privacy, citation, quality, and observability gates
 
@@ -217,7 +217,8 @@ authority, the C42 safety gates, or the C43 deployment and rollback gates.
   ephemeral authenticated loopback tests pass; JavaScript syntax and C41
   request/response boundary checks pass; live plugin installation, Obsidian
   execution, broker deployment, provider activation, and device behavior
-  remain separate `not_run` evidence until explicitly authorized.
+  remain separate evidence classes and are recorded by the authorized E05
+  integration goal when exercised.
 
 ## E02 host-native live verification plan
 
@@ -262,14 +263,14 @@ authority, the C42 safety gates, or the C43 deployment and rollback gates.
 ## Obsidian AI client decision
 
 - Do not adopt a third-party AI plugin as the KnowledgeOS policy, retrieval, index, proposal, or write authority.
-- Keep `vaultctl` and the project-owned runtime artifacts as the first executable baseline. A future `E05` client may own only question input, current-note or selection scope, citation opening, diff preview, and approve or reject controls.
+- Keep `vaultctl` and the project-owned runtime artifacts as the first executable baseline. The implemented `E05` client owns only question input, current-note or selection scope, citation opening, diff preview, and approve or reject presentation controls.
 - Route a thin client through an authenticated KnowledgeOS loopback broker, never directly to Ollama. The broker rechecks content and policy digests and C19 remains the only canonical apply path.
 - Keep embeddings, prompts, responses, and session state in ignored private `runtime/`, not `.obsidian`, `.smart-env`, Git, or a synchronized Vault namespace.
 - Use Local LLM Helper only as an isolated UX reference for source links, approval cards, and local chat; its plugin-owned index, synchronized settings, and approval state do not satisfy KnowledgeOS digest and receipt contracts.
 - Use Smart Connections only as an independent read-only convenience experiment if separately authorized; never merge `.smart-env` output with the canonical runtime index or cite it as KnowledgeOS evidence.
 - Do not adopt Copilot Agent modes, Local GPT write actions, auto-updating prompt packs, or any plugin-owned RAG pipeline as an authoritative route; their app-level permission prompts are not C19 proposal approval.
 - Reject wildcard `OLLAMA_ORIGINS`, `OLLAMA_HOST=0.0.0.0`, direct plugin writes, autonomous agent or tool modes, synchronized secrets, and plugin-owned policy decisions.
-- Require a measured CLI-friction result before implementing `E05`; plugin installation, Obsidian execution, and mobile behavior remain separate deployment and device evidence.
+- Require measured CLI-friction evidence before extending `E05`; the current artifact and authorized live integration remain separate deployment and device evidence and do not turn the client into an authority surface.
 
 ## External implementation references
 
@@ -298,8 +299,8 @@ authority, the C42 safety gates, or the C43 deployment and rollback gates.
 - `E01` — Evaluate local vector and RRF against the frozen `C22` baseline.
 - `E02` — Verify the user-installed host-native `gemma4:12b` generation profile and selected local embedding candidates through the bounded host runner, full-digest capture, Korean/multilingual quality evaluation, contradiction and abstention coverage, and measured internal-SSD-only resource evidence; exclude external-SSD connection, mount, storage, and performance tests, and validate C34 canonical replacement through a temporary eligible-source build after the accepted Qwen promotion decision while defer durable pointer materialization until KnowledgeOS implementation completion.
 - `E03` — Activate the provider-free LaunchAgent only after the `C36` consumer and rollback gates pass; keep `RunAtLoad=false` and provider queue consumption separately gated.
-- `E04` — For the current branch, pursue local Ollama as the only provider lane and defer remote model routes; prepare and separately authorize local activation through C38-C43 while keeping queue, scheduler, LaunchAgent, and canonical apply effects independently gated.
-- `E05` — Implement a removable thin Obsidian client only after `C35` and measured repeated CLI friction justify it.
+- `E04` — For the current branch, use local Ollama as the only provider lane and defer remote model routes; keep the authorized one-shot activation through C38-C43 separate from queue, scheduler, LaunchAgent, and canonical-apply effects.
+- `E05` — Maintain the removable Thin Client as a presentation adapter behind the authenticated loopback broker; keep its live installation, broker deployment, provider route, canonical apply, and device evidence separately recorded.
 - `P01` — Implement the canonical core-plugin and required-community-plugin setting-state registry, diagnostics, and evidence gates described below in its independent lane.
 - `P02` through `P12` — Plan and verify one bounded Core or required-community-plugin setting family per session after P01, without treating the plan itself as Obsidian UI, plugin, device, or Git authorization.
 
@@ -365,7 +366,7 @@ The plugin-specific bullets define safety and ownership boundaries, not guessed 
 
 ## P02-P12 — Per-component setting-state planning sessions
 
-P01 now owns the read-only registry, diagnostics, exact ten-plugin membership, Core ownership vocabulary, missing-setting classification, and evidence separation. The following sessions split the remaining setting-policy work into one bounded planning task per Core or required community-plugin area. Each label is a separate future session: adding these sections does not configure Obsidian, change plugin data, operate a device, or promote runtime/device evidence.
+P01 now owns the read-only registry, diagnostics, exact eleven-plugin membership, Core ownership vocabulary, missing-setting classification, and evidence separation. P02-P12 record one bounded planning task per Core or required community-plugin area. Their contracts do not configure Obsidian, change plugin data, operate a device, or promote runtime/device evidence; any new live action requires a separately authorized slice.
 
 The default order is `P02 → P03 → P04 → P05 → P06 → P07 → P08 → P09 → P10 → P11 → P12`. Numeric order is local to the P lane; F sessions may consume a completed P contract but do not silently absorb its setting ownership.
 
@@ -478,7 +479,7 @@ The default order is `P02 → P03 → P04 → P05 → P06 → P07 → P08 → P0
 - Evidence: static/semantic field and exclusion checks; actual property editing and device behavior remain separately authorized.
 - Exclusions: no Meta Bind input/button execution, no protected-note mutation, no JavaScript, no plugin setting change, and no device smoke claim.
 
-The P02-P12 sessions are planning and setting-state contracts. They do not supersede P01, F01-F06, D03-D07, or the user/device authorization boundary. A future implementation turn must start only one label, read `PROJECT_STATE.md`, preserve unrelated dirty changes, and update the machine-state evidence for that label only after its checks have actually run.
+The P02-P12 sessions are planning and setting-state contracts. They do not supersede P01, F01-F06, D03-D07, or the user/device authorization boundary. Any follow-up implementation turn must start only one label, read `PROJECT_STATE.md`, preserve unrelated dirty changes, and update the machine-state evidence for that label only after its checks have actually run.
 
 ## F lane — GUI-first period notes and `vaultctl` boundary refactor
 
@@ -510,8 +511,8 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 - Preserve the monthly contract: `type: monthly`; `id: monthly-YYYY-MM`; `title: YYYY-MM`; first-of-month `created`, `modified`, and `period_start`; actual calendar-month `period_end`; and the existing review sections. Replace the unsupported or unverified `month_end` token rather than assuming Notebook Navigator or Templater compatibility.
 - Keep Templater non-executing for this lane: no system commands, shell, user scripts, external processes, AI, network, Git, `vaultctl`, canonical apply, global new-file trigger, or approval-free edits to existing notes. Templater renders the new GUI-created document only.
 - Use a saved Templater-rendered fixture or a test-only deterministic fixture builder for container tests. The fixture must pass `vaultctl note validate`; the container test must not invoke Templater or Obsidian.
-- Acceptance: ISO year-boundary cases, leap/non-leap February, 30-day, and 31-day month cases pass; rendered IDs, titles, paths, period fields, and links match the KnowledgeOS contract; summary markers remain unchanged; same-period reopen behavior is represented as an open-existing/no-overwrite contract; and GUI/device execution remains separately `not_run` until authorized.
-- Evidence: static template and forbidden-token inspection; semantic template/Blueprint/schema checks; runtime `vaultctl note validate` against rendered fixtures; artifact frontmatter/path/title evidence; no device evidence yet.
+- Acceptance: ISO year-boundary cases, leap/non-leap February, 30-day, and 31-day month cases pass; rendered IDs, titles, paths, period fields, and links match the KnowledgeOS contract; summary markers remain unchanged; same-period reopen behavior is represented as an open-existing/no-overwrite contract; and GUI/device execution remains a separately authorized evidence class.
+- Evidence: static template and forbidden-token inspection; semantic template/Blueprint/schema checks; runtime `vaultctl note validate` against rendered fixtures; artifact frontmatter/path/title evidence; authorized device evidence is recorded in the F/H03 state records.
 
 ### F03 — Align Notebook Navigator mapping with the KnowledgeOS title and path contract
 
@@ -520,8 +521,8 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 - Replace the current observed custom patterns (`gggg/[W]ww` and `YYYY/YYYYMM`) only through exact version-supported Notebook Navigator settings. Do not guess a key, token, or command ID from another release. If the installed version cannot express the required folder/file mapping, block the setting change and record the incompatibility instead of reintroducing a CLI period writer.
 - Keep weekly/monthly creation and opening in Notebook Navigator, with create-before-open confirmation enabled and existing-file behavior reduced to open-only. Keep File Explorer as the immediate fallback until device smoke evidence passes. Daily creation remains Core Daily Notes even if Notebook Navigator can navigate to a daily note.
 - Treat this session's static configuration work and the later GUI verification as different evidence. A checked-in `data.json` proves only serialized configuration; it does not prove that Notebook Navigator created the note, used Templater, or preserved an existing file.
-- Acceptance: the target mapping and title contract are represented by exact installed-version settings or an explicit blocked decision; old patterns are not treated as acceptable; no daily ownership duplication is introduced; and the device generation/open smoke remains separately `not_run` until user authorization.
-- Evidence: static manifest/data inspection; semantic mapping-to-Blueprint comparison; runtime/artifact evidence only after a separately authorized GUI run; device evidence otherwise `not_run`.
+- Acceptance: the target mapping and title contract are represented by exact installed-version settings or an explicit blocked decision; old patterns are not treated as acceptable; no daily ownership duplication is introduced; and the device generation/open smoke remains separately authorized and recorded.
+- Evidence: static manifest/data inspection; semantic mapping-to-Blueprint comparison; runtime/artifact evidence from the authorized GUI run; device evidence is recorded separately in the F/H03 state records.
 
 ### F04 — Make Note Toolbar and contextual buttons the primary user path
 
@@ -540,7 +541,7 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 - Build one internal adapter with fixed argv, no shell, bounded timeout, bounded stdout/stderr bytes, bounded exit-code handling, validated Vault identity, and fail-closed states for missing PATH entry, app-not-running, Vault mismatch, malformed output, timeout, and unexpected capability output. Do not expose raw command text, arbitrary argv, arbitrary file paths, or pass-through forms.
 - Do not expose `read`, `write`, `create`, `append`, `search`, `command`, `eval`, plugin enable/disable/reload, or any equivalent writer/control operation. Do not use the official CLI to replace `vaultctl note validate`, `vaultctl note create`, `vaultctl fmt`, retrieval, citations, proposal approval, or canonical Markdown hashing.
 - Remove direct `obsidian` invocations from external automation when they are actual executable paths; external pipelines call `vaultctl` only. Keep live app/PATH/Vault connection checks as deployment/device/external-service evidence requiring separate authorization; fake executables and deterministic adapter tests prove only the adapter contract.
-- Acceptance: only `vaultctl obsidian status` is public; the adapter is the sole internal CLI call path; raw pass-through is impossible; bounded/fail-closed behavior is tested; no read/write/control API is exposed; and unavailable live app evidence remains `not_run` rather than being inferred from manifests.
+- Acceptance: only `vaultctl obsidian status` is public; the adapter is the sole internal CLI call path; raw pass-through is impossible; bounded/fail-closed behavior is tested; no read/write/control API is exposed; and live app connection remains independently classified from the passing host status report.
 - Evidence: static source/command-surface inspection; semantic argv/capability/path policy checks; runtime fake-executable adapter tests; deployment/device/external-service checks only when separately authorized.
 
 ### F06 — Integrate the GUI contract, validation, toolbar, and adapter evidence
@@ -550,10 +551,10 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 - Verify the contract slice with the smallest canonical checks first, then the required source/Blueprint/schema/container/test/lint checks for the changed scope. Run test and lint sequentially. Run state validation after every state write and `git diff --check` in both control and `KnowledgeHub` roots.
 - Record GUI generation/opening, Templater execution, existing-note no-overwrite, toolbar execution, app connection, and PATH/Vault identity as `not_run`, `blocked`, or `pass` according to actual authorized evidence. Static files and fake adapter tests must never be promoted to device or deployment proof.
 - Acceptance: the final public surface has no period writer, weekly/monthly GUI artifacts validate through `vaultctl note validate`, daily ownership is Core Daily Notes, weekly/monthly ownership is Notebook Navigator, Templater remains bounded, toolbar is the primary intended GUI path, the Obsidian CLI is status-only behind the adapter, AI proposal/approval boundaries remain unchanged, and every unrun external/device class is explicitly recorded.
-- Handoff: leave one executable next F slice, preserve the existing C/D/E/P goals and blockers, preserve all unrelated dirty control/Vault changes, and require separate user/device authorization before touching Obsidian UI or plugin settings.
+- Handoff: preserve the existing C/D/E/P goals and blockers, preserve all unrelated dirty control/Vault changes, and require separate user/device authorization before any new Obsidian UI or plugin-setting action.
 
 ### F lane sequencing and non-goals
 
-The intended order is `F01 → F02 → F03 → F04 → F05 → F06`. `F02` can retain deterministic fixture support from `C07`; `F03` and `F04` consume `P01`'s exact setting-state evidence; `F05` extends the diagnostic boundary from `C12`; and `F06` closes the evidence contract. `E04` local Ollama activation, deferred remote routes, `E05` AI thin-client implementation, `D04` plugin installation/audit, and any device/UI action remain separately gated and are not silently pulled into an F session.
+The intended order was `F01 → F02 → F03 → F04 → F05 → F06`, and that slice is now closed. `F02` retains deterministic fixture support from `C07`; `F03` and `F04` consume `P01`'s exact setting-state evidence; `F05` extends the diagnostic boundary from `C12`; and `F06` closes the evidence contract. E04 local Ollama activation, deferred remote routes, E05 live integration, D04 plugin installation/audit, and device/UI actions remain separately gated and are not silently absorbed into F.
 
 F explicitly excludes direct Obsidian manipulation, plugin installation or setting mutation, Notebook Navigator/Templater runtime claims from static files, official CLI document writes, a second production period writer, command-palette-first UX, automatic AI summary insertion, canonical apply, Git network effects, and any new provider or remote authority.

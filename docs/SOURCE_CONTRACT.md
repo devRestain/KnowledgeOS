@@ -14,4 +14,6 @@
 - Keep the production ownership split exact: Core Daily Notes creates daily notes, Notebook Navigator creates/opens weekly and monthly notes, Templater renders only bounded date and document fields, and no second Python period writer remains after F01.
 - Keep Templater templates free of shell, system commands, user scripts, network, AI, Git, `vaultctl`, global new-file triggers, and approval-free existing-note mutation.
 - Keep the initial official Obsidian CLI adapter status-only and internal to `vaultctl`; reject arbitrary command text, arbitrary argv, document read/write/create/append/search/eval, and plugin control operations.
+- Keep the E05 Thin Client contract presentation-only: bind current-note or selection bytes and policy/index digests, authenticate one canonical JSON request to the loopback broker, and expose only bounded answer/citation/diff/review presentation. The client must not call Ollama or perform canonical apply.
+- Keep the live local-provider contract in the separate `vaultctl ai ollama` route: verify loopback/cloud-off/model identity and bounded output, validate the C35 schema and frozen provenance, then emit proposal-only output for C19 review and approval.
 - Record source-contract changes in state decision and evidence records before handoff.
