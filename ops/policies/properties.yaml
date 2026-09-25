@@ -7,7 +7,7 @@ authoritative_inputs:
   selectors:
   - /common_properties
   - /property_registry
-  sha256: 4886d9772f7a09975535647e63e7e0f1694c114a5077d9a1ec000d3e6e086a1d
+  sha256: 7a74c17e5e50a87a7ce28075a7759a387b826a7204f4ec86d4d664a74b558502
 properties:
   common:
     required:
@@ -262,7 +262,7 @@ properties:
     source_hashes:
       obsidian_type: list
       item_type: text
-      item_format: vault_relative_path|sha256:64hex
+      item_format: vault_relative_path_or_frozen_runtime_path|sha256:64hex
     period_start:
       obsidian_type: date
     period_end:

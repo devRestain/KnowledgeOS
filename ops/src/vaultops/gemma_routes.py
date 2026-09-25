@@ -79,6 +79,7 @@ _OLLAMA_RESPONSE_KEYS = frozenset(
         "total_duration",
         "load_duration",
         "prompt_eval_count",
+        "prompt_eval_cached_count",
         "prompt_eval_duration",
         "eval_count",
         "eval_duration",

@@ -109,3 +109,17 @@ def test_period_writer_is_absent_from_the_public_parser() -> None:
     with pytest.raises(SystemExit) as error:
         parser.parse_args(["period", "create", "--kind", "weekly"])
     assert error.value.code == 2
+
+
+def test_c40_ollama_cli_uses_the_c31_maximum_timeout_by_default() -> None:
+    args = build_parser().parse_args(
+        [
+            "ai",
+            "ollama",
+            "--job-id",
+            "00000000-0000-4000-8000-000000000001",
+            "--base-url",
+            "http://127.0.0.1:11434",
+        ]
+    )
+    assert args.timeout_seconds == 600

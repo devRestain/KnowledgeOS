@@ -42,6 +42,7 @@ from .e02 import (
     write_e02_report,
 )
 from .foundation import check_foundation, check_source_manifest
+from .frozen_proposals import promote_frozen_triage_proposal
 from .gemma_routes import C35_ROUTES, run_gemma_job
 from .launchd import launchd_install, launchd_rollback, launchd_status
 from .local_commands import capture_text, capture_url, create_note, format_notes
@@ -59,6 +60,7 @@ from .pipeline_registry import dispatch_user_action
 from .projection import build_index, export_jsonl, verify_projection
 from .proposals import apply_proposal, approve_proposal, reject_proposal, review_proposals
 from .provider_broker import PIPELINES, SCENARIOS, run_synthetic_job
+from .provider_contract import LIMITS as PROVIDER_LIMITS
 from .provider_queue import (
     DEFAULT_LEASE_SECONDS,
     DEFAULT_MAX_CONCURRENCY,
@@ -488,6 +490,13 @@ def build_parser() -> argparse.ArgumentParser:
     ai_propose = ai_commands.add_parser("propose", help="create one deterministic C27 Pending proposal")
     ai_propose.add_argument("--action", required=True, choices=ACTION_TYPES)
     _add_action_proposal_arguments(ai_propose, required_source=True)
+    ai_promote_frozen = ai_commands.add_parser(
+        "promote-frozen",
+        help="promote one validated frozen live-provider triage candidate into C19 Pending",
+    )
+    ai_promote_frozen.add_argument("--job-id", required=True, help="completed frozen provider job UUID")
+    ai_promote_frozen.add_argument("--candidate-id", required=True, help="one candidate id from the frozen triage output")
+    ai_promote_frozen.add_argument("--root", type=Path, default=None, help="mounted control root")
     for action_command, help_text in (
         ("draft-note", "create one C27 draft_note proposal"),
         ("link-suggestions", "create one C27 link_suggestions proposal"),
@@ -593,6 +602,12 @@ def build_parser() -> argparse.ArgumentParser:
     ai_ollama.add_argument("--job-id", required=True, help="UUIDv4 of an existing C31 runtime job")
     ai_ollama.add_argument("--base-url", required=True, help="explicit http://127.0.0.1:<port> fake or local endpoint")
     ai_ollama.add_argument("--pipeline", choices=C40_LOCAL_PIPELINES, default=None)
+    ai_ollama.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=PROVIDER_LIMITS["max_timeout_seconds"],
+        help="bounded Ollama hard deadline in seconds (default: C31 maximum)",
+    )
     ai_ollama.add_argument(
         "--authorize-live-service",
         action="store_true",
@@ -1352,7 +1367,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "ai" and args.ai_command == "ollama":
         try:
             client = (
-                OllamaClient(OllamaProfile(base_url=args.base_url))
+                OllamaClient(
+                    OllamaProfile(
+                        base_url=args.base_url,
+                        timeout_seconds=args.timeout_seconds,
+                    )
+                )
                 if args.authorize_live_service
                 else None
             )
@@ -1726,6 +1746,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             expected_sha256=args.expected_sha256,
             locator=args.locator,
             fragment_sha256=args.fragment_sha256,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        return exit_code
+    if args.command == "ai" and args.ai_command == "promote-frozen":
+        report, exit_code = promote_frozen_triage_proposal(
+            args.root or _control_root(),
+            job_id=args.job_id,
+            candidate_id=args.candidate_id,
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return exit_code

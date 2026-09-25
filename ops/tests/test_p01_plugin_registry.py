@@ -18,6 +18,7 @@ PLUGIN_IDS = [
     "breadcrumbs",
     "notebook-navigator",
     "obsidian-meta-bind-plugin",
+    "knowledgeos-thin-client",
 ]
 
 
@@ -79,7 +80,7 @@ def test_p01_registry_reports_independent_states_without_raw_plugin_values(tmp_p
         "healthy",
         "fallback_available",
     ]
-    assert len(registry["entries"]) == 20
+    assert len(registry["entries"]) == 21
     assert registry["mobile_community_plugins"] == {
         "declared": [],
         "state": "empty",
@@ -100,6 +101,13 @@ def test_p01_registry_reports_independent_states_without_raw_plugin_values(tmp_p
         "fallback_available": "available",
     }
     assert "do-not-report" not in json.dumps(report)
+    thin_client = next(
+        item for item in registry["entries"] if item["component_id"] == "plugin:knowledgeos-thin-client"
+    )
+    assert thin_client["role"] == "proposal_only_presentation_client"
+    assert thin_client["desired_policy"] == "allow_authenticated_proposal_only_presentation"
+    assert thin_client["allowed_value_domain"] == "loopback_broker_and_digest_bound_review"
+    assert thin_client["mutation_risk"] == "presentation_only_no_canonical_writer"
     properties = next(item for item in registry["entries"] if item["component_id"] == "core:properties")
     assert properties["states"]["enabled"] == "enabled"
     assert properties["current_value"]["observed_setting_paths"] == ["app.json#/propertiesInDocument"]

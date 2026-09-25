@@ -5,7 +5,7 @@
 
 - contract: `knowledgeos-blueprint-v2`
 - capability profile: `portable_core`
-- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `4886d9772f7a09975535647e63e7e0f1694c114a5077d9a1ec000d3e6e086a1d`)
+- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `7a74c17e5e50a87a7ce28075a7759a387b826a7204f4ec86d4d664a74b558502`)
 - property count: `76`
 
 | Property | Obsidian type | Constraints | Owner |
@@ -71,7 +71,7 @@
 | `schema_version` | `number` | `{"const":1}` | `common_properties.required` |
 | `scope` | `text` | `{"min_length":1}` | `property_registry` |
 | `sensitivity` | `text` | `{"enum":["public","personal","confidential"]}` | `common_properties.required` |
-| `source_hashes` | `list` | `{"item_format":"vault_relative_path\|sha256:64hex","item_type":"text"}` | `property_registry` |
+| `source_hashes` | `list` | `{"item_format":"vault_relative_path_or_frozen_runtime_path\|sha256:64hex","item_type":"text"}` | `property_registry` |
 | `source_kind` | `text` | `{"enum":["paper","book","article","web","video","podcast","course","document","dataset","other"]}` | `property_registry` |
 | `source_url` | `text` | `{"format":"uri"}` | `property_registry` |
 | `sources` | `list` | `{"item_type":"quoted_wikilink","object_type":"source"}` | `property_registry` |

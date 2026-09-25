@@ -86,6 +86,7 @@ def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> Non
         "breadcrumbs",
         "notebook-navigator",
         "obsidian-meta-bind-plugin",
+        "knowledgeos-thin-client",
     ]
     (profile_root / "community-plugins.json").write_text(json.dumps(plugin_ids), encoding="utf-8")
 

@@ -382,7 +382,7 @@ property_registry:
   canonical_timezone: {obsidian_type: text, format: iana_timezone}
   possibility: {obsidian_type: text, min_length: 1}
   proposal_id: {obsidian_type: text, format: uuid_v4}
-  source_hashes: {obsidian_type: list, item_type: text, item_format: "vault_relative_path|sha256:64hex"}
+  source_hashes: {obsidian_type: list, item_type: text, item_format: "vault_relative_path_or_frozen_runtime_path|sha256:64hex"}
   period_start: {obsidian_type: date}
   period_end: {obsidian_type: date}
   standard: {obsidian_type: text, min_length: 1}
@@ -894,6 +894,8 @@ plugin_profiles:
       role: bounded_navigation_surface
     - id: obsidian-meta-bind-plugin
       role: low_risk_property_view
+    - id: knowledgeos-thin-client
+      role: proposal_only_presentation_client
   mobile_baseline:
     community_plugins: []
     git_writer: working_copy
@@ -1302,7 +1304,7 @@ llm:
       max_warnings: 20
       max_json_depth: 8
       max_output_tokens: 1024
-      max_timeout_seconds: 120
+      max_timeout_seconds: 600
       max_job_age_seconds: 3600
     privacy:
       raw_prompt: private_runtime_only

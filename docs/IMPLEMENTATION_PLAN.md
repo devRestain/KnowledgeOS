@@ -310,9 +310,9 @@ P01 exists because a plugin being installed, enabled, configured, executable, an
 ### Objective and required profile
 
 - Close the E06 through E10 installation-target labels at the installed Mac-profile boundary. Migrate their unfinished setting, runtime, and device verification into P01; do not keep E06 through E10 as active work items.
-- Maintain one auditable Mac profile contract for the ten required community plugins: `quickadd`, `templater-obsidian`, `obsidian-tasks-plugin`, `obsidian-linter`, `obsidian-git`, `homepage`, `note-toolbar`, `breadcrumbs`, `notebook-navigator`, and `obsidian-meta-bind-plugin`.
-- Keep the first five roles unchanged: human capture routing, template rendering, task querying, bounded hygiene, and manual Mac Git UI. Register the new roles as startup experience, contextual command surface, typed-relation navigation, bounded navigation surface, and low-risk property view.
-- Make `blueprint/blueprint.yaml#/plugin_profiles/mac_baseline` the exact Mac community-plugin allowlist. An unexpected community-plugin ID, a missing required ID, or a duplicate ID is a semantic failure. Keep `plugin_profiles.mobile_baseline.community_plugins` empty.
+- Maintain one auditable Mac profile contract for the eleven required community plugins: `quickadd`, `templater-obsidian`, `obsidian-tasks-plugin`, `obsidian-linter`, `obsidian-git`, `homepage`, `note-toolbar`, `breadcrumbs`, `notebook-navigator`, `obsidian-meta-bind-plugin`, and `knowledgeos-thin-client`.
+- Keep the first five roles unchanged: human capture routing, template rendering, task querying, bounded hygiene, and manual Mac Git UI. Register the new roles as startup experience, contextual command surface, typed-relation navigation, bounded navigation surface, low-risk property view, and proposal-only presentation client.
+- Make `blueprint/blueprint.yaml#/plugin_profiles/mac_baseline` the exact Mac community-plugin allowlist. An unexpected community-plugin ID, a missing required ID, or a duplicate ID is a semantic failure. Treat `knowledgeos-thin-client` as an authorized proposal-only presentation adapter whose broker, provider, retrieval, and canonical apply authorities remain outside the plugin. Keep `plugin_profiles.mobile_baseline.community_plugins` empty.
 - Preserve the plugin-free canonical path: Markdown/YAML notes, Bases, `vaultctl`, and human review remain usable when any adapter is disabled or unavailable.
 
 ### Authoritative sources and state vocabulary
@@ -344,16 +344,17 @@ P01 records policy boundaries first and accepts exact setting paths only after t
 - Breadcrumbs: allow only Blueprint-approved typed relation fields; implied/transitive relations, automatic field creation, and unbounded external relation sources remain off until their exact behavior is verified; relation changes remain ordinary human-reviewed note edits.
 - Notebook Navigator: use it as a bounded navigation adapter; record hidden folders/tags/properties and display scope explicitly; do not authorize bulk move/delete/property operations; retain File Explorer as the immediate fallback until device smoke evidence passes.
 - Meta Bind: keep JavaScript and developer bypass modes off; allow only reviewed input/view/button declarations and approved property names; exclude templates and protected review/canonical paths from mutation; treat every write-capable control as an explicit human action requiring a rollback path.
+- KnowledgeOS Thin Client: allow only the authenticated `127.0.0.1` broker presentation surface with digest-bound review controls; keep provider calls, retrieval/index ownership, canonical apply, token persistence, and arbitrary plugin writes outside the plugin authority.
 
 The plugin-specific bullets define safety and ownership boundaries, not guessed configuration keys. A setting that is absent from `data.json` and absent from the current UI is not “configured to false”; it is `unconfigured` and blocks a claim that depends on it.
 
 ### Implementation and acceptance slice
 
 - Add a version-aware, read-only plugin/core setting registry and extend `vaultctl plugins audit --profile mac` (or a separately named P01 command) to report installation, configuration, enablement, verification, health, and fallback states independently. It must never edit `.obsidian`, plugin data, notes, or Git state.
-- Add schema and tests for exact ten-plugin membership, duplicate/unexpected IDs, manifest/data locator validity, missing-setting handling, forbidden defaults, core-to-profile ownership, and mobile empty-plugin invariants. Keep fixtures independent of the user's dirty Vault profile.
+- Add schema and tests for exact eleven-plugin membership, duplicate/unexpected IDs, manifest/data locator validity, missing-setting handling, forbidden defaults, core-to-profile ownership, and mobile empty-plugin invariants. Keep fixtures independent of the user's dirty Vault profile.
 - Record static profile evidence from the manifests and JSON files, semantic evidence from the Blueprint/schema/policy registry, runtime evidence only from an executed diagnostic or smoke path, and device evidence only from a user-authorized Mac inspection. Never promote one evidence class to another.
 - Require rollback evidence for every setting mutation: save the original bytes or UI value, make one bounded change, rerun the relevant smoke check, and restore the exact previous value on failure. Do not batch unrelated plugin settings.
-- Acceptance requires the exact ten IDs in the Mac baseline, zero unexpected IDs, an explicit core-plugin policy for every serialized flag, no invented settings, all forbidden defaults disabled or explicitly unresolved, preserved plugin-free fallbacks, and separate `not_run` records for unperformed Obsidian runtime/device checks.
+- Acceptance requires the exact eleven IDs in the Mac baseline, zero unexpected IDs, an explicit core-plugin policy for every serialized flag, no invented settings, all forbidden defaults disabled or explicitly unresolved, preserved plugin-free fallbacks, and separate `not_run` records for unperformed Obsidian runtime/device checks.
 
 ### Exclusions and handoff
 

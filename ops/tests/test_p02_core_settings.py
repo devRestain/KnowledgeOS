@@ -19,6 +19,7 @@ PLUGIN_IDS = [
     "breadcrumbs",
     "notebook-navigator",
     "obsidian-meta-bind-plugin",
+    "knowledgeos-thin-client",
 ]
 
 

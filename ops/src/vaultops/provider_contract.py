@@ -60,7 +60,7 @@ LIMITS: dict[str, int] = {
     "max_warnings": 20,
     "max_json_depth": 8,
     "max_output_tokens": 1024,
-    "max_timeout_seconds": 120,
+    "max_timeout_seconds": 600,
     "max_job_age_seconds": 3600,
 }
 

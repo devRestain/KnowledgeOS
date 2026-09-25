@@ -122,6 +122,7 @@ def _recorded(output: MappingLike) -> dict[str, Any]:
             "content": json.dumps(output, ensure_ascii=False, separators=(",", ":")),
         },
         "done": True,
+        "prompt_eval_cached_count": 0,
     }
 
 

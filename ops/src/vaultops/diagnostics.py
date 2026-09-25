@@ -198,6 +198,12 @@ _P01_PLUGIN_POLICIES = {
         "dependency": "property_dictionary_and_human_review",
         "mutation_risk": "write_capable_property_control",
     },
+    "knowledgeos-thin-client": {
+        "desired_policy": "allow_authenticated_proposal_only_presentation",
+        "allowed_value_domain": "loopback_broker_and_digest_bound_review",
+        "dependency": "C41_broker_and_C19_review",
+        "mutation_risk": "presentation_only_no_canonical_writer",
+    },
 }
 
 _CAPABILITY_DIMENSIONS = (

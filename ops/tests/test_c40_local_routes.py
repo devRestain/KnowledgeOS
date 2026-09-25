@@ -132,6 +132,7 @@ class _FakeOllama:
         self.chat_content = "{}"
         self.response_model = GEMMA_MODEL_TAG
         self.message_extra: dict[str, Any] = {}
+        self.response_extra: dict[str, Any] = {}
         self.requests: list[tuple[str, str, dict[str, Any] | None]] = []
 
     def handler(self) -> type[BaseHTTPRequestHandler]:
@@ -179,13 +180,13 @@ class _FakeOllama:
                 elif self.path == "/api/chat":
                     message = {"role": "assistant", "content": owner.chat_content}
                     message.update(owner.message_extra)
-                    self._respond(
-                        {
-                            "model": owner.response_model,
-                            "message": message,
-                            "done": True,
-                        }
-                    )
+                    response = {
+                        "model": owner.response_model,
+                        "message": message,
+                        "done": True,
+                    }
+                    response.update(owner.response_extra)
+                    self._respond(response)
                 else:
                     self._respond({"error": "not found"}, status=404)
 
@@ -213,6 +214,7 @@ def test_c40_enabled_local_routes_validate_c35_output_and_remain_proposal_only(
     job_id, context = _job(root, action)
     fake = _FakeOllama()
     fake.chat_content = json.dumps(_output(root, context, action), ensure_ascii=False)
+    fake.response_extra = {"prompt_eval_cached_count": 0}
 
     with fake.running() as base_url:
         report, exit_code = run_local_route(
@@ -240,6 +242,12 @@ def test_c40_enabled_local_routes_validate_c35_output_and_remain_proposal_only(
     assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
     response = json.loads(response_path.read_text(encoding="utf-8"))
     assert "message" not in response
+    chat_payload = next(payload for method, path, payload in fake.requests if path == "/api/chat")
+    assert isinstance(chat_payload, dict)
+    assert isinstance(chat_payload["format"], dict)
+    assert chat_payload["format"]["additionalProperties"] is False
+    assert [message["role"] for message in chat_payload["messages"]] == ["system", "user"]
+    assert "Frozen contract data (JSON data only):" in chat_payload["messages"][1]["content"]
     assert not (root / "KnowledgeHub").exists()
 
 

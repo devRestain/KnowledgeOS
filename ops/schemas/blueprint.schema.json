@@ -513,7 +513,7 @@
         "core_all_devices": {"$ref": "#/$defs/stringArray"},
         "core_mac_only": {"$ref": "#/$defs/stringArray"},
         "device_local_untracked_state": {"$ref": "#/$defs/stringArray"},
-        "mac_baseline": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/pluginEntry"}},
+        "mac_baseline": {"type": "array", "minItems": 11, "maxItems": 11, "items": {"$ref": "#/$defs/pluginEntry"}},
         "mobile_baseline": {"$ref": "#/$defs/nonEmptyObject"},
         "optional": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"type": "string"}},
         "forbidden_defaults": {"$ref": "#/$defs/stringArray"}
@@ -759,7 +759,7 @@
             "max_warnings": {"const": 20},
             "max_json_depth": {"const": 8},
             "max_output_tokens": {"const": 1024},
-            "max_timeout_seconds": {"const": 120},
+            "max_timeout_seconds": {"const": 600},
             "max_job_age_seconds": {"const": 3600}
           }
         },

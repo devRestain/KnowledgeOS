@@ -447,7 +447,7 @@
         "timeout_seconds": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 120
+          "maximum": 600
         }
       }
     },

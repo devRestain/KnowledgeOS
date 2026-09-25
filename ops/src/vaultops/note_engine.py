@@ -319,7 +319,10 @@ def _descriptor_to_schema(descriptor: Mapping[str, Any]) -> dict[str, Any]:
         result["pattern"] = r"^(?:UTC|GMT|[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+)$"
     if descriptor.get("format") == "quoted_wikilink_to_80_assets":
         result["pattern"] = r"^\[\[80_Assets/[^\]\n]+\]\]$"
-    if descriptor.get("item_format") == "vault_relative_path|sha256:64hex":
+    if descriptor.get("item_format") in {
+        "vault_relative_path|sha256:64hex",
+        "vault_relative_path_or_frozen_runtime_path|sha256:64hex",
+    }:
         result.setdefault("items", {})["pattern"] = r"^.+\|sha256:[0-9a-f]{64}$"
     return result
 
@@ -513,7 +516,10 @@ def _validate_scalar(name: str, value: Any, descriptor: Mapping[str, Any]) -> li
         and (not _WIKILINK_RE.fullmatch(value) or not _link_target(value).startswith("80_Assets/"))
     ):
         errors.append(NoteIssue("NOTE_ASSET_LINK_INVALID", locator, "asset must link into 80_Assets"))
-    if descriptor.get("item_format") == "vault_relative_path|sha256:64hex" and isinstance(value, list):
+    if descriptor.get("item_format") in {
+        "vault_relative_path|sha256:64hex",
+        "vault_relative_path_or_frozen_runtime_path|sha256:64hex",
+    } and isinstance(value, list):
         for index, item in enumerate(value):
             match = _PATH_HASH_RE.fullmatch(item)
             if match is None:
