@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import uuid
 from datetime import date
@@ -101,6 +102,20 @@ def test_exact_c07_template_allowlist_is_present_and_no_placeholder_directories_
         path.is_dir() and path.name in {"YYYY", "MM", "GGGG", "WWW", "PROJECT_NAME", "JOB_ID"}
         for path in (CONTROL_ROOT / "KnowledgeHub").rglob("*")
     )
+
+
+def test_future_templates_do_not_emit_blank_live_task_placeholders() -> None:
+    task_templates = {"T10_Daily.md", "T11_Weekly.md", "T20_Project.md", "T42_Person.md", "T60_Meeting.md"}
+    blank_task = re.compile(r"^\s*- \[ \](?:\s+#task)?\s*$")
+    for template_name in task_templates:
+        rendered_source = template_source(template_name)
+        assert not any(blank_task.match(line) for line in rendered_source.splitlines()), template_name
+
+
+def test_templates_use_the_native_inline_title_without_emitting_a_duplicate_h1() -> None:
+    for spec in TEMPLATE_SPECS:
+        rendered = render_note_template(spec.filename, _context_for(spec.filename))
+        assert not re.search(r"(?m)^#\s+\S", rendered.body), spec.filename
 
 
 def test_all_rendered_templates_pass_the_strict_note_schema() -> None:
@@ -284,7 +299,7 @@ def test_gui_period_fixtures_preserve_iso_boundaries_month_ends_and_no_overwrite
     assert weekly.properties["title"] == "2025-W01"
     assert weekly.properties["period_start"] == "2024-12-30"
     assert weekly.properties["period_end"] == "2025-01-05"
-    assert "# 2025 [W]01" in weekly.body
+    assert not re.search(r"(?m)^#\s+", weekly.body)
     assert weekly.body.count("- [[") == 7
     assert "vaultops:weekly-summary:begin" in weekly.body
     assert engine.validate_text("10_Journal/Weekly/2025/2025-W01.md", weekly.markdown).passed

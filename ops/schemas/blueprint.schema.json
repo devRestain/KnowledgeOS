@@ -278,8 +278,8 @@
         "vault": {"$ref": "#/$defs/stringArray"},
         "required_vault_files": {
           "type": "array",
-          "minItems": 32,
-          "maxItems": 32,
+          "minItems": 33,
+          "maxItems": 33,
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1},
           "allOf": [
@@ -464,8 +464,8 @@
         "directory": {"const": "99_System/Bases"},
         "required": {
           "type": "array",
-          "minItems": 7,
-          "maxItems": 7,
+          "minItems": 8,
+          "maxItems": 8,
           "uniqueItems": true,
           "items": {"type": "string", "pattern": "^[A-Za-z]+\\.base$"},
           "allOf": [
@@ -475,12 +475,13 @@
             {"contains": {"const": "Knowledge.base"}},
             {"contains": {"const": "Sources.base"}},
             {"contains": {"const": "Review.base"}},
-            {"contains": {"const": "Journal.base"}}
+            {"contains": {"const": "Journal.base"}},
+            {"contains": {"const": "Compass.base"}}
           ]
         },
         "views": {
           "type": "object",
-          "required": ["Journal.base", "Projects.base", "Decisions.base", "Knowledge.base", "Inbox.base", "Sources.base", "Review.base"],
+          "required": ["Journal.base", "Projects.base", "Decisions.base", "Knowledge.base", "Inbox.base", "Sources.base", "Review.base", "Compass.base"],
           "additionalProperties": {"$ref": "#/$defs/nonEmptyObject"}
         },
         "generated_against_installed_obsidian_version": {"const": true},

@@ -5,8 +5,8 @@
 
 - contract: `knowledgeos-blueprint-v2`
 - capability profile: `portable_core`
-- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `7a74c17e5e50a87a7ce28075a7759a387b826a7204f4ec86d4d664a74b558502`)
-- property count: `76`
+- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b`)
+- property count: `77`
 
 | Property | Obsidian type | Constraints | Owner |
 |---|---|---|---|
@@ -35,6 +35,7 @@
 | `confidence` | `text` | `{"enum":["low","medium","high","unknown"]}` | `property_registry` |
 | `contradicts` | `list` | `{"item_type":"quoted_wikilink","object_type":"knowledge"}` | `property_registry` |
 | `created` | `datetime` | `{"require_timezone":true}` | `common_properties.required` |
+| `cssclasses` | `list` | `{"item_type":"text"}` | `property_registry` |
 | `decision` | `text` | `{}` | `property_registry` |
 | `decision_by` | `date` | `{}` | `property_registry` |
 | `derived_from` | `list` | `{"item_type":"quoted_wikilink","object_type":"provenance_source"}` | `property_registry` |

@@ -90,10 +90,6 @@ queries:
     view: Now
     expected_paths:
       - 20_Projects/guestbook-horror/guestbook-horror.md
-  - base: Projects.base
-    view: Next Actions
-    expected_paths:
-      - 20_Projects/guestbook-horror/guestbook-horror.md
   - base: Decisions.base
     view: Open
     expected_paths:
@@ -115,3 +111,7 @@ queries:
     view: Reading queue
     expected_paths:
       - 40_Knowledge/Sources/Guestbook Horror Design Note.md
+  - base: Compass.base
+    view: Project Bridges
+    expected_paths:
+      - 20_Projects/guestbook-horror/guestbook-horror.md

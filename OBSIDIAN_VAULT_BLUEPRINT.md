@@ -31,11 +31,16 @@
 ## Canonical Vault shape
 
 - `Home.md` and `Mobile.md` are `type: home`; keep navigation and action views deterministic.
+- Desktop `Home.md` is the generated KnowledgeHub command center: full-width Task, Inbox, and combined AI pending/conflict rows lead to paired active Projects and Decisions, followed by equal Review Pulse and Compass signal cards. Compass embeds `Compass.base#Signals` and the higher-priority `Compass.base#Tensions` view; Home omits research-question duplication and full-view links so the screen remains a compact read-only projection while source notes remain the write surface.
+- Home capture choices and hotkeys remain profile-owned and hidden from the page. Home must not advertise provider, runtime, sync, Git, command-runner, or stale-success status; Note Toolbar at the Mac desktop bottom is the navigation surface that replaces the removed Home footer.
+- Today Focus is a separate `99_System/Dashboards/Today_Focus.md` system document that can be opened from the sidebar; it is intentionally not a Home component.
+- Keep document Properties hidden in the note body and use the Mac Properties sidebar for independent inspection and editing; this is a profile/UI contract, not a Home body projection.
+- The Home layout is scoped by the Home-only `cssclasses: [knowledgeos-home]` field and the generated C08 chain (`blueprint/blueprint.yaml` → `ops/src/vaultops/base_dashboard.py` → `KnowledgeHub/Home.md`, canonical Bases, and `99_System/CSS/dashboard.css`).
 - `00_Inbox/Captures/YYYY/MM/` stores immutable captures; do not recreate the removed `Imports` namespace.
 - `01_AI_Review/{Pending,Resolved}/YYYY/MM/` stores review artifacts, not canonical notes.
 - `20_Projects/`, `30_Areas/`, `40_Knowledge/`, `50_Maps/`, `60_Meetings/`, `80_Assets/`, `90_Archive/`, `99_System/` retain PARA-lite responsibilities.
 - A project is a bundle (`20_Projects/<slug>/<slug>.md` plus managed companion files).
-- `99_System/Bases/` has seven canonical Bases; Ideas is a view in `Knowledge.base`, not a separate Base.
+- `99_System/Bases/` has eight canonical Bases, including the cross-type `Compass.base`; Ideas remains a view in `Knowledge.base`, not a separate Base.
 - Device profile roots are created on demand; do not add empty `.obsidian-*` scaffolds.
 - Fixed files, marker files, and directory visibility rules are authoritative in YAML `fixed_paths` and `path_namespaces`.
 

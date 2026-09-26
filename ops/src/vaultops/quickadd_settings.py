@@ -58,23 +58,22 @@ def _home_quick_capture(blueprint: dict[str, Any]) -> tuple[list[str], list[str]
     errors: list[dict[str, str]] = []
     dashboards = blueprint.get("dashboards")
     home = dashboards.get("home") if isinstance(dashboards, dict) else None
-    sections = home.get("sections") if isinstance(home, dict) else None
-    section = next(
-        (item for item in sections if isinstance(item, dict) and item.get("name") == "quick_capture"),
-        None,
-    ) if isinstance(sections, list) else None
-    actions = section.get("actions") if isinstance(section, dict) else None
-    hotkeys = section.get("hotkeys") if isinstance(section, dict) else None
+    contract = home.get("capture_contract") if isinstance(home, dict) else None
+    actions = contract.get("actions") if isinstance(contract, dict) else None
+    hotkeys = contract.get("hotkeys") if isinstance(contract, dict) else None
+    visible_on_home = contract.get("visible_on_home") if isinstance(contract, dict) else None
+    if visible_on_home is not False:
+        errors.append(_error("P03_HOME_CAPTURE_VISIBILITY_INVALID", "/dashboards/home/capture_contract/visible_on_home", "Home capture actions must remain hidden while the profile owns their routing"))
     if not isinstance(actions, list) or not all(isinstance(item, str) for item in actions):
-        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_INVALID", "/dashboards/home/sections/quick_capture/actions", "Home quick-capture actions must be a string list"))
+        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_INVALID", "/dashboards/home/capture_contract/actions", "Home capture actions must be a string list"))
         actions = []
     if not isinstance(hotkeys, list) or not all(isinstance(item, str) for item in hotkeys):
-        errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_INVALID", "/dashboards/home/sections/quick_capture/hotkeys", "Home quick-capture hotkeys must be a string list"))
+        errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_INVALID", "/dashboards/home/capture_contract/hotkeys", "Home capture hotkeys must be a string list"))
         hotkeys = []
     if list(actions) != list(P03_PRIMARY_CHOICES):
-        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_DRIFT", "/dashboards/home/sections/quick_capture/actions", "Home quick-capture actions must match the P03 primary choice order"))
+        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_DRIFT", "/dashboards/home/capture_contract/actions", "Home capture actions must match the P03 primary choice order"))
     if len(hotkeys) != len(actions):
-        errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_DRIFT", "/dashboards/home/sections/quick_capture/hotkeys", "Home quick-capture hotkeys must have one entry per action"))
+        errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_DRIFT", "/dashboards/home/capture_contract/hotkeys", "Home capture hotkeys must have one entry per action"))
     return list(actions), list(hotkeys), errors
 
 
@@ -189,7 +188,7 @@ def build_quickadd_setting_registry(
                     "fields": [],
                 },
                 "hotkey": hotkey_map.get(choice_id),
-                "hotkey_source": "blueprint/blueprint.yaml#/dashboards/home/sections/quick_capture/hotkeys",
+                "hotkey_source": "blueprint/blueprint.yaml#/dashboards/home/capture_contract/hotkeys",
                 "current_choice_state": "configured" if observed_choice else choices_state,
                 "plugin_free_fallback": _fallback(choice_id),
                 "human_review_required": True,

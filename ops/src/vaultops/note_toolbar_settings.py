@@ -35,6 +35,7 @@ _FORBIDDEN_LINK_MARKERS = (
     "http://",
     "https://",
 )
+_EXPECTED_DESKTOP_POSITION = "bottom"
 
 _EXPECTED_FOLDER_TOOLBARS = {
     "/": "KnowledgeOS Home",
@@ -216,7 +217,7 @@ def _append_drift_errors(
 
 def _home_contract(root: Path, blueprint: dict[str, Any], errors: list[dict[str, str]]) -> dict[str, Any]:
     path = root / "KnowledgeHub/Home.md"
-    text, read_error = _read_text(path)
+    _, read_error = _read_text(path)
     if read_error:
         return {
             "state": "unknown",
@@ -226,14 +227,16 @@ def _home_contract(root: Path, blueprint: dict[str, Any], errors: list[dict[str,
         }
     dashboards = blueprint.get("dashboards") if isinstance(blueprint.get("dashboards"), dict) else {}
     home = dashboards.get("home") if isinstance(dashboards.get("home"), dict) else {}
-    sections = home.get("sections") if isinstance(home.get("sections"), list) else []
-    quick_capture = next(
-        (section for section in sections if isinstance(section, dict) and section.get("name") == "quick_capture"),
-        {},
-    )
-    actions = quick_capture.get("actions") if isinstance(quick_capture.get("actions"), list) else []
-    hotkeys = quick_capture.get("hotkeys") if isinstance(quick_capture.get("hotkeys"), list) else []
-    capture_state = "pass" if all(str(action) in (text or "") for action in actions) and hotkeys == [
+    capture_contract = home.get("capture_contract") if isinstance(home.get("capture_contract"), dict) else {}
+    actions = capture_contract.get("actions") if isinstance(capture_contract.get("actions"), list) else []
+    hotkeys = capture_contract.get("hotkeys") if isinstance(capture_contract.get("hotkeys"), list) else []
+    capture_state = "pass" if capture_contract.get("visible_on_home") is False and actions == [
+        "CAPTURE_THOUGHT",
+        "NEW_IDEA",
+        "NEW_PROJECT",
+        "NEW_QUESTION",
+        "NEW_KNOWLEDGE",
+    ] and hotkeys == [
         "option_command_c",
         "option_command_j",
         "option_command_p",
@@ -244,16 +247,8 @@ def _home_contract(root: Path, blueprint: dict[str, Any], errors: list[dict[str,
         errors.append(
             _error(
                 "P11_HOME_CAPTURE_INVENTORY_UNRESOLVED",
-                _relative(root, path) + "#/quick_capture",
-                "Home must preserve the reviewed capture action and hotkey inventory",
-            )
-        )
-    if "⌥⌘C" not in (text or ""):
-        errors.append(
-            _error(
-                "P11_CAPTURE_DISPLAY_CONTRACT_DRIFT",
-                _relative(root, path),
-                "Home must display the accepted Option-Command-C capture contract",
+                _relative(root, path) + "#/capture_contract",
+                "Home must preserve the reviewed profile-owned capture contract",
             )
         )
     return {
@@ -263,12 +258,13 @@ def _home_contract(root: Path, blueprint: dict[str, Any], errors: list[dict[str,
             "state": capture_state,
             "actions": list(actions),
             "hotkeys": list(hotkeys),
-            "display_contract": "⌥⌘C is the accepted CAPTURE_THOUGHT display; QuickAdd command identity remains unclaimed",
-            "primary_surface": "Home.md",
-            "toolbar_surface": "not_configured_until_exact QuickAdd command IDs are verified",
+            "display_contract": "QuickAdd inventory remains profile-owned and intentionally hidden from Home",
+            "primary_surface": "profile-owned QuickAdd choices",
+            "toolbar_surface": "compact_navigation_only",
+            "navigation_replacement": "desktop_bottom_toolbar_replaces_removed_home_footer",
         },
         "command_palette": "recovery_or_diagnostic_only",
-        "normal_journey": "Home.md or contextual toolbar first",
+        "normal_journey": "Home.md or desktop-bottom contextual toolbar first",
     }
 
 
@@ -434,6 +430,22 @@ def _toolbars_contract(
         if not isinstance(items, list):
             errors.append(_error("P11_TOOLBAR_ITEMS_INVALID", locator + "/items", "toolbar items must be a list"))
             items = []
+        position = toolbar.get("position")
+        desktop_position = None
+        if isinstance(position, dict):
+            desktop = position.get("desktop")
+            if isinstance(desktop, dict):
+                all_views = desktop.get("allViews")
+                if isinstance(all_views, dict):
+                    desktop_position = all_views.get("position")
+        if desktop_position != _EXPECTED_DESKTOP_POSITION:
+            errors.append(
+                _error(
+                    "P11_DESKTOP_POSITION_DRIFT",
+                    locator + "/position/desktop/allViews/position",
+                    "Mac desktop Note Toolbar position must remain bottom; mobile and tablet positions are out of scope",
+                )
+            )
         item_records: list[dict[str, Any]] = []
         target_records: list[dict[str, Any]] = []
         target_keys: list[tuple[str, str]] = []
@@ -476,6 +488,11 @@ def _toolbars_contract(
                 "state": "pass" if not any(item["state"] in {"blocked", "invalid"} for item in item_records) else "blocked",
                 "presentation": {
                     "position": toolbar.get("position"),
+                    "position_policy": {
+                        "desktop": _EXPECTED_DESKTOP_POSITION,
+                        "mobile": "out_of_scope",
+                        "tablet": "out_of_scope",
+                    },
                     "default_styles": toolbar.get("defaultStyles"),
                     "custom_classes": toolbar.get("customClasses"),
                     "mobile_styles": toolbar.get("mobileStyles"),
@@ -580,9 +597,9 @@ def _action_inventory(
     capture = home_contract.get("capture", {})
     inventory["capture"] = {
         "state": capture.get("state", "unknown"),
-        "primary_surface": "Home.md",
+        "primary_surface": "profile-owned QuickAdd choices",
         "toolbar_contexts": [],
-        "toolbar_policy": "not_configured_until_exact QuickAdd command IDs are verified",
+        "toolbar_policy": "compact_navigation_only",
         "display_contract": capture.get("display_contract"),
         "mutation_class": "human_capture_router_create_only",
         "human_action_required": True,
@@ -691,6 +708,12 @@ def build_note_toolbar_setting_registry(
         },
         "serialized_source": _relative(root, data_path),
         "serialized_version": serialized.get("version"),
+        "position_policy": {
+            "desktop": _EXPECTED_DESKTOP_POSITION,
+            "mobile": "out_of_scope",
+            "tablet": "out_of_scope",
+            "source": _relative(root, data_path) + "#/toolbars/*/position",
+        },
         "global_policy": global_policy,
         "folder_mappings": folder_mapping,
         "toolbars": toolbar_contract,

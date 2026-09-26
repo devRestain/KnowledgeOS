@@ -3580,6 +3580,12 @@
             "mobile",
             "system"
           ]
+        },
+        "cssclasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [

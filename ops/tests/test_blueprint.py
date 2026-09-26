@@ -238,15 +238,27 @@ def test_base_sort_and_status_mutations_are_semantic_errors(tmp_path: Path) -> N
 def test_dashboard_source_view_mutation_is_a_semantic_error(tmp_path: Path) -> None:
     def change_dashboard_view(blueprint: dict[str, Any]) -> None:
         sections = blueprint["dashboards"]["home"]["sections"]
-        now = next(section for section in sections if section["name"] == "now")
-        now["view"] = "Blocked"
+        projects = next(section for section in sections if section["name"] == "projects")
+        projects["view"] = "Blocked"
 
     codes, locators = _semantic_error_codes_and_locators(
         _mutation_root(tmp_path, change_dashboard_view)
     )
 
     assert "SEMANTIC_DASHBOARD_SOURCE_VIEW" in codes
-    assert "/dashboards/home/sections/now" in locators
+    assert "/dashboards/home/sections/projects" in locators
+
+
+def test_home_capture_visibility_mutation_is_a_semantic_error(tmp_path: Path) -> None:
+    def expose_home_capture_contract(blueprint: dict[str, Any]) -> None:
+        blueprint["dashboards"]["home"]["capture_contract"]["visible_on_home"] = True
+
+    codes, locators = _semantic_error_codes_and_locators(
+        _mutation_root(tmp_path, expose_home_capture_contract)
+    )
+
+    assert "SEMANTIC_HOME_CAPTURE_CONTRACT" in codes
+    assert "/dashboards/home/capture_contract" in locators
 
 
 def test_projection_hash_domain_mutation_is_a_semantic_error(tmp_path: Path) -> None:

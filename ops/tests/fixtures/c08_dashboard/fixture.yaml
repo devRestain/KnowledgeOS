@@ -13,6 +13,41 @@ notes:
       type: daily
       period_start: "2026-09-09"
       today_focus: "오늘의 가장 중요한 방향"
+  - path: 10_Journal/Weekly/2026-W36.md
+    mtime: 21
+    properties:
+      type: weekly
+      status: open
+      period_start: "2026-09-07"
+      period_end: "2026-09-13"
+  - path: 10_Journal/Monthly/2026-09.md
+    mtime: 22
+    properties:
+      type: monthly
+      status: open
+      period_start: "2026-09-01"
+      period_end: "2026-09-30"
+  - path: 30_Areas/Health.md
+    mtime: 23
+    properties:
+      type: area
+      status: active
+      next_review: "2026-09-08"
+      review_cadence: weekly
+  - path: 30_Areas/Finance.md
+    mtime: 24
+    properties:
+      type: area
+      status: paused
+      next_review: "2026-09-09"
+      review_cadence: monthly
+  - path: 30_Areas/Travel.md
+    mtime: 25
+    properties:
+      type: area
+      status: active
+      next_review: "2026-09-15"
+      review_cadence: quarterly
   - path: 20_Projects/Alpha/Alpha.md
     mtime: 30
     properties:
@@ -22,6 +57,7 @@ notes:
       priority: high
       target_date: "2026-09-20"
       next_action: "Alpha의 첫 배포 준비"
+      implements: [Idea-02]
   - path: 20_Projects/Beta/Beta.md
     mtime: 31
     properties:
@@ -39,6 +75,7 @@ notes:
       focus_rank: 3
       priority: low
       next_action: "Gamma의 다음 실험 기록"
+      implements: [Idea-03]
   - path: 20_Projects/Delta/Delta.md
     mtime: 33
     properties:
@@ -137,6 +174,7 @@ notes:
       type: idea
       status: incubating
       possibility: "Idea 02"
+      projects: [Alpha]
   - path: 40_Knowledge/Ideas/Idea-03.md
     mtime: 103
     properties:
@@ -203,12 +241,19 @@ notes:
       type: knowledge
       status: evergreen
       confidence: high
+      contradicts: [Knowledge-01]
   - path: 40_Knowledge/Notes/Knowledge-03.md
     mtime: 203
     properties:
       type: knowledge
       status: seed
       confidence: unknown
+  - path: 50_Maps/Knowledge Map.md
+    mtime: 204
+    properties:
+      type: moc
+      status: active
+      scope: "KnowledgeOS topics"
   - path: 00_Inbox/Captures/2026/09/Capture-01.md
     mtime: 301
     properties:
@@ -333,6 +378,7 @@ notes:
       status: reading
       source_kind: book
       published_date: "2026-09-09"
+      contradicts: [Knowledge-01]
   - path: 40_Knowledge/Sources/Source-03.md
     mtime: 403
     properties:

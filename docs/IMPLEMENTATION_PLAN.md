@@ -3,7 +3,7 @@
 - Read `PROJECT_STATE.md` before selecting or promoting a slice.
 - Resolve conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md` order.
 - Implement one acceptance-gated capability per session and preserve the isolated boundaries below.
-- Use fresh lane-local labels: `Cxx` for ordered core capabilities, `Dxx` for gated deployment overlays, `Exx` for optional extensions, `Pxx` for plugin and settings plans, and `Fxx` for cross-lane GUI-first Obsidian and `vaultctl` boundary refactors.
+- Use fresh lane-local labels: `Cxx` for ordered core capabilities, `Dxx` for gated deployment overlays, `Exx` for optional extensions, `Pxx` for plugin and settings plans, `Fxx` for cross-lane GUI-first Obsidian and `vaultctl` boundary refactors, and `Gxx` for the KnowledgeHub GUI design and visual-verification contract.
 - Interpret numeric order only within the same lane; never infer ordering or authorization across lanes.
 - Treat planning, state migration, documentation maintenance, and legacy labels in Git history as non-ordering provenance.
 
@@ -57,6 +57,7 @@
 
 - `P01` remains an independent core/community-plugin setting-state lane; it does not gate starting C38 and it never operates Obsidian or changes a live profile.
 - `F01` through `F06` remain a separate GUI-first period-note and `vaultctl` boundary lane; F work consumes explicitly recorded P01 evidence only where its plan declares that dependency.
+- `G01` through `G09` remain a design and verification lane; G may reshape the repository-owned Home, CSS, schema, and template sources in later slices, but it never operates Obsidian or changes a live profile without a separately authorized device step.
 - `C38` starts as its own local-generation identity lane. C38 may centralize the `gemma4:12b` profile and validate private evidence bindings without importing P01 or F implementation work.
 - Cross-lane sequencing exists only where a capability explicitly declares a dependency, such as C41 consuming P01 setting-state evidence; numeric labels do not impose ordering across P, F, and C lanes.
 
@@ -558,3 +559,120 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 The intended order was `F01 → F02 → F03 → F04 → F05 → F06`, and that slice is now closed. `F02` retains deterministic fixture support from `C07`; `F03` and `F04` consume `P01`'s exact setting-state evidence; `F05` extends the diagnostic boundary from `C12`; and `F06` closes the evidence contract. E04 local Ollama activation, deferred remote routes, E05 live integration, D04 plugin installation/audit, and device/UI actions remain separately gated and are not silently absorbed into F.
 
 F explicitly excludes direct Obsidian manipulation, plugin installation or setting mutation, Notebook Navigator/Templater runtime claims from static files, official CLI document writes, a second production period writer, command-palette-first UX, automatic AI summary insertion, canonical apply, Git network effects, and any new provider or remote authority.
+
+## G lane — KnowledgeHub MacBook GUI design and visual verification
+
+The G lane turns the current GUI-first README journey into one coherent MacBook
+experience. It is deliberately separate from F's period-note ownership and
+P's version-aware setting registries. G owns design intent and repository
+source coordination; it does not turn a static CSS file, Markdown note, or
+plugin JSON observation into device evidence.
+
+The design authority is `docs/G_GUI_DESIGN_CONTRACT.md`. The human-readable
+summary is `docs/G_GUI_DESIGN_SUMMARY.md`; design notes do not belong in the
+canonical Vault namespace.
+
+### G01 — Freeze the first-pass visual and interaction contract
+
+- Define the initial KnowledgeOS-specific signal-spine direction, semantic
+  tokens, typography, spacing, layout wireframes, and left-aligned reading
+  rules. This first-pass direction is retained as history, not as the current
+  user-facing layout decision.
+- Map Home conceptually around Today, capture, Now, decision, Next, Inbox, and
+  Review without changing the canonical Base queries or workflow.
+- Define the target of rendered Properties at the bottom of a note while
+  preserving YAML frontmatter at the top and explicitly separating the target
+  from the current `propertiesInDocument: visible` observation.
+- Map every Mac plugin, Core fallback, contextual surface, and icon family to
+  one visible job and one authority boundary.
+- Keep Obsidian's general `cssclasses` field out of future-note templates;
+  G09 registers it only for the generated Home note in the strict
+  KnowledgeOS Blueprint/schema/Property Dictionary contract.
+- Acceptance is static/semantic design evidence only; no device, plugin, or
+  profile mutation is part of G01.
+
+### G02 — Reframe the Home design contract
+
+- Use the MacBook horizontal canvas for a two-pane command center: a compact
+  Command deck and a Repository reading field separated by one signal rail.
+- Stack the same semantic regions on mobile and collapse before either pane
+  loses a readable measure or creates horizontal scroll.
+- Render exactly one `Open daily` action; treat the `daily/open` URI or command
+  as its implementation, not as a second visible control.
+- Replace oversized repeated action controls with compact command rows and
+  assign the saved space to three source-linked repository text windows.
+- Incorporate the recommended navy/slate, secure-green, and Fira Sans/Fira
+  Code pairing while keeping the surface content-first rather than a generic
+  code or enterprise dashboard.
+- Keep this revision documentation-only. No Figma edit, Obsidian UI action,
+  profile mutation, or live Vault mutation is part of G02.
+
+### G03 — Implement the Home hierarchy and theme source
+
+- Update the canonical C08 source (`ops/src/vaultops/base_dashboard.py`),
+  portable CSS (`KnowledgeHub/99_System/CSS/dashboard.css`), and focused tests
+  together.
+- Use the two-pane/stacked layout and semantic tokens from G02 without
+  introducing a plugin-owned data source, a second query, or a repeated card
+  grid.
+- Determine how the Vault CSS source is registered as a Mac CSS snippet; a
+  checked-in CSS file alone is not proof that Obsidian loads it.
+
+### G04 — Define and verify text-window projection
+
+- Bind the three Home text windows to existing canonical Base/property data or
+  an explicitly reviewed read-only adapter.
+- Record property-only fallback, body-excerpt availability, freshness, and
+  empty-state behavior separately.
+
+### G05 — Align template reading order and the metadata footer
+
+- Review T00–T60 against the shared body order while preserving the existing
+  schema fields and renderer ownership.
+- Select and test either stable CSS reflow of the native metadata container or
+  a read-only Meta Bind footer for the approved low-risk fields.
+- Keep native Properties and portable Markdown as fallbacks when the bottom
+  route cannot be verified.
+
+### G06 — Re-map plugin and icon surfaces
+
+- Inspect exact installed manifests/data and map Home, contextual toolbar,
+  navigation, status bar, relation trail, and AI Review surfaces.
+- Keep render-only plugins invisible, keep File Explorer usable, and do not
+  invent command IDs or mutate plugin settings during the static design pass.
+
+### G07 — Run separately authorized Figma and Mac visual checks
+
+- Verify the revised Figma frames, theme loading, Home hierarchy, text-window
+  behavior, contextual toolbar visibility, note readability, and
+  bottom-Properties behavior only after each target is separately authorized.
+- Record static, artifact, runtime, and device evidence separately; a Figma
+  frame or successful click does not prove the canonical note contract
+  changed.
+
+### G08 — Close the design handoff
+
+- Reconcile C08 source/test output, templates, profile observations, and any
+  human-facing README language.
+- Refresh `PROJECT_STATE.md`, preserve unrelated control/Vault changes, and
+  leave unresolved CSS-loading or device behavior as explicit evidence gaps.
+
+### G09 — Reconcile accepted Home generated artifacts
+
+- Treat the Home-only `cssclasses` registration and accepted Home layout as
+  the current Blueprint/schema contract; classify the prior digest-based
+  Property Dictionary and C24 LaunchAgent bytes as legacy generated outputs.
+- Regenerate the owned control and deployed Property Dictionary copies and
+  the C24 LaunchAgent plist from the current Blueprint through the canonical
+  schema-export path.
+- Update the design and implementation indexes so schema zero-diff and the
+  full regression suite no longer list these two legacy artifacts as open
+  blockers.
+- Keep Obsidian UI/profile/device actions, provider activation, Git remote
+  effects, and the independent H02 canonical-corpus blocker outside this
+  reconciliation slice.
+
+G non-goals are direct Obsidian manipulation, plugin installation or setting
+mutation, Vault move/delete, Git network effects, provider effects, automatic
+canonical apply, and claims that a theme or bottom Properties placement is
+active without separately authorized profile/device evidence.

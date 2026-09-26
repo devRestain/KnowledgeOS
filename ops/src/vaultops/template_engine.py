@@ -97,8 +97,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         triage_hint: none
         needs_desktop_review: false
         ---
-        # <% title %>
-
         ## 원문
 
 
@@ -131,8 +129,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         proposal_id: "{{JOB_ID}}"
         source_hashes: {{SOURCE_HASH_LIST_YAML}}
         ---
-        # AI 제안 — {{PROPOSAL_DISPLAY_TITLE}}
-
         > 이 노트는 정본이 아니다. 승인·거절은 terminal의 vaultctl 명령으로 수행한다.
 
         ## 제안 요약
@@ -179,8 +175,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         period_end: {{date:YYYY-MM-DD}}
         today_focus: ""
         ---
-        # {{date:YYYY-MM-DD dddd}}
-
         ## 오늘의 3가지 결과
 
         1.
@@ -192,7 +186,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
 
         ## 작업
 
-        - [ ] #task
+        <!-- 예시: - [ ] #task [구체적인 행동과 대상] -->
 
         ## 로그
 
@@ -239,8 +233,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         period_start: <% periodStart.format("YYYY-MM-DD") %>
         period_end: <% periodEnd.format("YYYY-MM-DD") %>
         ---
-        # <% periodStart.format("GGGG [W]WW") %>
-
         ## 이번 주 결과
 
         1.
@@ -265,7 +257,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
 
         ## 다음 주로 넘길 것
 
-        - [ ] #task
+        <!-- 예시: - [ ] #task [다음 주로 넘길 구체적인 행동] -->
 
         <!-- vaultops:weekly-summary:begin -->
         <!-- 승인된 자동 요약만 이 구간을 교체할 수 있다. -->
@@ -298,8 +290,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         period_start: <% monthStart.format("YYYY-MM-DD") %>
         period_end: <% monthEnd.format("YYYY-MM-DD") %>
         ---
-        # <% monthId %>
-
         ## 이달의 방향
 
 
@@ -343,21 +333,19 @@ TEMPLATE_SOURCES: dict[str, str] = {
         outcome: '<% yamlTitle %>의 완료 조건을 정의한다.'
         priority: medium
         ---
-        # <% title %>
-
         ## 원하는 결과
 
 
         ## 완료 조건
 
-        - [ ]
+        <!-- 예시: - [ ] [완료 조건을 구체적으로 적는다] -->
 
         ## 현재 상태
 
 
         ## 다음 행동
 
-        - [ ] #task
+        <!-- 예시: - [ ] #task [구체적인 다음 행동과 대상] -->
 
         ## 마일스톤
 
@@ -400,8 +388,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_status: idle
         possibility: '<% yamlTitle %>'
         ---
-        # <% title %>
-
         ## 가능성
 
         ## 왜 흥미로운가
@@ -436,8 +422,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_status: idle
         question_kind: research
         ---
-        # <% title %>
-
         ## 질문 또는 결정
 
         ## 왜 지금 중요한가
@@ -477,8 +461,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         artifact_kind: other
         projects: {{VALUE:project_links_yaml}}
         ---
-        # <% title %>
-
         ## 목적과 독자
 
         ## 산출물 또는 위치
@@ -508,8 +490,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         projects: {{PROJECT_LINKS_YAML}}
         note_kind: exploration
         ---
-        # {{TITLE}}
-
         ## 목적
 
         ## 현재 초안
@@ -544,8 +524,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         next_review: <% tp.date.now("YYYY-MM-DD", 30) %>
         standard: '<% yamlTitle %>에서 유지할 기준을 정의한다.'
         ---
-        # <% title %>
-
         ## 책임 범위
 
 
@@ -588,8 +566,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         claim: '<% yamlTitle %>'
         confidence: unknown
         ---
-        # <% title %>
-
         ## 핵심 주장
 
         ## 설명
@@ -634,8 +610,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_status: idle
         source_kind: web
         ---
-        # <% title %>
-
         ## 서지정보
 
 
@@ -683,8 +657,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_policy: deny
         ai_status: idle
         ---
-        # <% title %>
-
         ## 맥락
 
 
@@ -696,7 +668,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
 
         ## 다음 연락
 
-        - [ ] #task
+        <!-- 예시: - [ ] #task [다음 연락의 구체적인 행동] -->
 
         > 비밀번호, 주민번호, 민감한 건강·금융정보는 기록하지 않는다.
         """
@@ -724,8 +696,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         ai_status: idle
         scope: '<% yamlTitle %>'
         ---
-        # <% title %>
-
         ## 이 지도가 답하는 질문
 
 
@@ -769,8 +739,6 @@ TEMPLATE_SOURCES: dict[str, str] = {
         meeting_at: <% now %>
         attendees: []
         ---
-        # <% title %>
-
         ## 목적
 
 
@@ -788,7 +756,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
 
         ## 후속 작업
 
-        - [ ] #task
+        <!-- 예시: - [ ] #task [회의 후속 행동과 대상] -->
 
         <!-- vaultops:meeting-summary:begin -->
         <!-- 참석자 동의와 ai_policy를 확인한 뒤 생성한다. -->
@@ -953,7 +921,7 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
                 "needs_desktop_review": context.get("needs_desktop_review", False),
             }
         )
-        body = _body(context, f"# {title}\n\n## 원문\n\n\n## 맥락\n\n- 왜 지금 기록했는가:\n- 연결될 프로젝트·영역:\n\n## Triage\n\n- [ ] 버리기 / 행동으로 전환 / 정식 노트로 승격 중 하나를 결정한다.\n")
+        body = _body(context, "## 원문\n\n\n## 맥락\n\n- 왜 지금 기록했는가:\n- 연결될 프로젝트·영역:\n\n## Triage\n\n- [ ] 버리기 / 행동으로 전환 / 정식 노트로 승격 중 하나를 결정한다.\n")
     elif note_type == "proposal":
         proposal_id = str(context.get("proposal_id", properties["id"]))
         properties.update(
@@ -968,7 +936,7 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
                 ),
             }
         )
-        body = _body(context, f"# AI 제안 — {title}\n\n## 제안 요약\n\n검토할 제안입니다.\n")
+        body = _body(context, "## 제안 요약\n\n검토할 제안입니다.\n")
     elif note_type in {"daily", "weekly", "monthly"}:
         start, end, label, deterministic = _period_values(note_type, context)
         properties.update(
@@ -985,18 +953,18 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
         )
         if note_type == "daily":
             properties["today_focus"] = context.get("today_focus", "")
-            body = _body(context, f"# {label}\n\n## 오늘의 3가지 결과\n\n1.\n2.\n3.\n\n## 작업\n\n- [ ] #task\n")
+            body = _body(context, "## 오늘의 3가지 결과\n\n1.\n2.\n3.\n\n## 작업\n\n- [ ] #task\n")
         elif note_type == "weekly":
             days = [start + timedelta(days=index) for index in range(7)]
             links = "\n".join(f"- [[{item.isoformat()}]]" for item in days)
             body = _body(
                 context,
-                f"# {label.replace('-W', ' [W]')}\n\n## 이번 주 결과\n\n1.\n2.\n3.\n\n## 일간 기록\n\n{links}\n\n## 프로젝트 점검\n\n## 완료·미완료·대기\n\n## 다음 주로 넘길 것\n\n- [ ] #task\n\n<!-- vaultops:weekly-summary:begin -->\n<!-- 승인된 자동 요약만 이 구간을 교체할 수 있다. -->\n<!-- vaultops:weekly-summary:end -->\n",
+                f"## 이번 주 결과\n\n1.\n2.\n3.\n\n## 일간 기록\n\n{links}\n\n## 프로젝트 점검\n\n## 완료·미완료·대기\n\n## 다음 주로 넘길 것\n\n- [ ] #task\n\n<!-- vaultops:weekly-summary:begin -->\n<!-- 승인된 자동 요약만 이 구간을 교체할 수 있다. -->\n<!-- vaultops:weekly-summary:end -->\n",
             )
         else:
             body = _body(
                 context,
-                f"# {label}\n\n## 이달의 방향\n\n\n## 결과와 증거\n\n\n## 프로젝트·영역 review\n\n\n## 배운 것\n\n\n## 다음 달에 중단·시작·지속할 것\n\n- 중단:\n- 시작:\n- 지속:\n",
+                "## 이달의 방향\n\n\n## 결과와 증거\n\n\n## 프로젝트·영역 review\n\n\n## 배운 것\n\n\n## 다음 달에 중단·시작·지속할 것\n\n- 중단:\n- 시작:\n- 지속:\n",
             )
     elif note_type == "project":
         properties.update(
@@ -1010,59 +978,59 @@ def render_note_template(filename: str, context: Mapping[str, object]) -> Render
         for key in ("focus_rank", "next_action", "target_date"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
-        body = _body(context, f"# {title}\n\n## 원하는 결과\n\n\n## 완료 조건\n\n- [ ]\n\n## 현재 상태\n\n\n## 다음 행동\n\n- [ ] #task\n")
+        body = _body(context, "## 원하는 결과\n\n\n## 완료 조건\n\n- [ ]\n\n## 현재 상태\n\n\n## 다음 행동\n\n- [ ] #task\n")
     elif note_type == "project_note":
         properties.update({"status": context.get("status", "active"), "projects": [_project_link(context)], "note_kind": context.get("note_kind", "exploration")})
-        body = _body(context, f"# {title}\n\n## 목적\n\n## 현재 초안\n\n## 열린 쟁점\n\n## 정본으로 승격할 후보\n")
+        body = _body(context, "## 목적\n\n## 현재 초안\n\n## 열린 쟁점\n\n## 정본으로 승격할 후보\n")
     elif note_type == "idea":
         properties.update({"status": context.get("status", "seed"), "possibility": context.get("possibility", title)})
         _optional_lists(properties, context, ("projects", "areas", "topics", "related"))
-        body = _body(context, f"# {title}\n\n## 가능성\n\n## 왜 흥미로운가\n\n## 검증할 가정\n\n## 다음 실험\n\n## 연결\n")
+        body = _body(context, "## 가능성\n\n## 왜 흥미로운가\n\n## 검증할 가정\n\n## 다음 실험\n\n## 연결\n")
     elif note_type == "question":
         properties.update({"status": context.get("status", "open"), "question_kind": context.get("question_kind", "research")})
         _optional_lists(properties, context, ("projects", "areas", "sources", "related"))
         for key in ("decision", "decision_by", "priority"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
-        body = _body(context, f"# {title}\n\n## 질문 또는 결정\n\n## 왜 지금 중요한가\n\n## 선택지 또는 가설\n\n## 판단 기준\n\n## 근거\n\n## 결정과 이유\n\n## 후속 행동\n")
+        body = _body(context, "## 질문 또는 결정\n\n## 왜 지금 중요한가\n\n## 선택지 또는 가설\n\n## 판단 기준\n\n## 근거\n\n## 결정과 이유\n\n## 후속 행동\n")
     elif note_type == "artifact":
         properties.update({"status": context.get("status", "draft"), "artifact_kind": context.get("artifact_kind", "other"), "projects": [_project_link(context)]})
         for key in ("artifact_uri", "artifact_hash", "artifact_repo", "asset"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
-        body = _body(context, f"# {title}\n\n## 목적과 독자\n\n## 산출물 또는 위치\n\n## 검토 기준\n\n## 결정 기록\n\n## 변경 이력\n")
+        body = _body(context, "## 목적과 독자\n\n## 산출물 또는 위치\n\n## 검토 기준\n\n## 결정 기록\n\n## 변경 이력\n")
     elif note_type == "area":
         properties.update({"status": context.get("status", "active"), "standard": context.get("standard", f"{title}에서 유지할 기준을 정의한다."), "review_cadence": context.get("review_cadence", "monthly"), "next_review": context.get("next_review", (_now(context.get("created")).date() + timedelta(days=30)).isoformat())})
         _optional_lists(properties, context, ("topics", "people"))
-        body = _body(context, f"# {title}\n\n## 책임 범위\n\n## 유지할 기준\n\n## 현재 프로젝트\n\n## 루틴과 점검표\n\n## 참고 자료\n\n## Review 기록\n")
+        body = _body(context, "## 책임 범위\n\n## 유지할 기준\n\n## 현재 프로젝트\n\n## 루틴과 점검표\n\n## 참고 자료\n\n## Review 기록\n")
     elif note_type == "knowledge":
         properties.update({"status": context.get("status", "seed"), "claim": context.get("claim", title), "confidence": context.get("confidence", "unknown")})
         _optional_lists(properties, context, ("areas", "projects", "topics", "sources", "related"))
         if "last_reviewed" in context:
             properties["last_reviewed"] = context["last_reviewed"]
-        body = _body(context, f"# {title}\n\n## 핵심 주장\n\n## 설명\n\n## 근거\n\n## 한계와 반례\n\n## 적용\n\n## 연결\n")
+        body = _body(context, "## 핵심 주장\n\n## 설명\n\n## 근거\n\n## 한계와 반례\n\n## 적용\n\n## 연결\n")
     elif note_type == "source":
         properties.update({"status": context.get("status", "queued"), "source_kind": context.get("source_kind", "web")})
         _optional_lists(properties, context, ("authors", "areas", "projects", "topics", "related"))
         for key in ("source_url", "published_date", "citation_key", "asset", "asset_hash", "extractor", "extractor_version", "page_locator_scheme", "derived_from"):
             if key in context and context[key] not in (None, ""):
                 properties[key] = context[key]
-        body = _body(context, f"# {title}\n\n## 서지정보\n\n## 한 문단 요약\n\n## 핵심 주장과 근거\n\n## 인용\n\n## 내 해석\n\n## 파생 지식 노트\n")
+        body = _body(context, "## 서지정보\n\n## 한 문단 요약\n\n## 핵심 주장과 근거\n\n## 인용\n\n## 내 해석\n\n## 파생 지식 노트\n")
     elif note_type == "person":
         properties.update({"status": context.get("status", "active"), "ai_policy": "deny"})
         organization = context.get("organization")
         if organization not in (None, ""):
             properties["organization"] = organization
         _optional_lists(properties, context, ("areas", "projects", "related"))
-        body = _body(context, f"# {title}\n\n## 맥락\n\n## 함께 하는 일\n\n## 최근 대화\n\n## 다음 연락\n\n- [ ] #task\n")
+        body = _body(context, "## 맥락\n\n## 함께 하는 일\n\n## 최근 대화\n\n## 다음 연락\n\n- [ ] #task\n")
     elif note_type == "moc":
         properties.update({"status": context.get("status", "active"), "scope": context.get("scope", title)})
         _optional_lists(properties, context, ("related",))
-        body = _body(context, f"# {title}\n\n## 이 지도가 답하는 질문\n\n## 시작점\n\n## 핵심 노트\n\n## 논쟁과 대안\n\n## 아직 비어 있는 부분\n")
+        body = _body(context, "## 이 지도가 답하는 질문\n\n## 시작점\n\n## 핵심 노트\n\n## 논쟁과 대안\n\n## 아직 비어 있는 부분\n")
     elif note_type == "meeting":
         properties.update({"status": context.get("status", "scheduled"), "ai_policy": "deny", "meeting_at": context.get("meeting_at", properties["created"]), "attendees": _list(context, "attendees")})
         _optional_lists(properties, context, ("projects", "areas", "related"))
-        body = _body(context, f"# {title}\n\n## 목적\n\n## 의제\n\n1.\n\n## 메모\n\n## 결정\n\n| 결정 | 책임자 | 근거 |\n|---|---|---|\n\n## 후속 작업\n\n- [ ] #task\n")
+        body = _body(context, "## 목적\n\n## 의제\n\n1.\n\n## 메모\n\n## 결정\n\n| 결정 | 책임자 | 근거 |\n|---|---|---|\n\n## 후속 작업\n\n- [ ] #task\n")
     else:
         raise TemplateRenderError(f"renderer is missing note type: {note_type}")
 

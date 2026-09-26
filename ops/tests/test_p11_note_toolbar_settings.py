@@ -51,6 +51,18 @@ def test_p11_registry_binds_reviewed_contextual_actions_without_mutation() -> No
         "KnowledgeOS Project",
         "KnowledgeOS Review",
     ]
+    assert registry["position_policy"] == {
+        "desktop": "bottom",
+        "mobile": "out_of_scope",
+        "tablet": "out_of_scope",
+        "source": "KnowledgeHub/.obsidian-mac/plugins/note-toolbar/data.json#/toolbars/*/position",
+    }
+    for toolbar in registry["toolbars"]["toolbars"]:
+        assert toolbar["presentation"]["position_policy"] == {
+            "desktop": "bottom",
+            "mobile": "out_of_scope",
+            "tablet": "out_of_scope",
+        }
     assert registry["command_allowlist"]["allowed_ids"] == [
         "backlink:open-backlinks",
         "breadcrumbs:open-tree-view",
@@ -66,7 +78,8 @@ def test_p11_registry_binds_reviewed_contextual_actions_without_mutation() -> No
         "option_command_q",
         "option_command_k",
     ]
-    assert registry["home_contract"]["capture"]["display_contract"].startswith("⌥⌘C")
+    assert registry["home_contract"]["capture"]["display_contract"] == "QuickAdd inventory remains profile-owned and intentionally hidden from Home"
+    assert registry["home_contract"]["capture"]["navigation_replacement"] == "desktop_bottom_toolbar_replaces_removed_home_footer"
 
     actions = registry["action_inventory"]["actions"]
     for action_id in (
@@ -88,7 +101,7 @@ def test_p11_registry_binds_reviewed_contextual_actions_without_mutation() -> No
     ):
         assert actions[action_id]["state"] == "pass"
     assert actions["capture"]["toolbar_contexts"] == []
-    assert actions["capture"]["toolbar_policy"] == "not_configured_until_exact QuickAdd command IDs are verified"
+    assert actions["capture"]["toolbar_policy"] == "compact_navigation_only"
     assert actions["today_daily"]["mutation_class"] == "core_daily_note_open_or_create"
     assert actions["today_daily"]["human_action_required"] is True
     assert registry["mutation_policy"] == {

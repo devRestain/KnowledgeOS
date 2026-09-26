@@ -38,6 +38,7 @@ EXPECTED_PROPERTY_KEYS = (
     "claim",
     "confidence",
     "contradicts",
+    "cssclasses",
     "decision",
     "decision_by",
     "derived_from",
@@ -419,7 +420,116 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
             "sort": ["file_name_desc"],
             "limit": 1,
             "columns": ["file.link", "today_focus"],
-        }
+        },
+        "Open Reviews": {
+            "filters": {"type_in": ["weekly", "monthly"], "status": "open"},
+            "sort": ["period_start_desc", "file_name_asc"],
+            "limit": 2,
+            "columns": ["file.link", "type", "period_end"],
+        },
+        "Due Areas": {
+            "filters": {
+                "type": "area",
+                "status_in": ["active", "paused"],
+                "next_review_on_or_before_today": True,
+            },
+            "sort": ["next_review_asc", "file_name_asc"],
+            "limit": 3,
+            "columns": ["file.link", "next_review", "review_cadence"],
+        },
+    },
+    "Compass.base": {
+        "Signals": {
+            "filters": {
+                "or": [
+                    {
+                        "and": [
+                            {"type_in": ["knowledge", "source"]},
+                            {"contradicts_nonempty": True},
+                        ]
+                    },
+                    {
+                        "and": [
+                            {"type": "knowledge"},
+                            {"confidence_in": ["low", "unknown"]},
+                        ]
+                    },
+                    {
+                        "and": [
+                            {"type": "idea"},
+                            {"status_in": ["seed", "incubating", "testing"]},
+                            {"projects_empty": True},
+                            {"related_empty": True},
+                            {"raises_empty": True},
+                        ]
+                    },
+                ]
+            },
+            "sort": ["file_mtime_desc", "file_name_asc"],
+            "limit": 6,
+            "columns": ["file.link", "type", "status", "confidence", "contradicts", "projects", "related"],
+        },
+        "Tensions": {
+            "filters": {
+                "or": [
+                    {"and": [{"type": "knowledge"}, {"contradicts_nonempty": True}]},
+                    {"and": [{"type": "source"}, {"contradicts_nonempty": True}]},
+                ]
+            },
+            "sort": ["file_mtime_desc", "file_name_asc"],
+            "limit": 10,
+            "columns": ["file.link", "type", "confidence", "contradicts"],
+        },
+        "Research Gaps": {
+            "filters": {
+                "and": [
+                    {"type": "question"},
+                    {"status_in": ["open", "deciding"]},
+                    {"question_kind_in": ["research", "problem"]},
+                    {"projects_empty": True},
+                ]
+            },
+            "sort": ["decision_by_asc_nulls_last", "priority_high_to_low", "file_mtime_desc", "file_name_asc"],
+            "limit": 10,
+            "columns": ["file.link", "question_kind", "projects", "priority", "decision_by"],
+        },
+        "Unconnected Ideas": {
+            "filters": {
+                "and": [
+                    {"type": "idea"},
+                    {"status_in": ["seed", "incubating", "testing"]},
+                    {"projects_empty": True},
+                    {"related_empty": True},
+                    {"raises_empty": True},
+                ]
+            },
+            "sort": ["file_mtime_desc", "file_name_asc"],
+            "limit": 10,
+            "columns": ["file.link", "status", "possibility", "projects", "related", "raises"],
+        },
+        "Low Confidence": {
+            "filters": {
+                "and": [
+                    {"type": "knowledge"},
+                    {"confidence_in": ["low", "unknown"]},
+                ]
+            },
+            "sort": ["file_mtime_desc", "file_name_asc"],
+            "limit": 10,
+            "columns": ["file.link", "confidence", "supports", "contradicts", "applies_to"],
+        },
+        "Project Bridges": {
+            "filters": {
+                "and": [
+                    {"type": "project"},
+                    {"status_in": ["active", "blocked"]},
+                    {"implements_nonempty": True},
+                ]
+            },
+            "sort": ["focus_rank_asc", "priority_high_to_low", "target_date_asc_nulls_last", "file_name_asc"],
+            "limit": 10,
+            "columns": ["file.link", "status", "next_action", "implements", "target_date"],
+        },
     },
     "Projects.base": {
         "Now": {
@@ -444,20 +554,16 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
             "limit": 3,
             "columns": ["file.link", "next_action", "status"],
         },
-        "Next Actions": {
-            "filters": {
-                "type": "project",
-                "status_in": ["active", "blocked"],
-                "next_action_nonempty": True,
-            },
+        "Active": {
+            "filters": {"type": "project", "status_in": ["active", "blocked"]},
             "sort": [
                 "focus_rank_asc",
                 "priority_high_to_low",
                 "target_date_asc_nulls_last",
                 "file_name_asc",
             ],
-            "limit": 3,
-            "columns": ["file.link", "next_action", "status"],
+            "limit": 100,
+            "columns": ["file.link", "status", "next_action", "target_date"],
         },
         "Blocked": {
             "filters": {"type": "project", "status": "blocked"},
@@ -472,12 +578,26 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
                 "type": "question",
                 "status_in": ["open", "deciding"],
                 "question_kind": "decision",
-                "decision_nonempty": True,
             },
             "sort": ["decision_by_asc_nulls_last", "priority_high_to_low", "file_name_asc"],
             "limit": 5,
             "columns": ["file.link", "decision", "decision_by", "projects", "priority"],
-        }
+        },
+        "Research Questions": {
+            "filters": {
+                "type": "question",
+                "status_in": ["open", "deciding"],
+                "question_kind_in": ["research", "problem"],
+            },
+            "sort": [
+                "decision_by_asc_nulls_last",
+                "priority_high_to_low",
+                "file_mtime_desc",
+                "file_name_asc",
+            ],
+            "limit": 3,
+            "columns": ["file.link", "question_kind", "projects"],
+        },
     },
     "Knowledge.base": {
         "Ideas": {
@@ -491,7 +611,13 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
             "sort": ["file_mtime_desc", "file_name_asc"],
             "limit": 6,
             "columns": ["file.link", "type", "status", "confidence", "file.mtime"],
-        }
+        },
+        "Active Maps": {
+            "filters": {"type": "moc", "status": "active"},
+            "sort": ["file_mtime_desc", "file_name_asc"],
+            "limit": 3,
+            "columns": ["file.link", "scope", "file.mtime"],
+        },
     },
     "Inbox.base": {
         "Unprocessed": {
@@ -538,16 +664,14 @@ EXPECTED_BASES: dict[str, dict[str, dict[str, Any]]] = {
 }
 
 EXPECTED_DASHBOARD_SECTIONS = {
-    "home": (
-        "today_direction",
-        "quick_capture",
-        "now",
-        "needs_a_decision",
-        "next_actions",
-        "knowledge_radar",
-        "inbox",
-        "ai_review",
-        "support_status",
+        "home": (
+            "tasks",
+            "inbox",
+            "ai_review",
+            "projects",
+            "decisions",
+            "review_pulse",
+            "compass",
     ),
     "mobile": (
         "quick_capture",
@@ -561,19 +685,63 @@ EXPECTED_DASHBOARD_SECTIONS = {
 
 EXPECTED_DASHBOARD_SOURCES = {
     "home": {
-        "today_direction": ("Journal.base", "Today Focus", 1),
-        "now": ("Projects.base", "Now", 3),
-        "needs_a_decision": ("Decisions.base", "Open", 5),
-        "next_actions": ("Projects.base", "Next Actions", 3),
-        "knowledge_radar": ("Knowledge.base", "Radar", 6),
-        "inbox": ("Inbox.base", "Unprocessed", 10),
-        "ai_review": ("Review.base", "PendingOrConflict", 10),
+    "inbox": ("Inbox.base", "Unprocessed", 10),
+        "projects": ("Projects.base", "Now", 3),
+        "decisions": ("Decisions.base", "Open", 5),
     },
     "mobile": {
         "focus_projects_and_next_actions": ("Projects.base", "Mobile", 3),
         "needs_desktop_review": ("Inbox.base", "Mobile Review", 5),
         "ai_results": ("Review.base", "Mobile Results", 5),
     },
+}
+
+EXPECTED_HOME_CAPTURE_CONTRACT = {
+    "visible_on_home": False,
+    "actions": ["CAPTURE_THOUGHT", "NEW_IDEA", "NEW_PROJECT", "NEW_QUESTION", "NEW_KNOWLEDGE"],
+    "hotkeys": ["option_command_c", "option_command_j", "option_command_p", "option_command_q", "option_command_k"],
+    "authority": "quickadd_profile_and_blueprint_choice_registry",
+}
+
+EXPECTED_HOME_MULTI_VIEW_SECTIONS = {
+    "review_pulse": {
+        "views": [
+            {"source": "Sources.base", "view": "Reading queue", "limit": 10},
+            {"source": "Journal.base", "view": "Open Reviews", "limit": 2},
+        ],
+        "priority": "P1",
+    },
+    "compass": {
+        "views": [
+            {"source": "Compass.base", "view": "Signals", "limit": 6},
+            {"source": "Compass.base", "view": "Tensions", "limit": 10},
+        ],
+        "priority": "P1",
+    },
+    "ai_review": {
+        "views": [{"source": "Review.base", "view": "PendingOrConflict", "limit": 10}],
+        "priority": "P1",
+    },
+}
+
+EXPECTED_HOME_SECTION_CONTRACT = {
+    "tasks": {"task_query": "Home.md#tasks[1]", "layout_span": 12, "priority": "P0"},
+    "inbox": {"layout_span": 12, "priority": "P0"},
+    "ai_review": {"layout_span": 12, "priority": "P1"},
+    "projects": {
+        "layout_span": 6,
+        "status_in": ["active", "blocked"],
+        "sort": ["focus_rank_asc", "priority_high_to_low", "target_date_asc_nulls_last", "file_name_asc"],
+    },
+    "decisions": {
+        "layout_span": 6,
+        "sort": ["decision_by_asc_nulls_last", "priority_high_to_low", "file_name_asc"],
+    },
+    "review_pulse": {
+        "layout_span": 6,
+        "priority": "P1",
+    },
+    "compass": {"layout_span": 6, "priority": "P1"},
 }
 
 EXPECTED_PROJECTION_TOP_LEVEL = {
@@ -1247,6 +1415,50 @@ def _check_dashboards(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]
                         details={"source": expected_source[0], "view": expected_source[1]},
                     )
                 )
+
+        if dashboard_name == "home":
+            for field, expected in {
+                "path": "Home.md",
+                "type": "home",
+                "audience": "desktop",
+                "layout": "twelve_column_five_row",
+                "cssclass": "knowledgeos-home",
+                "toolbar_policy": "compact_navigation_only",
+            }.items():
+                _check_mapping_value(
+                    errors,
+                    dashboard.get(field),
+                    expected,
+                    locator=_path("dashboards", "home", field),
+                    code="SEMANTIC_HOME_LAYOUT_CONTRACT",
+                )
+            _check_mapping_value(
+                errors,
+                dict(_as_mapping(dashboard.get("capture_contract"))),
+                EXPECTED_HOME_CAPTURE_CONTRACT,
+                locator="/dashboards/home/capture_contract",
+                code="SEMANTIC_HOME_CAPTURE_CONTRACT",
+            )
+            for section_name, expected in EXPECTED_HOME_MULTI_VIEW_SECTIONS.items():
+                section = _as_mapping(actual_by_name.get(section_name))
+                for field, value in expected.items():
+                    _check_mapping_value(
+                        errors,
+                        section.get(field),
+                        value,
+                        locator=_path("dashboards", "home", "sections", section_name, field),
+                        code="SEMANTIC_HOME_SECTION_CONTRACT",
+                    )
+            for section_name, expected in EXPECTED_HOME_SECTION_CONTRACT.items():
+                section = _as_mapping(actual_by_name.get(section_name))
+                for field, value in expected.items():
+                    _check_mapping_value(
+                        errors,
+                        section.get(field),
+                        value,
+                        locator=_path("dashboards", "home", "sections", section_name, field),
+                        code="SEMANTIC_HOME_SECTION_CONTRACT",
+                    )
 
 
 def _check_projection(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:

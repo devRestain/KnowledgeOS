@@ -102,6 +102,18 @@ def test_p05_registry_binds_read_only_queries_statuses_and_human_date_actions_wi
     assert javascript["filter_by_function_execution"] == "forbidden"
 
     sources = {item["source"]: item for item in registry["query_sources"]}
+    assert sources["KnowledgeHub/Home.md"]["state"] == "pass"
+    assert len(sources["KnowledgeHub/Home.md"]["queries"]) == 1
+    home_query = sources["KnowledgeHub/Home.md"]["queries"][0]
+    assert home_query["filters"]["due_before_tomorrow"] is True
+    assert home_query["description_regex"] == r"description regex matches /\S/"
+    assert home_query["presentation_directives"] == [
+        "short mode",
+        "hide edit button",
+        "hide postpone button",
+        "hide recurrence rule",
+        "hide toolbar",
+    ]
     assert sources["KnowledgeHub/99_System/Dashboards/Tasks.md"]["state"] == "pass"
     assert len(sources["KnowledgeHub/99_System/Dashboards/Tasks.md"]["queries"]) == 3
     assert sources["KnowledgeHub/99_System/Dashboards/Weekly_Review.md"]["state"] == "pass"
@@ -110,7 +122,7 @@ def test_p05_registry_binds_read_only_queries_statuses_and_human_date_actions_wi
     assert all(query["forbidden_javascript"] == [] for query in all_queries)
     assert all(query["authority"] == "read_only_query_result_not_write_authority" for query in all_queries)
     assert all(query["human_completion"] == "explicit_status_action_on_source_markdown_task_line" for query in all_queries)
-    assert sum(query["limit_state"] == "bounded" for query in all_queries) == 3
+    assert sum(query["limit_state"] == "bounded" for query in all_queries) == 4
     assert sum(query["limit_state"] == "unbounded_read_only" for query in all_queries) == 1
     assert registry["safety_policy"]["automatic_completion"] == "forbidden"
     assert registry["safety_policy"]["external_task_service"] == "forbidden"
@@ -172,4 +184,3 @@ def test_p05_registry_rejects_active_javascript_query_and_unbounded_function_fix
 
     codes = {error["code"] for error in errors}
     assert "P05_JAVASCRIPT_QUERY_ACTIVE" in codes
-

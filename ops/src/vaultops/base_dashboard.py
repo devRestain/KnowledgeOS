@@ -32,12 +32,14 @@ BASE_NAMES = (
     "Sources.base",
     "Review.base",
     "Journal.base",
+    "Compass.base",
 )
 BASE_PATHS = tuple(f"{BASE_DIRECTORY}/{name}" for name in BASE_NAMES)
 DASHBOARD_PATHS = (
     "Home.md",
     "Mobile.md",
     "99_System/Dashboards/Tasks.md",
+    "99_System/Dashboards/Today_Focus.md",
     "99_System/Dashboards/Weekly_Review.md",
     "99_System/CSS/dashboard.css",
 )
@@ -65,10 +67,12 @@ def dashboard_sources() -> dict[str, str]:
             title: Home
             status: active
             created: 2026-09-07T00:00:00+09:00
-            modified: 2026-09-07T00:00:00+09:00
+            modified: 2026-09-26T00:00:00+09:00
             aliases: []
             tags: []
-            purpose: "행동과 판단의 데스크톱 조종석"
+            cssclasses:
+              - knowledgeos-home
+            purpose: "행동·판단·연결을 한 화면에서 조망하는 KnowledgeHub 사령탑"
             audience: desktop
             sensitivity: personal
             ai_policy: deny
@@ -76,74 +80,49 @@ def dashboard_sources() -> dict[str, str]:
             ---
             # Home
 
-            ## 오늘의 방향
-
-            ![[99_System/Bases/Journal.base#Today Focus]]
-
-            - [[99_System/Bases/Journal.base#Today Focus|오늘의 Daily 전체 보기]]
-            - [Daily에 방향 적기](obsidian://daily?vault=KnowledgeHub)
-
-            ## 빠른 캡처
-
-            - `⌥⌘C` `CAPTURE_THOUGHT` — 생각 포착
-            - `⌥⌘J` `NEW_IDEA` — 아이디어
-            - `⌥⌘P` `NEW_PROJECT` — 프로젝트
-            - `⌥⌘Q` `NEW_QUESTION` — 질문·결정
-            - `⌥⌘K` `NEW_KNOWLEDGE` — 지식 주장
-
-            > 단축키는 검증된 QuickAdd command ID에 실제 연결한 뒤 활성 안내로 취급한다. 연결 전에도
-            > Command palette에서 같은 choice ID를 찾을 수 있다.
-
-            ## Now
-
-            ![[99_System/Bases/Projects.base#Now]]
-
-            - [[99_System/Bases/Projects.base#Now|프로젝트 전체 보기]]
-
-            ## Needs a decision
-
-            ![[99_System/Bases/Decisions.base#Open]]
-
-            - [[99_System/Bases/Decisions.base#Open|열린 질문 전체 보기]]
-
-            ## Next actions
-
-            ![[99_System/Bases/Projects.base#Next Actions]]
-
-            - [[99_System/Bases/Projects.base#Next Actions|다음 행동 전체 보기]]
-
-            ## Knowledge radar
-
-            ![[99_System/Bases/Knowledge.base#Radar]]
-
-            - [[99_System/Bases/Knowledge.base#Radar|Knowledge 전체 보기]]
-
-            ## Inbox
-
-            ![[99_System/Bases/Inbox.base#Unprocessed]]
-
-            - [[99_System/Bases/Inbox.base#Unprocessed|Inbox 전체 보기]]
-
-            ## AI review
-
-            ![[99_System/Bases/Review.base#PendingOrConflict]]
-
-            - [[99_System/Bases/Review.base#PendingOrConflict|AI Review 전체 보기]]
-
-            > [!info]- 보조 상태와 Sync 확인
-            > ![[99_System/Bases/Projects.base#Blocked]]
+            > [!ko-home-grid]
+            > > [!ko-home-tasks] Task
+            > > ```tasks
+            > > not done
+            > > due before tomorrow
+            > > tags include #task
+            > > description regex matches /\S/
+            > > sort by due
+            > > sort by priority
+            > > limit 4
+            > > short mode
+            > > hide edit button
+            > > hide postpone button
+            > > hide recurrence rule
+            > > hide toolbar
+            > > ```
+            > > - Core-only fallback: Core Search와 원문 Markdown checkbox를 확인한다.
             >
-            > [[99_System/Dashboards/Tasks#Waiting|대기 중인 Task 보기]]
+            > > [!ko-home-inbox] Inbox
+            > > ![[99_System/Bases/Inbox.base#Unprocessed]]
+            > >
+            > > [!ko-home-ai-review] AI 검토 대기·충돌
+            > > ![[99_System/Bases/Review.base#PendingOrConflict]]
             >
-            > Sync의 실시간 정본은 Obsidian Git status bar 또는 `vaultctl git status`다. 이 Home에는 오래된
-            > 성공 상태를 기록하지 않는다.
-
-            ## 빠른 이동
-
-            - [[99_System/Dashboards/Tasks]]
-            - [[99_System/Dashboards/Weekly_Review]]
-            - [[99_System/Bases/Knowledge.base#Ideas|Ideas]]
-            - [[99_System/Bases/Sources.base#Reading queue|Sources]]
+            > > [!ko-home-projects] 진행 중인 프로젝트
+            > > ![[99_System/Bases/Projects.base#Now]]
+            >
+            > > [!ko-home-decisions] 내가 결정할 것
+            > > ![[99_System/Bases/Decisions.base#Open]]
+            >
+            > > [!ko-home-review] 검토 리듬
+            > > #### 읽는 중
+            > > ![[99_System/Bases/Sources.base#Reading queue]]
+            > >
+            > > #### 열린 회고
+            > > ![[99_System/Bases/Journal.base#Open Reviews]]
+            >
+            > > [!ko-home-compass] Compass 신호
+            > > #### 신호
+            > > ![[99_System/Bases/Compass.base#Signals]]
+            > >
+            > > #### 긴장
+            > > ![[99_System/Bases/Compass.base#Tensions]]
             """
         ),
         "Mobile.md": _dashboard_source(
@@ -261,6 +240,32 @@ def dashboard_sources() -> dict[str, str]:
             - Core-only fallback: `#task`와 `#waiting`을 Core Search로 검색한다.
             """
         ),
+        "99_System/Dashboards/Today_Focus.md": _dashboard_source(
+            r"""
+            ---
+            schema_version: 1
+            id: system-today-focus
+            type: system
+            title: Today_Focus
+            status: active
+            created: 2026-09-26T00:00:00+09:00
+            modified: 2026-09-26T00:00:00+09:00
+            aliases:
+              - Today Focus
+            tags: []
+            sensitivity: personal
+            ai_policy: deny
+            ai_status: idle
+            purpose: "오늘의 초점과 Daily 기준을 독립적으로 확인하는 시스템 화면"
+            related: []
+            ---
+            # Today Focus
+
+            ![[99_System/Bases/Journal.base#Today Focus]]
+
+            - [[99_System/Bases/Journal.base#Today Focus|Today Focus 전체 보기]]
+            """
+        ),
         "99_System/Dashboards/Weekly_Review.md": _dashboard_source(
             r"""
             ---
@@ -341,23 +346,146 @@ def dashboard_sources() -> dict[str, str]:
         ),
         "99_System/CSS/dashboard.css": _dashboard_source(
             r"""
-            /* KnowledgeOS C08: layout-only enhancement. Markdown/Base content remains authoritative. */
-            .knowledgeos-dashboard-grid {
+            /* KnowledgeOS C08: scoped Home layout. Markdown/Base content remains authoritative. */
+            .knowledgeos-home {
+              --g-field: #f1f5f9;
+              --g-surface: #ffffff;
+              --g-navy: #1e3a5f;
+              --g-slate: #334155;
+              --g-ink: #0f172a;
+              --g-muted: #64748b;
+              --g-secure: #059669;
+              --g-attention: #b45309;
+              --g-conflict: #b91c1c;
+              --g-line: #cbd5e1;
+              font-family: "Fira Sans", system-ui, sans-serif;
+              color: var(--g-ink);
+            }
+
+            /* Keep Home's body heading as its one document title. */
+            .knowledgeos-home .inline-title {
+              display: none;
+            }
+
+            .knowledgeos-home .callout[data-callout="ko-home-grid"] {
+              border: 0;
+              background: transparent;
+              margin: 0.75rem 0;
+              padding: 0;
+            }
+
+            .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-title {
+              display: none;
+            }
+
+            .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
               display: grid;
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-              gap: 1rem;
-            }
-
-            .knowledgeos-dashboard-card {
+              grid-template-columns: repeat(12, minmax(0, 1fr));
+              gap: 0.7rem;
               min-width: 0;
-              border: 1px solid var(--background-modifier-border);
-              border-radius: 0.5rem;
-              padding: 0.75rem;
             }
 
-            @media (max-width: 900px) {
-              .knowledgeos-dashboard-grid {
-                grid-template-columns: 1fr;
+            .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout {
+              min-width: 0;
+              margin: 0;
+              border: 1px solid var(--g-line);
+              border-top: 2px solid var(--g-navy);
+              border-radius: 6px;
+              background: var(--g-surface);
+              padding: 0.65rem 0.75rem;
+              overflow-wrap: anywhere;
+            }
+
+            /* MacBook hierarchy: Task, Inbox, and AI review first, then projects/decisions, then Review Pulse and Compass. */
+            .knowledgeos-home .callout[data-callout="ko-home-tasks"],
+            .knowledgeos-home .callout[data-callout="ko-home-inbox"],
+            .knowledgeos-home .callout[data-callout="ko-home-ai-review"] {
+              grid-column: span 12;
+            }
+
+            .knowledgeos-home .callout[data-callout="ko-home-projects"],
+            .knowledgeos-home .callout[data-callout="ko-home-decisions"] {
+              grid-column: span 6;
+            }
+
+            .knowledgeos-home .callout[data-callout="ko-home-review"],
+            .knowledgeos-home .callout[data-callout="ko-home-compass"] {
+              grid-column: span 6;
+            }
+
+            .knowledgeos-home .callout[data-callout^="ko-home-"] .callout-title {
+              color: var(--g-slate);
+              font-family: "Fira Sans", system-ui, sans-serif;
+              font-weight: 600;
+            }
+
+            .knowledgeos-home .callout[data-callout^="ko-home-"] .callout-content {
+              min-width: 0;
+            }
+
+            .knowledgeos-home table {
+              width: 100%;
+              table-layout: auto;
+              font-size: 0.88em;
+            }
+
+            .knowledgeos-home th,
+            .knowledgeos-home td {
+              min-width: 0;
+              overflow-wrap: anywhere;
+            }
+
+            .knowledgeos-home code,
+            .knowledgeos-home .tasks-count {
+              font-family: "Fira Code", ui-monospace, monospace;
+              font-variant-numeric: tabular-nums;
+            }
+
+            .knowledgeos-home a:focus-visible,
+            .knowledgeos-home button:focus-visible,
+            .knowledgeos-home input:focus-visible {
+              outline: 2px solid var(--g-attention);
+              outline-offset: 2px;
+            }
+
+            @media (max-width: 1199px) {
+              .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+
+              .knowledgeos-home .callout[data-callout^="ko-home-"] {
+                grid-column: span 1;
+              }
+
+              .knowledgeos-home .callout[data-callout="ko-home-tasks"],
+              .knowledgeos-home .callout[data-callout="ko-home-inbox"],
+              .knowledgeos-home .callout[data-callout="ko-home-ai-review"],
+              .knowledgeos-home .callout[data-callout="ko-home-projects"],
+              .knowledgeos-home .callout[data-callout="ko-home-decisions"],
+              .knowledgeos-home .callout[data-callout="ko-home-review"],
+              .knowledgeos-home .callout[data-callout="ko-home-compass"] {
+                grid-column: span 1;
+              }
+            }
+
+            @media (max-width: 899px) {
+              .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+                grid-template-columns: minmax(0, 1fr);
+              }
+
+              .knowledgeos-home .callout[data-callout^="ko-home-"] {
+                grid-column: span 1;
+              }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+              .knowledgeos-home *,
+              .knowledgeos-home *::before,
+              .knowledgeos-home *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.001ms !important;
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
               }
             }
             """
@@ -374,15 +502,24 @@ class FrozenNote:
     mtime: float
 
 
-def _path_prefix(base_name: str) -> str:
+def _path_prefix(base_name: str) -> tuple[str, ...]:
     prefixes = {
-        "Journal.base": "10_Journal/",
-        "Projects.base": "20_Projects/",
-        "Decisions.base": "40_Knowledge/Questions/",
-        "Knowledge.base": "40_Knowledge/",
-        "Sources.base": "40_Knowledge/Sources/",
-        "Inbox.base": "00_Inbox/",
-        "Review.base": "01_AI_Review/",
+        "Journal.base": ("10_Journal/", "30_Areas/"),
+        "Projects.base": ("20_Projects/",),
+        "Decisions.base": ("40_Knowledge/Questions/",),
+        "Knowledge.base": ("40_Knowledge/", "50_Maps/"),
+        "Sources.base": ("40_Knowledge/Sources/",),
+        "Inbox.base": ("00_Inbox/",),
+        "Review.base": ("01_AI_Review/",),
+        "Compass.base": (
+            "00_Inbox/",
+            "01_AI_Review/",
+            "10_Journal/",
+            "20_Projects/",
+            "30_Areas/",
+            "40_Knowledge/",
+            "50_Maps/",
+        ),
     }
     try:
         return prefixes[base_name]
@@ -392,7 +529,10 @@ def _path_prefix(base_name: str) -> str:
 
 def _global_filters(base_name: str) -> list[Any]:
     filters: dict[str, list[Any]] = {
-        "Journal.base": ['file.ext == "md"', 'file.inFolder("10_Journal")'],
+        "Journal.base": [
+            'file.ext == "md"',
+            {"or": ['file.inFolder("10_Journal")', 'file.inFolder("30_Areas")']},
+        ],
         "Projects.base": [
             'file.ext == "md"',
             'file.inFolder("20_Projects")',
@@ -405,8 +545,8 @@ def _global_filters(base_name: str) -> list[Any]:
         ],
         "Knowledge.base": [
             'file.ext == "md"',
-            'file.inFolder("40_Knowledge")',
-            {"or": ['type == "knowledge"', 'type == "idea"']},
+            {"or": ['file.inFolder("40_Knowledge")', 'file.inFolder("50_Maps")']},
+            {"or": ['type == "knowledge"', 'type == "idea"', 'type == "moc"']},
         ],
         "Sources.base": [
             'file.ext == "md"',
@@ -419,6 +559,20 @@ def _global_filters(base_name: str) -> list[Any]:
             'file.inFolder("01_AI_Review")',
             'type == "proposal"',
         ],
+        "Compass.base": [
+            'file.ext == "md"',
+            {
+                "or": [
+                    'file.inFolder("00_Inbox")',
+                    'file.inFolder("01_AI_Review")',
+                    'file.inFolder("10_Journal")',
+                    'file.inFolder("20_Projects")',
+                    'file.inFolder("30_Areas")',
+                    'file.inFolder("40_Knowledge")',
+                    'file.inFolder("50_Maps")',
+                ]
+            },
+        ],
     }
     try:
         return filters[base_name]
@@ -426,15 +580,24 @@ def _global_filters(base_name: str) -> list[Any]:
         raise BaseContractError(f"unknown Base: {base_name}") from error
 
 
-def _view_filter(query: Mapping[str, Any]) -> Any:
-    filter_contract = query.get("filters", query)
-    if not isinstance(filter_contract, Mapping):
-        raise BaseContractError("Base view filters must be a mapping")
+def _filter_expression(filter_contract: Mapping[str, Any]) -> Any:
     statements: list[Any] = []
     for name, value in filter_contract.items():
-        if name in {"type", "status", "question_kind"}:
+        if name in {"and", "or"}:
+            if not isinstance(value, list) or not value:
+                raise BaseContractError(f"{name} must be a non-empty list")
+            nested: list[Any] = []
+            for item in value:
+                if isinstance(item, str):
+                    nested.append(item)
+                elif isinstance(item, Mapping):
+                    nested.append(_filter_expression(item))
+                else:
+                    raise BaseContractError(f"{name} entries must be mappings or expressions")
+            statements.append({name: nested})
+        elif name in {"type", "status", "question_kind"}:
             statements.append(f'{name} == "{value}"')
-        elif name in {"type_in", "status_in"}:
+        elif name in {"type_in", "status_in", "question_kind_in", "confidence_in"}:
             values = value
             if not isinstance(values, list) or not values:
                 raise BaseContractError(f"{name} must be a non-empty list")
@@ -449,11 +612,48 @@ def _view_filter(query: Mapping[str, Any]) -> Any:
             if value != "today":
                 raise BaseContractError("only the canonical period_start=today filter is supported")
             statements.append("period_start == today()")
-        elif name not in {"decision_nonempty", "next_action_nonempty", "needs_desktop_review"}:
+        elif name == "next_review_on_or_before_today" and value:
+            statements.append("next_review <= today()")
+        elif name in {
+            "contradicts_nonempty",
+            "supports_nonempty",
+            "applies_to_nonempty",
+            "implements_nonempty",
+            "related_nonempty",
+            "raises_nonempty",
+        } and value:
+            property_name = name.removesuffix("_nonempty")
+            statements.append(f"!list({property_name}).isEmpty()")
+        elif name in {"projects_empty", "related_empty", "raises_empty", "implements_empty"} and value:
+            property_name = name.removesuffix("_empty")
+            statements.append(f"list({property_name}).isEmpty()")
+        elif name not in {
+            "decision_nonempty",
+            "next_action_nonempty",
+            "needs_desktop_review",
+            "next_review_on_or_before_today",
+            "contradicts_nonempty",
+            "supports_nonempty",
+            "applies_to_nonempty",
+            "implements_nonempty",
+            "related_nonempty",
+            "raises_nonempty",
+            "projects_empty",
+            "related_empty",
+            "raises_empty",
+            "implements_empty",
+        }:
             raise BaseContractError(f"unsupported Base filter: {name}")
     if not statements:
         return None
     return statements[0] if len(statements) == 1 else {"and": statements}
+
+
+def _view_filter(query: Mapping[str, Any]) -> Any:
+    filter_contract = query.get("filters", query)
+    if not isinstance(filter_contract, Mapping):
+        raise BaseContractError("Base view filters must be a mapping")
+    return _filter_expression(filter_contract)
 
 
 def _column_property(column: str) -> str:
@@ -475,6 +675,7 @@ def _column_property(column: str) -> str:
         "type",
         "confidence",
         "created",
+        "period_end",
         "today_focus",
         "capture_kind",
         "triage_hint",
@@ -486,6 +687,16 @@ def _column_property(column: str) -> str:
         "source_url",
         "proposal_id",
         "possibility",
+        "question_kind",
+        "contradicts",
+        "related",
+        "raises",
+        "review_cadence",
+        "next_review",
+        "scope",
+        "supports",
+        "applies_to",
+        "implements",
     }:
         return column
     raise BaseContractError(f"unsupported Base column: {column}")
@@ -507,6 +718,9 @@ def _sort_property(token: str) -> tuple[str, str, str | None]:
             "DESC",
             "published_date_sort",
         ),
+        "period_start_desc": ("period_start", "DESC", None),
+        "next_review_asc": ("next_review", "ASC", None),
+        "file_mtime_asc": ("file.mtime", "ASC", None),
     }
     try:
         return mapping[token]
@@ -543,6 +757,7 @@ _DISPLAY_NAMES = {
     "type": "유형",
     "confidence": "신뢰도",
     "created": "생성",
+    "period_end": "종료일",
     "today_focus": "오늘의 방향",
     "capture_kind": "종류",
     "triage_hint": "분류 힌트",
@@ -554,6 +769,16 @@ _DISPLAY_NAMES = {
     "source_url": "URL",
     "proposal_id": "제안 ID",
     "possibility": "가능성",
+    "question_kind": "질문 종류",
+    "contradicts": "모순",
+    "related": "관련 노트",
+    "raises": "확장 질문",
+    "supports": "지지",
+    "applies_to": "적용 대상",
+    "implements": "구현 대상",
+    "review_cadence": "검토 주기",
+    "next_review": "다음 검토",
+    "scope": "범위",
 }
 
 _BASE_FILE_DISPLAY_NAMES = {
@@ -564,6 +789,7 @@ _BASE_FILE_DISPLAY_NAMES = {
     "Sources.base": "출처",
     "Inbox.base": "제목",
     "Review.base": "항목",
+    "Compass.base": "신호",
 }
 
 
@@ -697,36 +923,97 @@ def _date_value(value: Any) -> date | datetime | None:
 
 
 def _base_scope_matches(base_name: str, note: FrozenNote) -> bool:
-    return note.path.startswith(_path_prefix(base_name)) and note.path.endswith(".md")
+    return any(note.path.startswith(prefix) for prefix in _path_prefix(base_name)) and note.path.endswith(".md")
+
+
+def _as_date(value: Any) -> date | None:
+    parsed = _date_value(value)
+    if isinstance(parsed, datetime):
+        return parsed.date()
+    return parsed
+
+
+def _matches_filter(filter_contract: Mapping[str, Any], properties: Mapping[str, Any], today: date) -> bool:
+    for name, value in filter_contract.items():
+        if name == "and":
+            if not isinstance(value, list) or not value:
+                raise BaseContractError("and must be a non-empty list")
+            if not all(
+                isinstance(item, Mapping) and _matches_filter(item, properties, today)
+                for item in value
+            ):
+                return False
+            continue
+        if name == "or":
+            if not isinstance(value, list) or not value:
+                raise BaseContractError("or must be a non-empty list")
+            if not any(
+                isinstance(item, Mapping) and _matches_filter(item, properties, today)
+                for item in value
+            ):
+                return False
+            continue
+        if name in {"type", "status", "question_kind"}:
+            if properties.get(name) != value:
+                return False
+        elif name in {"type_in", "status_in", "question_kind_in", "confidence_in"}:
+            if properties.get(name.removesuffix("_in")) not in value:
+                return False
+        elif name == "decision_nonempty" and value:
+            if not properties.get("decision"):
+                return False
+        elif name == "next_action_nonempty" and value:
+            if not properties.get("next_action"):
+                return False
+        elif name == "needs_desktop_review" and value:
+            if properties.get("needs_desktop_review") is not True:
+                return False
+        elif name == "period_start":
+            if value == "today" and properties.get("period_start") != today.isoformat():
+                return False
+            if value != "today":
+                raise BaseContractError("only the canonical period_start=today filter is supported")
+        elif name == "next_review_on_or_before_today" and value:
+            next_review = _as_date(properties.get("next_review"))
+            if next_review is None or next_review > today:
+                return False
+        elif name.endswith("_nonempty") and name.removesuffix("_nonempty") in {
+            "contradicts",
+            "supports",
+            "applies_to",
+            "implements",
+            "related",
+            "raises",
+        } and value:
+            if not properties.get(name.removesuffix("_nonempty")):
+                return False
+        elif name.endswith("_empty") and name.removesuffix("_empty") in {
+            "projects",
+            "related",
+            "raises",
+            "implements",
+        } and value:
+            if properties.get(name.removesuffix("_empty")):
+                return False
+        elif value is False and name in {
+            "decision_nonempty",
+            "next_action_nonempty",
+            "needs_desktop_review",
+            "next_review_on_or_before_today",
+        }:
+            continue
+        else:
+            raise BaseContractError(f"unsupported Base filter: {name}")
+    return True
 
 
 def _matches(base_name: str, query: Mapping[str, Any], note: FrozenNote, today: date) -> bool:
     if not _base_scope_matches(base_name, note):
         return False
-    properties = note.properties
     filter_contract = query.get("filters", query)
     if not isinstance(filter_contract, Mapping):
         raise BaseContractError("Base view filters must be a mapping")
-    if "type" in filter_contract and properties.get("type") != filter_contract["type"]:
-        return False
-    if "type_in" in filter_contract and properties.get("type") not in filter_contract["type_in"]:
-        return False
-    if "status" in filter_contract and properties.get("status") != filter_contract["status"]:
-        return False
-    if "status_in" in filter_contract and properties.get("status") not in filter_contract["status_in"]:
-        return False
-    if "question_kind" in filter_contract and properties.get("question_kind") != filter_contract["question_kind"]:
-        return False
-    if filter_contract.get("decision_nonempty") and not properties.get("decision"):
-        return False
-    if filter_contract.get("next_action_nonempty") and not properties.get("next_action"):
-        return False
-    if filter_contract.get("needs_desktop_review") and properties.get("needs_desktop_review") is not True:
-        return False
-    return not (
-        filter_contract.get("period_start") == "today"
-        and properties.get("period_start") != today.isoformat()
-    )
+    return _matches_filter(filter_contract, note.properties, today)
 
 
 def _sort_value(token: str, note: FrozenNote) -> Any:
@@ -739,19 +1026,25 @@ def _sort_value(token: str, note: FrozenNote) -> Any:
         return {"high": 0, "medium": 1, "low": 2}.get(properties.get("priority"))
     if token == "file_mtime_desc":
         return note.mtime
+    if token == "file_mtime_asc":
+        return note.mtime
     property_name = {
         "target_date_asc_nulls_last": "target_date",
         "decision_by_asc_nulls_last": "decision_by",
         "created_asc": "created",
         "created_desc": "created",
         "published_date_desc_nulls_last": "published_date",
+        "period_start_desc": "period_start",
+        "next_review_asc": "next_review",
     }.get(token)
     if property_name is not None:
         return _date_value(properties.get(property_name))
     raise BaseContractError(f"unsupported canonical sort token: {token}")
 
 
-_DESCENDING_SORTS = frozenset({"file_name_desc", "file_mtime_desc", "created_desc", "published_date_desc_nulls_last"})
+_DESCENDING_SORTS = frozenset(
+    {"file_name_desc", "file_mtime_desc", "created_desc", "published_date_desc_nulls_last", "period_start_desc"}
+)
 
 
 def _sorted_notes(notes: Iterable[FrozenNote], sort_tokens: Iterable[str]) -> list[FrozenNote]:

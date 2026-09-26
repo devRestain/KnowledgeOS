@@ -213,6 +213,7 @@ fixed_paths:
     - 99_System/Bases/Sources.base
     - 99_System/Bases/Review.base
     - 99_System/Dashboards/Tasks.md
+    - 99_System/Dashboards/Today_Focus.md
     - 99_System/Dashboards/Weekly_Review.md
     - 99_System/Schemas/Property_Dictionary.md
     - 99_System/Scripts/QuickAdd/PrepareTitle.js
@@ -380,6 +381,7 @@ property_registry:
   device_timezone: {obsidian_type: text, format: iana_timezone}
   canonical_date: {obsidian_type: date}
   canonical_timezone: {obsidian_type: text, format: iana_timezone}
+  cssclasses: {obsidian_type: list, item_type: text}
   possibility: {obsidian_type: text, min_length: 1}
   proposal_id: {obsidian_type: text, format: uuid_v4}
   source_hashes: {obsidian_type: list, item_type: text, item_format: "vault_relative_path_or_frozen_runtime_path|sha256:64hex"}
@@ -550,6 +552,7 @@ note_types:
     exact_paths: [Home.md, Mobile.md]
     statuses: [active]
     required_extra: [purpose, audience]
+    optional_extra: [cssclasses]
   system:
     path_globs:
       - 99_System/**/*.md
@@ -681,6 +684,7 @@ bases:
     - Sources.base
     - Review.base
     - Journal.base
+    - Compass.base
   views:
     Journal.base:
       Today Focus:
@@ -688,6 +692,90 @@ bases:
         sort: [file_name_desc]
         limit: 1
         columns: [file.link, today_focus]
+      Open Reviews:
+        filters:
+          type_in: [weekly, monthly]
+          status: open
+        sort: [period_start_desc, file_name_asc]
+        limit: 2
+        columns: [file.link, type, period_end]
+      Due Areas:
+        filters:
+          type: area
+          status_in: [active, paused]
+          next_review_on_or_before_today: true
+        sort: [next_review_asc, file_name_asc]
+        limit: 3
+        columns: [file.link, next_review, review_cadence]
+    Compass.base:
+      Signals:
+        filters:
+          or:
+            - and:
+                - type_in: [knowledge, source]
+                - contradicts_nonempty: true
+            - and:
+                - type: knowledge
+                - confidence_in: [low, unknown]
+            - and:
+                - type: idea
+                - status_in: [seed, incubating, testing]
+                - projects_empty: true
+                - related_empty: true
+                - raises_empty: true
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 6
+        columns: [file.link, type, status, confidence, contradicts, projects, related]
+      Tensions:
+        filters:
+          or:
+            - and:
+                - type: knowledge
+                - contradicts_nonempty: true
+            - and:
+                - type: source
+                - contradicts_nonempty: true
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 10
+        columns: [file.link, type, confidence, contradicts]
+      Research Gaps:
+        filters:
+          and:
+            - type: question
+            - status_in: [open, deciding]
+            - question_kind_in: [research, problem]
+            - projects_empty: true
+        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_mtime_desc, file_name_asc]
+        limit: 10
+        columns: [file.link, question_kind, projects, priority, decision_by]
+      Unconnected Ideas:
+        filters:
+          and:
+            - type: idea
+            - status_in: [seed, incubating, testing]
+            - projects_empty: true
+            - related_empty: true
+            - raises_empty: true
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 10
+        columns: [file.link, status, possibility, projects, related, raises]
+      Low Confidence:
+        filters:
+          and:
+            - type: knowledge
+            - confidence_in: [low, unknown]
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 10
+        columns: [file.link, confidence, supports, contradicts, applies_to]
+      Project Bridges:
+        filters:
+          and:
+            - type: project
+            - status_in: [active, blocked]
+            - implements_nonempty: true
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+        limit: 10
+        columns: [file.link, status, next_action, implements, target_date]
     Projects.base:
       Now:
         filters:
@@ -703,14 +791,13 @@ bases:
         sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
         limit: 3
         columns: [file.link, next_action, status]
-      Next Actions:
+      Active:
         filters:
           type: project
           status_in: [active, blocked]
-          next_action_nonempty: true
         sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
-        limit: 3
-        columns: [file.link, next_action, status]
+        limit: 100
+        columns: [file.link, status, next_action, target_date]
       Blocked:
         filters: {type: project, status: blocked}
         sort: [focus_rank_asc, priority_high_to_low, file_name_asc]
@@ -722,10 +809,17 @@ bases:
           type: question
           status_in: [open, deciding]
           question_kind: decision
-          decision_nonempty: true
         sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
         limit: 5
         columns: [file.link, decision, decision_by, projects, priority]
+      Research Questions:
+        filters:
+          type: question
+          status_in: [open, deciding]
+          question_kind_in: [research, problem]
+        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_mtime_desc, file_name_asc]
+        limit: 3
+        columns: [file.link, question_kind, projects]
     Knowledge.base:
       Ideas:
         filters:
@@ -740,6 +834,11 @@ bases:
         sort: [file_mtime_desc, file_name_asc]
         limit: 6
         columns: [file.link, type, status, confidence, file.mtime]
+      Active Maps:
+        filters: {type: moc, status: active}
+        sort: [file_mtime_desc, file_name_asc]
+        limit: 3
+        columns: [file.link, scope, file.mtime]
     Inbox.base:
       Unprocessed:
         filters: {type: capture, status: unprocessed}
@@ -783,49 +882,65 @@ dashboards:
     path: Home.md
     type: home
     audience: desktop
+    layout: twelve_column_five_row
+    cssclass: knowledgeos-home
+    toolbar_policy: compact_navigation_only
+    capture_contract:
+      visible_on_home: false
+      actions: [CAPTURE_THOUGHT, NEW_IDEA, NEW_PROJECT, NEW_QUESTION, NEW_KNOWLEDGE]
+      hotkeys: [option_command_c, option_command_j, option_command_p, option_command_q, option_command_k]
+      authority: quickadd_profile_and_blueprint_choice_registry
     sections:
-      - name: today_direction
-        source: Journal.base
-        view: Today Focus
-        limit: 1
-        always_available_secondary_action: obsidian_daily_uri_canonical_vault_name
-      - name: quick_capture
-        actions: [CAPTURE_THOUGHT, NEW_IDEA, NEW_PROJECT, NEW_QUESTION, NEW_KNOWLEDGE]
-        baseline_launcher: quickadd_verified_command_ids_with_hotkeys
-        hotkeys: [option_command_c, option_command_j, option_command_p, option_command_q, option_command_k]
-      - name: now
-        source: Projects.base
-        view: Now
-        limit: 3
-        status_in: [active, blocked]
-        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
-      - name: needs_a_decision
-        source: Decisions.base
-        view: Open
-        limit: 5
-        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
-      - name: next_actions
-        source: Projects.base
-        view: Next Actions
-        limit: 3
-      - name: knowledge_radar
-        source: Knowledge.base
-        view: Radar
-        limit: 6
-        freshness_field: file.mtime
+      - name: tasks
+        task_query: Home.md#tasks[1]
+        layout_span: 12
+        priority: P0
       - name: inbox
         source: Inbox.base
         view: Unprocessed
         limit: 10
+        layout_span: 12
+        priority: P0
       - name: ai_review
-        source: Review.base
-        view: PendingOrConflict
-        limit: 10
-      - name: support_status
-        blocked_source: Projects.base#Blocked
-        waiting_source: 99_System/Dashboards/Tasks.md#Waiting
-        sync_source: obsidian_git_status_bar_or_vaultctl_git_status
-        must_not_persist_stale_sync_claim: true
+        views:
+          - source: Review.base
+            view: PendingOrConflict
+            limit: 10
+        layout_span: 12
+        priority: P1
+      - name: projects
+        source: Projects.base
+        view: Now
+        limit: 3
+        layout_span: 6
+        status_in: [active, blocked]
+        sort: [focus_rank_asc, priority_high_to_low, target_date_asc_nulls_last, file_name_asc]
+      - name: decisions
+        source: Decisions.base
+        view: Open
+        limit: 5
+        layout_span: 6
+        sort: [decision_by_asc_nulls_last, priority_high_to_low, file_name_asc]
+      - name: review_pulse
+        views:
+          - source: Sources.base
+            view: Reading queue
+            limit: 10
+          - source: Journal.base
+            view: Open Reviews
+            limit: 2
+        layout_span: 6
+        priority: P1
+      - name: compass
+        views:
+          - source: Compass.base
+            view: Signals
+            limit: 6
+          - source: Compass.base
+            view: Tensions
+            limit: 10
+        layout_span: 6
+        priority: P1
   mobile:
     path: Mobile.md
     type: home

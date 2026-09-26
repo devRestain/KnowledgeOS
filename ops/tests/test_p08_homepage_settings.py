@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from vaultops.diagnostics import plugins_audit_report
-from vaultops.homepage_settings import P08_ALLOWED_DAILY_URI, build_homepage_setting_registry
+from vaultops.homepage_settings import build_homepage_setting_registry
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
@@ -56,23 +56,22 @@ def test_p08_registry_binds_one_safe_homepage_target_and_plugin_free_mobile_fall
         "auto_run": "forbidden_for_unreviewed_commands",
     }
     assert registry["home_action_inventory"]["home_actions"] == {
-        "daily_direction": "pass",
-        "now": "pass",
-        "needs_a_decision": "pass",
-        "next_actions": "pass",
-        "knowledge_radar": "pass",
+        "tasks": "pass",
         "inbox": "pass",
         "ai_review": "pass",
-        "support_status": "pass",
-        "quick_navigation": "pass",
+        "projects": "pass",
+        "decisions": "pass",
+        "review_pulse": "pass",
+        "compass": "pass",
     }
     assert registry["home_action_inventory"]["quick_capture"] == {
-        "state": "pass",
+        "state": "hidden_by_contract",
         "actions": ["CAPTURE_THOUGHT", "NEW_IDEA", "NEW_PROJECT", "NEW_QUESTION", "NEW_KNOWLEDGE"],
         "hotkeys": ["option_command_c", "option_command_j", "option_command_p", "option_command_q", "option_command_k"],
-        "launcher": "quickadd_verified_command_ids_with_hotkeys",
+        "launcher": None,
+        "visible_on_home": False,
     }
-    assert registry["home_action_inventory"]["external_links"] == [P08_ALLOWED_DAILY_URI]
+    assert registry["home_action_inventory"]["external_links"] == []
     assert registry["home_action_inventory"]["forbidden_links"] == []
     assert registry["home_action_inventory"]["mobile_fallback"] == {
         "state": "pass",

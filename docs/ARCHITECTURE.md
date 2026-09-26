@@ -5,7 +5,7 @@
 - Keep `runtime/` untracked, mode `0700`, and outside every sync root.
 - Keep the container as the canonical dependency and execution surface.
 - Keep `00_Inbox/Captures` as the single capture lifecycle path.
-- Keep fixed Vault namespaces, seven Base files, fourteen views, sixteen templates, and eighteen note types aligned with Blueprint.
+- Keep fixed Vault namespaces, eight Base files, twenty views, sixteen templates, and eighteen note types aligned with Blueprint; `Compass.base` owns cross-type orientation signals.
 - Keep Markdown body and flat YAML Properties as the canonical note representation.
 - Keep title equal to filename stem, timezone-aware datetimes, quoted wikilinks, and filesystem mtime freshness.
 - Keep project bundles under `20_Projects/<name>/` with `Working/` and `Artifacts/` siblings.

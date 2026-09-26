@@ -6,7 +6,7 @@ authoritative_inputs:
 - path: blueprint/blueprint.yaml
   selectors:
   - /privacy
-  sha256: 7a74c17e5e50a87a7ce28075a7759a387b826a7204f4ec86d4d664a74b558502
+  sha256: b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b
 patterns:
 - no_source_body_persistence
 - no_secret_or_credential_discovery

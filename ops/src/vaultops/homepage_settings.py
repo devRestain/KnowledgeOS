@@ -162,17 +162,14 @@ def _home_action_inventory(
     home = home_text or ""
     mobile = mobile_text or ""
     dashboard = blueprint.get("dashboards", {}).get("home", {}) if isinstance(blueprint.get("dashboards"), dict) else {}
-    sections = dashboard.get("sections", []) if isinstance(dashboard, dict) else []
     expected_tokens = {
-        "daily_direction": ("99_System/Bases/Journal.base#Today Focus", P08_ALLOWED_DAILY_URI),
-        "now": ("99_System/Bases/Projects.base#Now",),
-        "needs_a_decision": ("99_System/Bases/Decisions.base#Open",),
-        "next_actions": ("99_System/Bases/Projects.base#Next Actions",),
-        "knowledge_radar": ("99_System/Bases/Knowledge.base#Radar",),
+        "tasks": ("description regex matches /\\S/",),
         "inbox": ("99_System/Bases/Inbox.base#Unprocessed",),
         "ai_review": ("99_System/Bases/Review.base#PendingOrConflict",),
-        "support_status": ("99_System/Dashboards/Tasks#Waiting", "Obsidian Git status bar", "vaultctl git status"),
-        "quick_navigation": ("99_System/Dashboards/Tasks", "99_System/Dashboards/Weekly_Review"),
+        "projects": ("99_System/Bases/Projects.base#Now",),
+        "decisions": ("99_System/Bases/Decisions.base#Open",),
+        "review_pulse": ("99_System/Bases/Sources.base#Reading queue", "99_System/Bases/Journal.base#Open Reviews"),
+        "compass": ("99_System/Bases/Compass.base#Signals", "99_System/Bases/Compass.base#Tensions"),
     }
     action_states: dict[str, str] = {}
     for name, tokens in expected_tokens.items():
@@ -180,19 +177,48 @@ def _home_action_inventory(
         if home_text is not None and action_states[name] != "pass":
             errors.append(_error("P08_HOME_ACTION_UNRESOLVED", _relative(root, home_path), f"Home action inventory is missing a reviewed token for {name}"))
 
-    quick_capture = next((section for section in sections if isinstance(section, dict) and section.get("name") == "quick_capture"), {})
-    capture_actions = quick_capture.get("actions", []) if isinstance(quick_capture, dict) else []
-    capture_hotkeys = quick_capture.get("hotkeys", []) if isinstance(quick_capture, dict) else []
+    capture_contract = dashboard.get("capture_contract", {}) if isinstance(dashboard, dict) else {}
+    capture_actions = capture_contract.get("actions", []) if isinstance(capture_contract, dict) else []
+    capture_hotkeys = capture_contract.get("hotkeys", []) if isinstance(capture_contract, dict) else []
     expected_hotkeys = ["option_command_c", "option_command_j", "option_command_p", "option_command_q", "option_command_k"]
-    quick_capture_state = "pass" if all(action in home for action in capture_actions) and capture_hotkeys == expected_hotkeys else "unknown"
-    if home_text is not None and quick_capture_state != "pass":
-        errors.append(_error("P08_QUICK_CAPTURE_INVENTORY_UNRESOLVED", _relative(root, home_path) + "#/quick_capture", "Home quick capture actions or hotkey contract is unresolved"))
+    quick_capture_state = (
+        "hidden_by_contract"
+        if isinstance(capture_contract, dict)
+        and capture_contract.get("visible_on_home") is False
+        and capture_actions == ["CAPTURE_THOUGHT", "NEW_IDEA", "NEW_PROJECT", "NEW_QUESTION", "NEW_KNOWLEDGE"]
+        and capture_hotkeys == expected_hotkeys
+        else "unknown"
+    )
+    if home_text is not None and quick_capture_state != "hidden_by_contract":
+        errors.append(_error("P08_QUICK_CAPTURE_CONTRACT_UNRESOLVED", _relative(root, home_path) + "#/capture_contract", "Home capture must remain a profile-owned, hidden contract"))
 
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", home)
     external_links = [link for link in links if "://" in link]
-    forbidden_links = [link for link in external_links if link != P08_ALLOWED_DAILY_URI or any(marker in link.lower() for marker in P08_FORBIDDEN_ACTION_MARKERS)]
+    inline_urls = re.findall(r"(?<![\w])(?:[A-Za-z][A-Za-z0-9+.-]*://\S+)", home)
+    external_links.extend(url for url in inline_urls if url not in external_links)
+    forbidden_links = [link for link in external_links if any(marker in link.lower() for marker in P08_FORBIDDEN_ACTION_MARKERS) or link != P08_ALLOWED_DAILY_URI]
     if home_text is not None and forbidden_links:
-        errors.append(_error("P08_FORBIDDEN_HOME_ACTION", _relative(root, home_path), "Home contains an unreviewed executable or external action link"))
+        errors.append(_error("P08_FORBIDDEN_HOME_ACTION", _relative(root, home_path), "Home contains an executable or external action link outside the mobile fallback"))
+    forbidden_home_markers = (
+        "QuickAdd",
+        "CAPTURE_THOUGHT",
+        "⌥⌘C",
+        "Obsidian Git",
+        "vaultctl",
+        "Next Actions",
+        "ko-home-strip",
+        "ko-home-footer",
+        "Today Focus",
+        "Due Areas",
+        "ko-home-connections",
+        "ko-home-attention",
+        "Research Questions",
+        "기한이 지난·오늘 Task",
+        "전체",
+    )
+    visible_capture_markers = [marker for marker in forbidden_home_markers if marker in home]
+    if home_text is not None and visible_capture_markers:
+        errors.append(_error("P08_HOME_SURFACE_OVERLOADED", _relative(root, home_path), "Home must not expose plugin identity, capture hotkeys, support commands, or duplicate next-action surfaces"))
 
     mobile_fallback_state = "pass" if all(token in mobile for token in ("# Mobile", "snapshot", "shortcuts://run-shortcut", "obsidian://daily?vault=KnowledgeHub")) else "unknown"
     if mobile_text is not None and mobile_fallback_state != "pass":
@@ -208,7 +234,8 @@ def _home_action_inventory(
             "state": quick_capture_state,
             "actions": list(capture_actions),
             "hotkeys": list(capture_hotkeys),
-            "launcher": quick_capture.get("baseline_launcher") if isinstance(quick_capture, dict) else None,
+            "launcher": None,
+            "visible_on_home": capture_contract.get("visible_on_home") if isinstance(capture_contract, dict) else None,
         },
         "external_links": external_links,
         "forbidden_links": forbidden_links,

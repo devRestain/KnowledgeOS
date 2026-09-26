@@ -17,6 +17,7 @@ P05_TASKS_REGISTRY_SCHEMA_VERSION = 1
 P05_PLUGIN_ID = "obsidian-tasks-plugin"
 P05_GLOBAL_FILTER = "#task"
 P05_QUERY_SOURCES = (
+    "Home.md",
     "99_System/Dashboards/Tasks.md",
     "99_System/Dashboards/Weekly_Review.md",
 )
@@ -25,6 +26,7 @@ _TASKS_BLOCK = re.compile(r"```tasks[ \t]*\n(?P<body>.*?)```", re.IGNORECASE | r
 _LIMIT = re.compile(r"^limit\s+(?P<value>\d+)$", re.IGNORECASE)
 _TAGS_INCLUDE = re.compile(r"^tags\s+include\s+(?P<tag>#[^\s]+)$", re.IGNORECASE)
 _SORT = re.compile(r"^sort\s+by\s+(?P<field>.+)$", re.IGNORECASE)
+_DESCRIPTION_REGEX = re.compile(r"^description\s+regex\s+matches\s+.+$", re.IGNORECASE)
 
 _EXPECTED_STATUS_TYPES = {
     "Todo": "TODO",
@@ -34,13 +36,25 @@ _EXPECTED_STATUS_TYPES = {
 }
 
 _ALLOWED_QUERY_PREFIXES = (
-    "not done",
-    "done",
-    "due before today",
-    "due today",
+    "description regex matches ",
     "tags include ",
     "limit ",
     "sort by ",
+)
+
+_ALLOWED_QUERY_LINES = frozenset(
+    {
+        "not done",
+        "done",
+        "due before today",
+        "due before tomorrow",
+        "due today",
+        "short mode",
+        "hide edit button",
+        "hide postpone button",
+        "hide recurrence rule",
+        "hide toolbar",
+    }
 )
 
 
@@ -109,12 +123,17 @@ def _query_record(
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
     source = _relative(root, path)
-    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    lines = []
+    for raw_line in body.splitlines():
+        line = re.sub(r"^(?:>\s*)+", "", raw_line).strip()
+        if line:
+            lines.append(line)
     forbidden = [line for line in lines if "filter by function" in line.lower() or "javascript" in line.lower()]
     unknown = [
         line
         for line in lines
-        if not any(line.lower().startswith(prefix) for prefix in _ALLOWED_QUERY_PREFIXES)
+        if line.lower() not in _ALLOWED_QUERY_LINES
+        and not any(line.lower().startswith(prefix) for prefix in _ALLOWED_QUERY_PREFIXES)
     ]
     if forbidden:
         errors.append(
@@ -151,6 +170,18 @@ def _query_record(
         for line in lines
         if (match := _SORT.match(line)) is not None
     ]
+    presentation_directives = [
+        line
+        for line in lines
+        if line.lower() in {
+            "short mode",
+            "hide edit button",
+            "hide postpone button",
+            "hide recurrence rule",
+            "hide toolbar",
+        }
+    ]
+    description_regex = next((line for line in lines if _DESCRIPTION_REGEX.fullmatch(line)), None)
     return {
         "source": source,
         "ordinal": ordinal,
@@ -159,12 +190,15 @@ def _query_record(
             "not_done": any(line.lower() == "not done" for line in lines),
             "done": any(line.lower() == "done" for line in lines),
             "due_before_today": any(line.lower() == "due before today" for line in lines),
+            "due_before_tomorrow": any(line.lower() == "due before tomorrow" for line in lines),
             "due_today": any(line.lower() == "due today" for line in lines),
             "tags": tags,
         },
         "limit": int(limit_match.group("value")) if limit_match else None,
         "limit_state": "bounded" if limit_match else "unbounded_read_only",
         "sort": sort_fields,
+        "description_regex": description_regex,
+        "presentation_directives": presentation_directives,
         "forbidden_javascript": forbidden,
         "unknown_directives": unknown,
         "query_owner": "obsidian-tasks-plugin",
