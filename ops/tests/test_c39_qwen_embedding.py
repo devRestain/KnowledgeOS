@@ -5,11 +5,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.embedding_index import DEFAULT_MODEL_DIMENSION, build_embedding_index
 from vaultops.projection import EXIT_OK, generate_projection
@@ -63,12 +59,7 @@ class _DeterministicProvider:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    return root
+    return make_portable_fixture_root(tmp_path)
 
 
 def _build_projection(root: Path) -> None:

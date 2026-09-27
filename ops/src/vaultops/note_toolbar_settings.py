@@ -1,20 +1,15 @@
-"""Read-only P11 Note Toolbar contextual-surface contract inspection.
+"""Read-only P11 inspection of KnowledgeOS-owned Note Toolbar contexts.
 
-P11 treats Note Toolbar as a presentation and navigation layer.  Stable file
-links and exact installed command IDs are reviewed into an action inventory;
-the toolbar is never treated as a policy engine, shell launcher, approval
-authority, or automatic canonical writer.
-
-This module inspects the checked-in Mac profile and Home action inventory only.
-It never edits toolbar data, executes a button, changes a note, or operates
-Obsidian.
+Only stable KnowledgeOS toolbar identifiers and their required safe actions
+participate in health. User toolbar presentation, ordering, and mappings outside
+protected contexts remain user-owned state.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .gui_contracts import ALLOWED_COMMAND_IDS
@@ -22,29 +17,27 @@ from .gui_contracts import ALLOWED_COMMAND_IDS
 P11_NOTE_TOOLBAR_REGISTRY_SCHEMA_VERSION = 1
 P11_PLUGIN_ID = "note-toolbar"
 
-_SAFE_VAULT_PATH = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\r\n\x00]+$")
+_SAFE_VAULT_PATH = re.compile(r"^[^\r\n\x00\\:]+$")
 _CURRENT_WEEKLY_FILE = re.compile(r"^10_Journal/Weekly/(?P<year>\d{4})/(?P=year)-W(?:0[1-9]|[1-4]\d|5[0-3])\.md$")
 _CURRENT_MONTHLY_FILE = re.compile(r"^10_Journal/Monthly/(?P<year>\d{4})/(?P=year)-(?:0[1-9]|1[0-2])\.md$")
 _FORBIDDEN_LINK_MARKERS = (
-    "obsidian:",
     "javascript:",
-    "vaultctl",
-    "shell",
-    "script",
-    "eval",
+    "obsidian:",
+    "shell:",
+    "command:",
     "http://",
     "https://",
+    "quickadd://",
+    "templater://",
+    "vaultctl://",
 )
-_EXPECTED_DESKTOP_POSITION = "bottom"
+_URI_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
 
-_EXPECTED_FOLDER_TOOLBARS = {
-    "/": "KnowledgeOS Home",
-    "01_AI_Review": "KnowledgeOS Review",
-    "10_Journal": "KnowledgeOS Daily",
-    "20_Projects": "KnowledgeOS Project",
-    "00_Inbox": "KnowledgeOS Inbox",
-    "40_Knowledge": "KnowledgeOS Knowledge",
-}
+_EXECUTABLE_ITEM_KEYS = frozenset(
+    {"script", "javascript", "function", "callback", "variables", "shell", "process", "eval"}
+)
+_VARIABLE_SYNTAX = re.compile(r"\$\{[^}]*\}|\{\{.*?}}|<%.*?%>")
+_FORBIDDEN_PATH_ROOTS = frozenset({".obsidian", ".obsidian-mac", ".obsidian-mobile", ".vault-bridge", ".git", "runtime"})
 
 _COMMAND_POLICIES: dict[str, dict[str, Any]] = {
     "daily-notes": {
@@ -158,15 +151,6 @@ def _read_json(path: Path) -> tuple[Any | None, str | None]:
         return None, str(error)
 
 
-def _read_text(path: Path) -> tuple[str | None, str | None]:
-    if path.is_symlink() or not path.is_file():
-        return None, "missing"
-    try:
-        return path.read_text(encoding="utf-8"), None
-    except (OSError, UnicodeError) as error:
-        return None, str(error)
-
-
 def _relative(root: Path, path: Path) -> str:
     try:
         return path.relative_to(root).as_posix()
@@ -178,144 +162,37 @@ def _error(code: str, locator: str, message: str) -> dict[str, str]:
     return {"code": code, "locator": locator, "message": message, "severity": "error"}
 
 
-def _exact_setting(value: Any, expected: Any, *, policy: str) -> dict[str, Any]:
-    if value is None:
-        return {"observed": None, "expected": expected, "state": "unknown", "policy": policy}
-    if type(value) is not type(expected):
-        return {"observed": "invalid", "expected": expected, "state": "invalid", "policy": policy}
-    state = "pass" if value == expected else "drift"
-    return {"observed": value, "expected": expected, "state": state, "policy": policy}
-
-
-def _list_setting(value: Any, *, expected: list[Any], policy: str) -> dict[str, Any]:
-    if value is None:
-        return {"observed": None, "expected": expected, "state": "unknown", "policy": policy}
-    if not isinstance(value, list):
-        return {"observed": "invalid", "expected": expected, "state": "invalid", "policy": policy}
-    state = "pass" if value == expected else "drift"
-    return {"observed": value, "expected": expected, "state": state, "policy": policy}
-
-
-def _append_drift_errors(
-    settings: dict[str, dict[str, Any]],
-    *,
-    data_path: Path,
-    root: Path,
-    errors: list[dict[str, str]],
-    code: str,
-) -> None:
-    for key, record in settings.items():
-        if record["state"] in {"drift", "invalid"}:
-            errors.append(
-                _error(
-                    code,
-                    _relative(root, data_path) + f"#/{key}",
-                    f"Note Toolbar setting {key} does not satisfy the accepted P11 contract",
-                )
-            )
-
-
-def _home_contract(root: Path, blueprint: dict[str, Any], errors: list[dict[str, str]]) -> dict[str, Any]:
-    path = root / "KnowledgeHub/Home.md"
-    _, read_error = _read_text(path)
-    if read_error:
-        return {
-            "state": "unknown",
-            "source": _relative(root, path),
-            "capture": {"state": "unknown", "actions": [], "hotkeys": []},
-            "command_palette": "recovery_or_diagnostic_only",
-        }
-    dashboards = blueprint.get("dashboards") if isinstance(blueprint.get("dashboards"), dict) else {}
-    home = dashboards.get("home") if isinstance(dashboards.get("home"), dict) else {}
-    capture_contract = home.get("capture_contract") if isinstance(home.get("capture_contract"), dict) else {}
-    actions = capture_contract.get("actions") if isinstance(capture_contract.get("actions"), list) else []
-    hotkeys = capture_contract.get("hotkeys") if isinstance(capture_contract.get("hotkeys"), list) else []
-    capture_state = "pass" if capture_contract.get("visible_on_home") is False and actions == [
-        "CAPTURE_THOUGHT",
-        "NEW_IDEA",
-        "NEW_PROJECT",
-        "NEW_QUESTION",
-        "NEW_KNOWLEDGE",
-    ] and hotkeys == [
-        "option_command_c",
-        "option_command_j",
-        "option_command_p",
-        "option_command_q",
-        "option_command_k",
-    ] else "blocked"
-    if capture_state == "blocked":
-        errors.append(
-            _error(
-                "P11_HOME_CAPTURE_INVENTORY_UNRESOLVED",
-                _relative(root, path) + "#/capture_contract",
-                "Home must preserve the reviewed profile-owned capture contract",
-            )
-        )
-    return {
-        "state": "pass" if capture_state == "pass" else "blocked",
-        "source": _relative(root, path),
-        "capture": {
-            "state": capture_state,
-            "actions": list(actions),
-            "hotkeys": list(hotkeys),
-            "display_contract": "QuickAdd inventory remains profile-owned and intentionally hidden from Home",
-            "primary_surface": "profile-owned QuickAdd choices",
-            "toolbar_surface": "compact_navigation_only",
-            "navigation_replacement": "desktop_bottom_toolbar_replaces_removed_home_footer",
-        },
-        "command_palette": "recovery_or_diagnostic_only",
-        "normal_journey": "Home.md or desktop-bottom contextual toolbar first",
-    }
-
-
 def _global_policy(data: dict[str, Any], *, data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
-    settings = {
-        "scripting_enabled": _exact_setting(data.get("scriptingEnabled"), False, policy="arbitrary scripting remains disabled"),
-        "debug_enabled": _exact_setting(data.get("debugEnabled"), False, policy="debug surface remains disabled"),
-        "show_launchpad": _exact_setting(data.get("showLaunchpad"), False, policy="launchpad command aggregation remains disabled"),
-        "show_toolbar_in_file_menu": _exact_setting(data.get("showToolbarInFileMenu"), False, policy="toolbar is contextual rather than a global file-menu command surface"),
-        "show_toolbar_in_other": _exact_setting(data.get("showToolbarInOther"), "", policy="other editor surfaces remain unconfigured"),
-        "toolbar_property": _exact_setting(data.get("toolbarProp"), "none", policy="no implicit property-driven toolbar authority"),
-        "rules": _list_setting(data.get("rules"), expected=[], policy="rule callbacks remain unconfigured"),
-        "show_edit_in_fab_menu": _exact_setting(data.get("showEditInFabMenu"), False, policy="toolbar editing remains outside the runtime surface"),
-        "keep_props_state": _exact_setting(data.get("keepPropsState"), False, policy="property state is not persisted as hidden write authority"),
-        "lock_callouts": _exact_setting(data.get("lockCallouts"), False, policy="callout locking remains disabled"),
-        "show_toolbar_in": _exact_setting(
-            data.get("showToolbarIn"),
-            {"audio": False, "bases": False, "canvas": False, "image": False, "kanban": False, "pdf": False, "video": False},
-            policy="non-note editor surfaces remain disabled",
-        ),
-    }
-    _append_drift_errors(
-        {
-            "scriptingEnabled": settings["scripting_enabled"],
-            "debugEnabled": settings["debug_enabled"],
-            "showLaunchpad": settings["show_launchpad"],
-            "showToolbarInFileMenu": settings["show_toolbar_in_file_menu"],
-            "showToolbarInOther": settings["show_toolbar_in_other"],
-            "toolbarProp": settings["toolbar_property"],
-            "rules": settings["rules"],
-            "showEditInFabMenu": settings["show_edit_in_fab_menu"],
-            "keepPropsState": settings["keep_props_state"],
-            "lockCallouts": settings["lock_callouts"],
-            "showToolbarIn": settings["show_toolbar_in"],
-        },
-        data_path=data_path,
-        root=root,
-        errors=errors,
-        code="P11_FORBIDDEN_SURFACE_ENABLED",
-    )
-    state = "pass" if all(record["state"] == "pass" for record in settings.values()) else "unknown" if any(record["state"] == "unknown" for record in settings.values()) and not errors else "blocked"
+    locator = _relative(root, data_path)
+    scripting = data.get("scriptingEnabled")
+    scripting_state = "pass" if scripting is False else "invalid" if scripting is not None else "unknown"
+    if scripting is not False:
+        errors.append(_error("P11_SCRIPTING_NOT_DISABLED", locator + "#/scriptingEnabled", "Note Toolbar scripting must be explicitly disabled"))
+
+    rules = data.get("rules")
+    if rules is None:
+        rules_record = {"state": "unknown", "count": None}
+    elif not isinstance(rules, list):
+        rules_record = {"state": "invalid", "count": None}
+        errors.append(_error("P11_RULES_INVALID", locator + "#/rules", "Note Toolbar rules must be an array"))
+    elif rules:
+        rules_record = {"state": "blocked", "count": len(rules)}
+        errors.append(_error("P11_EXECUTABLE_RULES_ENABLED", locator + "#/rules", "Note Toolbar callback rules are outside the reviewed P11 capability"))
+    else:
+        rules_record = {"state": "pass", "count": 0}
+
+    state = "pass" if scripting is False and rules_record["state"] in {"pass", "unknown"} else "blocked"
     return {
         "state": state,
-        "settings": settings,
-        "export": data.get("export"),
-        "empty_view_toolbar": data.get("emptyViewToolbar"),
+        "settings": {
+            "scripting_enabled": {"observed": scripting, "expected": False, "state": scripting_state},
+            "rules": rules_record,
+        },
         "policy": "presentation and navigation only no scripting no callbacks no arbitrary execution",
     }
 
 
-def _file_target(link: str, root: Path) -> tuple[tuple[str, str] | None, str]:
+def _file_target(link: str) -> tuple[tuple[str, str] | None, str]:
     if link in _STATIC_FILE_ACTIONS:
         action_id, _description = _STATIC_FILE_ACTIONS[link]
         return ("file", link), action_id
@@ -324,6 +201,47 @@ def _file_target(link: str, root: Path) -> tuple[tuple[str, str] | None, str]:
     if _CURRENT_MONTHLY_FILE.fullmatch(link):
         return ("file_pattern", "monthly"), "monthly_open"
     return None, "unknown"
+
+
+def _safe_file_path(link: str) -> bool:
+    if not _SAFE_VAULT_PATH.fullmatch(link) or link.startswith("/"):
+        return False
+    parts = link.split("/")
+    return all(part not in {"", ".", ".."} for part in parts) and parts[0] not in _FORBIDDEN_PATH_ROOTS
+
+
+def _protected_target(link: str) -> bool:
+    parts = PurePosixPath(link).parts
+    return "99_System" in parts or any(
+        parts[index : index + 2] == ("01_AI_Review", "Pending")
+        for index in range(max(0, len(parts) - 1))
+    )
+
+
+def _has_unreviewed_protected_item(toolbar: Any) -> bool:
+    items = toolbar.get("items") if isinstance(toolbar, dict) else None
+    if not isinstance(items, list):
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        link = item.get("link")
+        if isinstance(link, str) and _protected_target(link):
+            return True
+    return False
+
+
+def _has_executable_metadata(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = re.sub(r"[^a-z]", "", str(key).lower())
+            if normalized in _EXECUTABLE_ITEM_KEYS or normalized.startswith(("script", "javascript", "callback", "eval")):
+                return True
+            if _has_executable_metadata(child):
+                return True
+    elif isinstance(value, list):
+        return any(_has_executable_metadata(item) for item in value)
+    return False
 
 
 def _item_record(
@@ -335,6 +253,7 @@ def _item_record(
     errors: list[dict[str, str]],
 ) -> tuple[dict[str, Any], tuple[str, str] | None, str]:
     locator = _relative(root, data_path) + f"#/toolbars/{toolbar_name}/items"
+    starting_error_count = len(errors)
     if not isinstance(item, dict):
         errors.append(_error("P11_TOOLBAR_ITEM_INVALID", locator, "toolbar item must be an object"))
         return {"state": "invalid", "toolbar": toolbar_name}, None, "unknown"
@@ -342,7 +261,7 @@ def _item_record(
     attributes = item.get("linkAttr")
     if not isinstance(link, str) or not isinstance(attributes, dict):
         errors.append(_error("P11_TOOLBAR_ITEM_TARGET_INVALID", locator, "toolbar item must declare a link and linkAttr object"))
-        return {"state": "invalid", "toolbar": toolbar_name, "label": item.get("label")}, None, "unknown"
+        return {"state": "invalid", "toolbar": toolbar_name}, None, "unknown"
     kind = attributes.get("type")
     command_id = attributes.get("commandId")
     has_vars = attributes.get("hasVars")
@@ -350,54 +269,56 @@ def _item_record(
     record: dict[str, Any] = {
         "state": "pass",
         "toolbar": toolbar_name,
-        "label": item.get("label"),
-        "type": kind,
-        "link": link,
-        "command_id": command_id,
-        "has_vars": has_vars,
-        "command_check": command_check,
-        "has_command": item.get("hasCommand"),
+        "type": kind if isinstance(kind, str) and kind in {"file", "command"} else "unsupported",
     }
     if item.get("hasCommand") is not False:
         errors.append(_error("P11_ITEM_COMMAND_METADATA_UNRESOLVED", locator, "toolbar item hasCommand must remain false"))
     if has_vars is not False:
         errors.append(_error("P11_ITEM_VARIABLES_ENABLED", locator, "toolbar items must not use variable substitution"))
-    if any(marker in link.lower() for marker in _FORBIDDEN_LINK_MARKERS):
+    if _has_executable_metadata(item) or _has_executable_metadata(attributes):
+        errors.append(_error("P11_EXECUTABLE_ITEM_METADATA", locator, "toolbar items must not include script, callback, or variable payloads"))
+    reviewed_command_link = kind == "command" and isinstance(command_id, str) and link == command_id and command_id in ALLOWED_COMMAND_IDS
+    if (
+        _VARIABLE_SYNTAX.search(link)
+        or any(marker in link.lower() for marker in _FORBIDDEN_LINK_MARKERS)
+        or ("://" in link)
+        or (_URI_SCHEME.match(link) is not None and not reviewed_command_link)
+    ):
         errors.append(_error("P11_FORBIDDEN_LINK_TARGET", locator, "toolbar link contains an external or executable capability marker"))
     if kind == "file":
         if command_id != "" or command_check is not False:
             errors.append(_error("P11_FILE_TARGET_METADATA_INVALID", locator, "file toolbar items must have empty commandId and commandCheck false"))
-        if not _SAFE_VAULT_PATH.fullmatch(link):
-            errors.append(_error("P11_UNSAFE_FILE_TARGET", locator, f"toolbar file target is not a safe relative path: {link!r}"))
+        if not _safe_file_path(link):
+            errors.append(_error("P11_UNSAFE_FILE_TARGET", locator, "toolbar file target must be a safe relative vault path"))
             return {**record, "state": "blocked"}, None, "unknown"
-        target, action_id = _file_target(link, root)
+        target, action_id = _file_target(link)
         if target is None:
-            errors.append(_error("P11_UNREVIEWED_FILE_TARGET", locator, f"toolbar file target is not in the reviewed action inventory: {link!r}"))
-            return {**record, "state": "blocked"}, None, "unknown"
-        if not (root / "KnowledgeHub" / link).is_file():
-            errors.append(_error("P11_FILE_TARGET_MISSING", locator, f"reviewed toolbar file target does not exist: {link!r}"))
-            record["state"] = "unknown"
+            if _protected_target(link):
+                errors.append(_error("P11_UNREVIEWED_PROTECTED_TARGET", locator, "toolbar target enters a protected path without a reviewed action contract"))
+                return {**record, "state": "blocked"}, None, "unknown"
+            state = "blocked" if len(errors) > starting_error_count else "user_owned_ignored"
+            return {**record, "state": state, "target_kind": "user_file"}, None, "unknown"
         record.update(
             {
                 "action_id": action_id,
                 "target_kind": "reviewed_file",
-                "mutation_class": "navigation_only",
-                "human_action_required": True,
-                "rollback": "no canonical mutation claimed",
             }
         )
+        if len(errors) > starting_error_count:
+            record["state"] = "blocked"
         return record, target, action_id
     if kind == "command":
         if not isinstance(command_id, str) or command_id not in ALLOWED_COMMAND_IDS or command_id not in _COMMAND_POLICIES:
-            errors.append(_error("P11_UNVERIFIED_COMMAND_ID", locator, f"toolbar command ID is not in the installed reviewed allowlist: {command_id!r}"))
+            errors.append(_error("P11_UNVERIFIED_COMMAND_ID", locator, "toolbar command ID is not in the reviewed allowlist"))
             return {**record, "state": "blocked"}, None, "unknown"
         policy = _COMMAND_POLICIES[command_id]
         if command_check is not False:
             errors.append(_error("P11_COMMAND_CHECK_UNRESOLVED", locator, "command toolbar items must keep commandCheck false"))
-        record.update(policy)
-        record["target_kind"] = "verified_command"
+        record.update({"action_id": policy["action_id"], "target_kind": "verified_command"})
+        if len(errors) > starting_error_count:
+            record["state"] = "blocked"
         return record, ("command", command_id), policy["action_id"]
-    errors.append(_error("P11_UNSUPPORTED_TARGET_TYPE", locator, f"unsupported toolbar target type: {kind!r}"))
+    errors.append(_error("P11_UNSUPPORTED_TARGET_TYPE", locator, "toolbar target type is not a reviewed file or command"))
     return {**record, "state": "blocked"}, None, "unknown"
 
 
@@ -408,6 +329,7 @@ def _toolbars_contract(
     data_path: Path,
     errors: list[dict[str, str]],
 ) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+    starting_error_count = len(errors)
     toolbars = data.get("toolbars")
     if toolbars is None:
         return {"state": "unknown", "toolbars": [], "toolbar_names": []}, {}
@@ -417,35 +339,26 @@ def _toolbars_contract(
     records: list[dict[str, Any]] = []
     targets_by_toolbar: dict[str, list[dict[str, Any]]] = {}
     names: list[str] = []
+    seen_names: set[str] = set()
     for index, toolbar in enumerate(toolbars):
         locator = _relative(root, data_path) + f"#/toolbars/{index}"
         if not isinstance(toolbar, dict) or not isinstance(toolbar.get("name"), str):
-            errors.append(_error("P11_TOOLBAR_INVALID", locator, "toolbar must be an object with a name"))
             continue
         name = toolbar["name"]
+        expected = _EXPECTED_TOOLBAR_TARGETS.get(name)
+        if expected is None:
+            if _has_unreviewed_protected_item(toolbar):
+                errors.append(_error("P11_UNREVIEWED_PROTECTED_MAPPING", locator, "user toolbar maps an unreviewed action into a protected path"))
+            continue
         names.append(name)
-        if name in names[:-1]:
+        if name in seen_names:
             errors.append(_error("P11_DUPLICATE_TOOLBAR_NAME", locator, f"toolbar name is duplicated: {name!r}"))
+            continue
+        seen_names.add(name)
         items = toolbar.get("items")
         if not isinstance(items, list):
             errors.append(_error("P11_TOOLBAR_ITEMS_INVALID", locator + "/items", "toolbar items must be a list"))
             items = []
-        position = toolbar.get("position")
-        desktop_position = None
-        if isinstance(position, dict):
-            desktop = position.get("desktop")
-            if isinstance(desktop, dict):
-                all_views = desktop.get("allViews")
-                if isinstance(all_views, dict):
-                    desktop_position = all_views.get("position")
-        if desktop_position != _EXPECTED_DESKTOP_POSITION:
-            errors.append(
-                _error(
-                    "P11_DESKTOP_POSITION_DRIFT",
-                    locator + "/position/desktop/allViews/position",
-                    "Mac desktop Note Toolbar position must remain bottom; mobile and tablet positions are out of scope",
-                )
-            )
         item_records: list[dict[str, Any]] = []
         target_records: list[dict[str, Any]] = []
         target_keys: list[tuple[str, str]] = []
@@ -461,50 +374,33 @@ def _toolbars_contract(
             if target is not None:
                 target_keys.append(target)
                 target_records.append({"target": target, "action_id": action_id, "record": item_record})
-        if len(target_keys) != len(set(target_keys)):
-            errors.append(_error("P11_DUPLICATE_TOOLBAR_TARGET", locator + "/items", f"toolbar {name!r} repeats a target"))
-        expected = _EXPECTED_TOOLBAR_TARGETS.get(name)
         observed = set(target_keys)
-        if expected is None:
-            errors.append(_error("P11_UNREVIEWED_TOOLBAR", locator + "/name", f"toolbar name is not in the reviewed inventory: {name!r}"))
-        else:
-            missing = sorted(expected - observed)
-            extra = sorted(observed - expected)
-            if missing or extra:
-                errors.append(
-                    _error(
-                        "P11_TOOLBAR_ACTION_DRIFT",
-                        locator + "/items",
-                        f"toolbar {name!r} differs from the reviewed target inventory missing={missing!r} extra={extra!r}",
-                    )
-                )
+        missing = sorted(expected - observed)
+        if missing:
+            errors.append(_error("P11_REQUIRED_ACTION_MISSING", locator + "/items", "KnowledgeOS toolbar is missing a required reviewed action"))
+        unreviewed_protected = [
+            target
+            for target in observed - expected
+            if target[0] == "file" and _protected_target(target[1])
+        ]
+        if unreviewed_protected:
+            errors.append(_error("P11_UNREVIEWED_PROTECTED_MAPPING", locator + "/items", "KnowledgeOS toolbar maps an unreviewed action into a protected path"))
         records.append(
             {
                 "name": name,
-                "uuid": toolbar.get("uuid"),
-                "item_count": len(items),
+                "item_count": len(item_records),
                 "items": item_records,
                 "targets": target_records,
-                "state": "pass" if not any(item["state"] in {"blocked", "invalid"} for item in item_records) else "blocked",
-                "presentation": {
-                    "position": toolbar.get("position"),
-                    "position_policy": {
-                        "desktop": _EXPECTED_DESKTOP_POSITION,
-                        "mobile": "out_of_scope",
-                        "tablet": "out_of_scope",
-                    },
-                    "default_styles": toolbar.get("defaultStyles"),
-                    "custom_classes": toolbar.get("customClasses"),
-                    "mobile_styles": toolbar.get("mobileStyles"),
-                },
+                "state": "blocked" if missing or unreviewed_protected or any(item["state"] in {"blocked", "invalid"} for item in item_records) else "pass",
+                "presentation": "user_owned_advisory",
             }
         )
         targets_by_toolbar[name] = target_records
     expected_names = set(_EXPECTED_TOOLBAR_TARGETS)
-    missing_names = sorted(expected_names - set(names))
+    missing_names = expected_names - set(names)
     if missing_names:
-        errors.append(_error("P11_TOOLBAR_NAME_MISSING", _relative(root, data_path) + "#/toolbars", f"reviewed toolbars are missing: {missing_names!r}"))
-    state = "pass" if not errors and set(names) == expected_names else "blocked" if errors else "unknown"
+        errors.append(_error("P11_TOOLBAR_NAME_MISSING", _relative(root, data_path) + "#/toolbars", "one or more KnowledgeOS-owned toolbar contexts are not configured"))
+    state = "blocked" if missing_names or len(errors) > starting_error_count else "pass"
     return {"state": state, "toolbars": records, "toolbar_names": names}, targets_by_toolbar
 
 
@@ -513,52 +409,43 @@ def _folder_mapping_contract(
     *,
     root: Path,
     data_path: Path,
-    toolbar_records: list[dict[str, Any]],
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
     mappings = data.get("folderMappings")
     if mappings is None:
-        return {"state": "unknown", "observed": [], "expected_folders": sorted(_EXPECTED_FOLDER_TOOLBARS)}
+        return {"state": "unknown", "protected_mapping_count": 0, "user_mapping_count": 0}
     if not isinstance(mappings, list):
         errors.append(_error("P11_FOLDER_MAPPINGS_INVALID", _relative(root, data_path) + "#/folderMappings", "folderMappings must be a list"))
-        return {"state": "blocked", "observed": [], "expected_folders": sorted(_EXPECTED_FOLDER_TOOLBARS)}
-    uuid_to_name = {record.get("uuid"): record.get("name") for record in toolbar_records}
-    observed: dict[str, Any] = {}
+        return {"state": "blocked", "protected_mapping_count": 0, "user_mapping_count": 0}
+    observed_error_count = len(errors)
+    protected_mapping_count = 0
+    user_mapping_count = 0
     for index, mapping in enumerate(mappings):
         locator = _relative(root, data_path) + f"#/folderMappings/{index}"
         if not isinstance(mapping, dict) or not isinstance(mapping.get("folder"), str):
-            errors.append(_error("P11_FOLDER_MAPPING_INVALID", locator, "folder mapping must contain a folder string"))
             continue
         folder = mapping["folder"]
-        toolbar_uuid = mapping.get("toolbar")
-        toolbar_name = uuid_to_name.get(toolbar_uuid)
-        observed[folder] = {"toolbar_uuid": toolbar_uuid, "toolbar_name": toolbar_name}
-        if toolbar_name is None:
-            errors.append(_error("P11_FOLDER_MAPPING_UNRESOLVED", locator, f"folder mapping references an unknown toolbar UUID: {toolbar_uuid!r}"))
-        if folder not in _EXPECTED_FOLDER_TOOLBARS:
-            errors.append(_error("P11_UNREVIEWED_FOLDER_MAPPING", locator, f"folder mapping is not in the reviewed inventory: {folder!r}"))
-        elif toolbar_name != _EXPECTED_FOLDER_TOOLBARS[folder]:
-            errors.append(_error("P11_FOLDER_MAPPING_DRIFT", locator, f"folder {folder!r} does not resolve to its reviewed contextual toolbar"))
-    expected = {
-        folder: {"toolbar_name": toolbar_name}
-        for folder, toolbar_name in _EXPECTED_FOLDER_TOOLBARS.items()
-    }
-    missing = sorted(set(_EXPECTED_FOLDER_TOOLBARS) - set(observed))
-    if missing:
-        errors.append(_error("P11_FOLDER_MAPPING_MISSING", _relative(root, data_path) + "#/folderMappings", f"reviewed folder mappings are missing: {missing!r}"))
+        safe_folder = folder == "/" or _safe_file_path(folder)
+        if not safe_folder:
+            errors.append(_error("P11_UNSAFE_FOLDER_MAPPING", locator, "folder mappings must use safe relative vault paths"))
+            continue
+        if _protected_target(folder):
+            protected_mapping_count += 1
+            errors.append(_error("P11_UNREVIEWED_PROTECTED_MAPPING", locator, "folder mapping enters a protected path without a reviewed P11 context"))
+        else:
+            user_mapping_count += 1
     return {
-        "state": "pass" if not errors and set(observed) == set(_EXPECTED_FOLDER_TOOLBARS) else "blocked" if errors else "unknown",
-        "observed": observed,
-        "expected": expected,
+        "state": "blocked" if len(errors) > observed_error_count else "pass",
+        "protected_mapping_count": protected_mapping_count,
+        "user_mapping_count": user_mapping_count,
+        "user_mappings": "ignored_outside_protected_contexts",
         "source": _relative(root, data_path) + "#/folderMappings",
     }
 
 
 def _action_inventory(
     *,
-    home_contract: dict[str, Any],
     toolbar_records: list[dict[str, Any]],
-    root: Path,
 ) -> dict[str, Any]:
     contexts: dict[str, set[str]] = {}
     for toolbar in toolbar_records:
@@ -594,47 +481,19 @@ def _action_inventory(
             "human_action_required": True,
             "rollback": "review and remove only a human-created empty daily note if needed" if action_id == "today_daily" else "no canonical mutation claimed",
         }
-    capture = home_contract.get("capture", {})
-    inventory["capture"] = {
-        "state": capture.get("state", "unknown"),
-        "primary_surface": "profile-owned QuickAdd choices",
-        "toolbar_contexts": [],
-        "toolbar_policy": "compact_navigation_only",
-        "display_contract": capture.get("display_contract"),
-        "mutation_class": "human_capture_router_create_only",
-        "human_action_required": True,
-        "rollback": "remove only a newly created capture after human review",
-    }
     return {
         "state": "pass" if all(item["state"] == "pass" for item in inventory.values()) else "unknown" if any(item["state"] == "unknown" for item in inventory.values()) else "blocked",
         "actions": inventory,
-        "policy": "Home or contextual toolbar is the normal journey; Command Palette is recovery only",
-        "source": "Home.md; blueprint/blueprint.yaml#/dashboards/home; note-toolbar data",
+        "policy": "reviewed toolbar actions are navigation or explicit human-triggered Core commands",
+        "source": "note-toolbar owned toolbar entries",
     }
 
 
-def _fallback_contract(root: Path) -> dict[str, Any]:
-    home_path = root / "KnowledgeHub/Home.md"
-    core_path = root / "KnowledgeHub/.obsidian-mac/core-plugins.json"
-    core_plugins, core_error = _read_json(core_path)
-    file_explorer = core_plugins.get("file-explorer") if isinstance(core_plugins, dict) else None
-    if file_explorer is False:
-        state = "blocked"
-    elif core_error == "missing" or file_explorer is None or not home_path.is_file():
-        state = "unknown"
-    elif file_explorer is True:
-        state = "pass"
-    else:
-        state = "blocked"
+def _fallback_contract() -> dict[str, Any]:
     return {
-        "state": state,
-        "canonical_home": "KnowledgeHub/Home.md",
-        "core_file_explorer": {
-            "observed": file_explorer,
-            "expected": True,
-            "source": _relative(root, core_path) + "#/file-explorer",
-        },
-        "markdown_links": "reviewed canonical Markdown links",
+        "state": "not_inspected",
+        "core_file_explorer": "not_inferred",
+        "markdown_navigation": "independent_fallback",
         "command_palette": "recovery_or_diagnostic_only",
         "plugin_free": True,
     }
@@ -646,8 +505,9 @@ def build_note_toolbar_setting_registry(
     profile_root: Path,
     blueprint: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
-    """Build the P11 registry from the installed Note Toolbar profile."""
+    """Build the P11 registry from owned entries in the installed profile."""
 
+    del blueprint  # P11 no longer inspects dashboard note content or layouts.
     errors: list[dict[str, str]] = []
     manifest_path = profile_root / "plugins/note-toolbar/manifest.json"
     data_path = profile_root / "plugins/note-toolbar/data.json"
@@ -678,24 +538,12 @@ def build_note_toolbar_setting_registry(
         serialized,
         root=root,
         data_path=data_path,
-        toolbar_records=toolbar_contract["toolbars"],
         errors=errors,
     )
-    home_contract = _home_contract(root, blueprint, errors)
     action_inventory = _action_inventory(
-        home_contract=home_contract,
         toolbar_records=toolbar_contract["toolbars"],
-        root=root,
     )
-    fallback = _fallback_contract(root)
-    if fallback["state"] == "blocked":
-        errors.append(
-            _error(
-                "P11_FALLBACK_UNAVAILABLE",
-                fallback["core_file_explorer"]["source"],
-                "Core File Explorer must remain available as the immediate plugin-free fallback",
-            )
-        )
+    fallback = _fallback_contract()
 
     registry = {
         "schema_version": P11_NOTE_TOOLBAR_REGISTRY_SCHEMA_VERSION,
@@ -709,10 +557,9 @@ def build_note_toolbar_setting_registry(
         "serialized_source": _relative(root, data_path),
         "serialized_version": serialized.get("version"),
         "position_policy": {
-            "desktop": _EXPECTED_DESKTOP_POSITION,
-            "mobile": "out_of_scope",
-            "tablet": "out_of_scope",
-            "source": _relative(root, data_path) + "#/toolbars/*/position",
+            "desktop": "user_owned_advisory",
+            "mobile": "user_owned_advisory",
+            "tablet": "user_owned_advisory",
         },
         "global_policy": global_policy,
         "folder_mappings": folder_mapping,
@@ -723,7 +570,6 @@ def build_note_toolbar_setting_registry(
             "source": "current installed commandId values plus P01 GUI allowlist",
             "unknown_command_policy": "reject",
         },
-        "home_contract": home_contract,
         "action_inventory": action_inventory,
         "mutation_policy": {
             "toolbar_role": "presentation_and_navigation_only",

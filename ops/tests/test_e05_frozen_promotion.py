@@ -5,11 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.frozen_proposals import promote_frozen_triage_proposal
 from vaultops.proposals import apply_proposal, approve_proposal, review_proposals
@@ -32,18 +28,7 @@ def _digest(value: bytes) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    for relative in (
-        "01_AI_Review/Pending",
-        "01_AI_Review/Resolved",
-        "01_AI_Review/Rejected",
-    ):
-        (root / "KnowledgeHub" / relative).mkdir(parents=True, exist_ok=True)
-    return root
+    return make_portable_fixture_root(tmp_path, review_queues=True)
 
 
 def _write_private(path: Path, value: dict[str, Any]) -> None:

@@ -14,7 +14,6 @@ from vaultops.diagnostics import (
     doctor_report,
     git_status_report,
     load_strict_config,
-    plugins_audit_report,
 )
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
@@ -65,68 +64,6 @@ def _minimal_plugin_audit_root(tmp_path: Path) -> Path:
     return root
 
 
-def test_plugins_audit_reports_unconfigured_profile_as_inactive(tmp_path: Path) -> None:
-    report, exit_code = plugins_audit_report(_minimal_plugin_audit_root(tmp_path))
-
-    assert exit_code == 0
-    assert report["status"] == "INACTIVE"
-    assert report["profile_state"] == "not_configured"
-    assert all(item["state"] == "inactive" for item in report["declared_capabilities"])
-
-
-def test_plugins_audit_requires_declared_plugins_but_tolerates_unmanaged_plugins(tmp_path: Path) -> None:
-    root = _minimal_plugin_audit_root(tmp_path)
-    profile_root = root / "KnowledgeHub/.obsidian-mac"
-    profile_root.mkdir()
-    plugin_ids = [
-        "quickadd",
-        "templater-obsidian",
-        "obsidian-tasks-plugin",
-        "obsidian-linter",
-        "obsidian-git",
-        "homepage",
-        "note-toolbar",
-        "breadcrumbs",
-        "notebook-navigator",
-        "obsidian-meta-bind-plugin",
-        "knowledgeos-thin-client",
-        "unrelated-community-plugin",
-    ]
-    (profile_root / "community-plugins.json").write_text(json.dumps(plugin_ids), encoding="utf-8")
-
-    report, exit_code = plugins_audit_report(root)
-
-    assert exit_code == 0, report
-    assert report["status"] == "PASS"
-    assert report["profile_state"] == "configured"
-    assert {item["id"] for item in report["declared_capabilities"]} == set(plugin_ids) - {
-        "unrelated-community-plugin"
-    }
-    assert all(item["state"] == "installed" for item in report["declared_capabilities"])
-    assert report["unmanaged_plugins"] == ["unrelated-community-plugin"]
-    assert report["serialized_deployment_evidence"] == "pass"
-
-
-def test_plugins_audit_rejects_object_manifest_with_profile_relative_locator(tmp_path: Path) -> None:
-    root = _minimal_plugin_audit_root(tmp_path)
-    profile_root = root / "KnowledgeHub/.obsidian-mac"
-    profile_root.mkdir()
-    (profile_root / "community-plugins.json").write_text('{"plugins": []}', encoding="utf-8")
-
-    report, exit_code = plugins_audit_report(root)
-
-    assert exit_code == EXIT_CONFIG_INVALID
-    assert report["status"] == "FAIL"
-    assert report["errors"] == [
-        {
-            "code": "PLUGIN_CONFIG_ROOT_INVALID",
-            "locator": "/community-plugins.json",
-            "message": "community-plugins.json root must be an array of plugin IDs: community-plugins.json",
-            "severity": "error",
-        }
-    ]
-
-
 def test_wrong_root_has_stable_input_exit_class(tmp_path: Path) -> None:
     report, exit_code = doctor_report(tmp_path)
 
@@ -166,11 +103,11 @@ def test_cli_exposes_c12_namespaces(tmp_path: Path, capsys) -> None:
 
 def test_note_validation_failure_uses_the_stable_validation_exit_class(tmp_path: Path, capsys) -> None:
     root = make_control_root(tmp_path, ("blueprint",))
-    note_path = root / "KnowledgeHub/40_Knowledge/Ideas/Invalid.md"
+    note_path = root / "KnowledgeHub/99_System/Templates/Invalid.md"
     note_path.parent.mkdir(parents=True)
     note_path.write_text("---\ntitle: Invalid\ntitle: Duplicate\n---\n", encoding="utf-8")
 
-    assert main(["note", "validate", "40_Knowledge/Ideas/Invalid.md", "--root", str(root)]) == EXIT_VALIDATION_FAILED
+    assert main(["note", "validate", "99_System/Templates/Invalid.md", "--root", str(root)]) == EXIT_VALIDATION_FAILED
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "FAIL"
     assert report["errors"][0]["code"] == "NOTE_FRONTMATTER_INVALID"

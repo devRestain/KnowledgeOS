@@ -27,10 +27,8 @@ _AUTO_BOOLEAN_POLICIES = {
     "differentIntervalCommitAndPush": "separate automatic commit and push intervals",
 }
 _UNATTENDED_BOOLEAN_POLICIES = {
-    "squashCommitsBeforePush": "squash before push",
     "updateSubmodules": "submodule update",
     "submoduleRecurseCheckout": "recursive submodule checkout",
-    "setLastSaveToLastCommit": "last-save commit association",
 }
 
 
@@ -151,7 +149,7 @@ def _blueprint_contract(blueprint: dict[str, Any], errors: list[dict[str, str]])
 def _automation_policy(data: dict[str, Any], data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
     intervals = {name: _zero_interval(data.get(name)) for name in _AUTO_INTERVALS}
     for name, record in intervals.items():
-        if record["state"] == "configured":
+        if record["state"] in {"configured", "invalid"}:
             errors.append(
                 _error(
                     "P07_AUTOMATIC_INTERVAL_ENABLED",
@@ -165,7 +163,7 @@ def _automation_policy(data: dict[str, Any], data_path: Path, root: Path, errors
         record = _bool_setting(data.get(name), expected=False)
         record["policy"] = f"must remain disabled: {label}"
         booleans[name] = record
-        if record["state"] == "drift":
+        if record["state"] in {"drift", "invalid"}:
             errors.append(
                 _error(
                     "P07_UNATTENDED_BOOLEAN_ENABLED",
@@ -175,7 +173,7 @@ def _automation_policy(data: dict[str, Any], data_path: Path, root: Path, errors
             )
 
     scripts = _empty_string(data.get("commitMessageScript"), policy="manual commit message scripts remain empty")
-    if scripts["state"] == "configured":
+    if scripts["state"] in {"configured", "invalid"}:
         errors.append(
             _error(
                 "P07_COMMIT_SCRIPT_NOT_ACCEPTED",
@@ -222,26 +220,12 @@ def build_obsidian_git_setting_registry(
     automation = _automation_policy(serialized, data_path, root, errors)
     blueprint_contract = _blueprint_contract(blueprint, errors)
 
-    status_bar = _bool_setting(serialized.get("showStatusBar"), expected=True)
-    branch_status_bar = _bool_setting(serialized.get("showBranchStatusBar"), expected=True)
-    file_menu = _bool_setting(serialized.get("showFileMenu"), expected=True)
-    refresh_source_control = _bool_setting(serialized.get("refreshSourceControl"), expected=True)
-    for name, record in {
-        "showStatusBar": status_bar,
-        "showBranchStatusBar": branch_status_bar,
-        "showFileMenu": file_menu,
-        "refreshSourceControl": refresh_source_control,
-    }.items():
-        if record["state"] == "drift":
-            errors.append(
-                _error(
-                    "P07_LOCAL_STATUS_VISIBILITY_DISABLED",
-                    _relative(root, data_path) + f"#/{name}",
-                    f"{name} must remain enabled for local manual status visibility",
-                )
-            )
+    status_bar = _bool_setting(serialized.get("showStatusBar"), expected=None)
+    branch_status_bar = _bool_setting(serialized.get("showBranchStatusBar"), expected=None)
+    file_menu = _bool_setting(serialized.get("showFileMenu"), expected=None)
+    refresh_source_control = _bool_setting(serialized.get("refreshSourceControl"), expected=None)
 
-    disable_push = _bool_setting(serialized.get("disablePush"), expected=True)
+    disable_push = _bool_setting(serialized.get("disablePush"), expected=None)
     refresh_timer = serialized.get("refreshSourceControlTimer")
     refresh_timer_policy = {
         "observed": refresh_timer,

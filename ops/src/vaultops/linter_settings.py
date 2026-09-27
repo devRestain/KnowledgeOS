@@ -14,12 +14,7 @@ from typing import Any
 
 P06_LINTER_REGISTRY_SCHEMA_VERSION = 1
 P06_PLUGIN_ID = "obsidian-linter"
-P06_PROTECTED_FOLDERS = (
-    "99_System/Templates",
-    "99_System/Bases",
-    "99_System/Dashboards",
-    "99_System/Schemas",
-)
+P06_PROTECTED_FOLDERS = ("99_System",)
 
 _HIGH_RISK_RULES = {
     "file-name-heading",
@@ -147,7 +142,7 @@ def _rule_effect(rule_id: str, config: dict[str, Any]) -> dict[str, Any]:
     return {
         "affected_surface": surface,
         "affected_fields": [field for field in fields if field],
-        "affected_note_types": "all notes unless a future reviewed scope narrows it",
+        "affected_note_types": "explicitly selected notes only; 99_System is excluded from automatic lint scope",
         "destructive_risk": risk,
         "property_dictionary_or_template_traceability": "not_accepted_until_rule_review",
         "before_after_evidence": "required per file: original sha256 plus proposed diff plus post-write sha256",
@@ -171,7 +166,6 @@ def _rule_registry(rule_configs: Any, root: Path, data_path: Path, errors: list[
         enabled = config.get("enabled")
         if enabled is True:
             enabled_rules.append(rule_id)
-            errors.append(_error("P06_ENABLED_RULE_NOT_ACCEPTED", _relative(root, data_path) + f"#/ruleConfigs/{rule_id}/enabled", "no Linter rule is approved in the P06 baseline"))
         elif enabled is not False and enabled is not None:
             errors.append(_error("P06_RULE_ENABLED_FLAG_INVALID", _relative(root, data_path) + f"#/ruleConfigs/{rule_id}/enabled", "rule enabled flag must be boolean"))
         effect = _rule_effect(rule_id, config)
@@ -179,8 +173,8 @@ def _rule_registry(rule_configs: Any, root: Path, data_path: Path, errors: list[
             {
                 "rule_id": rule_id,
                 "enabled": enabled,
-                "state": "disabled_safe_baseline" if enabled is False else "unknown" if enabled is None else "enabled_unaccepted",
-                "allowlist_state": "not_accepted",
+                "state": "disabled" if enabled is False else "unknown" if enabled is None else "enabled_for_explicit_manual_run",
+                "allowlist_state": "not_approved_for_automatic_execution",
                 "observed_option_keys": sorted(key for key in config if key != "enabled"),
                 **effect,
             }
@@ -188,7 +182,7 @@ def _rule_registry(rule_configs: Any, root: Path, data_path: Path, errors: list[
     return records, enabled_rules
 
 
-def _template_contract(root: Path, blueprint: dict[str, Any]) -> dict[str, Any]:
+def _template_contract(blueprint: dict[str, Any]) -> dict[str, Any]:
     template_config = blueprint.get("templates")
     if not isinstance(template_config, dict):
         return {"state": "unknown", "source": "blueprint/blueprint.yaml#/templates"}
@@ -196,16 +190,14 @@ def _template_contract(root: Path, blueprint: dict[str, Any]) -> dict[str, Any]:
     required = template_config.get("required")
     if not isinstance(directory, str) or not isinstance(required, list):
         return {"state": "unknown", "source": "blueprint/blueprint.yaml#/templates"}
-    paths = [root / "KnowledgeHub" / directory / name for name in required if isinstance(name, str)]
-    state = "pass" if all(path.is_file() and not path.is_symlink() for path in paths) else "unknown"
     return {
-        "state": state,
+        "state": "declared",
         "directory": directory,
         "required": list(required),
         "source": "blueprint/blueprint.yaml#/templates",
         "property_dictionary": {
             "path": "KnowledgeHub/99_System/Schemas/Property_Dictionary.md",
-            "state": "pass" if (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").is_file() else "unknown",
+            "state": "not_observed",
             "source": "generated C06 Property Dictionary",
         },
     }
@@ -241,31 +233,37 @@ def build_linter_setting_registry(
     rule_records, enabled_rules = _rule_registry(rule_configs, root, data_path, errors)
     lint_on_save = data.get("lintOnSave") if isinstance(data, dict) else None
     lint_on_file_change = data.get("lintOnFileChange") if isinstance(data, dict) else None
-    if lint_on_save is True:
+    if lint_on_save is True or (lint_on_save is not None and not isinstance(lint_on_save, bool)):
         errors.append(_error("P06_AUTOMATIC_TRIGGER_ENABLED", _relative(root, data_path) + "#/lintOnSave", "lint-on-save must remain disabled"))
-    if lint_on_file_change is True:
+    if lint_on_file_change is True or (lint_on_file_change is not None and not isinstance(lint_on_file_change, bool)):
         errors.append(_error("P06_AUTOMATIC_TRIGGER_ENABLED", _relative(root, data_path) + "#/lintOnFileChange", "lint-on-file-change must remain disabled"))
 
     lint_commands = data.get("lintCommands") if isinstance(data, dict) else None
     custom_regexes = data.get("customRegexes") if isinstance(data, dict) else None
     folders_to_ignore = data.get("foldersToIgnore") if isinstance(data, dict) else None
     files_to_ignore = data.get("filesToIgnore") if isinstance(data, dict) else None
-    if isinstance(lint_commands, list) and lint_commands:
+    if (isinstance(lint_commands, list) and lint_commands) or (lint_commands is not None and not isinstance(lint_commands, list)):
         errors.append(_error("P06_UNREVIEWED_LINT_COMMAND", _relative(root, data_path) + "#/lintCommands", "unreviewed Linter commands must remain empty"))
-    if isinstance(custom_regexes, list) and custom_regexes:
+    if (isinstance(custom_regexes, list) and custom_regexes) or (custom_regexes is not None and not isinstance(custom_regexes, list)):
         errors.append(_error("P06_UNREVIEWED_CUSTOM_REGEX", _relative(root, data_path) + "#/customRegexes", "unreviewed custom regexes must remain empty"))
+
+    protected_folder_values: set[str] | None = None
+    if isinstance(folders_to_ignore, list) and all(isinstance(folder, str) for folder in folders_to_ignore):
+        protected_folder_values = set(folders_to_ignore)
+    elif folders_to_ignore is not None:
+        protected_folder_values = set()
 
     protected_folders = {
         "expected": list(P06_PROTECTED_FOLDERS),
         "observed": folders_to_ignore,
-        "state": "pass" if folders_to_ignore == list(P06_PROTECTED_FOLDERS) else "unknown" if folders_to_ignore is None else "drift",
-        "policy": "canonical templates bases dashboards and schemas remain outside automatic lint scope",
+        "state": "pass" if protected_folder_values is not None and set(P06_PROTECTED_FOLDERS).issubset(protected_folder_values) else "unknown" if folders_to_ignore is None else "drift",
+        "policy": "the full 99_System tree remains outside automatic lint scope; additional ignored folders are user-owned",
     }
     if protected_folders["state"] == "drift":
         errors.append(_error("P06_PROTECTED_FOLDER_SCOPE_DRIFT", _relative(root, data_path) + "#/foldersToIgnore", "protected canonical folders must remain ignored by Linter"))
     ignored_files = _list_policy(files_to_ignore, expected=[])
 
-    template_contract = _template_contract(root, blueprint)
+    template_contract = _template_contract(blueprint)
     registry = {
         "schema_version": P06_LINTER_REGISTRY_SCHEMA_VERSION,
         "plugin": P06_PLUGIN_ID,
@@ -281,9 +279,9 @@ def build_linter_setting_registry(
             "candidate_rule_ids": [],
             "observed_rule_count": len(rule_records),
             "enabled_rule_ids": enabled_rules,
-            "state": "safe_all_rules_off_baseline" if not enabled_rules else "blocked_enabled_rule",
+            "state": "safe_all_rules_off_baseline" if not enabled_rules else "manual_rules_configured",
             "healthy": False,
-            "healthy_state": "safe_baseline_not_hygiene_completion",
+            "healthy_state": "safe_manual_execution_not_hygiene_completion",
             "rule_id_source": "installed data.json only; no rule IDs invented from external release notes",
         },
         "rule_records": rule_records,

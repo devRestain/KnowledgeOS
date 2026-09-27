@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 P02_CORE_REGISTRY_SCHEMA_VERSION = 1
@@ -60,10 +60,9 @@ def _policy(
     )
 
 
-# Keep this list explicit.  It is the P02 policy surface, not a list of flags
-# inferred from one user's current profile.  The required names are checked
-# against blueprint/blueprint.yaml below, while optional and disabled flags
-# make observed version-specific profile state reviewable and fail closed.
+# Keep this list explicit. It is the P02 KnowledgeOS policy surface, not a
+# closed-world inventory of every Core flag serialized by an Obsidian version.
+# Unknown flags remain visible as advisory identifiers and do not affect health.
 CORE_SETTING_POLICIES = (
     _policy(
         "properties",
@@ -403,6 +402,13 @@ def _value_or_none(value: Any, *, expected_type: type = str) -> Any:
     return value if isinstance(value, expected_type) else None
 
 
+def _safe_vault_path(value: Any) -> bool:
+    if not isinstance(value, str) or not value or "\\" in value:
+        return False
+    path = PurePosixPath(value)
+    return not path.is_absolute() and all(part not in {"", ".", ".."} for part in path.parts)
+
+
 def _policy_entry(
     policy: CoreSettingPolicy,
     *,
@@ -482,14 +488,6 @@ def build_core_setting_registry(
     core_locator = _relative_path(root, profile_root / "core-plugins.json")
     observed_ids = sorted(core_flags) if core_flags is not None else []
     unknown_ids = sorted(set(observed_ids) - set(CORE_SETTING_POLICIES_BY_ID))
-    for plugin_id in unknown_ids:
-        errors.append(
-            _error(
-                "PLUGIN_CORE_POLICY_UNREGISTERED",
-                f"{core_locator}#/{plugin_id}",
-                "observed Core flag has no explicit P02 policy",
-            )
-        )
 
     entries = [
         _policy_entry(
@@ -503,41 +501,6 @@ def build_core_setting_registry(
         )
         for policy in CORE_SETTING_POLICIES
     ]
-    entries.extend(
-        {
-            "component_id": f"core:{plugin_id}",
-            "component": plugin_id,
-            "owner": "core",
-            "profile": profile,
-            "profile_scope": "unknown",
-            "policy_class": "unresolved",
-            "workflow": "unresolved",
-            "source_locator": {
-                "core_flag": f"{core_locator}#/{plugin_id}",
-                "serialized_settings": [],
-                "ui_labels": [],
-            },
-            "current_value": {"enabled": core_flags.get(plugin_id)},
-            "setting_state": "unknown",
-            "serialized_state": "unknown",
-            "allowed_value_domain": "unknown",
-            "fallback": "unknown",
-            "mutation_risk": "unknown",
-            "verification_method": "blocked_until_policy_review",
-            "rollback_action": "preserve_original_profile_bytes",
-            "states": {
-                "declared": "not_declared",
-                "installed": "not_applicable",
-                "configured": "unknown",
-                "enabled": "unknown",
-                "verified": "not_run",
-                "healthy": "not_run",
-                "fallback_available": "unknown",
-            },
-        }
-        for plugin_id in unknown_ids
-    )
-
     plugin_profiles = blueprint.get("plugin_profiles", {})
     blueprint_all_devices = frozenset(plugin_profiles.get("core_all_devices", []))
     blueprint_mac_only = frozenset(plugin_profiles.get("core_mac_only", []))
@@ -561,16 +524,8 @@ def build_core_setting_registry(
     daily_settings = serialized_sources.get("daily-notes.json") or {}
     observed_folder = _value_or_none(daily_settings.get("folder"))
     observed_template = _value_or_none(daily_settings.get("template"))
-    if "propertiesInDocument" in (serialized_sources.get("app.json") or {}):
-        properties_value = (serialized_sources.get("app.json") or {}).get("propertiesInDocument")
-        if not isinstance(properties_value, str) or properties_value not in {"visible", "hidden"}:
-            errors.append(
-                _error(
-                    "PLUGIN_CORE_PROPERTIES_SETTING_INVALID",
-                    "KnowledgeHub/.obsidian-mac/app.json#/propertiesInDocument",
-                    "Properties visibility must be visible or hidden",
-                )
-            )
+    # Properties visibility is a user-owned presentation preference. Preserve
+    # it as observed data but never use it to degrade the KnowledgeOS contract.
     daily_values = (
         ("folder", daily_settings.get("folder")),
         ("template", daily_settings.get("template")),
@@ -582,6 +537,14 @@ def build_core_setting_registry(
                     "PLUGIN_CORE_DAILY_SETTING_INVALID",
                     f"KnowledgeHub/.obsidian-mac/daily-notes.json#/{key}",
                     "Daily Notes serialized setting must be a string",
+                )
+            )
+        elif key in daily_settings and not _safe_vault_path(value):
+            errors.append(
+                _error(
+                    "PLUGIN_CORE_DAILY_PATH_UNSAFE",
+                    f"{_relative_path(root, profile_root / 'daily-notes.json')}#/{key}",
+                    "Daily Notes paths must be safe relative Vault paths",
                 )
             )
     daily_expected = {
@@ -631,6 +594,14 @@ def build_core_setting_registry(
         if "YYYY-MM-DD" in template_text:
             template_source_state = "pass"
 
+    required_gaps = [
+        entry["component_id"]
+        for entry in entries
+        if entry["policy_class"] == "required" and entry["current_value"].get("enabled") is not True
+    ]
+    if daily_configuration_state != "configured" or template_source_state != "pass":
+        required_gaps.append("core:daily-note-creation-settings")
+
     registry = {
         "schema_version": P02_CORE_REGISTRY_SCHEMA_VERSION,
         "profile": profile,
@@ -646,6 +617,10 @@ def build_core_setting_registry(
         "observed_core_flags": observed_ids,
         "unknown_observed_flags": unknown_ids,
         "entries": entries,
+        "required_capabilities": {
+            "state": "pass" if not required_gaps else "degraded",
+            "unavailable": sorted(set(required_gaps)),
+        },
         "daily_notes_contract": {
             "owner": "core:daily-notes",
             "workflow": "daily_note_creation",

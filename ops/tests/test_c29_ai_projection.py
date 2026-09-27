@@ -4,11 +4,7 @@ import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.ai_projection import (
     EXIT_CONFLICT,
@@ -25,12 +21,7 @@ from vaultops.projection import generate_projection
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    return root
+    return make_portable_fixture_root(tmp_path)
 
 
 def _write_eligibility_fixture(root: Path) -> None:

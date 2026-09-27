@@ -30,6 +30,12 @@ all acceptance checks agree. A smaller or faster suite alone is not completion.
 - KnowledgeHub remains an independent user-controlled Git root.
 - Default tests and control checks never read or write the real KnowledgeHub or
   project runtime.
+- Document-structure contract tests inspect only system-owned documents under
+  `99_System`. Root `Home.md`, `Mobile.md`, and ordinary documents are not
+  structure snapshots, even when a generator can return their source in memory.
+  Generic parser and schema behavior may use deterministic synthetic inputs;
+  create-only bootstrap checks may verify root-note paths without reading their
+  content.
 - Exact deployed document ownership is limited to the named `99_System`
   allowlist below and checked only by an explicit read-only command.
 
@@ -171,8 +177,8 @@ failure before continuing. No stage mutates KnowledgeHub.
    zero direct real-Vault references and zero whole-control copies.
 6. **Retirement:** delete only the files whose responsibilities already pass at
    their new owner. Rollback point: responsibility matrix contains no orphan.
-7. **Invariance and budget:** add mutation experiments, run a warm-up and two
-   measured suites, and optimize shared fixture setup without weakening cases.
+7. **Invariance and measurement:** add mutation experiments, run the full suite,
+   and record its duration as diagnostic context without a fixed threshold.
 8. **Closure:** run canonical acceptance, optional read-only deployment checks
    only when separately requested, update state and compact indexes, and audit
    both Git roots.
@@ -199,17 +205,21 @@ clean, regenerate, or overwrite either Git root to recover a green result.
 
 - Every deletion has a surviving owner or an accepted retired contract.
 - Unique safety responsibilities named in the matrix remain covered.
-- The final suite contains at most 57 `test_*.py` files and at most 11,750
-  Python lines under `ops/tests`.
+- Do not impose a numeric ceiling on test-file count or Python source lines.
+- Use file, function, case, and line totals as diagnostic measurements only;
+  preserve readable tests whenever further compression would obscure lifecycle
+  ownership or weaken failure locality.
 - The final handoff reports test-file, function, collected-case, direct-coupling,
   whole-copy, and line totals.
 
-### Runtime
+### Runtime observations
 
-- After one warm-up, two consecutive `make test` runs each complete within 75
-  seconds and average at most 72 seconds on the canonical environment.
-- `make test-invariance` completes within 15 seconds.
-- No test exceeds two seconds without a recorded integration justification.
+- Record full-suite, invariance, and individual-test durations as diagnostic
+  measurements when available. They are not acceptance gates.
+- The earlier 75-second, 72-second, 15-second, and two-second thresholds were
+  introduced by an agent and were not user requirements. Do not repeat full
+  suites solely to meet those values or remove a necessary responsibility to
+  lower a duration.
 
 ### Canonical checks
 
@@ -223,13 +233,12 @@ Run sequentially and report only observed results:
 6. `make container-verify`
 7. focused runner, foundation, artifact, plugin, coupled-test, and invariance
    Make runs
-8. one unmeasured `make test` warm-up
-9. two measured `make test` runs
-10. `make lint`
-11. `/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md`
-12. `git diff --check`
-13. `git -C KnowledgeHub diff --check`
-14. control and KnowledgeHub status inventories before and after verification
+8. one full `make test` run, recording its observed duration as diagnostic data
+9. `make lint`
+10. `/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md`
+11. `git diff --check`
+12. `git -C KnowledgeHub diff --check`
+13. control and KnowledgeHub status inventories before and after verification
 
 `make vault-artifact-check`, `make profile-check`, and `make live-smoke` are not
 closure prerequisites. Run them only when their separate deployment or live
@@ -244,7 +253,7 @@ effects are explicitly requested, and never convert them into default evidence.
 - Do not execute a live smoke without exact authorization.
 - Do not commit, push, deploy, migrate, or perform remote Git effects.
 - Do not weaken review, path, schema, privacy, transaction, recovery,
-  authorization, or digest controls to meet size or duration budgets.
+  authorization, or digest controls to reduce file totals or test duration.
 
 ## 8. Planning sources
 

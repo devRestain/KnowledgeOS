@@ -71,10 +71,11 @@ The implementation will:
 8. keep every test implementation, fixture, and helper under `ops/tests` and
    behind the root Makefile entrypoint.
 
-The planned file shape moves from 67 to 56 `test_*.py` files and eliminates all
-16 direct real-Vault dependencies. Case count is not a deletion target; the
-next ticket sets an execution and invariance budget after responsibilities are
-preserved.
+The planning baseline projected a shape change from 67 to 56 `test_*.py` files
+and identified 16 direct real-Vault dependencies. These were estimates and
+inventory findings, not final-count requirements. Case count is not a deletion
+target; the verification-tier ticket defines required invariance mutations and
+records collection and duration as informational measurements.
 
 ## Deletion rule
 

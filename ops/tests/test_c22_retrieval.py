@@ -6,11 +6,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.answer import answer
 from vaultops.blueprint import validate_blueprint
@@ -27,15 +23,9 @@ from vaultops.vector import vector_retrieve, vector_search
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(
-        tmp_path,
-        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c22_retrieval"),
+    return make_portable_fixture_root(
+        tmp_path, extra_inputs=("ops/tests/fixtures/c22_retrieval",)
     )
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    return root
 
 
 def _build(root: Path, generation_id: str = "c22-fixture") -> None:

@@ -14,8 +14,7 @@ operates Obsidian.
 from __future__ import annotations
 
 import json
-import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 P10_NOTEBOOK_NAVIGATOR_REGISTRY_SCHEMA_VERSION = 1
@@ -39,10 +38,6 @@ _PROFILE_EMPTY_LISTS = (
     "hiddenFileProperties",
     "propertyKeys",
 )
-_TEMPLATER_MARKER = re.compile(r"<%")
-_CORE_DATE_MARKER = re.compile(r"\{\{(?:date|time):")
-
-
 def _strict_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -58,15 +53,6 @@ def _read_json(path: Path) -> tuple[Any | None, str | None]:
     try:
         return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_strict_pairs), None
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as error:
-        return None, str(error)
-
-
-def _read_text(path: Path) -> tuple[str | None, str | None]:
-    if path.is_symlink() or not path.is_file():
-        return None, "missing"
-    try:
-        return path.read_text(encoding="utf-8"), None
-    except (OSError, UnicodeError) as error:
         return None, str(error)
 
 
@@ -91,22 +77,16 @@ def _exact_setting(value: Any, expected: Any, *, policy: str) -> dict[str, Any]:
     return {"observed": value, "expected": expected, "state": "drift", "policy": policy}
 
 
-def _list_setting(value: Any, *, expected: list[Any], policy: str) -> dict[str, Any]:
-    if value is None:
-        return {"observed": None, "expected": expected, "state": "unknown", "policy": policy}
-    if not isinstance(value, list):
-        return {"observed": "invalid", "expected": expected, "state": "invalid", "policy": policy}
-    state = "pass" if value == expected else "drift"
-    return {"observed": value, "expected": expected, "state": state, "policy": policy}
-
-
-def _dict_setting(value: Any, *, expected: dict[str, Any], policy: str) -> dict[str, Any]:
-    if value is None:
-        return {"observed": None, "expected": expected, "state": "unknown", "policy": policy}
-    if not isinstance(value, dict):
-        return {"observed": "invalid", "expected": expected, "state": "invalid", "policy": policy}
-    state = "pass" if value == expected else "drift"
-    return {"observed": value, "expected": expected, "state": state, "policy": policy}
+def _safe_vault_relative_path(value: Any) -> bool:
+    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+        return False
+    normalized = value.rstrip("/")
+    if not normalized:
+        return False
+    path = PurePosixPath(normalized)
+    return not path.is_absolute() and all(
+        part not in {"", ".", ".."} for part in normalized.split("/")
+    )
 
 
 def _append_setting_errors(
@@ -210,7 +190,7 @@ def _active_profile(
     if profiles is None:
         return None, {
             "state": "unknown",
-            "selection": "last vaultProfiles entry when serialized",
+            "selection": f"profile named {P10_PROFILE_NAME}",
             "source": _relative(root, data_path) + "#/vaultProfiles",
         }
     if not isinstance(profiles, list):
@@ -218,54 +198,46 @@ def _active_profile(
             _error(
                 "P10_VAULT_PROFILES_INVALID",
                 _relative(root, data_path) + "#/vaultProfiles",
-                "vaultProfiles must be a list",
+                "vaultProfiles must be a list when configured",
             )
         )
         return None, {
             "state": "invalid",
-            "selection": "last vaultProfiles entry when serialized",
+            "selection": f"profile named {P10_PROFILE_NAME}",
             "source": _relative(root, data_path) + "#/vaultProfiles",
         }
-    if not profiles:
+    owned_profiles = [
+        (index, profile)
+        for index, profile in enumerate(profiles)
+        if isinstance(profile, dict) and profile.get("name") == P10_PROFILE_NAME
+    ]
+    if not owned_profiles:
         errors.append(
             _error(
                 "P10_VAULT_PROFILES_EMPTY",
                 _relative(root, data_path) + "#/vaultProfiles",
-                "vaultProfiles must contain the active Mac profile",
+                f"vaultProfiles must contain the {P10_PROFILE_NAME!r} capability profile",
             )
         )
         return None, {
             "state": "invalid",
-            "selection": "last vaultProfiles entry when serialized",
+            "selection": f"profile named {P10_PROFILE_NAME}",
             "source": _relative(root, data_path) + "#/vaultProfiles",
         }
-    profile = profiles[-1]
-    if not isinstance(profile, dict):
+    if len(owned_profiles) > 1:
         errors.append(
             _error(
-                "P10_ACTIVE_PROFILE_INVALID",
-                _relative(root, data_path) + "#/vaultProfiles/-1",
-                "the active Notebook Navigator profile must be an object",
+                "P10_DUPLICATE_OWNED_PROFILE",
+                _relative(root, data_path) + "#/vaultProfiles",
+                f"vaultProfiles must contain only one profile named {P10_PROFILE_NAME!r}",
             )
         )
-        return None, {
-            "state": "invalid",
-            "selection": "last vaultProfiles entry",
-            "source": _relative(root, data_path) + "#/vaultProfiles",
-        }
+    index, profile = owned_profiles[0]
     name = profile.get("name")
-    if name != P10_PROFILE_NAME:
-        errors.append(
-            _error(
-                "P10_ACTIVE_PROFILE_NOT_ACCEPTED",
-                _relative(root, data_path) + "#/vaultProfiles/-1/name",
-                f"the active profile must be {P10_PROFILE_NAME!r}",
-            )
-        )
     return profile, {
-        "state": "pass" if name == P10_PROFILE_NAME else "blocked",
-        "selection": "last vaultProfiles entry",
-        "index": len(profiles) - 1,
+        "state": "pass" if len(owned_profiles) == 1 else "blocked",
+        "selection": f"profile named {P10_PROFILE_NAME}",
+        "index": index,
         "id": profile.get("id"),
         "name": name,
         "expected_name": P10_PROFILE_NAME,
@@ -279,6 +251,7 @@ def _blueprint_paths_and_templates(
     blueprint_contract: dict[str, Any],
     errors: list[dict[str, str]],
 ) -> dict[str, dict[str, Any]]:
+    del root
     records: dict[str, dict[str, Any]] = {}
     expected = {
         "daily": (P10_DAILY_TEMPLATE, "obsidian-core-daily-notes", "core_date_tokens"),
@@ -286,36 +259,15 @@ def _blueprint_paths_and_templates(
         "monthly": (P10_MONTHLY_TEMPLATE, "templater-obsidian", "templater_expressions"),
     }
     for note_type, (template_path, owner, expected_syntax) in expected.items():
-        path = root / "KnowledgeHub" / template_path
-        source = _relative(root, path)
-        text, error = _read_text(path)
-        if error:
-            records[note_type] = {
-                "template": template_path,
-                "owner": owner,
-                "expected_syntax": expected_syntax,
-                "observed_syntax": "unknown",
-                "state": "unknown",
-                "source": source,
-            }
-            continue
-        has_templater = bool(_TEMPLATER_MARKER.search(text or ""))
-        has_core_date = bool(_CORE_DATE_MARKER.search(text or ""))
-        if has_templater and has_core_date:
-            observed_syntax = "mixed"
-        elif has_templater:
-            observed_syntax = "templater_expressions"
-        elif has_core_date:
-            observed_syntax = "core_date_tokens"
-        else:
-            observed_syntax = "literal_or_unknown"
-        state = "pass" if observed_syntax == expected_syntax else "drift"
-        if state == "drift":
+        blueprint_note_type = blueprint_contract.get("note_types", {}).get(note_type, {})
+        observed_template = blueprint_note_type.get("template") if isinstance(blueprint_note_type, dict) else None
+        state = "unknown" if observed_template is None else "pass" if observed_template == Path(template_path).name else "blocked"
+        if state == "blocked":
             errors.append(
                 _error(
                     "P10_TEMPLATE_OWNER_DRIFT",
-                    source,
-                    f"{note_type} template syntax does not match the unique {owner} ownership contract",
+                    f"blueprint/blueprint.yaml#/note_types/{note_type}/template",
+                    f"{note_type} period must retain its KnowledgeOS-owned template reference",
                 )
             )
         records[note_type] = {
@@ -323,9 +275,9 @@ def _blueprint_paths_and_templates(
             "owner": owner,
             "renderer": "obsidian-core-date-token-renderer" if note_type == "daily" else "templater-obsidian",
             "expected_syntax": expected_syntax,
-            "observed_syntax": observed_syntax,
+            "observed_syntax": "not_read_from_deployed_vault",
             "state": state,
-            "source": source,
+            "source": f"blueprint/blueprint.yaml#/note_types/{note_type}/template",
             "invocation_boundary": (
                 "Core Daily Notes creates the daily note"
                 if note_type == "daily"
@@ -342,70 +294,36 @@ def _profile_scope(
     root: Path,
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
+    del data_path, root, errors
     if profile is None:
         return {
             "state": "unknown",
-            "fields": {key: {"observed": None, "expected": [], "state": "unknown"} for key in _PROFILE_EMPTY_LISTS},
-            "file_visibility": {"observed": None, "expected": P10_FILE_VISIBILITY, "state": "unknown"},
+            "fields": {key: {"state": "unknown"} for key in _PROFILE_EMPTY_LISTS},
+            "file_visibility": {"state": "unknown"},
         }
-    fields = {
-        key: _list_setting(
-            profile.get(key),
-            expected=[],
-            policy="no hidden or property-filter scope is configured for the P10 navigation contract",
-        )
-        for key in _PROFILE_EMPTY_LISTS
+    fields = {}
+    for key in _PROFILE_EMPTY_LISTS:
+        value = profile.get(key)
+        fields[key] = {
+            "state": "unconfigured" if value in (None, [], {}) else "observed",
+            "configured": value not in (None, [], {}),
+        }
+    visibility = profile.get("fileVisibility")
+    file_visibility = {
+        "state": "unknown" if visibility is None else "observed",
+        "configured": visibility is not None,
     }
-    for key, record in fields.items():
-        if record["state"] in {"drift", "invalid"}:
-            errors.append(
-                _error(
-                    "P10_HIDDEN_SCOPE_DRIFT",
-                    _relative(root, data_path) + f"#/vaultProfiles/-1/{key}",
-                    f"active profile {key} must remain an explicit empty list",
-                )
-            )
-    file_visibility = _exact_setting(
-        profile.get("fileVisibility"),
-        P10_FILE_VISIBILITY,
-        policy="retain the user-selected all file visibility without expanding hidden or property-filter scope",
-    )
-    if file_visibility["state"] in {"drift", "invalid"}:
-        errors.append(
-            _error(
-                "P10_FILE_VISIBILITY_DRIFT",
-                _relative(root, data_path) + "#/vaultProfiles/-1/fileVisibility",
-                f"active profile fileVisibility must remain {P10_FILE_VISIBILITY}",
-            )
-        )
     return {
-        "state": "pass"
-        if file_visibility["state"] == "pass" and all(record["state"] == "pass" for record in fields.values())
-        else "blocked"
-        if any(record["state"] in {"drift", "invalid"} for record in fields.values())
-        or file_visibility["state"] in {"drift", "invalid"}
-        else "unknown",
+        "state": "observed",
         "fields": fields,
         "file_visibility": file_visibility,
     }
 
 
 def _display_scope(data: dict[str, Any], *, data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
-    hidden_items = _exact_setting(
-        data.get("calendarShowHiddenItems"),
-        False,
-        policy="calendar does not broaden the explicitly empty profile hidden scope",
-    )
-    if hidden_items["state"] in {"drift", "invalid"}:
-        errors.append(
-            _error(
-                "P10_CALENDAR_HIDDEN_ITEMS_ENABLED",
-                _relative(root, data_path) + "#/calendarShowHiddenItems",
-                "calendarShowHiddenItems must remain false",
-            )
-        )
+    del data_path, root, errors
     observed = {
-        "calendar_show_hidden_items": hidden_items,
+        "calendar_show_hidden_items": data.get("calendarShowHiddenItems"),
         "file_visibility": data.get("fileVisibility"),
         "show_root_folder": data.get("showRootFolder"),
         "show_tags": data.get("showTags"),
@@ -416,54 +334,83 @@ def _display_scope(data: dict[str, Any], *, data_path: Path, root: Path, errors:
         "calendar_show_outside_month_days": data.get("calendarShowOutsideMonthDays"),
     }
     return {
-        "state": hidden_items["state"] if hidden_items["state"] != "unknown" else "unknown",
+        "state": "observed" if any(value is not None for value in observed.values()) else "unknown",
         "observed": observed,
-        "policy": "display/navigation-only; display flags do not authorize note mutation",
+        "policy": "user-owned presentation values do not change P10 capability or authorize note mutation",
     }
 
 
 def _template_settings(data: dict[str, Any], *, data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
-    settings = {
-        "template_engine": _exact_setting(
-            data.get("templateEngine"),
-            "automatic",
-            policy="use the installed automatic resolver for the already accepted Templater period templates",
-        ),
-        "calendar_template_folder": _exact_setting(
-            data.get("calendarTemplateFolder"),
-            "",
-            policy="do not add a second arbitrary calendar template folder",
-        ),
-        "folder_templates": _dict_setting(
-            data.get("folderTemplates"),
-            expected={},
-            policy="folder templates remain unconfigured so they cannot become a second period owner",
-        ),
-        "template_commands": _list_setting(
-            data.get("templateCommands"),
-            expected=[],
-            policy="template command execution remains unconfigured",
-        ),
-        "folder_notes": _exact_setting(
-            data.get("enableFolderNotes"),
-            False,
-            policy="folder-note generation remains disabled",
-        ),
-    }
-    _append_setting_errors(
-        settings={
-            "templateEngine": settings["template_engine"],
-            "calendarTemplateFolder": settings["calendar_template_folder"],
-            "folderTemplates": settings["folder_templates"],
-            "templateCommands": settings["template_commands"],
-            "enableFolderNotes": settings["folder_notes"],
-        },
-        data_path=data_path,
-        root=root,
-        errors=errors,
-        error_code="P10_TEMPLATE_SETTING_DRIFT",
+    engine = _exact_setting(
+        data.get("templateEngine"),
+        "automatic",
+        policy="the KnowledgeOS period templates use Notebook Navigator's Templater resolver",
     )
-    return settings
+    if engine["state"] in {"drift", "invalid"}:
+        errors.append(
+            _error(
+                "P10_TEMPLATE_SETTING_DRIFT",
+                _relative(root, data_path) + "#/templateEngine",
+                "the owned period templates must retain the accepted Templater resolver",
+            )
+        )
+
+    calendar_template_folder = data.get("calendarTemplateFolder")
+    if calendar_template_folder not in (None, "") and not _safe_vault_relative_path(calendar_template_folder):
+        errors.append(
+            _error(
+                "P10_PATH_ESCAPE",
+                _relative(root, data_path) + "#/calendarTemplateFolder",
+                "Notebook Navigator template folders must remain safe Vault-relative paths",
+            )
+        )
+
+    folder_templates = data.get("folderTemplates")
+    conflicts: list[str] = []
+    tolerated_count = 0
+    if isinstance(folder_templates, dict):
+        owned_roots = (
+            PurePosixPath("10_Journal/Daily"),
+            PurePosixPath("10_Journal/Weekly"),
+            PurePosixPath("10_Journal/Monthly"),
+        )
+        for folder in folder_templates:
+            if not isinstance(folder, str) or not _safe_vault_relative_path(folder):
+                conflicts.append("invalid_path")
+                continue
+            path = PurePosixPath(folder.rstrip("/"))
+            if any(path == owned or path in owned.parents or owned in path.parents for owned in owned_roots):
+                conflicts.append(folder)
+            else:
+                tolerated_count += 1
+    if conflicts:
+        errors.append(
+            _error(
+                "P10_PERIOD_TEMPLATE_OWNER_CONFLICT",
+                _relative(root, data_path) + "#/folderTemplates",
+                "additional folder templates cannot overlap KnowledgeOS-owned periodic-note paths",
+            )
+        )
+    return {
+        "template_engine": engine,
+        "calendar_template_folder": {
+            "state": "unknown" if "calendarTemplateFolder" not in data else "observed",
+            "configured": bool(calendar_template_folder),
+        },
+        "folder_templates": {
+            "state": "unknown" if folder_templates is None else "blocked" if conflicts else "pass",
+            "tolerated_user_mappings": tolerated_count,
+            "owned_path_conflicts": len(conflicts),
+        },
+        "template_commands": {
+            "state": "unknown" if "templateCommands" not in data else "observed",
+            "configured": bool(data.get("templateCommands")),
+        },
+        "folder_notes": {
+            "state": "unknown" if "enableFolderNotes" not in data else "observed",
+            "enabled": data.get("enableFolderNotes"),
+        },
+    }
 
 
 def _confirmation_policy(data: dict[str, Any], *, data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
@@ -552,14 +499,13 @@ def _mapping_contract(
         "monthly_template": P10_MONTHLY_TEMPLATE,
         "calendar_enabled": True,
         "integration_mode": "notebook-navigator",
-        "locale_source": "calendar",
     }
     checks: dict[str, dict[str, Any]] = {}
     for name, expected_value in expected.items():
         record = _exact_setting(
             observed[name],
             expected_value,
-            policy="exact installed-version mapping; no cross-release token or key inference",
+            policy="required KnowledgeOS-owned periodic mapping",
         )
         checks[name] = record
         if record["state"] in {"drift", "invalid"}:
@@ -568,6 +514,15 @@ def _mapping_contract(
                     "P10_PERIOD_MAPPING_DRIFT",
                     _relative(root, data_path) + f"#/{name}",
                     f"Notebook Navigator mapping {name} does not match the accepted period-note contract",
+                )
+            )
+    for name in ("periodic_notes_folder", "daily_template", "weekly_template", "monthly_template"):
+        if observed[name] is not None and not _safe_vault_relative_path(observed[name]):
+            errors.append(
+                _error(
+                    "P10_PATH_ESCAPE",
+                    _relative(root, data_path) + f"#/{name}",
+                    "Notebook Navigator owned paths must remain confined to safe Vault-relative paths",
                 )
             )
     mapping_state = "pass" if all(record["state"] == "pass" for record in checks.values()) else "unknown" if any(record["state"] == "unknown" for record in checks.values()) else "blocked"
@@ -645,23 +600,13 @@ def _mutation_policy(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _fallback_contract(root: Path) -> dict[str, Any]:
-    core_plugins_path = root / "KnowledgeHub/.obsidian-mac/core-plugins.json"
-    core_plugins, error = _read_json(core_plugins_path)
-    observed = core_plugins.get("file-explorer") if isinstance(core_plugins, dict) else None
-    if error == "missing":
-        state = "unknown"
-    elif observed is True:
-        state = "pass"
-    elif observed is False:
-        state = "blocked"
-    else:
-        state = "unknown"
+    del root
     return {
-        "state": state,
+        "state": "owned_by_P02",
         "core_file_explorer": {
-            "observed": observed,
             "expected": True,
-            "source": _relative(root, core_plugins_path) + "#/file-explorer",
+            "state": "not_assessed_by_P10",
+            "source": "P02 Core settings capability",
         },
         "plugin_free": True,
         "navigation": "Core File Explorer and reviewed canonical Markdown links",

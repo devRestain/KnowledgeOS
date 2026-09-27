@@ -350,6 +350,12 @@ def _read_community_plugin_ids(path: Path) -> list[str]:
     It is next to the profile's ``plugins/`` directory, not inside it.
     """
 
+    if path.is_symlink() or not path.is_file():
+        raise DiagnosticError(
+            "PLUGIN_CONFIG_INVALID",
+            f"community-plugins.json must be a regular file: {path.name}",
+            exit_code=EXIT_CONFIG_INVALID,
+        )
     value = _read_json_value(path)
     if not isinstance(value, list):
         raise DiagnosticError(
@@ -635,7 +641,21 @@ def _p01_optional_object(
     root: Path,
     errors: list[dict[str, str]],
 ) -> dict[str, Any] | None:
-    if not path.is_file() or path.is_symlink():
+    if path.is_symlink():
+        source_kind = {
+            "core-plugins.json": "CORE_CONFIG",
+            "manifest.json": "MANIFEST",
+            "data.json": "DATA",
+        }.get(path.name, "SETTING_SOURCE")
+        errors.append(
+            _issue(
+                f"PLUGIN_{source_kind}_INVALID",
+                _p01_relative_path(root, path),
+                "serialized settings must not be a symlink",
+            )
+        )
+        return None
+    if not path.is_file():
         return None
     try:
         return _read_json_object(path)
@@ -912,7 +932,49 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
     profile_root = roots.vault / (".obsidian-mac" if profile == "mac" else ".obsidian")
     baseline = blueprint["plugin_profiles"]["mac_baseline"] if profile == "mac" else []
     expected = [{"id": item["id"], "role": item["role"]} for item in baseline]
-    if not profile_root.is_dir() or profile_root.is_symlink():
+
+    def unsafe_profile_path(code: str, locator: str, message: str) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        return {
+            "profile": profile,
+            "profile_root": str(profile_root),
+            "status": "FAIL",
+            "profile_state": "invalid",
+            "declared_capabilities": [
+                {**item, "state": "invalid", "reason": "unsafe_profile_path"}
+                for item in expected
+            ],
+            "unmanaged_plugins": [],
+            "fallback": "canonical_markdown_and_plugin_free_surface_available",
+            "setting_registry": {"schema_version": 1, "profile": profile, "entries": []},
+            "gui_contract": inspect_gui_contract(roots.control, profile),
+            "capability": _capability(
+                state="degraded",
+                declared="declared",
+                configured="invalid",
+                reachable="not_run",
+                authorized="not_applicable",
+                verified="not_run",
+                enabled="unknown",
+                healthy="not_ready",
+                reason="unsafe_profile_path",
+                evidence_class="static",
+                evidence=[locator],
+            ),
+            "serialized_deployment_evidence": "invalid",
+            "device_proof": {
+                "state": "not_inferred",
+                "evidence_class": "device",
+                "reason": "diagnostics_do_not_operate_obsidian",
+            },
+        }, [_issue(code, locator, message)]
+
+    if profile_root.is_symlink():
+        return unsafe_profile_path(
+            "PLUGIN_PROFILE_PATH_INVALID",
+            "/.obsidian-mac" if profile == "mac" else "/.obsidian",
+            "profile root must not be a symlink",
+        )
+    if not profile_root.is_dir():
         registry = _p01_registry(
             roots,
             profile=profile,
@@ -948,9 +1010,24 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             },
         }, []
     errors: list[dict[str, str]] = []
+    plugins_root = profile_root / "plugins"
+    if plugins_root.is_symlink():
+        return unsafe_profile_path(
+            "PLUGIN_DATA_ROOT_INVALID",
+            "/.obsidian-mac/plugins" if profile == "mac" else "/.obsidian/plugins",
+            "declared plugin data root must not be a symlink",
+        )
+    for item in expected:
+        plugin_root = plugins_root / item["id"]
+        if plugin_root.is_symlink():
+            return unsafe_profile_path(
+                "PLUGIN_DATA_ROOT_INVALID",
+                f"/plugins/{item['id']}",
+                "declared plugin data root must not be a symlink",
+            )
     community_path = profile_root / "community-plugins.json"
     installed: list[str] = []
-    if community_path.exists():
+    if community_path.exists() or community_path.is_symlink():
         try:
             installed = _read_community_plugin_ids(community_path)
         except DiagnosticError as error:
@@ -970,7 +1047,12 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         errors=errors,
     )
     gui_contract = inspect_gui_contract(roots.control, profile)
-    required_present = all(item["state"] == "installed" for item in declared_capabilities)
+    core_required = registry["core_setting_registry"].get("required_capabilities", {})
+    core_gaps = core_required.get("unavailable", []) if isinstance(core_required, dict) else []
+    required_present = (
+        all(item["state"] == "installed" for item in declared_capabilities)
+        and not core_gaps
+    )
     audit_status = "FAIL" if errors else "PASS" if required_present else "DEGRADED"
     evidence_status = "invalid" if errors else "pass" if required_present else "degraded"
     result = {
@@ -979,6 +1061,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         "status": audit_status,
         "profile_state": "configured",
         "declared_capabilities": declared_capabilities,
+        "degraded_core_capabilities": list(core_gaps),
         "unmanaged_plugins": unmanaged,
         "fallback": "canonical_markdown_and_plugin_free_surface_available",
         "setting_registry": registry,

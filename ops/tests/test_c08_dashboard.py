@@ -7,13 +7,11 @@ from support.control_factory import make_control_root
 
 from vaultops.base_dashboard import (
     BASE_NAMES,
-    DASHBOARD_PATHS,
-    dashboard_sources,
+    SYSTEM_DASHBOARD_PATHS,
     evaluate_records,
     load_frozen_fixture,
     render_base_documents,
     system_dashboard_sources,
-    user_dashboard_sources,
 )
 from vaultops.bootstrap import bootstrap
 from vaultops.note_engine import NoteEngine
@@ -146,46 +144,15 @@ def test_frozen_evaluator_enforces_canonical_limits_order_and_mtime() -> None:
     assert first_knowledge.endswith("Knowledge-03.md")
 
 
-def test_dashboard_sources_preserve_current_navigation_and_core_fallbacks() -> None:
-    sources = dashboard_sources()
-    assert tuple(sorted(sources)) == tuple(sorted(DASHBOARD_PATHS))
-    assert tuple(user_dashboard_sources()) == ("Home.md", "Mobile.md")
-    assert set(system_dashboard_sources()) == set(DASHBOARD_PATHS) - {"Home.md", "Mobile.md"}
+def test_system_dashboard_documents_are_owned_beneath_99_system() -> None:
+    sources = system_dashboard_sources()
+    assert tuple(sorted(sources)) == tuple(sorted(SYSTEM_DASHBOARD_PATHS))
+    assert all(path.startswith("99_System/") for path in sources)
 
-    home = sources["Home.md"]
     today_focus = sources["99_System/Dashboards/Today_Focus.md"]
-    mobile = sources["Mobile.md"]
     css = sources["99_System/CSS/dashboard.css"]
-    for marker in (
-        "[!ko-home-tasks]",
-        "[!ko-home-inbox]",
-        "[!ko-home-ai-review]",
-        "[!ko-home-projects]",
-        "[!ko-home-decisions]",
-        "[!ko-home-review]",
-        "[!ko-home-compass]",
-    ):
-        assert marker in home
-    assert home.index("ko-home-tasks") < home.index("ko-home-inbox") < home.index("ko-home-ai-review")
-    assert home.index("ko-home-ai-review") < home.index("ko-home-projects") < home.index("ko-home-decisions")
-    assert home.index("ko-home-projects") < home.index("ko-home-decisions") < home.index("ko-home-review")
-    assert home.index("ko-home-review") < home.index("ko-home-compass")
-    assert "Inbox.base#Unprocessed" in home
-    assert "Projects.base#Now" in home
-    assert "Decisions.base#Open" in home
-    assert "Sources.base#Reading queue" in home
-    assert "Review.base#PendingOrConflict" in home
-    assert "Compass.base#Signals" in home
-    assert "Compass.base#Tensions" in home
-    assert "Research Questions" not in home
-    assert "Knowledge.base#Radar" not in home
     assert "Journal.base#Today Focus" in today_focus
     assert "Today Focus 전체 보기" in today_focus
-    assert "Journal.base#Open Reviews" in home
-    assert "description regex matches /\\S/" in home
-    assert "QuickAdd" not in home
-    assert "vaultctl" not in home
-    assert "obsidian://" not in home
     assert ".knowledgeos-home" in css
     assert "grid-template-columns: repeat(12" in css
     assert 'data-callout="ko-home-tasks"]' in css
@@ -198,20 +165,12 @@ def test_dashboard_sources_preserve_current_navigation_and_core_fallbacks() -> N
     assert "grid-column: span 12;" in css
     assert "grid-column: span 6;" in css
     assert "@media (max-width: 899px)" in css
-    assert "shortcuts://run-shortcut?name=KO%20%C2%B7%20Defer%20to%20Mac" in mobile
-    assert "Projects.base#Mobile|프로젝트 전체 보기" in mobile
-    assert "snapshot" in mobile
 
     engine = NoteEngine.from_root(CONTROL_ROOT)
-    for relative in (
-        "Home.md",
-        "Mobile.md",
-        "99_System/Dashboards/Tasks.md",
-        "99_System/Dashboards/Today_Focus.md",
-        "99_System/Dashboards/Weekly_Review.md",
-    ):
-        result = engine.validate_text(relative, sources[relative])
-        assert result.passed, {"path": relative, "errors": result.as_dict()}
+    for relative, source in sources.items():
+        if relative.endswith(".md"):
+            result = engine.validate_text(relative, source)
+            assert result.passed, {"path": relative, "errors": result.as_dict()}
 
 
 def test_bootstrap_includes_c08_surface_without_overwriting_or_creating_sentinel(tmp_path: Path) -> None:

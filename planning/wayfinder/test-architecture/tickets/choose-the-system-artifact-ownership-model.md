@@ -90,8 +90,12 @@ generator producing a default does not by itself own the deployed copy.
   QuickAdd scripts, and system CSS in one explicit `99_System` deployment
   allowlist. The allowlist owns only named files, never all descendants.
 - Split `dashboard_sources()` conceptually into user defaults (`Home.md` and
-  `Mobile.md`) and `99_System` outputs. Test both renderers in memory, but permit
-  exact deployed comparison only for the latter.
+  `Mobile.md`) and `99_System` outputs. Keep both outputs available to
+  create-only bootstrap, but limit document-structure assertions and validation
+  to the system-owned outputs. The user clarified on 2026-09-27 that root-note
+  and ordinary-document structure is not a regression contract; this supersedes
+  the earlier wording to test both renderers in memory. Permit exact deployed
+  comparison only for the `99_System` outputs.
 - Remove `KnowledgeHub/.vault-bridge/protocol/request.schema.json` and
   `response.schema.json` from generated-artifact ownership. Keep the canonical
   schemas under `ops/schemas`; bridge operations already consume the control

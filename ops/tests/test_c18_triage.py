@@ -3,11 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.cli import main
 from vaultops.triage import deterministic_triage
@@ -18,12 +14,7 @@ DAILY = "10_Journal/Daily/2026/2026-09-09.md"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    return root
+    return make_portable_fixture_root(tmp_path)
 
 
 def _files(root: Path) -> dict[str, bytes]:

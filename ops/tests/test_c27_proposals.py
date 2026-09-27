@@ -5,11 +5,7 @@ import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.action_proposals import (
     generate_draft_note_proposal,
@@ -19,7 +15,6 @@ from vaultops.action_proposals import (
 )
 from vaultops.cli import main
 from vaultops.fragments import daily_fragment_bytes
-from vaultops.pipeline_registry import dispatch_user_action
 from vaultops.proposals import approve_proposal, review_proposals
 from vaultops.triage import deterministic_triage
 
@@ -30,18 +25,7 @@ CANDIDATE = "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화�
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    for relative in (
-        "01_AI_Review/Pending",
-        "01_AI_Review/Resolved",
-        "01_AI_Review/Rejected",
-    ):
-        (root / "KnowledgeHub" / relative).mkdir(parents=True, exist_ok=True)
-    return root
+    return make_portable_fixture_root(tmp_path, review_queues=True)
 
 
 def _digest(root: Path, relative: str) -> str:
@@ -193,19 +177,6 @@ def test_normalize_proposal_is_hash_bound_and_does_not_write_target(tmp_path: Pa
     assert report["proposal"]["requested_mutations"][0]["operation"] == "update_note"
     assert report["proposal"]["target"]["expected_sha256"] == source_hash
     assert source_file.read_bytes() == before
-
-
-def test_c20_routes_identify_executable_and_controlled_unsupported_states(tmp_path: Path) -> None:
-    root = _fresh_control_copy(tmp_path)
-    extract, extract_code = dispatch_user_action(root, "extract")
-    organize, organize_code = dispatch_user_action(root, "organize")
-    summarize, summarize_code = dispatch_user_action(root, "summarize")
-
-    assert extract_code == organize_code == summarize_code == 0
-    assert extract["execution"] == "executable"
-    assert organize["execution"] == "controlled_unsupported"
-    assert summarize["execution"] == "controlled_unsupported"
-    assert organize["unsupported_reason"]
 
 
 def test_c27_cli_writes_only_pending_proposal(tmp_path: Path, capsys) -> None:

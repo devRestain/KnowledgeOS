@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 P04_TEMPLATER_REGISTRY_SCHEMA_VERSION = 1
@@ -198,7 +198,17 @@ def _template_records(
             "placeholder_tokens": [],
             "static_evidence": "not_observed",
         }
-        if not vault_present or path.is_symlink() or not path.is_file():
+        if (
+            not vault_present
+            or template_folder != P04_CANONICAL_TEMPLATE_FOLDER
+            or PurePosixPath(template_name).name != template_name
+            or template_name in {".", ".."}
+            or any(
+                candidate.is_symlink()
+                for candidate in (root / "KnowledgeHub", root / "KnowledgeHub/99_System", folder_path, path)
+            )
+            or not path.is_file()
+        ):
             records.append(record)
             continue
         try:
@@ -256,6 +266,8 @@ def _template_records(
 def _setting_state(value: Any, *, expected: Any, disabled_state: str = "disabled") -> dict[str, Any]:
     if value is None:
         return {"observed": None, "state": "unknown"}
+    if isinstance(expected, bool) and not isinstance(value, bool):
+        return {"observed": "invalid", "state": "invalid"}
     if value == expected:
         return {"observed": value, "state": disabled_state}
     return {"observed": value, "state": "enabled"}
@@ -274,9 +286,25 @@ def _folder_mapping_state(value: Any) -> str:
         return "unknown"
     if not isinstance(value, list):
         return "invalid"
-    if value == [{"folder": "", "template": ""}]:
-        return "empty"
-    return "configured"
+    active_mappings: list[dict[str, Any]] = []
+    for mapping in value:
+        if not isinstance(mapping, dict):
+            return "invalid"
+        folder = mapping.get("folder", "")
+        template = mapping.get("template", "")
+        if folder in (None, "") and template in (None, ""):
+            continue
+        if template in (None, ""):
+            continue
+        if not isinstance(folder, str) or not folder or not isinstance(template, str):
+            return "invalid"
+        normalized = PurePosixPath(folder.replace("\\", "/"))
+        if normalized.is_absolute() or ".." in normalized.parts:
+            return "invalid"
+        if normalized.parts and normalized.parts[0] == "99_System":
+            return "protected"
+        active_mappings.append(mapping)
+    return "configured" if active_mappings else "empty"
 
 
 def _file_mapping_state(value: Any) -> str:
@@ -284,9 +312,29 @@ def _file_mapping_state(value: Any) -> str:
         return "unknown"
     if not isinstance(value, list):
         return "invalid"
-    if value == [{"regex": ".*", "template": ""}]:
-        return "empty"
-    return "configured"
+    for mapping in value:
+        if not isinstance(mapping, dict):
+            return "invalid"
+        regex = mapping.get("regex", "")
+        template = mapping.get("template", "")
+        if template in (None, ""):
+            continue
+        if not isinstance(regex, str) or not regex or not isinstance(template, str):
+            return "invalid"
+        # File-name mappings have no folder scope and could target 99_System.
+        return "unscoped"
+    return "empty"
+
+
+def _startup_templates_setting(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {"observed": None, "state": "unknown"}
+    if not isinstance(value, list):
+        return {"observed": "invalid", "state": "invalid"}
+    configured = [template for template in value if template not in (None, "")]
+    if configured:
+        return {"observed": value, "state": "configured"}
+    return {"observed": value, "state": "empty"}
 
 
 def build_templater_setting_registry(
@@ -331,10 +379,16 @@ def build_templater_setting_registry(
     folder_state = "pass" if expected_folder == P04_CANONICAL_TEMPLATE_FOLDER else "drift"
     if folder_state != "pass":
         errors.append(_error("P04_TEMPLATE_FOLDER_DRIFT", "blueprint/blueprint.yaml#/templates/directory", "P04 requires the canonical template folder"))
+    period_templates = [
+        name for name in (P04_WEEKLY_TEMPLATE, P04_MONTHLY_TEMPLATE) if name in required
+    ]
+    for period_template in (P04_WEEKLY_TEMPLATE, P04_MONTHLY_TEMPLATE):
+        if period_template not in required:
+            errors.append(_error("P04_BLUEPRINT_PERIOD_TEMPLATE_MISSING", "blueprint/blueprint.yaml#/templates/required", f"required period template {period_template} is missing"))
     template_records = _template_records(
         root=root,
         template_folder=str(expected_folder or ""),
-        required=required,
+        required=period_templates,
         note_types=note_types,
         errors=errors,
     )
@@ -352,19 +406,24 @@ def build_templater_setting_registry(
     template_hotkeys = data.get("enabled_templates_hotkeys") if isinstance(data, dict) else None
     pairs = data.get("templates_pairs") if isinstance(data, dict) else None
 
-    if trigger is True:
+    trigger_state = _setting_state(trigger, expected=False)
+    system_commands_state = _setting_state(system_commands, expected=False)
+    if trigger_state["state"] in {"enabled", "invalid"}:
         errors.append(_error("P04_GLOBAL_NEW_FILE_TRIGGER_ENABLED", _relative(root, data_path) + "#/trigger_on_file_creation", "global new-file Templater trigger must remain disabled"))
-    if system_commands is True:
+    if system_commands_state["state"] in {"enabled", "invalid"}:
         errors.append(_error("P04_SYSTEM_COMMANDS_ENABLED", _relative(root, data_path) + "#/enable_system_commands", "Templater system commands must remain disabled"))
-    if _path_value_state(shell_path) == "present":
+    if _path_value_state(shell_path) in {"present", "invalid"}:
         errors.append(_error("P04_SHELL_PATH_CONFIGURED", _relative(root, data_path) + "#/shell_path", "Templater shell path must remain empty"))
-    if _path_value_state(user_scripts) == "present":
+    if _path_value_state(user_scripts) in {"present", "invalid"}:
         errors.append(_error("P04_USER_SCRIPTS_CONFIGURED", _relative(root, data_path) + "#/user_scripts_folder", "Templater user scripts folder must remain empty"))
-    if _folder_mapping_state(folder_templates) == "configured":
-        errors.append(_error("P04_FOLDER_MAPPING_CONFIGURED", _relative(root, data_path) + "#/folder_templates", "folder template mappings must remain empty"))
-    if _file_mapping_state(file_templates) == "configured":
-        errors.append(_error("P04_FILE_MAPPING_CONFIGURED", _relative(root, data_path) + "#/file_templates", "file template mappings must remain empty"))
-    if isinstance(startup_templates, list) and startup_templates != [""]:
+    folder_mapping_state = _folder_mapping_state(folder_templates)
+    file_mapping_state = _file_mapping_state(file_templates)
+    if folder_mapping_state in {"protected", "invalid"}:
+        errors.append(_error("P04_PROTECTED_FOLDER_MAPPING_CONFIGURED", _relative(root, data_path) + "#/folder_templates", "Templater folder mappings must not target protected 99_System paths or use unsafe scope"))
+    if file_mapping_state in {"unscoped", "invalid"}:
+        errors.append(_error("P04_UNSCOPED_FILE_MAPPING_CONFIGURED", _relative(root, data_path) + "#/file_templates", "Templater file mappings must not run across unscoped paths that could include protected system files"))
+    startup_setting = _startup_templates_setting(startup_templates)
+    if startup_setting["state"] in {"configured", "invalid"}:
         errors.append(_error("P04_STARTUP_TEMPLATE_CONFIGURED", _relative(root, data_path) + "#/startup_templates", "startup templates must remain empty"))
 
     template_folder_setting = {
@@ -378,22 +437,22 @@ def build_templater_setting_registry(
     folder_mapping = {
         "enabled_flag": enable_folder,
         "enabled_state": "unknown" if enable_folder is None else "enabled" if enable_folder is True else "disabled",
-        "mapping_state": _folder_mapping_state(folder_templates),
-        "effective_state": "unconfigured" if _folder_mapping_state(folder_templates) == "empty" else _folder_mapping_state(folder_templates),
-        "policy": "an observed true flag with a blank mapping is inert and remains unconfigured until explicitly mapped",
+        "mapping_state": folder_mapping_state,
+        "effective_state": "unconfigured" if folder_mapping_state == "empty" else folder_mapping_state,
+        "policy": "user mappings outside protected 99_System paths are user-owned and tolerated",
     }
     file_mapping = {
         "enabled_flag": enable_file,
         "enabled_state": "unknown" if enable_file is None else "enabled" if enable_file is True else "disabled",
-        "mapping_state": _file_mapping_state(file_templates),
-        "effective_state": "unconfigured" if _file_mapping_state(file_templates) == "empty" else _file_mapping_state(file_templates),
+        "mapping_state": file_mapping_state,
+        "effective_state": "unconfigured" if file_mapping_state == "empty" else file_mapping_state,
     }
 
     policy_capabilities = {
-        "system_commands": _setting_state(system_commands, expected=False),
+        "system_commands": system_commands_state,
         "shell_execution": {"observed": _path_value_state(shell_path), "state": "disabled" if _path_value_state(shell_path) == "empty" else _path_value_state(shell_path)},
         "user_scripts": {"observed": _path_value_state(user_scripts), "state": "disabled" if _path_value_state(user_scripts) == "empty" else _path_value_state(user_scripts)},
-        "startup_templates": _list_setting(startup_templates, empty=[""]),
+        "startup_templates": startup_setting,
         "arbitrary_folder_mappings": {"observed": folder_mapping["mapping_state"], "state": "unconfigured" if folder_mapping["mapping_state"] == "empty" else folder_mapping["mapping_state"]},
         "arbitrary_file_mappings": {"observed": file_mapping["mapping_state"], "state": "unconfigured" if file_mapping["mapping_state"] == "empty" else file_mapping["mapping_state"]},
         "network": {"observed": "not_observed", "state": "forbidden_by_contract"},

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
+from support.control_factory import C40_LOCAL_CONTROL_INPUTS, make_control_root
 
 from vaultops.gemma_routes import GEMMA_MODEL_TAG
 from vaultops.ollama import OllamaClient, OllamaProfile
@@ -34,7 +34,7 @@ def _digest(value: bytes) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    return make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS, with_vault=False)
+    return make_control_root(tmp_path, C40_LOCAL_CONTROL_INPUTS, with_vault=False)
 
 
 def _job(root: Path, action: str) -> tuple[str, dict[str, Any]]:

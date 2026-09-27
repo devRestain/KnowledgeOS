@@ -60,14 +60,17 @@ def _positive_notes() -> list[tuple[str, dict, dict[str, str]]]:
     notes.append(("40_Knowledge/People/Ada.md", {**_common("person", "Ada", "active",), "organization": "Example"}, {}))
     notes.append(("50_Maps/Topics MOC.md", {**_common("moc", "Topics MOC", "active"), "scope": "A topic map"}, {}))
     notes.append(("60_Meetings/2026-09-09 — Review.md", {**_common("meeting", "2026-09-09 — Review", "scheduled"), "meeting_at": "2026-09-09T10:00:00+09:00", "attendees": ["[[Ada]]"]}, {"Ada": "person"}))
-    notes.append(("Home.md", {**_common("home", "Home", "active", deterministic_id="home"), "purpose": "Desktop start", "audience": "desktop"}, {}))
     notes.append(("99_System/Readme.md", {**_common("system", "Readme", "active", deterministic_id="system-readme"), "purpose": "System contract"}, {}))
     return notes
 
 
 @pytest.mark.parametrize("path, properties, target_types", _positive_notes())
-def test_all_eighteen_note_types_have_valid_positive_fixtures(path: str, properties: dict, target_types: dict[str, str]) -> None:
-    result = _engine().validate_text(path, render_frontmatter(properties, "# body\n"), target_types=target_types)
+def test_non_dashboard_note_types_have_valid_positive_fixtures(
+    path: str,
+    properties: dict,
+    target_types: dict[str, str],
+) -> None:
+    result = _engine().validate_properties(properties, path, target_types=target_types)
     assert result.passed, result.as_dict()
 
 
@@ -139,4 +142,3 @@ def test_canonical_relation_requires_resolved_target_and_correct_direction() -> 
     properties["supports"] = ["[[Missing]]"]
     result = _engine().validate_properties(properties, "40_Knowledge/Notes/Claim.md", target_types={})
     assert any(error.code == "RELATION_TARGET_UNRESOLVED" for error in result.errors)
-

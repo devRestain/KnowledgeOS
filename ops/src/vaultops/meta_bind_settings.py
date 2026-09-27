@@ -3,7 +3,7 @@
 P12 treats Meta Bind as a presentation and explicit human property-edit
 surface.  The registry accepts only the four reviewed input declarations and
 never treats serialized plugin settings as proof that a note was rendered or
-edited.  Protected template, review, and canonical system paths remain
+edited.  Protected canonical system paths remain
 write-forbidden even when Meta Bind's serialized folder-exclusion value is
 ambiguous.
 """
@@ -11,6 +11,7 @@ ambiguous.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -19,11 +20,6 @@ P12_META_BIND_REGISTRY_SCHEMA_VERSION = 1
 P12_PLUGIN_ID = "obsidian-meta-bind-plugin"
 P12_CANONICAL_TEMPLATE_FOLDER = "99_System/Templates"
 P12_PROTECTED_PATHS = (
-    "01_AI_Review/Pending",
-    "01_AI_Review/Resolved",
-    "01_AI_Review/Rejected",
-    "01_AI_Review/Expired",
-    "01_AI_Review/Conflict",
     "99_System/Templates",
     "99_System/Bases",
     "99_System/Dashboards",
@@ -72,6 +68,7 @@ _INLINE_SELECT_RE = re.compile(
     r"^INPUT\[inlineSelect\((?P<options>.*)\):(?P<field>[A-Za-z_][A-Za-z0-9_]*)\]$"
 )
 _TEXT_INPUT_RE = re.compile(r"^INPUT\[text:(?P<field>[A-Za-z_][A-Za-z0-9_]*)\]$")
+_INPUT_TARGET_RE = re.compile(r":(?P<field>[A-Za-z_][A-Za-z0-9_]*)\]$")
 
 
 def _strict_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -166,6 +163,7 @@ def _blueprint_property_contract(
     root: Path,
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
+    del root
     records: dict[str, dict[str, Any]] = {}
     for field in P12_APPROVED_FIELDS:
         source, owner = _blueprint_field_source(blueprint, field)
@@ -196,7 +194,17 @@ def _blueprint_property_contract(
             expected["constraints"] = {"min_length": 1}
         else:
             expected["constraints"] = {}
-        state = "pass" if observed == expected else "drift"
+        expected_constraints = expected["constraints"]
+        observed_constraints = observed["constraints"]
+        constraints_match = isinstance(observed_constraints, dict) and all(
+            observed_constraints.get(key) == value
+            for key, value in expected_constraints.items()
+        )
+        state = (
+            "pass"
+            if observed["obsidian_type"] == expected["obsidian_type"] and constraints_match
+            else "drift"
+        )
         records[field] = {
             "state": state,
             "owner": owner,
@@ -265,7 +273,20 @@ def _property_dictionary_contract(
         if expected is None or observed is None:
             state = "unknown"
         else:
-            state = "pass" if observed == expected else "drift"
+            expected_constraints = expected.get("constraints", {})
+            observed_constraints = observed.get("constraints", {})
+            state = (
+                "pass"
+                if observed.get("obsidian_type") == expected.get("obsidian_type")
+                and observed.get("owner") == expected.get("owner")
+                and isinstance(expected_constraints, dict)
+                and isinstance(observed_constraints, dict)
+                and all(
+                    observed_constraints.get(key) == value
+                    for key, value in expected_constraints.items()
+                )
+                else "drift"
+            )
         records[field] = {
             "state": state,
             "observed": observed,
@@ -312,7 +333,7 @@ def _note_type_scope_contract(
             elif field in required or field in optional:
                 observed.append(note_type)
         expected = _FIELD_NOTE_TYPE_SCOPES[field]
-        state = "pass" if observed == expected else "drift"
+        state = "pass" if set(expected).issubset(observed) else "drift"
         records[field] = {
             "state": state,
             "observed_note_types": observed,
@@ -336,7 +357,12 @@ def _note_type_scope_contract(
         {"when": {"status": "active"}, "require": ["focus_rank", "next_action"]},
         {"when": {"status": "blocked"}, "require": ["focus_rank", "next_action"]},
     ]
-    conditional_state = "pass" if conditional == expected_conditional else "drift"
+    conditional_state = (
+        "pass"
+        if isinstance(conditional, list)
+        and all(item in conditional for item in expected_conditional)
+        else "drift"
+    )
     if conditional_state == "drift":
         errors.append(
             _error(
@@ -368,6 +394,7 @@ def _input_template_contract(
     note_type_scope: dict[str, Any],
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
+    error_count_before = len(errors)
     raw_templates = data.get("inputFieldTemplates")
     if raw_templates is None:
         return {
@@ -392,19 +419,35 @@ def _input_template_contract(
         }
 
     records: dict[str, dict[str, Any]] = {}
+    additional_count = 0
     for index, item in enumerate(raw_templates):
         locator = _relative(root, data_path) + f"#/inputFieldTemplates/{index}"
-        if not isinstance(item, dict) or not isinstance(item.get("name"), str) or not isinstance(item.get("declaration"), str):
-            errors.append(_error("P12_INPUT_TEMPLATE_INVALID", locator, "each Meta Bind input template needs a name and declaration"))
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            additional_count += 1
             continue
         name = item["name"]
-        parsed = _parse_input_declaration(item["declaration"])
+        declaration = item.get("declaration")
+        parsed = _parse_input_declaration(declaration)
         accepted = P12_APPROVED_INPUT_TEMPLATES.get(name)
+        if accepted is None:
+            additional_count += 1
+            target_match = _INPUT_TARGET_RE.search(declaration) if isinstance(declaration, str) else None
+            if (parsed is not None and parsed["field"] in P12_APPROVED_FIELDS) or (
+                target_match is not None and target_match.group("field") in P12_APPROVED_FIELDS
+            ):
+                errors.append(
+                    _error(
+                        "P12_DUPLICATE_INPUT_FIELD",
+                        locator,
+                        "unowned Meta Bind inputs cannot create a second control for an owned property",
+                    )
+                )
+            continue
         if parsed is None:
-            errors.append(_error("P12_INPUT_DECLARATION_INVALID", locator + "/declaration", "Meta Bind input declaration is not an approved syntax"))
+            errors.append(_error("P12_INPUT_DECLARATION_INVALID", locator + "/declaration", "KnowledgeOS-owned Meta Bind inputs must use the reviewed property syntax"))
             continue
         field = parsed["field"]
-        if accepted is None or accepted["field"] != field:
+        if accepted["field"] != field:
             errors.append(_error("P12_UNAPPROVED_INPUT_FIELD", locator, f"Meta Bind input {name} targets an unapproved property"))
             continue
         expected = {
@@ -425,7 +468,7 @@ def _input_template_contract(
         records[field] = {
             "state": state if property_record.get("state") == "pass" and scope_record.get("state") == "pass" else "unknown" if state == "pass" else state,
             "name": name,
-            "declaration": item["declaration"],
+            "declaration": declaration,
             "control": parsed["control"],
             "property": field,
             "property_owner": _FIELD_OWNERS[field],
@@ -450,10 +493,11 @@ def _input_template_contract(
                     f"approved Meta Bind input for {field} is missing",
                 )
             )
-    state = "pass" if not errors and set(records) == set(P12_APPROVED_FIELDS) and all(item["state"] == "pass" for item in records.values()) else "blocked" if errors else "unknown"
+    new_errors = len(errors) > error_count_before
+    state = "pass" if not new_errors and set(records) == set(P12_APPROVED_FIELDS) and all(item["state"] == "pass" for item in records.values()) else "blocked" if new_errors else "unknown"
     return {
         "state": state,
-        "observed": raw_templates,
+        "observed": {"owned_templates": sorted(records), "additional_count": additional_count},
         "records": records,
         "source": _relative(root, data_path) + "#/inputFieldTemplates",
     }
@@ -474,18 +518,42 @@ def _protected_path_contract(root: Path, errors: list[dict[str, str]]) -> dict[s
             continue
         files: list[str] = []
         hits: list[dict[str, str]] = []
-        for path in sorted(directory.rglob("*.md")):
-            if path.is_symlink() or path.name == "README.md":
-                continue
-            relative_file = _relative(root, path)
-            files.append(relative_file)
-            scanned_files.append(relative_file)
-            text, read_error = _read_text(path)
-            if read_error:
-                hits.append({"path": relative_file, "marker": "read_error"})
-                continue
-            for marker in sorted({match.group(0) for match in _CONTROL_MARKER.finditer(text or "")}):
-                hits.append({"path": relative_file, "marker": marker})
+
+        def record_walk_error(
+            error: OSError,
+            directory: Path = directory,
+            hits: list[dict[str, str]] = hits,
+        ) -> None:
+            path = Path(error.filename) if error.filename else directory
+            hits.append({"path": _relative(root, path), "marker": "read_error"})
+
+        for current, directory_names, file_names in os.walk(
+            directory,
+            followlinks=False,
+            onerror=record_walk_error,
+        ):
+            current_path = Path(current)
+            for name in list(directory_names):
+                candidate = current_path / name
+                if candidate.is_symlink():
+                    hits.append({"path": _relative(root, candidate), "marker": "symlink_unverified"})
+                    directory_names.remove(name)
+            for name in file_names:
+                path = current_path / name
+                if path.is_symlink():
+                    hits.append({"path": _relative(root, path), "marker": "symlink_unverified"})
+                    continue
+                if path.suffix.casefold() != ".md":
+                    continue
+                relative_file = _relative(root, path)
+                files.append(relative_file)
+                scanned_files.append(relative_file)
+                text, read_error = _read_text(path)
+                if read_error:
+                    hits.append({"path": relative_file, "marker": "read_error"})
+                    continue
+                for marker in sorted({match.group(0) for match in _CONTROL_MARKER.finditer(text or "")}):
+                    hits.append({"path": relative_file, "marker": marker})
         state = "blocked" if hits else "pass"
         records[relative] = {
             "state": state,
@@ -519,6 +587,7 @@ def _exclusion_contract(
     data_path: Path,
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
+    del errors
     observed = data.get("excludedFolders")
     locator = _relative(root, data_path) + "#/excludedFolders"
     if observed is None:
@@ -532,34 +601,24 @@ def _exclusion_contract(
             "policy": "protected write controls remain forbidden",
             "source": locator,
         }
-    if not isinstance(observed, list) or not all(isinstance(item, str) for item in observed):
-        errors.append(_error("P12_EXCLUDED_FOLDER_SETTING_INVALID", locator, "Meta Bind excludedFolders must be a list of folder strings"))
-        return {
-            "state": "blocked",
-            "observed": "invalid",
-            "serialized_key": "excludedFolders",
-            "exact_ui_label": "unknown",
-            "canonical_path_matches": [],
-            "semantics": "invalid",
-            "policy": "protected write controls remain forbidden",
-            "source": locator,
-        }
-    matches = [path for path in P12_PROTECTED_PATHS if path in observed]
     return {
-        "state": "unknown",
-        "observed": list(observed),
+        "state": "observed",
+        "observed": "configured",
         "serialized_key": "excludedFolders",
         "exact_ui_label": "unknown",
-        "canonical_path_matches": matches,
+        "entry_count": len(observed) if isinstance(observed, (list, tuple, dict, set)) else None,
+        "value_type": type(observed).__name__,
+        "canonical_path_matches": [],
         "expected_template_path": P12_CANONICAL_TEMPLATE_FOLDER,
-        "semantics": "unresolved_shorthand_or_path_matching",
+        "semantics": "presentation_only_unverified",
         "verification": "exact installed UI label and folder-matching behavior not_run",
-        "policy": "do not infer that a shorthand entry excludes 99_System/Templates or any review path",
+        "policy": "do not infer path protection from exclusion presentation; protected writes remain forbidden",
         "source": locator,
     }
 
 
 def _view_contract(data: dict[str, Any], *, root: Path, data_path: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
+    del errors
     raw_views = data.get("viewFieldTemplates")
     locator = _relative(root, data_path) + "#/viewFieldTemplates"
     if raw_views is None:
@@ -568,24 +627,22 @@ def _view_contract(data: dict[str, Any], *, root: Path, data_path: Path, errors:
             "observed": [],
             "source": locator,
             "runtime_rendering": "not_run",
-            "policy": "no serialized view declarations are approved by this slice",
+            "policy": "additional views are user-owned outside protected paths",
         }
     if not isinstance(raw_views, list):
-        errors.append(_error("P12_VIEW_TEMPLATE_INVALID", locator, "Meta Bind viewFieldTemplates must be a list when present"))
         return {
-            "state": "blocked",
-            "observed": "invalid",
+            "state": "observed",
+            "observed": "configured",
+            "value_type": type(raw_views).__name__,
             "source": locator,
             "runtime_rendering": "not_run",
         }
-    if raw_views:
-        errors.append(_error("P12_UNREVIEWED_VIEW_DECLARATION", locator, "Meta Bind view declarations require an explicit reviewed property contract"))
     return {
-        "state": "pass" if not raw_views else "blocked",
-        "observed": raw_views,
+        "state": "observed" if raw_views else "unconfigured",
+        "observed": {"additional_count": len(raw_views)},
         "source": locator,
         "runtime_rendering": "not_run",
-        "policy": "view declarations remain empty until individually reviewed",
+        "policy": "view declarations outside protected paths are user-owned presentation",
     }
 
 

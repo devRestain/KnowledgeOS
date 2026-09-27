@@ -23,8 +23,8 @@ blocks:
 
 Which checks belong in the fast default regression, generated-artifact
 reconciliation, container integration, and separately authorized live/device
-tiers, and what count, duration, isolation, mutation, and failure-locality budget
-must the rebuilt suite satisfy?
+tiers, and which count, duration, isolation, mutation, and failure-locality
+measurements help describe the rebuilt suite?
 
 The answer must name canonical commands, marker or directory boundaries,
 sequential execution constraints, expected evidence classes, and invariance
@@ -33,17 +33,17 @@ retained responsibilities and failure detection are explicit.
 
 ## Findings
 
-- Three canonical baseline runs completed in 85.48, 88.95, and 96.02 seconds;
-  the median is 88.95 seconds. The latest profiled run passed all 431 cases.
-- No individual case exceeded two seconds. The cost is distributed across
-  repeated control-tree materialization and many valid integration boundaries,
-  not one pathological test.
-- Twenty-seven files currently copy the whole control checkout into a temporary
-  tree. This repeated broad setup is unnecessary when each test can declare its
-  Blueprint, policy, schema, fixture, Vault, and runtime inputs.
-- The accepted responsibility matrix reduces file count and snapshot overlap,
-  but test count alone cannot represent safety coverage. Runtime, source size,
-  forbidden inputs, and stable failure locality provide better budgets.
+- Historical canonical baselines completed in 85.48, 88.95, and 96.02 seconds;
+  the median is 88.95 seconds. The latest profiled baseline passed all 431
+  cases. These timings are context only.
+- Individual-case timings can help locate expensive setup or integration work,
+  but no per-case duration is a pass threshold.
+- The baseline inventory found twenty-seven files copying the whole control
+  checkout into a temporary tree. The current runner guard now reports zero
+  whole-control-copy violations within its declared scan patterns.
+- The accepted responsibility matrix reduces file count and snapshot overlap.
+  Test count and source size remain descriptive; hermeticity and stable failure
+  locality are the substantive criteria.
 - Pytest markers cannot make a live or deployed test safe: a forgotten marker
   expression can still collect it. External tiers therefore require distinct
   Make targets and must not live in the default pytest tree as live tests.
@@ -88,40 +88,40 @@ deployment inspection and live smoke.
 7. Use no `live`, `device`, or `deployment` pytest marker. Those capabilities
    are absent from default pytest and exist only as separate Make commands.
 
-### Structural budget
+### Structural and responsibility gate
 
-The rebuilt default suite must satisfy all of these hard gates:
+The rebuilt default suite must satisfy these hard gates:
 
 - zero reads or writes to the four real Vault/runtime aliases;
 - zero direct real-Vault references in collected test source;
 - zero whole-control or real-Vault `copytree` calls;
 - no real `.obsidian*` profile fixture and no total plugin-count assertion;
-- at most 57 `test_*.py` files after the five planned replacement files;
-- at most 11,750 Python lines beneath `ops/tests`, including support modules but
-  excluding generated cache files; and
 - no newly added test without a responsibility named in the accepted matrix or
   an explicit update to that matrix.
+
+The file-count and source-line ceilings previously proposed here were
+plan-generated quotas, not user requirements. The user clarified on 2026-09-27
+that test lifecycle clarity and retaining only necessary responsibilities are
+the requirements, and explicitly permitted exceeding either count. Therefore
+there is no numeric test-file or Python-line ceiling. Record current totals in
+the final handoff as diagnostic context, and remove or consolidate tests only
+when an accepted responsibility is redundant, obsolete, or owned elsewhere.
 
 Collected case count has no independent pass threshold. Parametrized cases may
 increase when they improve failure locality, but final handoff must explain the
 net count and map every addition and deletion to a responsibility.
 
-### Runtime budget
+### Runtime measurements (informational)
 
-Measure on the same canonical `dev` image and host used for the 88.95-second
-median baseline, after one unmeasured warm-up run:
+The user did not set a runtime limit. Earlier thresholds of 75 seconds per full
+run, a 72-second mean, 15 seconds for invariance, and two seconds per test were
+agent-added and are withdrawn as acceptance criteria. Record durations when
+useful for diagnosing changes, but do not repeat runs solely to satisfy those
+values or weaken a test responsibility to reduce runtime.
 
-- two consecutive `make test` runs must each finish in at most 75 seconds;
-- their arithmetic mean must finish in at most 72 seconds, a material reduction
-  from the baseline median;
-- `make test-invariance` must finish in at most 15 seconds;
-- no individual pytest call may exceed two seconds without a recorded reason
-  and a distinct integration responsibility; and
-- a focused single-file Make run must start, collect, and report the named file
-  without running unrelated tests.
-
-If host contention invalidates a timing run, record it as unmeasured and repeat;
-do not delete safety coverage to satisfy a noisy measurement.
+A focused single-file Make run must still start, collect, and report the named
+file without running unrelated tests; this is a runner-scope contract, not a
+timing threshold.
 
 ### Required invariance experiments
 
@@ -156,7 +156,9 @@ acceptance to prove it was not mutated.
 
 ## Consequences
 
-- The default gate becomes both structurally hermetic and measurably lighter.
+- The default gate becomes structurally hermetic and owns only current,
+  responsibility-mapped lifecycle checks; size totals remain visible without
+  forcing opaque compression or removal of necessary cases.
 - Deployment drift remains observable without coupling ordinary development to
   the user's active Vault.
 - Test and lint remain sequential, while focused Make runs preserve efficient

@@ -6,11 +6,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 from vaultops.cli import main
 from vaultops.pipeline_registry import (
@@ -26,12 +22,7 @@ CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    return root
+    return make_portable_fixture_root(tmp_path)
 
 
 def _write_blueprint(root: Path, mutate) -> None:
@@ -67,10 +58,14 @@ def test_c20_facade_dispatch_is_ready_and_read_only(tmp_path: Path) -> None:
 
     for route, expected_pipelines in USER_ACTION_ROUTES.items():
         report, code = dispatch_user_action(root, route)
+        unsupported = route in {"organize", "summarize", "inbox", "project-summary"}
         assert code == 0, report
         assert report["status"] == "READY"
         assert report["route"] == route
         assert report["pipelines"] == list(expected_pipelines)
+        assert report["execution"] == ("controlled_unsupported" if unsupported else "executable")
+        if unsupported:
+            assert report["unsupported_reason"]
         assert report["provider_called"] is False
         assert report["mutation_performed"] is False
 

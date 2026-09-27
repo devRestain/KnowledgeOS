@@ -38,9 +38,13 @@ making another product or ownership decision.
 - Canonical regression tests must not read or write the real mutable
   KnowledgeHub. Test-created `tmp_path/KnowledgeHub` trees are isolated fixtures,
   not live-Vault coupling.
-- If a deployed document must remain under an exact system contract, its path is
-  limited to `99_System`. Whether any such deployed-copy check belongs in the
-  default regression gate is an open decision.
+- Document-structure contract assertions are limited to system-owned documents
+  under `99_System`; root `Home.md`, `Mobile.md`, and ordinary-document structure
+  are not regression targets. Generic parser/schema tests may use synthetic
+  fixture text without reading mutable Vault documents.
+- Exact deployed-copy checks are limited to named `99_System` artifacts and the
+  explicit read-only `make vault-artifact-check` command. Default regression
+  tests document structure only for system-owned `99_System` outputs.
 - Plugin inspection is open-world: required capabilities and safety-critical
   values may be enforced, while unrelated additional plugins and unrelated keys
   remain user-owned.
@@ -63,13 +67,16 @@ making another product or ownership decision.
 - [Design the ephemeral smoke lifecycle](tickets/design-the-ephemeral-smoke-lifecycle.md): create one UUID-bound note under `99_System/Smoke`, require action and cleanup success, and auto-clean stale residue only when identity, journal, marker, and sealed digest all match.
 - [Choose the system-artifact ownership model](tickets/choose-the-system-artifact-ownership-model.md): keep exact default checks inside the control root, reserve deployed byte comparison for an explicit read-only `99_System` artifact command, and treat root notes, profiles, topology, identity, and bridge state as non-regression deployment surfaces.
 - [Retire overlapping and historical test contracts](tickets/retire-overlapping-and-historical-test-contracts.md): preserve unique fail-closed responsibilities, replace broad snapshots and current-workspace checks, consolidate P01-P12, and delete only after a named surviving owner passes.
-- [Set verification tiers and the regression budget](tickets/set-verification-tiers-and-the-regression-budget.md): use command-separated control, hermetic, container, deployment, and live tiers with zero live-path inputs, a 57-file and 11,750-line ceiling, and a measured 72-second mean target.
+- [Set verification tiers and the regression budget](tickets/set-verification-tiers-and-the-regression-budget.md): use command-separated control, hermetic, container, deployment, and live tiers with zero live-path inputs and responsibility-based test scope; treat test counts, source lines, and durations as informational measurements.
 - [Accept the implementation-ready T01 contract](tickets/accept-the-implementation-ready-t01-contract.md): implement the eight-stage migration and exact acceptance gates in [IMPLEMENTATION_CONTRACT.md](IMPLEMENTATION_CONTRACT.md).
 
 ## Decision graph
 
-Every decision is resolved. The implementation frontier begins at stage 1 of
-`IMPLEMENTATION_CONTRACT.md`, the hermetic runner and fixture harness.
+Every decision ticket is resolved. `status: complete` on this map means the
+decision chart is complete; implementation-stage progress and current
+verification evidence are recorded in
+[HANDOFF_20260927.md](HANDOFF_20260927.md) and `PROJECT_STATE.md`. The accepted
+eight-stage implementation has now been exercised through closure.
 
 ```mermaid
 flowchart LR
@@ -108,8 +115,11 @@ flowchart LR
   [IMPLEMENTATION_CONTRACT.md](IMPLEMENTATION_CONTRACT.md).
 - Exact keep/rewrite/consolidate/delete actions:
   [RESPONSIBILITY_MATRIX.md](RESPONSIBILITY_MATRIX.md).
-- Begin with the Make/Compose/pytest hermetic harness. Do not delete tests or
-  touch the real Vault before replacement owners and isolation guards pass.
+- Stage-by-stage implementation evidence and the latest verification result:
+  [HANDOFF_20260927.md](HANDOFF_20260927.md).
+- All eight migration stages have been implemented and passed their latest
+  canonical acceptance run. Deployment artifact inspection, profile checks, and
+  live smoke remain separate and unrun unless separately authorized.
 
 ## Out of scope
 
@@ -137,5 +147,6 @@ accepted implementation contract identifies:
 3. required plugin and setting invariants;
 4. exact keep/rewrite/merge/delete actions;
 5. the isolated fixture and live-smoke cleanup model;
-6. verification tiers, performance budget, and acceptance commands; and
+6. verification tiers, informational performance measurements, and acceptance
+   commands; and
 7. state, documentation, and handoff updates required for closure.

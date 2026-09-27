@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from support.control_factory import make_identity_root
 
 from vaultops.obsidian_status import (
     EXIT_DEGRADED,
@@ -13,16 +14,21 @@ from vaultops.obsidian_status import (
     _ProbeResult,
 )
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
-
 
 def _run_probe(result: _ProbeResult):
     return lambda _path: result
 
 
-def test_status_adapter_uses_one_fixed_version_probe_and_does_not_infer_device_connection() -> None:
+@pytest.fixture
+def identity_root(tmp_path: Path) -> Path:
+    return make_identity_root(tmp_path)
+
+
+def test_status_adapter_uses_one_fixed_version_probe_and_does_not_infer_device_connection(
+    identity_root: Path,
+) -> None:
     report, exit_code = _collect_status(
-        CONTROL_ROOT,
+        identity_root,
         executable_resolver=lambda _name: "/private/fake/obsidian",
         probe=_run_probe(_ProbeResult(0, b"Obsidian 1.13.7\n", b"")),
     )
@@ -38,9 +44,11 @@ def test_status_adapter_uses_one_fixed_version_probe_and_does_not_infer_device_c
     assert report["adapter"]["capabilities"]["document_operations"] is False
 
 
-def test_status_adapter_accepts_installer_suffix_from_obsidian_cli() -> None:
+def test_status_adapter_accepts_installer_suffix_from_obsidian_cli(
+    identity_root: Path,
+) -> None:
     report, exit_code = _collect_status(
-        CONTROL_ROOT,
+        identity_root,
         executable_resolver=lambda _name: "/private/fake/obsidian",
         probe=_run_probe(_ProbeResult(0, b"1.13.7 (installer 1.9.14)\n", b"")),
     )
@@ -80,10 +88,10 @@ def test_status_adapter_accepts_installer_suffix_from_obsidian_cli() -> None:
     ),
 )
 def test_status_adapter_fails_closed_for_untrusted_probe_states(
-    probe: _ProbeResult, state: str, code: str
+    identity_root: Path, probe: _ProbeResult, state: str, code: str
 ) -> None:
     report, exit_code = _collect_status(
-        CONTROL_ROOT,
+        identity_root,
         executable_resolver=lambda _name: "/private/fake/obsidian",
         probe=_run_probe(probe),
     )
@@ -94,7 +102,9 @@ def test_status_adapter_fails_closed_for_untrusted_probe_states(
     assert report["errors"][0]["code"] == code
 
 
-def test_status_adapter_reports_missing_path_without_attempting_a_command() -> None:
+def test_status_adapter_reports_missing_path_without_attempting_a_command(
+    identity_root: Path,
+) -> None:
     called = False
 
     def fail_if_called(_path: str) -> _ProbeResult:
@@ -103,7 +113,7 @@ def test_status_adapter_reports_missing_path_without_attempting_a_command() -> N
         raise AssertionError("missing PATH must not spawn a process")
 
     report, exit_code = _collect_status(
-        CONTROL_ROOT,
+        identity_root,
         executable_resolver=lambda _name: None,
         probe=fail_if_called,
     )
@@ -114,9 +124,11 @@ def test_status_adapter_reports_missing_path_without_attempting_a_command() -> N
     assert called is False
 
 
-def test_status_adapter_classifies_signal_abort_without_output_as_cli_failure() -> None:
+def test_status_adapter_classifies_signal_abort_without_output_as_cli_failure(
+    identity_root: Path,
+) -> None:
     report, exit_code = _collect_status(
-        CONTROL_ROOT,
+        identity_root,
         executable_resolver=lambda _name: "/Applications/Obsidian.app/Contents/MacOS/obsidian",
         probe=_run_probe(_ProbeResult(-6, b"", b"")),
     )

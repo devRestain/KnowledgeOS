@@ -24,7 +24,7 @@ services:
         target: /workspace/runtime
         read_only: true
     tmpfs:
-      - /tmp:rw,nosuid,nodev,mode=1777
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true

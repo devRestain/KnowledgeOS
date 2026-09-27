@@ -5,11 +5,7 @@ import json
 import uuid
 from pathlib import Path
 
-from support.control_factory import (
-    APPLICATION_CONTROL_INPUTS,
-    make_control_root,
-    populate_vault_from_fixture,
-)
+from support.control_factory import make_portable_fixture_root
 
 import vaultops.proposals as proposals_module
 from vaultops.note_engine import render_frontmatter
@@ -21,18 +17,7 @@ SOURCE_PATH = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
-    populate_vault_from_fixture(
-        root,
-        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
-    )
-    for relative in (
-        "01_AI_Review/Pending",
-        "01_AI_Review/Resolved",
-        "01_AI_Review/Rejected",
-    ):
-        (root / "KnowledgeHub" / relative).mkdir(parents=True, exist_ok=True)
-    return root
+    return make_portable_fixture_root(tmp_path, review_queues=True)
 
 
 def _proposal(root: Path, title: str) -> tuple[str, str, Path]:
@@ -148,6 +133,103 @@ def test_rejection_recovers_after_pending_rewrite_fault_and_replays_noop(
     assert resumed["replayed"] is True
     assert (root / "KnowledgeHub" / resumed["closed_path"]).is_file()
     assert (root / "runtime/receipts" / f"{resumed['receipt']['proposal_id']}-proposal-rejection.json").is_file()
+
+    replay, replay_code = reject_proposal(
+        root,
+        proposal_path=proposal_path,
+        expected_sha256=proposal_hash,
+        reason="Human review declined this proposal.",
+    )
+    assert replay_code == 0
+    assert replay["status"] == "NO_OP"
+    assert replay["replayed"] is True
+
+
+def test_rejection_recovers_same_request_after_initial_pending_write_fault(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = _fresh_control_copy(tmp_path)
+    proposal_path, proposal_hash, proposal_file = _proposal(root, "C28 Initial Write Fault")
+    original_bytes = proposal_file.read_bytes()
+    original_write = proposals_module.write_note_file
+
+    def fail_before_write(*_args, **_kwargs):
+        raise OSError("simulated interruption before the pending rewrite")
+
+    monkeypatch.setattr(proposals_module, "write_note_file", fail_before_write)
+    interrupted, interrupted_code = reject_proposal(
+        root,
+        proposal_path=proposal_path,
+        expected_sha256=proposal_hash,
+        reason="Human review declined this proposal.",
+    )
+    assert interrupted_code == 10
+    assert interrupted["status"] == "FAIL"
+    assert proposal_file.read_bytes() == original_bytes
+    monkeypatch.setattr(proposals_module, "write_note_file", original_write)
+
+    resumed, resumed_code = reject_proposal(
+        root,
+        proposal_path=proposal_path,
+        expected_sha256=proposal_hash,
+        reason="Human review declined this proposal.",
+    )
+
+    assert resumed_code == 0, resumed
+    assert resumed["status"] == "PASS"
+    assert resumed["replayed"] is True
+    assert not proposal_file.exists()
+    assert (root / "KnowledgeHub" / resumed["closed_path"]).is_file()
+    assert (
+        root
+        / "runtime/receipts"
+        / f"{resumed['receipt']['proposal_id']}-proposal-rejection.json"
+    ).is_file()
+
+
+def test_rejection_recovers_completed_journal_when_receipt_was_not_published(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = _fresh_control_copy(tmp_path)
+    proposal_path, proposal_hash, _proposal_file = _proposal(root, "C28 Missing Receipt")
+    original_create_only_json = proposals_module._create_only_json
+
+    def fail_rejection_receipt(path: Path, payload):
+        if path.name.endswith("-proposal-rejection.json"):
+            raise OSError("simulated interruption before receipt publication")
+        original_create_only_json(path, payload)
+
+    monkeypatch.setattr(proposals_module, "_create_only_json", fail_rejection_receipt)
+    interrupted, interrupted_code = reject_proposal(
+        root,
+        proposal_path=proposal_path,
+        expected_sha256=proposal_hash,
+        reason="Human review declined this proposal.",
+    )
+    assert interrupted_code == 10
+    assert interrupted["status"] == "FAIL"
+
+    journal_path = next((root / "runtime/runs").glob("*/journal.jsonl"))
+    records = [json.loads(line) for line in journal_path.read_text(encoding="utf-8").splitlines()]
+    assert records[-1]["state"] == "completed"
+    receipt_path = (
+        root
+        / "runtime/receipts"
+        / f"{records[0]['job_id']}-proposal-rejection.json"
+    )
+    assert not receipt_path.exists()
+    monkeypatch.setattr(proposals_module, "_create_only_json", original_create_only_json)
+
+    recovered, recovered_code = reject_proposal(
+        root,
+        proposal_path=proposal_path,
+        expected_sha256=proposal_hash,
+        reason="Human review declined this proposal.",
+    )
+    assert recovered_code == 0, recovered
+    assert recovered["status"] == "PASS"
+    assert recovered["replayed"] is True
+    assert receipt_path.is_file()
 
     replay, replay_code = reject_proposal(
         root,

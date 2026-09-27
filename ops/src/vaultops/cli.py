@@ -79,6 +79,13 @@ from .retrieval import (
 )
 from .safety_gates import SafetyGateError, evaluate_quality_fixture
 from .schema_export import export_schema_artifacts
+from .smoke import (
+    SmokeError,
+    plan_smoke,
+    recover_smoke,
+    run_smoke,
+    smoke_evidence_observations,
+)
 from .thin_client import ThinClientError, client_contract_report, render_markdown_fallback
 from .thin_client_http import (
     MAX_BEARER_TOKEN_BYTES,
@@ -372,6 +379,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="mounted control root",
     )
+
+    smoke = commands.add_parser(
+        "smoke",
+        help="plan or explicitly authorize one bounded temporary Vault smoke",
+    )
+    smoke_commands = smoke.add_subparsers(dest="smoke_command", required=True)
+    smoke_plan = smoke_commands.add_parser("plan", help="show fixed smoke effects without writing")
+    smoke_plan.add_argument("--kind", choices=("filesystem",), required=True)
+    smoke_plan.add_argument("--adapter", choices=("filesystem-roundtrip",), required=True)
+    smoke_plan.add_argument("--timeout-seconds", type=int, default=30)
+    smoke_plan.add_argument("--root", type=Path, default=None, help="mounted control root")
+    smoke_run = smoke_commands.add_parser("run", help="run one authorized bounded smoke")
+    smoke_run.add_argument("--kind", choices=("filesystem",), required=True)
+    smoke_run.add_argument("--adapter", choices=("filesystem-roundtrip",), required=True)
+    smoke_run.add_argument("--timeout-seconds", type=int, required=True)
+    smoke_run.add_argument("--authorize-live-smoke", action="store_true", required=True)
+    smoke_run.add_argument("--root", type=Path, default=None, help="mounted control root")
+    smoke_recover = smoke_commands.add_parser("recover", help="recover one journal-bound stale smoke")
+    smoke_recover.add_argument("--run-id", required=True)
+    smoke_recover.add_argument("--authorize-live-smoke", action="store_true", required=True)
+    smoke_recover.add_argument("--root", type=Path, default=None, help="mounted control root")
 
     export = commands.add_parser("export", help="publish deterministic runtime projections")
     export_commands = export.add_subparsers(dest="export_command", required=True)
@@ -1217,6 +1245,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = check_vault_artifacts(args.root or _control_root())
         print(result.as_json(), end="")
         return result.exit_code
+    if args.command == "smoke":
+        root = args.root or _control_root()
+        try:
+            if args.smoke_command == "plan":
+                report = plan_smoke(
+                    root,
+                    kind=args.kind,
+                    adapter=args.adapter,
+                    timeout_seconds=args.timeout_seconds,
+                )
+            elif args.smoke_command == "run":
+                report = run_smoke(
+                    root,
+                    kind=args.kind,
+                    adapter=args.adapter,
+                    authorized=args.authorize_live_smoke,
+                    timeout_seconds=args.timeout_seconds,
+                )
+            else:
+                report = recover_smoke(
+                    root,
+                    run_id=args.run_id,
+                    authorized=args.authorize_live_smoke,
+                )
+        except SmokeError as error:
+            report = {
+                "operation": f"smoke {args.smoke_command}",
+                "status": "NO_EFFECT_FAILURE",
+                "error": {"code": error.code, "message": str(error)},
+                "observations": smoke_evidence_observations(static="fail"),
+            }
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        if report["status"] == "PASS":
+            return 0
+        if report["status"] in {"CONFLICT", "CLEANUP_CONFLICT"}:
+            return 11
+        return 1
     if args.command == "export" and args.export_command == "jsonl":
         report, exit_code = export_jsonl(
             args.root or _control_root(),

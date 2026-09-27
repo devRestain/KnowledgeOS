@@ -70,8 +70,8 @@ def _home_quick_capture(blueprint: dict[str, Any]) -> tuple[list[str], list[str]
     if not isinstance(hotkeys, list) or not all(isinstance(item, str) for item in hotkeys):
         errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_INVALID", "/dashboards/home/capture_contract/hotkeys", "Home capture hotkeys must be a string list"))
         hotkeys = []
-    if list(actions) != list(P03_PRIMARY_CHOICES):
-        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_DRIFT", "/dashboards/home/capture_contract/actions", "Home capture actions must match the P03 primary choice order"))
+    if not set(P03_PRIMARY_CHOICES).issubset(actions) or len(set(actions)) != len(actions):
+        errors.append(_error("P03_HOME_CAPTURE_ACTIONS_DRIFT", "/dashboards/home/capture_contract/actions", "Home capture actions must include each P03 primary choice exactly once"))
     if len(hotkeys) != len(actions):
         errors.append(_error("P03_HOME_CAPTURE_HOTKEYS_DRIFT", "/dashboards/home/capture_contract/hotkeys", "Home capture hotkeys must have one entry per action"))
     return list(actions), list(hotkeys), errors
@@ -81,7 +81,7 @@ def _template_observation(root: Path, template_folder: str, template_name: str) 
     path = root / "KnowledgeHub" / template_folder / template_name
     safe = template_folder == P03_CANONICAL_TEMPLATE_FOLDER and not Path(template_name).is_absolute() and Path(template_name).name == template_name
     vault_present = (root / "KnowledgeHub").is_dir()
-    exists = safe and path.is_file() and not path.is_symlink()
+    exists = safe and template_name not in {".", ".."} and path.is_file() and not path.is_symlink()
     state = "pass" if exists else "blocked" if not safe else "unknown"
     return {
         "source": _relative(root, path),
@@ -140,6 +140,8 @@ def build_quickadd_setting_registry(
     raw_choices = data.get("choices") if isinstance(data, dict) else None
     choices_state = "unconfigured" if raw_choices == [] else "unknown" if raw_choices is None else "observed"
     observed_choice_ids: list[str] = []
+    if isinstance(data, dict) and "choices" not in data:
+        errors.append(_error("P03_QUICKADD_CHOICES_MISSING", f"{_relative(root, data_path)}#/choices", "QuickAdd data must include the required KnowledgeOS choice registry"))
     if isinstance(raw_choices, list):
         for item in raw_choices:
             if isinstance(item, dict):
@@ -148,8 +150,29 @@ def build_quickadd_setting_registry(
                     observed_choice_ids.append(name)
             elif isinstance(item, str) and item:
                 observed_choice_ids.append(item)
-    elif raw_choices is not None:
+    elif (isinstance(data, dict) and "choices" in data and raw_choices is None) or raw_choices is not None:
         errors.append(_error("P03_QUICKADD_CHOICES_INVALID", f"{_relative(root, data_path)}#/choices", "QuickAdd choices must be an array"))
+
+    if isinstance(data, dict) and isinstance(raw_choices, list):
+        for choice_id in P03_PRIMARY_CHOICES:
+            choice_count = observed_choice_ids.count(choice_id)
+            if choice_count == 0:
+                errors.append(_error("P03_REQUIRED_CHOICE_MISSING", f"{_relative(root, data_path)}#/choices", f"required KnowledgeOS QuickAdd choice {choice_id} is missing"))
+            elif choice_count > 1:
+                errors.append(_error("P03_REQUIRED_CHOICE_DUPLICATED", f"{_relative(root, data_path)}#/choices", f"required KnowledgeOS QuickAdd choice {choice_id} is duplicated"))
+
+    disable_online_features = data.get("disableOnlineFeatures") if isinstance(data, dict) else None
+    dev_mode = data.get("devMode") if isinstance(data, dict) else None
+    if isinstance(data, dict) and disable_online_features is not None:
+        if not isinstance(disable_online_features, bool):
+            errors.append(_error("P03_ONLINE_FEATURES_SETTING_INVALID", f"{_relative(root, data_path)}#/disableOnlineFeatures", "QuickAdd online feature control must be boolean"))
+        elif disable_online_features is False:
+            errors.append(_error("P03_ONLINE_FEATURES_NOT_DISABLED", f"{_relative(root, data_path)}#/disableOnlineFeatures", "QuickAdd online and AI features must remain disabled"))
+    if isinstance(data, dict) and dev_mode is not None:
+        if not isinstance(dev_mode, bool):
+            errors.append(_error("P03_DEV_MODE_SETTING_INVALID", f"{_relative(root, data_path)}#/devMode", "QuickAdd developer mode control must be boolean"))
+        elif dev_mode is True:
+            errors.append(_error("P03_DEV_MODE_ENABLED", f"{_relative(root, data_path)}#/devMode", "QuickAdd developer execution must remain disabled"))
 
     entries: list[dict[str, Any]] = []
     for choice_id in P03_PRIMARY_CHOICES:
@@ -214,8 +237,8 @@ def build_quickadd_setting_registry(
             else "unknown",
         },
         "safety_policy": {
-            "disable_online_features": data.get("disableOnlineFeatures") if isinstance(data, dict) else None,
-            "dev_mode": data.get("devMode") if isinstance(data, dict) else None,
+            "disable_online_features": disable_online_features,
+            "dev_mode": dev_mode,
             "ai_policy": "disabled_by_online_feature_policy",
             "uri_callbacks": "forbidden",
             "shell_and_system_execution": "forbidden",

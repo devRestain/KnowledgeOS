@@ -1,9 +1,8 @@
-"""Read-only P05 Tasks query and human-completion contract inspection.
+"""Read-only P05 Tasks capability and bounded query-safety inspection.
 
-P05 records the installed Tasks plugin's query, status, date, recurrence, and
-editor-assistance settings without treating a query result as a write
-authority.  It also distinguishes an unused JavaScript preset from an active
-JavaScript query so an absent serialized JavaScript flag is never guessed.
+P05 inspects the installed plugin's required tag and status capabilities and
+only scans the named KnowledgeOS-owned ``99_System`` query surfaces. Query
+results and editor assistance never become write authority.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ P05_TASKS_REGISTRY_SCHEMA_VERSION = 1
 P05_PLUGIN_ID = "obsidian-tasks-plugin"
 P05_GLOBAL_FILTER = "#task"
 P05_QUERY_SOURCES = (
-    "Home.md",
     "99_System/Dashboards/Tasks.md",
     "99_System/Dashboards/Weekly_Review.md",
 )
@@ -28,12 +26,7 @@ _TAGS_INCLUDE = re.compile(r"^tags\s+include\s+(?P<tag>#[^\s]+)$", re.IGNORECASE
 _SORT = re.compile(r"^sort\s+by\s+(?P<field>.+)$", re.IGNORECASE)
 _DESCRIPTION_REGEX = re.compile(r"^description\s+regex\s+matches\s+.+$", re.IGNORECASE)
 
-_EXPECTED_STATUS_TYPES = {
-    "Todo": "TODO",
-    "Done": "DONE",
-    "In Progress": "IN_PROGRESS",
-    "Cancelled": "CANCELLED",
-}
+_REQUIRED_STATUS_NAMES = frozenset({"Todo", "Done", "In Progress", "Cancelled"})
 
 _ALLOWED_QUERY_PREFIXES = (
     "description regex matches ",
@@ -110,7 +103,10 @@ def _date_setting(value: Any, *, mode: str) -> dict[str, Any]:
 
 
 def _active_javascript(value: Any) -> bool:
-    return isinstance(value, str) and "filter by function" in value.lower()
+    if not isinstance(value, str):
+        return False
+    normalized = value.lower()
+    return "filter by function" in normalized or "javascript" in normalized
 
 
 def _query_record(
@@ -119,7 +115,6 @@ def _query_record(
     path: Path,
     ordinal: int,
     body: str,
-    source_text: str,
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
     source = _relative(root, path)
@@ -148,7 +143,7 @@ def _query_record(
             _error(
                 "P05_QUERY_DIRECTIVE_UNKNOWN",
                 f"{source}#tasks[{ordinal}]",
-                "query contains a directive outside the bounded P05 allowlist: " + "; ".join(unknown),
+                "query contains a directive outside the bounded P05 allowlist",
             )
         )
     limit_match = next((_LIMIT.match(line) for line in lines if _LIMIT.match(line)), None)
@@ -185,7 +180,6 @@ def _query_record(
     return {
         "source": source,
         "ordinal": ordinal,
-        "lines": lines,
         "filters": {
             "not_done": any(line.lower() == "not done" for line in lines),
             "done": any(line.lower() == "done" for line in lines),
@@ -199,13 +193,12 @@ def _query_record(
         "sort": sort_fields,
         "description_regex": description_regex,
         "presentation_directives": presentation_directives,
-        "forbidden_javascript": forbidden,
-        "unknown_directives": unknown,
+        "forbidden_javascript": bool(forbidden),
+        "unknown_directive_count": len(unknown),
         "query_owner": "obsidian-tasks-plugin",
         "authority": "read_only_query_result_not_write_authority",
         "human_completion": "explicit_status_action_on_source_markdown_task_line",
         "fallback": "Core Search and ordinary Markdown checkbox inspection",
-        "fallback_observed": "Core-only fallback:" in source_text,
         "runtime_and_device_evidence": "not_run",
     }
 
@@ -236,15 +229,12 @@ def _query_records(
             records.append({"source": source, "state": "unknown", "queries": []})
             continue
         blocks = [match.group("body") for match in _TASKS_BLOCK.finditer(text)]
-        if "Core-only fallback:" not in text:
-            errors.append(_error("P05_QUERY_FALLBACK_MISSING", source, "query source must retain its Core-only fallback"))
         queries = [
             _query_record(
                 root=root,
                 path=path,
                 ordinal=index,
                 body=body,
-                source_text=text,
                 errors=errors,
             )
             for index, body in enumerate(blocks, start=1)
@@ -252,7 +242,7 @@ def _query_records(
         records.append(
             {
                 "source": source,
-                "state": "pass" if not any(item["forbidden_javascript"] or item["unknown_directives"] for item in queries) else "blocked",
+                "state": "pass" if not any(item["forbidden_javascript"] or item["unknown_directive_count"] for item in queries) else "blocked",
                 "queries": queries,
                 "runtime_and_device_evidence": "not_run",
             }
@@ -270,6 +260,7 @@ def _status_registry(data: dict[str, Any] | None, errors: list[dict[str, str]], 
 
     result: dict[str, Any] = {"state": "observed", "core": [], "custom": [], "canonical_frontmatter_status_is_separate": True}
     observed_names: set[str] = set()
+    duplicate_names: set[str] = set()
     expected_sections = {"coreStatuses": "core", "customStatuses": "custom"}
     for key, output_key in expected_sections.items():
         values = raw.get(key)
@@ -288,7 +279,12 @@ def _status_registry(data: dict[str, Any] | None, errors: list[dict[str, str]], 
                 errors.append(_error("P05_STATUS_SETTINGS_INVALID", _relative(root, data_path) + f"#/statusSettings/{key}", "status entry must be an object"))
                 continue
             name = item.get("name")
-            observed_names.add(name) if isinstance(name, str) else None
+            if isinstance(name, str):
+                if name in observed_names:
+                    duplicate_names.add(name)
+                observed_names.add(name)
+            else:
+                errors.append(_error("P05_STATUS_SETTINGS_INVALID", _relative(root, data_path) + f"#/statusSettings/{key}", "status name must be a string"))
             normalized.append(
                 {
                     "symbol": item.get("symbol"),
@@ -307,10 +303,15 @@ def _status_registry(data: dict[str, Any] | None, errors: list[dict[str, str]], 
             )
         result[output_key] = normalized
         result[f"{output_key}_state"] = "observed"
-    expected_names = set(_EXPECTED_STATUS_TYPES)
-    result["mapping_state"] = "pass" if observed_names == expected_names else "unknown" if not observed_names else "drift"
-    if observed_names and observed_names != expected_names:
-        errors.append(_error("P05_STATUS_MAPPING_DRIFT", _relative(root, data_path) + "#/statusSettings", "Tasks status names must cover the Blueprint task status contract"))
+    expected_names = _REQUIRED_STATUS_NAMES
+    missing_names = expected_names - observed_names
+    result["mapping_state"] = "pass" if not missing_names and not duplicate_names else "unknown" if not observed_names else "drift"
+    result["required_names"] = sorted(expected_names)
+    result["additional_names"] = sorted(observed_names - expected_names)
+    if missing_names:
+        errors.append(_error("P05_STATUS_MAPPING_MISSING", _relative(root, data_path) + "#/statusSettings", "Tasks status names must include the required KnowledgeOS status subset"))
+    if duplicate_names:
+        errors.append(_error("P05_STATUS_MAPPING_DUPLICATE", _relative(root, data_path) + "#/statusSettings", "Tasks status names must not duplicate an identifier"))
     return result
 
 
@@ -361,7 +362,7 @@ def build_tasks_setting_registry(
         "serialized_key": "javascriptQueries",
         "observed": data.get("javascriptQueries") if isinstance(data, dict) and "javascriptQueries" in data else None,
         "state": "unknown" if not isinstance(data, dict) or "javascriptQueries" not in data else "disabled" if data.get("javascriptQueries") is False else "enabled",
-        "reason": "absence is not inferred as false; inspect active query usage and preserve the preset boundary",
+        "reason": "the registry rejects active function queries; unused capability and presets are informational",
     }
     preset_state = "explicitly_unresolved" if javascript_presets else "none_observed"
     active_query_state = "active_forbidden" if _active_javascript(global_query) else "not_active"

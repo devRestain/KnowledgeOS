@@ -16,6 +16,15 @@ from typing import Any
 P09_BREADCRUMBS_REGISTRY_SCHEMA_VERSION = 1
 P09_PLUGIN_ID = "breadcrumbs"
 P09_APPROVED_CONTEXT_FIELDS = ("projects", "sources", "related")
+P09_APPROVED_SEMANTIC_FIELDS = (
+    "supports",
+    "contradicts",
+    "explains",
+    "applies_to",
+    "derived_from",
+    "implements",
+    "raises",
+)
 
 
 def _strict_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -64,6 +73,38 @@ def _state(value: Any, *, expected: Any = None, compare: bool = False) -> dict[s
     return {"observed": value, "state": "observed"}
 
 
+def _unconfigured_materialization(value: Any) -> bool:
+    return value is None or value is False or (
+        isinstance(value, (str, list, dict)) and not value
+    )
+
+
+def _has_enabled_canonical_write(value: Any) -> bool:
+    forbidden = {
+        "apply_canonical",
+        "apply_to_frontmatter",
+        "auto_apply",
+        "automatic_write",
+        "canonical_write",
+        "materialize_inverse",
+        "materialize_transitive",
+        "overwrite_canonical",
+        "persist_canonical",
+        "write_frontmatter",
+        "write_to_frontmatter",
+    }
+    if isinstance(value, dict):
+        return any(
+            (key.casefold() in forbidden and child is True)
+            or _has_enabled_canonical_write(child)
+            for key, child in value.items()
+            if isinstance(key, str)
+        )
+    if isinstance(value, list):
+        return any(_has_enabled_canonical_write(child) for child in value)
+    return False
+
+
 def _relation_contract(blueprint: dict[str, Any], errors: list[dict[str, str]]) -> dict[str, Any]:
     relation = blueprint.get("relation_registry")
     relation = relation if isinstance(relation, dict) else {}
@@ -74,15 +115,36 @@ def _relation_contract(blueprint: dict[str, Any], errors: list[dict[str, str]]) 
     inverse_aliases = relation.get("inverse_aliases")
     inverse_aliases = inverse_aliases if isinstance(inverse_aliases, dict) else {}
     context_fields = [field for field in P09_APPROVED_CONTEXT_FIELDS if field in context]
-    semantic_fields = list(canonical)
+    missing_context_fields = [field for field in P09_APPROVED_CONTEXT_FIELDS if field not in context]
+    if missing_context_fields:
+        errors.append(
+            _error(
+                "P09_BLUEPRINT_CONTEXT_FIELD_MISSING",
+                "blueprint/blueprint.yaml#/relation_registry/context_predicates",
+                "the Blueprint must retain the KnowledgeOS-owned context relation subset",
+            )
+        )
+    semantic_fields = [field for field in P09_APPROVED_SEMANTIC_FIELDS if field in canonical]
+    missing_semantic_fields = [field for field in P09_APPROVED_SEMANTIC_FIELDS if field not in canonical]
+    if missing_semantic_fields:
+        errors.append(
+            _error(
+                "P09_BLUEPRINT_SEMANTIC_FIELD_MISSING",
+                "blueprint/blueprint.yaml#/relation_registry/canonical_predicates",
+                "the Blueprint must retain the KnowledgeOS-owned semantic relation subset",
+            )
+        )
     allowed_fields = context_fields + semantic_fields
     return {
         "allowed_fields": allowed_fields,
         "context_fields": context_fields,
+        "missing_context_fields": missing_context_fields,
         "semantic_fields": semantic_fields,
+        "missing_semantic_fields": missing_semantic_fields,
         "canonical_predicates": canonical,
         "context_predicates": context,
         "available_context_fields_not_approved": [field for field in context if field not in context_fields],
+        "available_semantic_fields_not_approved": [field for field in canonical if field not in semantic_fields],
         "inverse_aliases": inverse_aliases,
         "unknown_predicate_policy": relation.get("unknown_predicate_policy"),
         "inverse_materialization": relation.get("inverse_materialization"),
@@ -108,31 +170,113 @@ def _property_dictionary_contract(root: Path, allowed_fields: list[str]) -> dict
     }
 
 
-def _edge_fields(data: dict[str, Any], allowed_fields: list[str], context_fields: list[str], semantic_fields: list[str], data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
+def _edge_fields(
+    data: dict[str, Any],
+    allowed_fields: list[str],
+    context_fields: list[str],
+    semantic_fields: list[str],
+    data_path: Path,
+    root: Path,
+    errors: list[dict[str, str]],
+) -> dict[str, Any]:
     raw_fields = data.get("edge_fields")
-    observed = [item.get("label") for item in raw_fields if isinstance(item, dict) and isinstance(item.get("label"), str)] if isinstance(raw_fields, list) else None
-    state = "unknown" if observed is None else "pass" if observed == allowed_fields else "drift"
-    if state == "drift":
-        errors.append(_error("P09_EDGE_FIELD_REGISTRY_DRIFT", _relative(root, data_path) + "#/edge_fields", "Breadcrumbs edge fields must match the Blueprint relation registry"))
+    if raw_fields is None:
+        observed = None
+        state = "unknown"
+    elif not isinstance(raw_fields, list):
+        observed = None
+        state = "blocked"
+        errors.append(
+            _error(
+                "P09_EDGE_FIELD_REGISTRY_INVALID",
+                _relative(root, data_path) + "#/edge_fields",
+                "Breadcrumbs edge fields must be a list",
+            )
+        )
+    else:
+        observed = [
+            item["label"]
+            for item in raw_fields
+            if isinstance(item, dict) and isinstance(item.get("label"), str)
+        ]
+        missing = [field for field in allowed_fields if field not in observed]
+        duplicate_owned = [field for field in allowed_fields if observed.count(field) > 1]
+        state = "pass" if not missing and not duplicate_owned else "drift"
+        if state == "drift":
+            errors.append(
+                _error(
+                    "P09_EDGE_FIELD_REGISTRY_DRIFT",
+                    _relative(root, data_path) + "#/edge_fields",
+                    "Breadcrumbs must retain each Blueprint-owned relation field exactly once",
+                )
+            )
     groups = data.get("edge_field_groups")
     group_records = groups if isinstance(groups, list) else []
-    observed_groups = {
-        item.get("label"): item.get("fields")
-        for item in group_records
-        if isinstance(item, dict) and isinstance(item.get("label"), str)
-    }
+    observed_groups: dict[str, Any] = {}
+    for item in group_records:
+        if not isinstance(item, dict) or not isinstance(item.get("label"), str):
+            continue
+        label = item["label"]
+        fields = item.get("fields")
+        if label not in observed_groups:
+            observed_groups[label] = fields
     expected_groups = {
         "Context relation group": context_fields,
         "Semantic relation group": semantic_fields,
     }
-    group_state = "unknown" if groups is None else "pass" if observed_groups == expected_groups else "drift"
-    if group_state == "drift":
-        errors.append(_error("P09_EDGE_FIELD_GROUP_DRIFT", _relative(root, data_path) + "#/edge_field_groups", "Breadcrumbs edge field groups must preserve Blueprint context and semantic ownership"))
+    if groups is None:
+        group_state = "unknown"
+        duplicate_owned_groups: list[str] = []
+    elif not isinstance(groups, list):
+        group_state = "blocked"
+        duplicate_owned_groups = []
+        errors.append(
+            _error(
+                "P09_EDGE_FIELD_GROUPS_INVALID",
+                _relative(root, data_path) + "#/edge_field_groups",
+                "Breadcrumbs edge field groups must be a list",
+            )
+        )
+    else:
+        duplicate_owned_groups = [
+            label
+            for label in expected_groups
+            if sum(
+                isinstance(item, dict) and item.get("label") == label
+                for item in group_records
+            )
+            > 1
+        ]
+        missing_or_incomplete = []
+        for label, required_fields in expected_groups.items():
+            observed_fields = observed_groups.get(label)
+            if (
+                not isinstance(observed_fields, list)
+                or not all(isinstance(field, str) for field in observed_fields)
+                or not set(required_fields).issubset(observed_fields)
+                or label in duplicate_owned_groups
+            ):
+                missing_or_incomplete.append(label)
+        group_state = "pass" if not missing_or_incomplete else "drift"
+    if group_state in {"drift", "blocked"}:
+        errors.append(
+            _error(
+                "P09_EDGE_FIELD_GROUP_DRIFT",
+                _relative(root, data_path) + "#/edge_field_groups",
+                "Breadcrumbs edge field groups must retain the Blueprint-owned relation subset",
+            )
+        )
     return {
         "observed": observed,
         "expected": allowed_fields,
         "state": state,
-        "groups": {"observed": observed_groups, "expected": expected_groups, "state": group_state},
+        "additional_fields": sorted(set(observed or []) - set(allowed_fields)),
+        "groups": {
+            "observed": observed_groups,
+            "expected": expected_groups,
+            "additional_groups": sorted(set(observed_groups) - set(expected_groups)),
+            "state": group_state,
+        },
         "ownership": {
             "context": context_fields,
             "semantic": semantic_fields,
@@ -182,18 +326,18 @@ def _view_policy(data: dict[str, Any], data_path: Path, root: Path, errors: list
     tree = side.get("tree") if isinstance(side.get("tree"), dict) else {}
     trail_groups = trail.get("field_group_labels")
     expected_trail_groups = ["Context relation group"]
-    trail_state = "unknown" if trail_groups is None else "pass" if trail_groups == expected_trail_groups else "drift"
-    if trail_state == "drift":
+    trail_state = _required_group_state(trail_groups, expected_trail_groups)
+    if trail_state in {"drift", "invalid"}:
         errors.append(_error("P09_TRAIL_GROUP_DRIFT", _relative(root, data_path) + "#/views/page/trail/field_group_labels", "Breadcrumbs trail must display the reviewed context relation group"))
     matrix_groups = matrix.get("field_group_labels")
     expected_matrix_groups = ["Context relation group", "Semantic relation group", "sames", "nexts", "prevs"]
-    matrix_state = "unknown" if matrix_groups is None else "pass" if matrix_groups == expected_matrix_groups else "drift"
-    if matrix_state == "drift":
+    matrix_state = _required_group_state(matrix_groups, expected_matrix_groups)
+    if matrix_state in {"drift", "invalid"}:
         errors.append(_error("P09_MATRIX_GROUP_DRIFT", _relative(root, data_path) + "#/views/side/matrix/field_group_labels", "Breadcrumbs matrix view groups must remain explicit and bounded"))
     tree_groups = tree.get("field_group_labels")
     expected_tree_groups = ["ups", "downs"]
-    tree_state = "unknown" if tree_groups is None else "pass" if tree_groups == expected_tree_groups else "drift"
-    if tree_state == "drift":
+    tree_state = _required_group_state(tree_groups, expected_tree_groups)
+    if tree_state in {"drift", "invalid"}:
         errors.append(_error("P09_TREE_GROUP_DRIFT", _relative(root, data_path) + "#/views/side/tree/field_group_labels", "Breadcrumbs tree view groups must remain explicit and bounded"))
     return {
         "state": "pass" if all(state == "pass" for state in (trail_state, matrix_state, tree_state)) else "unknown" if all(state == "unknown" for state in (trail_state, matrix_state, tree_state)) else "blocked",
@@ -228,6 +372,14 @@ def _view_policy(data: dict[str, Any], data_path: Path, root: Path, errors: list
     }
 
 
+def _required_group_state(observed: Any, required: list[str]) -> str:
+    if observed is None:
+        return "unknown"
+    if not isinstance(observed, list) or not all(isinstance(item, str) for item in observed):
+        return "invalid"
+    return "pass" if set(required).issubset(observed) else "drift"
+
+
 def _command_policy(data: dict[str, Any], data_path: Path, root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
     commands = data.get("commands")
     if commands is None:
@@ -237,6 +389,15 @@ def _command_policy(data: dict[str, Any], data_path: Path, root: Path, errors: l
         return {"state": "blocked", "commands": {}}
     records: dict[str, Any] = {}
     write_capable = {"freeze_implied_edges", "thread", "create_canvas"}
+    automatic_triggers = ("note_save", "layout_change", "file_change", "vault_open", "startup", "on_save")
+    forbidden_automatic_flags = (
+        "automatic",
+        "auto_run",
+        "run_on_load",
+        "apply_automatically",
+        "write_on_save",
+        "materialize_automatically",
+    )
     for name, value in commands.items():
         records[name] = {
             "observed": value,
@@ -246,11 +407,19 @@ def _command_policy(data: dict[str, Any], data_path: Path, root: Path, errors: l
             "mutation_class": "canonical_frontmatter_or_note_create" if name in write_capable else "local_report_or_display",
             "rollback": "restore original bytes or remove create-only report after human review" if name in write_capable else "no canonical mutation claimed",
         }
-    rebuild = commands.get("rebuild_graph")
-    if isinstance(rebuild, dict):
-        trigger = rebuild.get("trigger")
-        if isinstance(trigger, dict) and any(trigger.get(key) is True for key in ("note_save", "layout_change")):
-            errors.append(_error("P09_AUTOMATIC_GRAPH_REBUILD", _relative(root, data_path) + "#/commands/rebuild_graph/trigger", "Breadcrumbs graph rebuild must remain manual"))
+        if isinstance(value, dict):
+            trigger = value.get("trigger")
+            automatic = isinstance(trigger, dict) and any(trigger.get(key) is True for key in automatic_triggers)
+            automatic = automatic or any(value.get(key) is True for key in forbidden_automatic_flags)
+            if automatic and (name == "rebuild_graph" or name in write_capable):
+                code = "P09_AUTOMATIC_GRAPH_REBUILD" if name == "rebuild_graph" else "P09_AUTOMATIC_COMMAND_NOT_ACCEPTED"
+                errors.append(
+                    _error(
+                        code,
+                        _relative(root, data_path) + f"#/commands/{name}",
+                        "Breadcrumbs commands that rebuild or write relations must remain manual",
+                    )
+                )
     return {
         "state": "pass" if not errors else "blocked",
         "commands": records,
@@ -300,11 +469,45 @@ def build_breadcrumbs_setting_registry(
     source_policy = _source_policy(serialized, data_path, root, errors)
     view_policy = _view_policy(serialized, data_path, root, errors)
     command_policy = _command_policy(serialized, data_path, root, errors)
+    if _has_enabled_canonical_write(serialized.get("commands")) or _has_enabled_canonical_write(
+        serialized.get("views")
+    ):
+        errors.append(
+            _error(
+                "P09_CANONICAL_WRITE_NOT_ACCEPTED",
+                _relative(root, data_path),
+                "Breadcrumbs views and commands cannot write canonical frontmatter automatically",
+            )
+        )
     implied = serialized.get("implied_relations")
     transitive = implied.get("transitive") if isinstance(implied, dict) else None
     inverse_materialization = relation.get("inverse_materialization")
-    if isinstance(transitive, list) and transitive:
+    if not _unconfigured_materialization(transitive):
         errors.append(_error("P09_TRANSITIVE_RELATION_NOT_ACCEPTED", _relative(root, data_path) + "#/implied_relations/transitive", "Breadcrumbs transitive implied relations must remain empty"))
+    inverse_relations = implied.get("inverse") if isinstance(implied, dict) else None
+    serialized_inverse_materialization = implied.get("inverse_materialization") if isinstance(implied, dict) else None
+    if not _unconfigured_materialization(inverse_relations) or not _unconfigured_materialization(serialized_inverse_materialization):
+        errors.append(
+            _error(
+                "P09_INVERSE_RELATION_NOT_ACCEPTED",
+                _relative(root, data_path) + "#/implied_relations",
+                "Breadcrumbs inverse relations must never be materialized automatically",
+            )
+        )
+    if inverse_materialization not in (None, False):
+        errors.append(
+            _error(
+                "P09_BLUEPRINT_INVERSE_MATERIALIZATION_NOT_ACCEPTED",
+                "blueprint/blueprint.yaml#/relation_registry/inverse_materialization",
+                "Blueprint inverse aliases must remain non-materialized",
+            )
+        )
+    materialization_disabled = (
+        inverse_materialization is False
+        and _unconfigured_materialization(transitive)
+        and _unconfigured_materialization(inverse_relations)
+        and _unconfigured_materialization(serialized_inverse_materialization)
+    )
     suggestors = serialized.get("suggestors")
     edge_suggestor = suggestors.get("edge_field") if isinstance(suggestors, dict) else None
     if isinstance(edge_suggestor, dict) and edge_suggestor.get("enabled") is True:
@@ -326,7 +529,8 @@ def build_breadcrumbs_setting_registry(
         "explicit_edge_sources": source_policy,
         "implied_relations": {
             "transitive": transitive,
-            "state": "disabled" if transitive == [] else "unknown",
+            "inverse": inverse_relations,
+            "state": "disabled" if materialization_disabled else "unknown",
             "inverse_materialization": inverse_materialization,
             "inverse_policy": "Blueprint inverse aliases are display/proposal vocabulary and are not materialized automatically",
         },
@@ -359,6 +563,7 @@ def build_breadcrumbs_setting_registry(
 
 
 __all__ = [
+    "P09_APPROVED_SEMANTIC_FIELDS",
     "P09_BREADCRUMBS_REGISTRY_SCHEMA_VERSION",
     "P09_PLUGIN_ID",
     "build_breadcrumbs_setting_registry",

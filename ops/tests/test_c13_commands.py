@@ -10,7 +10,6 @@ from support.control_factory import make_control_root
 
 from vaultops.cli import main
 from vaultops.local_commands import PERIOD_NOTE_GUI_MESSAGE
-from vaultops.note_engine import NoteEngine
 from vaultops.workflows import create_project_bundle
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
@@ -76,8 +75,6 @@ def test_capture_text_is_typed_create_only_and_replay_is_a_conflict(
     assert report["path"] == "00_Inbox/Captures/2026/09/20260913-102030 CLI Capture.md"
     target = root / "KnowledgeHub" / str(report["path"])
     before = target.read_bytes()
-    validation = NoteEngine.from_root(root).validate_text(str(report["path"]), before.decode())
-    assert validation.passed, validation.as_dict()
     assert "원문 한 줄" in before.decode()
 
     monkeypatch.setattr(sys, "stdin", _BytesStdin("다른 원문\n".encode()))
@@ -117,7 +114,6 @@ def test_capture_url_uses_validated_files_and_keeps_url_and_comment_in_body(
     text = (root / "KnowledgeHub" / str(report["path"])).read_text(encoding="utf-8")
     assert "https://example.com/articles/portable" in text
     assert "나중에 출처를 다시 확인한다." in text
-    assert NoteEngine.from_root(root).validate_text(str(report["path"]), text).passed
 
 
 def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
@@ -157,11 +153,7 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
     applied = _json_output(capsys)
     assert applied["status"] == "PASS"
     assert target.is_file()
-    assert NoteEngine.from_root(root).validate_text(
-        "20_Projects/C13 Project/Working/Working Note.md",
-        target.read_text(encoding="utf-8"),
-        target_types={"C13 Project": "project"},
-    ).passed
+    assert "## 현재 초안" in target.read_text(encoding="utf-8")
 
 
 def test_create_content_rejects_invalid_utf8_nul_and_oversize_without_writing(

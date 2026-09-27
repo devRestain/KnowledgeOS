@@ -96,17 +96,12 @@ def test_future_templates_do_not_emit_blank_live_task_placeholders() -> None:
         assert not any(blank_task.match(line) for line in rendered_source.splitlines()), template_name
 
 
-def test_templates_use_the_native_inline_title_without_emitting_a_duplicate_h1() -> None:
-    for spec in TEMPLATE_SPECS:
-        rendered = render_note_template(spec.filename, _context_for(spec.filename))
-        assert not re.search(r"(?m)^#\s+\S", rendered.body), spec.filename
-
-
-def test_all_rendered_templates_pass_the_strict_note_schema() -> None:
+def test_all_rendered_templates_use_native_titles_and_pass_the_strict_note_schema() -> None:
     engine = NoteEngine.from_root(CONTROL_ROOT)
     target_types = {"Demo Project": "project"}
     for spec in TEMPLATE_SPECS:
         rendered = render_note_template(spec.filename, _context_for(spec.filename))
+        assert not re.search(r"(?m)^#\s+\S", rendered.body), spec.filename
         result = engine.validate_text(_path_for(spec.filename), rendered.markdown, target_types=target_types)
         assert result.passed, {"template": spec.filename, "errors": result.as_dict()}
 

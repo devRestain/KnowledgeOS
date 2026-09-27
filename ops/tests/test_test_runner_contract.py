@@ -25,11 +25,14 @@ def test_pytest_requires_the_hermetic_compose_override(monkeypatch: pytest.Monke
 def test_boundary_scan_detects_direct_vault_and_whole_control_copies(tmp_path: Path) -> None:
     direct = tmp_path / "direct.py"
     direct.write_text('target = CONTROL_ROOT / "KnowledgeHub/Home.md"\n', encoding="utf-8")
+    joined = tmp_path / "joined.py"
+    joined.write_text('VAULT_ROOT = CONTROL_ROOT.joinpath("KnowledgeHub", "Home.md")\n', encoding="utf-8")
     broad = tmp_path / "broad.py"
     broad.write_text("shutil.copytree(\n    CONTROL_ROOT,\n    root,\n)\n", encoding="utf-8")
     safe = tmp_path / "safe.py"
     safe.write_text('target = tmp_path / "control/KnowledgeHub/Home.md"\n', encoding="utf-8")
 
     assert conftest._source_has_boundary_violation(direct)
+    assert conftest._source_has_boundary_violation(joined)
     assert conftest._source_has_boundary_violation(broad)
     assert not conftest._source_has_boundary_violation(safe)

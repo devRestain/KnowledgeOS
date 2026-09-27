@@ -80,6 +80,7 @@ def test_c30_doctor_separates_serialized_evidence_from_live_and_device_proof(
     assert report["projection"]["usable"] is False
     assert report["projection"]["generation_id"] is None
     assert report["warnings"]
+    json.dumps(report, ensure_ascii=False, sort_keys=True)
 
 
 def test_c30_config_drift_is_degraded_and_does_not_enable_a_profile(tmp_path: Path) -> None:
@@ -97,10 +98,3 @@ def test_c30_config_drift_is_degraded_and_does_not_enable_a_profile(tmp_path: Pa
     assert report["enabled_by_default"] is True
     assert any(error["code"] == "LOCAL_MODEL_DEFAULT_ENABLED" for error in errors)
     assert any(error["code"] == "LOCAL_MODEL_CONFIG_DRIFT" for error in errors)
-
-
-def test_c30_doctor_report_remains_json_serializable(tmp_path: Path) -> None:
-    report, exit_code = doctor_report(make_diagnostic_root(tmp_path))
-
-    assert exit_code == 0, report
-    json.dumps(report, ensure_ascii=False, sort_keys=True)

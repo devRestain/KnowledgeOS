@@ -19,32 +19,13 @@ _MASKED_PATHS = (
 _TEST_ROOT = Path(__file__).resolve().parent
 _BOUNDARY_PATTERNS = (
     re.compile(r"CONTROL_ROOT\s*/\s*[\"']KnowledgeHub"),
+    re.compile(r"CONTROL_ROOT\.joinpath\(\s*[\"']KnowledgeHub(?:/|[\"'])"),
     re.compile(r"VAULT_ROOT\s*=\s*CONTROL_ROOT\s*/\s*[\"']KnowledgeHub[\"']"),
     re.compile(r"shutil\.copytree\(\s*CONTROL_ROOT\s*,", re.DOTALL),
     re.compile(r"(?:shutil\.)?copytree\(\s*CONTROL_ROOT\s*/\s*[\"']KnowledgeHub", re.DOTALL),
     re.compile(r"doctor_report\(\s*CONTROL_ROOT\s*\)"),
     re.compile(r"check_foundation\(\s*CONTROL_ROOT\s*\)"),
 )
-
-# Temporary implementation debt. Each entry is removed when its file migrates
-# to synthesized roots. The scan still rejects every new violating file.
-_TRANSITIONAL_BOUNDARY_FILES = frozenset(
-    {
-        "test_f_contracts.py",
-        "test_p03_quickadd_settings.py",
-        "test_p04_templater_settings.py",
-        "test_p05_tasks_settings.py",
-        "test_p06_linter_settings.py",
-        "test_p07_obsidian_git_settings.py",
-        "test_p08_homepage_settings.py",
-        "test_p09_breadcrumbs_settings.py",
-        "test_p10_notebook_navigator_settings.py",
-        "test_p11_note_toolbar_settings.py",
-        "test_p12_meta_bind_settings.py",
-        "test_vault_structure.py",
-    }
-)
-
 
 def pytest_configure(config: pytest.Config) -> None:
     """Reject direct pytest execution before collection touches test inputs."""
@@ -110,8 +91,7 @@ def _validate_test_sources() -> None:
         if not _source_has_boundary_violation(path):
             continue
         relative = path.relative_to(_TEST_ROOT).as_posix()
-        if relative not in _TRANSITIONAL_BOUNDARY_FILES:
-            violations.append(relative)
+        violations.append(relative)
     if violations:
         raise pytest.UsageError(
             "test source crosses the hermetic Vault/runtime boundary: " + ", ".join(violations)

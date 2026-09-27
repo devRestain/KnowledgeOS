@@ -1,4 +1,4 @@
-.PHONY: verify source-check container-source-check container-verify image-build test lint vaultctl blueprint-check schema-export schema-check vault-artifact-check profile-check contract-check
+.PHONY: verify source-check container-source-check container-verify image-build test test-invariance lint vaultctl blueprint-check schema-export schema-check vault-artifact-check profile-check live-smoke contract-check acceptance
 
 COMPOSE = docker compose -f ops/compose.yaml
 TEST_COMPOSE = docker compose -f ops/compose.yaml -f ops/compose.test.yaml
@@ -27,6 +27,9 @@ container-verify:
 test:
 	$(TEST_COMPOSE) run --rm -e KNOWLEDGEOS_TEST_ENTRYPOINT=make dev uv run --frozen --no-sync pytest $(PYTEST_ARGS)
 
+test-invariance:
+	$(MAKE) test PYTEST_ARGS='tests/test_hermetic_invariance.py -q'
+
 lint:
 	$(TEST_COMPOSE) run --rm dev uv run --frozen --no-sync ruff check src tests ../scripts
 
@@ -48,4 +51,29 @@ vault-artifact-check:
 profile-check:
 	$(COMPOSE) run --rm dev vaultctl plugins audit --profile mac --root /workspace/control
 
+live-smoke:
+	@test -n "$(SMOKE_KIND)"
+	@test -n "$(SMOKE_ADAPTER)"
+	@test -n "$(SMOKE_TIMEOUT_SECONDS)"
+	$(COMPOSE) run --rm dev vaultctl smoke run --kind "$(SMOKE_KIND)" --adapter "$(SMOKE_ADAPTER)" --authorize-live-smoke --timeout-seconds "$(SMOKE_TIMEOUT_SECONDS)" --root /workspace/control
+
 contract-check: blueprint-check schema-check
+
+acceptance:
+	$(MAKE) source-check
+	$(MAKE) verify
+	$(MAKE) blueprint-check
+	$(MAKE) schema-check
+	$(MAKE) container-source-check
+	$(MAKE) container-verify
+	$(MAKE) test PYTEST_ARGS='tests/test_test_runner_contract.py -q'
+	$(MAKE) test PYTEST_ARGS='tests/test_foundation_contract.py tests/test_vault_artifact_check.py -q'
+	$(MAKE) test PYTEST_ARGS='tests/test_plugin_audit.py tests/test_plugin_invariants.py -q'
+	$(MAKE) test PYTEST_ARGS='tests/test_c08_dashboard.py tests/test_c12_diagnostics.py tests/test_c28_proposal_recovery.py tests/test_d01_configure.py tests/test_note_engine.py -q'
+	$(MAKE) test PYTEST_ARGS='tests/test_smoke_lifecycle.py -q'
+	$(MAKE) test-invariance
+	$(MAKE) test
+	$(MAKE) lint
+	/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md
+	git diff --check
+	git -C KnowledgeHub diff --check
