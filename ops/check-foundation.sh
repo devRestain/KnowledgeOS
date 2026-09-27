@@ -30,10 +30,11 @@ docs/RUNTIME.md
 docs/DECISIONS.md
 docs/IMPLEMENTATION_STATUS.md
 docs/SOURCE_CONTRACT.md
+ops/AGENTS.md
 ops/check-foundation.sh
+ops/compose.test.yaml
 ops/config/generated-artifacts.yaml
-KnowledgeHub/.gitignore
-KnowledgeHub/.gitattributes
+ops/tests/AGENTS.md
 '
 
 foundation_required_directories='
@@ -45,155 +46,27 @@ ops/actions
 ops/schemas
 ops/prompts
 ops/policies
+ops/expected
 ops/src/vaultops
 ops/launchd
 ops/tests
 ops/tests/fixtures
-KnowledgeHub
-KnowledgeHub/.vault-bridge
-KnowledgeHub/.vault-bridge/protocol
-KnowledgeHub/.vault-bridge/requests
-KnowledgeHub/.vault-bridge/responses
-KnowledgeHub/00_Inbox/Captures
-KnowledgeHub/01_AI_Review/Pending
-KnowledgeHub/01_AI_Review/Resolved
-KnowledgeHub/01_AI_Review/Rejected
-KnowledgeHub/01_AI_Review/Expired
-KnowledgeHub/01_AI_Review/Conflict
-KnowledgeHub/10_Journal/Daily
-KnowledgeHub/10_Journal/Weekly
-KnowledgeHub/10_Journal/Monthly
-KnowledgeHub/20_Projects
-KnowledgeHub/30_Areas
-KnowledgeHub/40_Knowledge/Notes
-KnowledgeHub/40_Knowledge/Ideas
-KnowledgeHub/40_Knowledge/Questions
-KnowledgeHub/40_Knowledge/Sources
-KnowledgeHub/40_Knowledge/People
-KnowledgeHub/50_Maps
-KnowledgeHub/60_Meetings
-KnowledgeHub/80_Assets/Inbox
-KnowledgeHub/80_Assets/Images
-KnowledgeHub/80_Assets/Documents
-KnowledgeHub/80_Assets/Audio
-KnowledgeHub/90_Archive/Projects
-KnowledgeHub/90_Archive/Captures
-KnowledgeHub/90_Archive/Other
-KnowledgeHub/99_System/Templates
-KnowledgeHub/99_System/Bases
-KnowledgeHub/99_System/Dashboards
-KnowledgeHub/99_System/Schemas
-KnowledgeHub/99_System/Scripts/QuickAdd
-KnowledgeHub/99_System/CSS
-runtime
-runtime/staging
-runtime/queue
-runtime/quarantine
-runtime/awaiting_remote_authorization
-runtime/running
-runtime/review
-runtime/approved
-runtime/applying
-runtime/done
-runtime/rejected
-runtime/expired
-runtime/failed
-runtime/conflict
-runtime/runs
-runtime/receipts
-runtime/locks
-runtime/index
-runtime/cache
-runtime/logs
+ops/tests/support
 '
 
 for foundation_path in $foundation_required_files; do
-    [ ! -L "$foundation_path" ] || foundation_fail "required file is a symlink: $foundation_path"
-    [ -f "$foundation_path" ] || foundation_fail "missing required file: $foundation_path"
+    [ ! -L "$foundation_path" ] || foundation_fail "required control file is a symlink: $foundation_path"
+    [ -f "$foundation_path" ] || foundation_fail "missing required control file: $foundation_path"
 done
 
 for foundation_path in $foundation_required_directories; do
-    [ ! -L "$foundation_path" ] || foundation_fail "required directory is a symlink: $foundation_path"
-    [ -d "$foundation_path" ] || foundation_fail "missing required directory: $foundation_path"
+    [ ! -L "$foundation_path" ] || foundation_fail "required control directory is a symlink: $foundation_path"
+    [ -d "$foundation_path" ] || foundation_fail "missing required control directory: $foundation_path"
 done
 
-for foundation_path in runtime $foundation_required_directories; do
-    case "$foundation_path" in
-        runtime|runtime/*)
-            foundation_mode=$(stat -f '%Lp' "$foundation_path")
-            [ "$foundation_mode" = 700 ] || foundation_fail "runtime directory mode must be 0700: $foundation_path is $foundation_mode"
-            ;;
-    esac
-done
-
-# The D80 host runner is a private executable environment, not a runtime
-# artifact spool. Its virtualenv needs executable/package modes and may use
-# interpreter symlinks, while its containing boundary remains owner-only.
-if [ -e runtime/host-runner ]; then
-    [ ! -L runtime/host-runner ] || foundation_fail 'host runner environment must not be a symlink'
-    [ -d runtime/host-runner ] || foundation_fail 'host runner environment must be a directory'
-    foundation_host_runner_mode=$(stat -f '%Lp' runtime/host-runner)
-    [ "$foundation_host_runner_mode" = 700 ] || foundation_fail "host runner environment mode must be 0700: $foundation_host_runner_mode"
-fi
-
-[ ! -e bridge ] || foundation_fail 'obsolete top-level bridge/ exists; canonical transport is KnowledgeHub/.vault-bridge/'
+[ ! -e bridge ] || foundation_fail 'obsolete control path exists: bridge/'
 grep -Fqx '/KnowledgeHub/' .gitignore || foundation_fail 'control .gitignore must contain /KnowledgeHub/'
 grep -Fqx '/runtime/' .gitignore || foundation_fail 'control .gitignore must contain /runtime/'
-
-foundation_gitkeep_matches=$(find KnowledgeHub -name .gitkeep -print)
-[ -z "$foundation_gitkeep_matches" ] || foundation_fail "Vault filler .gitkeep files found: $foundation_gitkeep_matches"
-
-foundation_structural_marker_allowlist='
-KnowledgeHub/00_Inbox/Captures/.knowledgeos-directory
-KnowledgeHub/01_AI_Review/Conflict/.knowledgeos-directory
-KnowledgeHub/01_AI_Review/Expired/.knowledgeos-directory
-KnowledgeHub/01_AI_Review/Pending/.knowledgeos-directory
-KnowledgeHub/01_AI_Review/Rejected/.knowledgeos-directory
-KnowledgeHub/01_AI_Review/Resolved/.knowledgeos-directory
-KnowledgeHub/10_Journal/Daily/.knowledgeos-directory
-KnowledgeHub/10_Journal/Monthly/.knowledgeos-directory
-KnowledgeHub/10_Journal/Weekly/.knowledgeos-directory
-KnowledgeHub/20_Projects/.knowledgeos-directory
-KnowledgeHub/30_Areas/.knowledgeos-directory
-KnowledgeHub/40_Knowledge/Ideas/.knowledgeos-directory
-KnowledgeHub/40_Knowledge/Notes/.knowledgeos-directory
-KnowledgeHub/40_Knowledge/People/.knowledgeos-directory
-KnowledgeHub/40_Knowledge/Questions/.knowledgeos-directory
-KnowledgeHub/40_Knowledge/Sources/.knowledgeos-directory
-KnowledgeHub/50_Maps/.knowledgeos-directory
-KnowledgeHub/60_Meetings/.knowledgeos-directory
-KnowledgeHub/80_Assets/Audio/.knowledgeos-directory
-KnowledgeHub/80_Assets/Documents/.knowledgeos-directory
-KnowledgeHub/80_Assets/Images/.knowledgeos-directory
-KnowledgeHub/80_Assets/Inbox/.knowledgeos-directory
-KnowledgeHub/90_Archive/Captures/.knowledgeos-directory
-KnowledgeHub/90_Archive/Other/.knowledgeos-directory
-KnowledgeHub/90_Archive/Projects/.knowledgeos-directory
-'
-foundation_structural_marker_matches=$(find KnowledgeHub -name .knowledgeos-directory -print)
-for foundation_marker in $foundation_structural_marker_matches; do
-    printf '%s\n' "$foundation_structural_marker_allowlist" | grep -Fqx "$foundation_marker" \
-        || foundation_fail "structural marker is outside the canonical allowlist: $foundation_marker"
-    foundation_marker_first_line=$(sed -n '1p' "$foundation_marker")
-    [ "$foundation_marker_first_line" = 'KnowledgeOS canonical directory marker; Git has no empty-directory entries.' ] \
-        || foundation_fail "structural marker has unexpected bytes: $foundation_marker"
-    foundation_marker_line_count=$(awk 'END {print NR}' "$foundation_marker")
-    [ "$foundation_marker_line_count" = 1 ] || foundation_fail "structural marker must contain one line: $foundation_marker"
-done
-
-for foundation_pattern in \
-    '.obsidian-mac/*' \
-    '.obsidian-phone/*' \
-    '.obsidian-tablet/*' \
-    '.obsidian-mac/plugins/' \
-    '.obsidian-phone/plugins/' \
-    '.obsidian-tablet/plugins/'
-do
-    grep -Fqx "$foundation_pattern" KnowledgeHub/.gitignore || foundation_fail "Vault profile deny rule missing: $foundation_pattern"
-done
-
-foundation_bad_runtime_files=$(find runtime -path runtime/host-runner -prune -o -type f ! -perm 600 -print)
-[ -z "$foundation_bad_runtime_files" ] || foundation_fail "runtime files must have mode 0600: $foundation_bad_runtime_files"
 
 foundation_manifest_expected='8766e8f920c8861119bd39d16f0ffa47f668e7503d06a2ababb55d44994167ce'
 foundation_manifest_actual=$(shasum -a 256 blueprint/CHECKSUMS.sha256 | awk '{print $1}')
@@ -209,49 +82,28 @@ ruby -ryaml -rjson -e '
   abort "top-level required/key count mismatch" unless Array(schema["required"]).length == blueprint.keys.length
 '
 
-foundation_required_vault_files=$(ruby -ryaml -e '
-  blueprint = YAML.safe_load(File.read("blueprint/blueprint.yaml"), aliases: true)
-  Array(blueprint.fetch("fixed_paths").fetch("required_vault_files")).each { |path| puts path }
-')
-for foundation_relative in $foundation_required_vault_files; do
-    [ ! -L "KnowledgeHub/$foundation_relative" ] || foundation_fail "required Vault file is a symlink: $foundation_relative"
-    [ -f "KnowledgeHub/$foundation_relative" ] || foundation_fail "missing required Vault file: $foundation_relative"
-done
-
-foundation_literal_matches=$(find KnowledgeHub ops -type d \( \
+foundation_literal_matches=$(find ops -type d \( \
     -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \
     -name PROJECT_NAME -o -name JOB_ID \
 \) -print)
-[ -z "$foundation_literal_matches" ] || foundation_fail "literal placeholder directories found: $foundation_literal_matches"
-foundation_literal_matches_runtime=$(find runtime -path runtime/host-runner -prune -o -type d \( \
-    -name YYYY -o -name MM -o -name GGGG -o -name WWW -o \
-    -name PROJECT_NAME -o -name JOB_ID \
-\) -print)
-[ -z "$foundation_literal_matches_runtime" ] || foundation_fail "literal placeholder directories found: $foundation_literal_matches_runtime"
+[ -z "$foundation_literal_matches" ] || foundation_fail "literal placeholder directories found in control source: $foundation_literal_matches"
 
-foundation_symlink_matches=$(find KnowledgeHub ops -type l -print)
-[ -z "$foundation_symlink_matches" ] || foundation_fail "unexpected symlinks found: $foundation_symlink_matches"
-foundation_symlink_matches_runtime=$(find runtime -path runtime/host-runner -prune -o -type l -print)
-[ -z "$foundation_symlink_matches_runtime" ] || foundation_fail "unexpected symlinks found: $foundation_symlink_matches_runtime"
+foundation_symlink_matches=$(find ops -type l -print)
+[ -z "$foundation_symlink_matches" ] || foundation_fail "unexpected symlinks found in control source: $foundation_symlink_matches"
 
 foundation_control_git=$(git -C "$foundation_root" rev-parse --show-toplevel 2>/dev/null || true)
-foundation_vault_git=$(git -C "$foundation_root/KnowledgeHub" rev-parse --show-toplevel 2>/dev/null || true)
-
-if [ -z "$foundation_control_git" ] && [ -z "$foundation_vault_git" ]; then
-    printf '%s\n' 'Git boundary: DEFERRED (neither repository has been initialized)'
-elif [ -n "$foundation_control_git" ] && [ -n "$foundation_vault_git" ]; then
+if [ -z "$foundation_control_git" ]; then
+    printf '%s\n' 'Git boundary: DEFERRED (control repository has not been initialized)'
+else
     [ "$foundation_control_git" = "$foundation_root" ] || foundation_fail "wrong control Git root: $foundation_control_git"
-    [ "$foundation_vault_git" = "$foundation_root/KnowledgeHub" ] || foundation_fail "wrong Vault Git root: $foundation_vault_git"
-    git -C "$foundation_root" check-ignore --no-index --quiet -- KnowledgeHub || foundation_fail 'control repository must ignore KnowledgeHub/'
-    git -C "$foundation_root" check-ignore --no-index --quiet -- runtime || foundation_fail 'control repository must ignore runtime/'
+    git -C "$foundation_root" check-ignore --no-index --quiet -- KnowledgeHub/.knowledgeos-boundary-probe || foundation_fail 'control repository must ignore KnowledgeHub/'
+    git -C "$foundation_root" check-ignore --no-index --quiet -- runtime/.knowledgeos-boundary-probe || foundation_fail 'control repository must ignore runtime/'
     foundation_tracked_boundaries=$(git -C "$foundation_root" ls-files --stage -- KnowledgeHub runtime)
     [ -z "$foundation_tracked_boundaries" ] || foundation_fail "control index tracks forbidden boundaries: $foundation_tracked_boundaries"
-    printf '%s\n' 'Git boundary: PASS (independent control and Vault roots)'
-else
-    foundation_fail 'only one of the two required Git repositories is initialized'
+    printf '%s\n' 'Git boundary: PASS (control root excludes mutable Vault and runtime boundaries)'
 fi
 
-printf '%s\n' 'Foundation checksum/path checks: PASS'
+printf '%s\n' 'Control foundation checksum/path checks: PASS'
 printf '%s\n' 'Blueprint JSON Schema validation: AVAILABLE via make blueprint-check'
-printf '%s\n' 'Cross-document semantic validation: AVAILABLE via make blueprint-check (C03-C04 gates)'
-printf '%s\n' 'Generated artifact zero-diff validation: AVAILABLE via make schema-check (C05-C06)'
+printf '%s\n' 'Cross-document semantic validation: AVAILABLE via make blueprint-check'
+printf '%s\n' 'Control generated-artifact validation: AVAILABLE via make schema-check'

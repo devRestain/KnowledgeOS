@@ -7,7 +7,6 @@ import json
 import subprocess
 from pathlib import Path
 
-from .runtime import RuntimeLayout
 from .yaml_safe import load_yaml_file
 
 MANIFEST_SHA256 = "8766e8f920c8861119bd39d16f0ffa47f668e7503d06a2ababb55d44994167ce"
@@ -31,10 +30,11 @@ REQUIRED_FILES = (
     "docs/DECISIONS.md",
     "docs/IMPLEMENTATION_STATUS.md",
     "docs/SOURCE_CONTRACT.md",
+    "ops/AGENTS.md",
     "ops/check-foundation.sh",
+    "ops/compose.test.yaml",
     "ops/config/generated-artifacts.yaml",
-    "KnowledgeHub/.gitignore",
-    "KnowledgeHub/.gitattributes",
+    "ops/tests/AGENTS.md",
 )
 
 REQUIRED_DIRECTORIES = (
@@ -51,43 +51,7 @@ REQUIRED_DIRECTORIES = (
     "ops/launchd",
     "ops/tests",
     "ops/tests/fixtures",
-    "KnowledgeHub",
-    "KnowledgeHub/.vault-bridge",
-    "KnowledgeHub/.vault-bridge/protocol",
-    "KnowledgeHub/.vault-bridge/requests",
-    "KnowledgeHub/.vault-bridge/responses",
-    "runtime",
-    "KnowledgeHub/00_Inbox/Captures",
-    "KnowledgeHub/01_AI_Review/Pending",
-    "KnowledgeHub/01_AI_Review/Resolved",
-    "KnowledgeHub/01_AI_Review/Rejected",
-    "KnowledgeHub/01_AI_Review/Expired",
-    "KnowledgeHub/01_AI_Review/Conflict",
-    "KnowledgeHub/10_Journal/Daily",
-    "KnowledgeHub/10_Journal/Weekly",
-    "KnowledgeHub/10_Journal/Monthly",
-    "KnowledgeHub/20_Projects",
-    "KnowledgeHub/30_Areas",
-    "KnowledgeHub/40_Knowledge/Notes",
-    "KnowledgeHub/40_Knowledge/Ideas",
-    "KnowledgeHub/40_Knowledge/Questions",
-    "KnowledgeHub/40_Knowledge/Sources",
-    "KnowledgeHub/40_Knowledge/People",
-    "KnowledgeHub/50_Maps",
-    "KnowledgeHub/60_Meetings",
-    "KnowledgeHub/80_Assets/Inbox",
-    "KnowledgeHub/80_Assets/Images",
-    "KnowledgeHub/80_Assets/Documents",
-    "KnowledgeHub/80_Assets/Audio",
-    "KnowledgeHub/90_Archive/Projects",
-    "KnowledgeHub/90_Archive/Captures",
-    "KnowledgeHub/90_Archive/Other",
-    "KnowledgeHub/99_System/Templates",
-    "KnowledgeHub/99_System/Bases",
-    "KnowledgeHub/99_System/Dashboards",
-    "KnowledgeHub/99_System/Schemas",
-    "KnowledgeHub/99_System/Scripts/QuickAdd",
-    "KnowledgeHub/99_System/CSS",
+    "ops/tests/support",
 )
 
 # Git does not version empty directories.  These markers are intentionally
@@ -169,7 +133,7 @@ def check_source_manifest(root: str | Path) -> list[str]:
 
 
 def check_foundation(root: str | Path) -> list[str]:
-    """Return portable foundation violations for a mounted workspace."""
+    """Return control-repository foundation violations without reading mutable roots."""
 
     workspace = Path(root).resolve()
     problems: list[str] = []
@@ -186,30 +150,11 @@ def check_foundation(root: str | Path) -> list[str]:
         elif not path.is_dir():
             problems.append(f"missing required directory: {relative}")
 
-    problems.extend(RuntimeLayout(workspace / "runtime").check())
     if (workspace / "bridge").exists():
-        problems.append("obsolete top-level bridge/ exists")
+        problems.append("obsolete control path exists: bridge/")
     for expected in ("/KnowledgeHub/", "/runtime/"):
         if expected not in (workspace / ".gitignore").read_text(encoding="utf-8").splitlines():
             problems.append(f"control .gitignore is missing {expected}")
-    if list((workspace / "KnowledgeHub").rglob(".gitkeep")):
-        problems.append("Vault filler .gitkeep files found")
-    for marker in (workspace / "KnowledgeHub").rglob(STRUCTURAL_MARKER_NAME):
-        relative = marker.relative_to(workspace).as_posix()
-        if marker.is_symlink():
-            problems.append(f"structural marker is a symlink: {relative}")
-            continue
-        if marker.parent.relative_to(workspace).as_posix() not in STRUCTURAL_MARKER_DIRECTORIES:
-            problems.append(f"structural marker is outside the canonical allowlist: {relative}")
-        else:
-            try:
-                if marker.read_text(encoding="utf-8") != STRUCTURAL_MARKER_TEXT:
-                    problems.append(f"structural marker has unexpected bytes: {relative}")
-            except (OSError, UnicodeError) as error:
-                problems.append(f"structural marker cannot be read: {relative}: {error}")
-    for path in (workspace / "KnowledgeHub").rglob("*"):
-        if path.is_symlink():
-            problems.append(f"unexpected Vault symlink: {path.relative_to(workspace)}")
     for path in (workspace / "ops").rglob("*"):
         if path.is_symlink():
             problems.append(f"unexpected ops symlink: {path.relative_to(workspace)}")
@@ -225,27 +170,23 @@ def check_foundation(root: str | Path) -> list[str]:
             problems.append("blueprint schema root must be an object")
         elif len(schema.get("required", [])) != len(blueprint):
             problems.append("blueprint schema required/key count mismatch")
-        fixed_paths = blueprint.get("fixed_paths", {})
-        for relative in fixed_paths.get("required_vault_files", ()):
-            path = workspace / "KnowledgeHub" / str(relative)
-            if path.is_symlink():
-                problems.append(f"required Vault file is a symlink: {relative}")
-            elif not path.is_file():
-                problems.append(f"missing required Vault file: {relative}")
     except (OSError, TypeError, ValueError, KeyError) as error:
-        problems.append(f"blueprint bootstrap parse failed: {error}")
+        problems.append(f"blueprint control parse failed: {error}")
 
     control_root_code, control_root = _git_output(workspace, "rev-parse", "--show-toplevel")
-    vault_root_code, vault_root = _git_output(workspace / "KnowledgeHub", "rev-parse", "--show-toplevel")
-    if control_root_code != 0 or vault_root_code != 0:
-        problems.append("both control and Vault Git roots must be initialized")
+    if control_root_code != 0:
+        problems.append("control Git root must be initialized")
     else:
         if Path(control_root).resolve() != workspace:
             problems.append(f"wrong control Git root: {control_root}")
-        if Path(vault_root).resolve() != workspace / "KnowledgeHub":
-            problems.append(f"wrong Vault Git root: {vault_root}")
         for boundary in ("KnowledgeHub", "runtime"):
-            ignored_code, _ = _git_output(workspace, "check-ignore", "--no-index", "--", boundary)
+            ignored_code, _ = _git_output(
+                workspace,
+                "check-ignore",
+                "--no-index",
+                "--",
+                f"{boundary}/.knowledgeos-boundary-probe",
+            )
             if ignored_code != 0:
                 problems.append(f"control repository must ignore {boundary}/")
         tracked_code, tracked = _git_output(workspace, "ls-files", "--stage", "--", "KnowledgeHub", "runtime")

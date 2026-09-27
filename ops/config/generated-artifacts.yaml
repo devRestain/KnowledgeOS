@@ -10,7 +10,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/common_properties, /property_registry]
     generator: vaultops.schema_export:properties
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/policies/paths.yaml
     owner: portable_core
@@ -19,7 +19,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/path_namespaces, /path_match_semantics, /fixed_paths]
     generator: vaultops.schema_export:paths
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/policies/relations.yaml
     owner: portable_core
@@ -28,7 +28,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/property_registry, /relation_registry]
     generator: vaultops.schema_export:relations
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/policies/privacy.yaml
     owner: portable_core
@@ -37,7 +37,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/privacy]
     generator: vaultops.schema_export:privacy
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/policies/retrieval.yaml
     owner: portable_core
@@ -46,7 +46,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/retrieval]
     generator: vaultops.schema_export:retrieval
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/schemas/blueprint.schema.json
     owner: portable_core
@@ -55,7 +55,7 @@ artifacts:
       - path: blueprint/blueprint.schema.json
         selectors: [/]
     generator: vaultops.schema_export:trusted_blueprint_schema
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/expected/Property_Dictionary.md
     owner: portable_core
@@ -73,16 +73,7 @@ artifacts:
       - path: blueprint/blueprint.yaml
         selectors: [/common_properties, /property_registry, /note_types]
     generator: vaultops.schema_export:note_schema
-    deployed_copy: true
-    first_capability: portable_core
-  - path: KnowledgeHub/99_System/Schemas/Property_Dictionary.md
-    owner: portable_core
-    status: OWNED
-    authoritative_inputs:
-      - path: blueprint/blueprint.yaml
-        selectors: [/common_properties, /property_registry, /note_types]
-    generator: vaultops.schema_export:property_dictionary_deployed
-    deployed_copy: true
+    deployed_copy: false
     first_capability: portable_core
   - path: ops/schemas/bridge-request.schema.json
     owner: C10
@@ -110,24 +101,6 @@ artifacts:
         selectors: [/mobile_install_gate/root_sentinel_contract]
     generator: vaultops.bridge_contract:root_sentinel_schema
     deployed_copy: false
-    first_capability: C10
-  - path: KnowledgeHub/.vault-bridge/protocol/request.schema.json
-    owner: C10
-    status: OWNED
-    authoritative_inputs:
-      - path: blueprint/blueprint.yaml
-        selectors: [/bridge]
-    generator: vaultops.bridge_contract:bridge_request_protocol_copy
-    deployed_copy: true
-    first_capability: C10
-  - path: KnowledgeHub/.vault-bridge/protocol/response.schema.json
-    owner: C10
-    status: OWNED
-    authoritative_inputs:
-      - path: blueprint/blueprint.yaml
-        selectors: [/bridge]
-    generator: vaultops.bridge_contract:bridge_response_protocol_copy
-    deployed_copy: true
     first_capability: C10
   - path: ops/policies/generated-sections.yaml
     owner: C06

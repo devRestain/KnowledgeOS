@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import stat
 import uuid
 from datetime import UTC, datetime
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
 
 from vaultops.cli import main
 from vaultops.gemma_routes import GEMMA_MODEL_TAG, run_gemma_job
@@ -22,7 +22,6 @@ from vaultops.provider_contract import (
     write_provider_request,
 )
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIGEST = "a" * 64
 
 
@@ -31,19 +30,7 @@ def _digest(value: bytes) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
-        ),
-    )
-    return root
+    return make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS, with_vault=False)
 
 
 def _job(root: Path, action: str) -> tuple[str, dict[str, Any]]:

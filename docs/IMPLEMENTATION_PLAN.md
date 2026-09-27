@@ -676,3 +676,65 @@ G non-goals are direct Obsidian manipulation, plugin installation or setting
 mutation, Vault move/delete, Git network effects, provider effects, automatic
 canonical apply, and claims that a theme or bottom Properties placement is
 active without separately authorized profile/device evidence.
+
+## T lane — Hermetic test architecture and KnowledgeHub independence
+
+The T lane makes the KnowledgeOS verification system independent from ordinary
+KnowledgeHub use. It treats the Vault as a user-owned consumer that floats on
+the KnowledgeOS contracts, not as a mutable snapshot that the default regression
+suite may use as input.
+
+The planning authority is the [KnowledgeOS Hermetic Test Architecture Decision
+Map](../planning/wayfinder/test-architecture/MAP.md). Its factual starting point
+is the [T01 Test Architecture
+Baseline](../planning/wayfinder/test-architecture/BASELINE.md). The decision map
+is complete. The accepted implementation authority is the [T01 Hermetic Test
+Architecture Implementation
+Contract](../planning/wayfinder/test-architecture/IMPLEMENTATION_CONTRACT.md),
+with exact per-file actions in the [T01 Test Responsibility and Retirement
+Matrix](../planning/wayfinder/test-architecture/RESPONSIBILITY_MATRIX.md).
+These documents do not replace `PROJECT_STATE.md`.
+
+### T01 — Rebuild the test responsibility model
+
+- Remove default regression dependence on real mutable KnowledgeHub notes,
+  profile snapshots, and whole-Vault path absence.
+- Use deterministic in-memory inputs and disposable `tmp_path/KnowledgeHub`
+  fixtures for unit, semantic, bootstrap, transaction, and integration tests.
+- Limit any exact deployed document ownership to an explicitly accepted
+  `99_System` surface and keep artifact reconciliation separate from ordinary
+  note behavior.
+- Treat declared plugins as required capabilities rather than an exhaustive
+  installed-plugin allowlist. Permit unrelated additional plugins and unrelated
+  settings while failing closed on missing required capabilities and unsafe
+  safety-critical values.
+- Inventory every existing test responsibility before deleting, merging, or
+  parameterizing historical tests. Preserve unique checks for schema, path
+  confinement, transaction atomicity, rollback, digest binding, privacy,
+  provider authorization, and proposal-only behavior.
+- Keep live/runtime/device smoke outside the default regression tier. When such
+  a check is separately authorized, create a uniquely named temporary note and
+  verify cleanup on success, failure, timeout, interruption, and stale-run
+  recovery paths.
+- Keep every pytest implementation, fixture, and test-only helper under
+  `ops/tests/`, govern that boundary with `ops/tests/AGENTS.md`, and execute
+  tests only through repository-root `make` targets.
+- Update or delete invalid, duplicated, historical, or superseded tests after
+  tracing and preserving every unique safety responsibility they still own.
+- Define the final default-suite budget only after the responsibility and
+  deletion decisions close; a smaller count alone is not acceptance evidence.
+- Run implementation checks in the canonical container with test and lint
+  sequential, validate `PROJECT_STATE.md` after every state write, and run
+  `git diff --check` in both Git roots.
+
+T01 planning is accepted and implementation is active. The contract fixes the
+eight-stage migration order, 30-path `99_System` deployment allowlist, deletion
+list, open-world plugin matrix, four-factor smoke cleanup rule, hermetic runner,
+57-file and 11,750-line ceilings, and measured 72-second mean regression target.
+Implementation starts with the Make/Compose/pytest harness and may not delete a
+test until its named replacement owner passes through the Make entrypoint.
+
+T non-goals are changing KnowledgeHub content to satisfy tests, normalizing the
+user's profile, installing or removing plugins, operating Obsidian or devices,
+weakening safety and review gates, changing provider behavior, committing,
+pushing, deploying, or performing other remote effects.

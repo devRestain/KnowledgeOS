@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
+
+from support.control_factory import make_control_root, make_diagnostic_root
 
 from vaultops.cli import main
 from vaultops.diagnostics import (
@@ -19,10 +20,13 @@ from vaultops.diagnostics import (
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutation() -> None:
-    before = (CONTROL_ROOT / "KnowledgeHub/.knowledgeos-root.json").read_bytes()
+def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutation(
+    tmp_path: Path,
+) -> None:
+    root = make_diagnostic_root(tmp_path)
+    before = sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if ".git" not in path.parts)
 
-    report, exit_code = doctor_report(CONTROL_ROOT)
+    report, exit_code = doctor_report(root)
 
     assert exit_code == 0, report
     assert report["status"] == "PASS"
@@ -32,32 +36,31 @@ def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutati
         "semantic_validation": "PASS",
         "generated_artifacts": "PASS",
     }
-    assert report["overlays"]["git_identity_configured"]["state"] == "verified"
+    assert report["overlays"]["git_identity_configured"]["state"] == "inactive"
     assert report["overlays"]["obsidian_mac_core_verified"]["state"] == "inactive"
     assert report["overlays"]["mobile_transport_verified"]["state"] == "deferred"
     assert report["plugins"]["profile"] == "mac"
     assert report["plugins"]["profile_root"].endswith("KnowledgeHub/.obsidian-mac")
-    assert (CONTROL_ROOT / "KnowledgeHub/.knowledgeos-root.json").read_bytes() == before
+    after = sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if ".git" not in path.parts)
+    assert after == before
 
 
-def test_git_status_distinguishes_dirty_worktree_from_diagnostic_failure() -> None:
-    report, exit_code = git_status_report(CONTROL_ROOT, "both")
+def test_git_status_distinguishes_dirty_worktree_from_diagnostic_failure(tmp_path: Path) -> None:
+    root = make_diagnostic_root(tmp_path)
+    (root / "KnowledgeHub/temporary-note.md").write_text("temporary\n", encoding="utf-8")
+    report, exit_code = git_status_report(root, "both")
 
     assert exit_code == 0, report
     assert report["status"] == "PASS"
     assert set(report["repositories"]) == {"control", "vault"}
-    assert report["repositories"]["control"]["worktree"] in {"clean", "dirty"}
-    assert report["repositories"]["vault"]["worktree"] in {"clean", "dirty"}
-    assert all(not path.startswith("BSIDIAN_") for path in report["repositories"]["control"]["staged_paths"])
+    assert report["repositories"]["control"]["worktree"] == "clean"
+    assert report["repositories"]["vault"]["worktree"] == "dirty"
+    assert report["repositories"]["vault"]["untracked_paths"] == ["temporary-note.md"]
     assert "https://github.com" not in json.dumps(report)
 
 
 def _minimal_plugin_audit_root(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(CONTROL_ROOT / "blueprint", root / "blueprint")
-    (root / "ops").mkdir()
-    shutil.copy2(CONTROL_ROOT / "ops/vaultops.toml", root / "ops/vaultops.toml")
-    (root / "KnowledgeHub").mkdir()
+    root = make_control_root(tmp_path, ("blueprint", "ops/vaultops.toml"))
     (root / "runtime").mkdir()
     return root
 
@@ -68,10 +71,10 @@ def test_plugins_audit_reports_unconfigured_profile_as_inactive(tmp_path: Path) 
     assert exit_code == 0
     assert report["status"] == "INACTIVE"
     assert report["profile_state"] == "not_configured"
-    assert all(item["state"] == "inactive" for item in report["community_plugins"])
+    assert all(item["state"] == "inactive" for item in report["declared_capabilities"])
 
 
-def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> None:
+def test_plugins_audit_requires_declared_plugins_but_tolerates_unmanaged_plugins(tmp_path: Path) -> None:
     root = _minimal_plugin_audit_root(tmp_path)
     profile_root = root / "KnowledgeHub/.obsidian-mac"
     profile_root.mkdir()
@@ -87,6 +90,7 @@ def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> Non
         "notebook-navigator",
         "obsidian-meta-bind-plugin",
         "knowledgeos-thin-client",
+        "unrelated-community-plugin",
     ]
     (profile_root / "community-plugins.json").write_text(json.dumps(plugin_ids), encoding="utf-8")
 
@@ -95,9 +99,12 @@ def test_plugins_audit_reads_profile_level_array_manifest(tmp_path: Path) -> Non
     assert exit_code == 0, report
     assert report["status"] == "PASS"
     assert report["profile_state"] == "configured"
-    assert {item["id"] for item in report["community_plugins"]} == set(plugin_ids)
-    assert all(item["state"] == "installed" for item in report["community_plugins"])
-    assert report["unexpected_community_plugins"] == []
+    assert {item["id"] for item in report["declared_capabilities"]} == set(plugin_ids) - {
+        "unrelated-community-plugin"
+    }
+    assert all(item["state"] == "installed" for item in report["declared_capabilities"])
+    assert report["unmanaged_plugins"] == ["unrelated-community-plugin"]
+    assert report["serialized_deployment_evidence"] == "pass"
 
 
 def test_plugins_audit_rejects_object_manifest_with_profile_relative_locator(tmp_path: Path) -> None:
@@ -109,7 +116,7 @@ def test_plugins_audit_rejects_object_manifest_with_profile_relative_locator(tmp
     report, exit_code = plugins_audit_report(root)
 
     assert exit_code == EXIT_CONFIG_INVALID
-    assert report["status"] == "DEGRADED"
+    assert report["status"] == "FAIL"
     assert report["errors"] == [
         {
             "code": "PLUGIN_CONFIG_ROOT_INVALID",
@@ -145,19 +152,20 @@ def test_strict_config_rejects_unknown_keys_and_value_drift(tmp_path: Path) -> N
         raise AssertionError("strict config unexpectedly accepted drift")
 
 
-def test_cli_exposes_c12_namespaces(capsys) -> None:
-    assert main(["git", "status", "--repo", "vault", "--root", str(CONTROL_ROOT)]) == 0
+def test_cli_exposes_c12_namespaces(tmp_path: Path, capsys) -> None:
+    git_root = make_diagnostic_root(tmp_path / "git")
+    assert main(["git", "status", "--repo", "vault", "--root", str(git_root)]) == 0
     git_report = json.loads(capsys.readouterr().out)
     assert git_report["requested_repo"] == "vault"
 
-    assert main(["plugins", "audit", "--root", str(CONTROL_ROOT)]) == 0
+    plugin_root = _minimal_plugin_audit_root(tmp_path / "plugins")
+    assert main(["plugins", "audit", "--root", str(plugin_root)]) == 0
     plugin_report = json.loads(capsys.readouterr().out)
     assert plugin_report["operation"] == "plugins audit"
 
 
 def test_note_validation_failure_uses_the_stable_validation_exit_class(tmp_path: Path, capsys) -> None:
-    root = tmp_path / "control"
-    shutil.copytree(CONTROL_ROOT / "blueprint", root / "blueprint")
+    root = make_control_root(tmp_path, ("blueprint",))
     note_path = root / "KnowledgeHub/40_Knowledge/Ideas/Invalid.md"
     note_path.parent.mkdir(parents=True)
     note_path.write_text("---\ntitle: Invalid\ntitle: Duplicate\n---\n", encoding="utf-8")
@@ -169,9 +177,7 @@ def test_note_validation_failure_uses_the_stable_validation_exit_class(tmp_path:
 
 
 def test_note_validation_input_failure_uses_the_stable_input_exit_class(tmp_path: Path, capsys) -> None:
-    root = tmp_path / "control"
-    shutil.copytree(CONTROL_ROOT / "blueprint", root / "blueprint")
-    (root / "KnowledgeHub").mkdir()
+    root = make_control_root(tmp_path, ("blueprint",))
 
     assert main(["note", "validate", "../escape.md", "--root", str(root)]) == EXIT_INPUT_INVALID
     report = json.loads(capsys.readouterr().out)

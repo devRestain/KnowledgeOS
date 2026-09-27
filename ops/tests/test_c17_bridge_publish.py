@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
 
 from vaultops.bridge_contract import canonical_json_bytes, remote_identity_sha256
 from vaultops.bridge_publish import ingest_bridge_request, publish_bridge_response
@@ -29,19 +29,11 @@ def _git(root: Path, *args: str) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"
-        ),
-    )
+    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
     _git(root, "init", "--initial-branch", "main")
     _git(root, "config", "user.email", "test@example.invalid")
     _git(root, "config", "user.name", "KnowledgeOS Test")
     vault = root / "KnowledgeHub"
-    vault.mkdir()
     for relative in (
         ".vault-bridge/requests/2026/09",
         ".vault-bridge/responses/2026/09",

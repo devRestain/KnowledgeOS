@@ -927,7 +927,11 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             "profile_root": str(profile_root),
             "status": "INACTIVE",
             "profile_state": "not_configured",
-            "community_plugins": [{**item, "state": "inactive", "reason": "profile_missing"} for item in expected],
+            "declared_capabilities": [
+                {**item, "state": "inactive", "reason": "profile_missing"}
+                for item in expected
+            ],
+            "unmanaged_plugins": [],
             "fallback": "canonical_markdown_and_plugin_free_surface_available",
             "setting_registry": registry,
             "gui_contract": gui_contract,
@@ -936,7 +940,7 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
                 evidence_class="static",
                 evidence=["blueprint/blueprint.yaml#/plugin_profiles", str(profile_root)],
             ),
-            "filesystem_evidence": "not_configured",
+            "serialized_deployment_evidence": "not_configured",
             "device_proof": {
                 "state": "not_inferred",
                 "evidence_class": "device",
@@ -951,10 +955,12 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
             installed = _read_community_plugin_ids(community_path)
         except DiagnosticError as error:
             errors.append(_issue(error.code, "/community-plugins.json", str(error)))
-    result_plugins = []
+    declared_capabilities = []
     for item in expected:
-        result_plugins.append({**item, "state": "installed" if item["id"] in installed else "inactive"})
-    unexpected = sorted(set(installed) - {item["id"] for item in expected})
+        declared_capabilities.append(
+            {**item, "state": "installed" if item["id"] in installed else "inactive"}
+        )
+    unmanaged = sorted(set(installed) - {item["id"] for item in expected})
     registry = _p01_registry(
         roots,
         profile=profile,
@@ -964,31 +970,33 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
         errors=errors,
     )
     gui_contract = inspect_gui_contract(roots.control, profile)
-    filesystem_pass = not errors and not unexpected and all(item["state"] == "installed" for item in result_plugins)
+    required_present = all(item["state"] == "installed" for item in declared_capabilities)
+    audit_status = "FAIL" if errors else "PASS" if required_present else "DEGRADED"
+    evidence_status = "invalid" if errors else "pass" if required_present else "degraded"
     result = {
         "profile": profile,
         "profile_root": str(profile_root),
-        "status": "PASS" if filesystem_pass else "DEGRADED",
+        "status": audit_status,
         "profile_state": "configured",
-        "community_plugins": result_plugins,
-        "unexpected_community_plugins": unexpected,
+        "declared_capabilities": declared_capabilities,
+        "unmanaged_plugins": unmanaged,
         "fallback": "canonical_markdown_and_plugin_free_surface_available",
         "setting_registry": registry,
         "gui_contract": gui_contract,
         "capability": _capability(
-            state="configured" if filesystem_pass else "degraded",
+            state="configured" if audit_status == "PASS" else "degraded",
             declared="declared",
             configured="configured" if not errors else "invalid",
             reachable="not_applicable",
             authorized="not_applicable",
             verified="not_run",
-            enabled="enabled" if filesystem_pass else "disabled",
+            enabled="enabled" if required_present else "disabled",
             healthy="not_run" if not errors else "not_ready",
             reason="filesystem_manifest_audited_without_device_probe",
-            evidence_class="runtime",
+            evidence_class="serialized_deployment",
             evidence=["KnowledgeHub/.obsidian-mac/community-plugins.json", "blueprint/blueprint.yaml#/plugin_profiles"],
         ),
-        "filesystem_evidence": "pass" if filesystem_pass else "degraded",
+        "serialized_deployment_evidence": evidence_status,
         "device_proof": {
             "state": "not_inferred",
             "evidence_class": "device",

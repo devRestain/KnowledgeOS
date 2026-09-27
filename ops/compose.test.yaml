@@ -1,0 +1,30 @@
+services:
+  dev:
+    read_only: true
+    environment:
+      KNOWLEDGEOS_TEST_HERMETIC: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTEST_ADDOPTS: "-p no:cacheprovider"
+      RUFF_CACHE_DIR: /tmp/ruff-cache
+    volumes:
+      - type: bind
+        source: ..
+        target: /workspace/control
+        read_only: true
+      - type: volume
+        target: /workspace/control/KnowledgeHub
+        read_only: true
+      - type: volume
+        target: /workspace/KnowledgeHub
+        read_only: true
+      - type: volume
+        target: /workspace/control/runtime
+        read_only: true
+      - type: volume
+        target: /workspace/runtime
+        read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true

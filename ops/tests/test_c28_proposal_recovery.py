@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import uuid
 from pathlib import Path
+
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 import vaultops.proposals as proposals_module
 from vaultops.note_engine import render_frontmatter
@@ -16,16 +21,11 @@ SOURCE_PATH = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
+    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
+    populate_vault_from_fixture(
         root,
-        ignore=shutil.ignore_patterns(
-            ".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"
-        ),
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
     )
-    fixture = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
-    shutil.copytree(fixture, root / "KnowledgeHub")
     for relative in (
         "01_AI_Review/Pending",
         "01_AI_Review/Resolved",

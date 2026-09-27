@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import subprocess
 import uuid
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
 
 from vaultops.background import (
     EXIT_CONFLICT,
@@ -39,13 +39,15 @@ def _git(repo: Path, *args: str) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"
-        ),
+    root = make_control_root(
+        tmp_path,
+        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c24_background"),
+    )
+    (root / "PROJECT_STATE.md").write_text(
+        "/goal phase=history id=C36 state=complete\n"
+        "/evidence id=E_C36_GATES class=runtime result=pass\n"
+        "background activation stays disabled\n",
+        encoding="utf-8",
     )
     _git(root, "init", "--initial-branch", "main")
     _git(root, "config", "user.email", "test@example.invalid")
@@ -268,11 +270,19 @@ def test_worker_fails_closed_on_recovery_conflict(tmp_path: Path) -> None:
     assert report["vault_mutated"] is False
 
 
-def test_c24_artifacts_and_cli_keep_launchd_inactive(tmp_path: Path, capsys) -> None:
+def test_c24_artifacts_and_cli_keep_launchd_inactive(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
     root = _fresh_control_copy(tmp_path)
     executable = tmp_path / "vaultctl"
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(0o755)
+    monkeypatch.setattr(
+        "vaultops.launchd.os.access",
+        lambda path, mode: Path(path) == executable and mode == 1,
+    )
     launchd_path = tmp_path / "LaunchAgents" / "com.knowledgeos.vaultops.plist"
     launchd_path.parent.mkdir()
 

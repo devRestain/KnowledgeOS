@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import io
 import json
-import shutil
 import sys
 from pathlib import Path
 
 import pytest
+from support.control_factory import make_control_root
 
 from vaultops.cli import main
 from vaultops.local_commands import PERIOD_NOTE_GUI_MESSAGE
@@ -22,14 +22,7 @@ class _BytesStdin:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
-    )
-    (root / "KnowledgeHub").mkdir()
-    return root
+    return make_control_root(tmp_path, ("blueprint",))
 
 
 def _json_output(capsys) -> dict[str, object]:

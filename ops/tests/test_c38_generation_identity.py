@@ -31,9 +31,7 @@ from vaultops.provider_contract import (
     write_context_envelope,
     write_provider_request,
 )
-from vaultops.schema_export import export_schema_artifacts
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
 JOB_ID = "123e4567-e89b-42d3-a456-426614174000"
 CREATED_AT = "2026-09-20T10:00:00+09:00"
 
@@ -124,18 +122,11 @@ def test_c38_canonical_profile_is_shared_by_c30_c31_and_e02() -> None:
     }
 
 
-def test_c38_schema_is_strict_and_generated() -> None:
+def test_c38_executable_schema_is_strict() -> None:
     schema = generation_identity_schema()
 
     assert schema["additionalProperties"] is False
     Draft202012Validator.check_schema(schema)
-    result = export_schema_artifacts(CONTROL_ROOT, check=True)
-    assert result.passed, result.report
-    artifact = next(
-        item for item in result.report["artifacts"] if item["path"] == "ops/schemas/c38-generation-identity.schema.json"
-    )
-    assert artifact["owner"] == "C38"
-    assert artifact["status"] == "PASS"
 
 
 def test_c38_identity_binds_full_model_identity_and_keeps_profile_disabled() -> None:

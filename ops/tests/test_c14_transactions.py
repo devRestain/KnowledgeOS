@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-import shutil
 from pathlib import Path
+
+from support.control_factory import make_control_root
 
 from vaultops.local_commands import create_note
 from vaultops.transactions import archive_project, finalize_capture, import_asset
@@ -12,13 +13,7 @@ CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
-    )
-    (root / "KnowledgeHub").mkdir()
+    root = make_control_root(tmp_path, ("blueprint",))
     for relative in (
         "00_Inbox/Captures",
         "20_Projects",

@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import math
-import shutil
 from pathlib import Path
 from typing import Any
+
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 from vaultops.embedding_index import DEFAULT_MODEL_DIMENSION, build_embedding_index
 from vaultops.projection import EXIT_OK, generate_projection
@@ -20,9 +25,6 @@ from vaultops.qwen_embedding_index import (
     qwen_learned_retrieve,
     qwen_learned_search,
 )
-
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
 
 
 class _DeterministicProvider:
@@ -61,19 +63,11 @@ class _DeterministicProvider:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
+    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
+    populate_vault_from_fixture(
         root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
-        ),
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
     )
-    shutil.copytree(FIXTURE_ROOT, root / "KnowledgeHub")
     return root
 
 

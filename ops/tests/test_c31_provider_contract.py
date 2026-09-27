@@ -9,13 +9,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from vaultops.provider_contract import (
-    FROZEN_CONTEXT_SCHEMA_PATH,
     LIMITS,
-    PROVIDER_FAILURE_SCHEMA_PATH,
-    PROVIDER_RECEIPT_SCHEMA_PATH,
-    PROVIDER_REQUEST_SCHEMA_PATH,
-    PROVIDER_RESPONSE_SCHEMA_PATH,
-    REMOTE_AUTHORIZATION_SCHEMA_PATH,
     ProviderContractError,
     build_frozen_context,
     build_identity_receipt,
@@ -26,13 +20,10 @@ from vaultops.provider_contract import (
     canonical_json_bytes,
     provider_schema,
     read_context_envelope,
-    schema_bytes,
     write_context_envelope,
     write_provider_request,
 )
-from vaultops.schema_export import export_schema_artifacts
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
 JOB_ID = "123e4567-e89b-42d3-a456-426614174000"
 REQUEST_ID = "223e4567-e89b-42d3-a456-426614174000"
 CREATED_AT = "2026-09-18T10:00:00+09:00"
@@ -114,31 +105,21 @@ def _context(
 
 
 @pytest.mark.parametrize(
-    ("kind", "path"),
+    "kind",
     [
-        ("request", PROVIDER_REQUEST_SCHEMA_PATH),
-        ("response", PROVIDER_RESPONSE_SCHEMA_PATH),
-        ("receipt", PROVIDER_RECEIPT_SCHEMA_PATH),
-        ("failure", PROVIDER_FAILURE_SCHEMA_PATH),
-        ("authorization", REMOTE_AUTHORIZATION_SCHEMA_PATH),
-        ("context", FROZEN_CONTEXT_SCHEMA_PATH),
+        "request",
+        "response",
+        "receipt",
+        "failure",
+        "authorization",
+        "context",
     ],
 )
-def test_c31_schemas_are_strict_and_zero_diff_generated(kind: str, path: str) -> None:
+def test_c31_executable_schemas_are_strict(kind: str) -> None:
     schema = provider_schema(kind)
 
     assert schema["additionalProperties"] is False
     assert list(Draft202012Validator.check_schema(schema) or []) == []
-    assert (CONTROL_ROOT / path).read_bytes() == schema_bytes(schema)
-
-
-def test_c31_schema_export_binds_the_blueprint_contract() -> None:
-    result = export_schema_artifacts(CONTROL_ROOT, check=True)
-
-    assert result.passed, result.report
-    c31 = [item for item in result.report["artifacts"] if item["first_capability"] == "C31"]
-    assert len(c31) == 6
-    assert {item["status"] for item in c31} == {"PASS"}
 
 
 def test_c31_context_is_private_immutable_and_replay_safe(tmp_path: Path) -> None:

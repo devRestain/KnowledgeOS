@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
+
+from support.control_factory import make_control_root, make_diagnostic_root
 
 from vaultops.diagnostics import doctor_report
 from vaultops.local_models import inspect_local_model_config
-from vaultops.schema_export import export_schema_artifacts
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
@@ -49,19 +49,10 @@ def test_c30_generated_local_model_contract_selects_qwen_as_explicit_serial_live
     }
 
 
-def test_c30_local_model_config_is_owned_by_zero_diff_generation() -> None:
-    result = export_schema_artifacts(CONTROL_ROOT, check=True)
-
-    assert result.passed, result.report
-    artifact = next(
-        item for item in result.report["artifacts"] if item["path"] == "ops/config/local-models.yaml"
-    )
-    assert artifact["owner"] == "C30"
-    assert artifact["status"] == "PASS"
-
-
-def test_c30_doctor_separates_filesystem_evidence_from_live_and_device_proof() -> None:
-    report, exit_code = doctor_report(CONTROL_ROOT)
+def test_c30_doctor_separates_serialized_evidence_from_live_and_device_proof(
+    tmp_path: Path,
+) -> None:
+    report, exit_code = doctor_report(make_diagnostic_root(tmp_path))
 
     assert exit_code == 0, report
     assert report["capability"]["session_slice"] == "C30"
@@ -82,7 +73,7 @@ def test_c30_doctor_separates_filesystem_evidence_from_live_and_device_proof() -
     assert local_model["verified"] == "not_verified"
     assert local_model["enabled"] == "enabled"
     assert local_model["healthy"] == "not_ready"
-    assert report["plugins"]["filesystem_evidence"] == "pass"
+    assert report["plugins"]["serialized_deployment_evidence"] == "not_configured"
     assert report["plugins"]["device_proof"]["state"] == "not_inferred"
     assert report["capabilities"]["c24_background"]["enabled"] == "disabled"
     assert report["capabilities"]["e01_vector"]["enabled"] == "disabled"
@@ -92,12 +83,11 @@ def test_c30_doctor_separates_filesystem_evidence_from_live_and_device_proof() -
 
 
 def test_c30_config_drift_is_degraded_and_does_not_enable_a_profile(tmp_path: Path) -> None:
-    root = tmp_path / "control"
-    (root / "blueprint").mkdir(parents=True)
-    shutil.copy2(CONTROL_ROOT / "blueprint/blueprint.yaml", root / "blueprint/blueprint.yaml")
+    root = make_control_root(
+        tmp_path,
+        ("blueprint/blueprint.yaml", "ops/config/local-models.yaml"),
+    )
     config_path = root / "ops/config/local-models.yaml"
-    config_path.parent.mkdir(parents=True)
-    shutil.copy2(CONTROL_ROOT / "ops/config/local-models.yaml", config_path)
     document = config_path.read_text(encoding="utf-8").replace("enabled_by_default: false", "enabled_by_default: true", 1)
     config_path.write_text(document, encoding="utf-8")
 
@@ -109,8 +99,8 @@ def test_c30_config_drift_is_degraded_and_does_not_enable_a_profile(tmp_path: Pa
     assert any(error["code"] == "LOCAL_MODEL_CONFIG_DRIFT" for error in errors)
 
 
-def test_c30_doctor_report_remains_json_serializable() -> None:
-    report, exit_code = doctor_report(CONTROL_ROOT)
+def test_c30_doctor_report_remains_json_serializable(tmp_path: Path) -> None:
+    report, exit_code = doctor_report(make_diagnostic_root(tmp_path))
 
     assert exit_code == 0, report
     json.dumps(report, ensure_ascii=False, sort_keys=True)

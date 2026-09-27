@@ -43,6 +43,10 @@ DASHBOARD_PATHS = (
     "99_System/Dashboards/Weekly_Review.md",
     "99_System/CSS/dashboard.css",
 )
+USER_DASHBOARD_PATHS = ("Home.md", "Mobile.md")
+SYSTEM_DASHBOARD_PATHS = tuple(
+    path for path in DASHBOARD_PATHS if path not in USER_DASHBOARD_PATHS
+)
 CANONICAL_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
@@ -491,6 +495,21 @@ def dashboard_sources() -> dict[str, str]:
             """
         ),
     }
+
+
+def user_dashboard_sources() -> dict[str, str]:
+    """Return create-only root-note defaults without claiming deployed ownership."""
+
+    sources = dashboard_sources()
+    return {path: sources[path] for path in USER_DASHBOARD_PATHS}
+
+
+def system_dashboard_sources() -> dict[str, str]:
+    """Return the exact generated sources owned beneath ``99_System``."""
+
+    sources = dashboard_sources()
+    return {path: sources[path] for path in SYSTEM_DASHBOARD_PATHS}
+
 
 
 @dataclass(frozen=True)

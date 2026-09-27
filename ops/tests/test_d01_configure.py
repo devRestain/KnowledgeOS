@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
+
+from support.control_factory import make_control_root
 
 from vaultops.bridge_contract import (
     canonical_json_bytes,
@@ -29,21 +30,9 @@ def _run_git(root: Path, *args: str) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
-        ),
-    )
+    root = make_control_root(tmp_path, ("blueprint",))
     _run_git(root, "init", "--initial-branch", "main")
     vault = root / "KnowledgeHub"
-    vault.mkdir()
     (vault / ".gitignore").write_text(".DS_Store\n", encoding="utf-8")
     _run_git(vault, "init", "--initial-branch", "main")
     _run_git(vault, "config", "user.email", "test@example.invalid")

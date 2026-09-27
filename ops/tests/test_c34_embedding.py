@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import math
-import shutil
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 from vaultops.embedding_index import (
     DEFAULT_MODEL_DIMENSION,
@@ -23,8 +27,6 @@ from vaultops.embedding_index import (
 )
 from vaultops.projection import EXIT_CONFLICT, EXIT_OK, generate_projection
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
 MODEL_DIGEST = "a" * 64
 
 
@@ -66,19 +68,14 @@ class _DeterministicEmbeddingProvider:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
-        ),
+    root = make_control_root(
+        tmp_path,
+        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c34_embeddings"),
     )
-    shutil.copytree(FIXTURE_ROOT, root / "KnowledgeHub")
+    populate_vault_from_fixture(
+        root,
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
+    )
     return root
 
 

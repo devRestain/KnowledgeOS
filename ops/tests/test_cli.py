@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest
+from support.control_factory import make_control_root
 
 from vaultops.cli import build_parser, main
 
@@ -12,14 +12,7 @@ CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
-    )
-    (root / "KnowledgeHub").mkdir()
-    return root
+    return make_control_root(tmp_path, ("blueprint",))
 
 
 def test_version_command(capsys) -> None:

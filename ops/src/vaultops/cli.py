@@ -89,6 +89,7 @@ from .thin_client_http import (
 )
 from .transactions import archive_project, finalize_capture, import_asset
 from .triage import deterministic_triage
+from .vault_artifacts import check_vault_artifacts
 from .vector import evaluate_vector_baseline, vector_retrieve, vector_search
 from .workflows import create_project_bundle
 from .yaml_safe import load_yaml_file
@@ -352,6 +353,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     schema_export.add_argument("--check", action="store_true", help="check byte-for-byte zero-diff without writing")
     schema_export.add_argument("--root", type=Path, default=None, help="mounted control root")
+
+    vault_artifacts = commands.add_parser(
+        "vault-artifacts",
+        help="inspect named deployed 99_System artifacts without writing",
+    )
+    vault_artifact_commands = vault_artifacts.add_subparsers(
+        dest="vault_artifact_command",
+        required=True,
+    )
+    vault_artifact_check = vault_artifact_commands.add_parser(
+        "check",
+        help="compare the exact 99_System allowlist with control expectations",
+    )
+    vault_artifact_check.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help="mounted control root",
+    )
 
     export = commands.add_parser("export", help="publish deterministic runtime projections")
     export_commands = export.add_subparsers(dest="export_command", required=True)
@@ -1191,6 +1211,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return result.exit_code
     if args.command == "schema":
         result = export_schema_artifacts(args.root or _control_root(), check=args.check)
+        print(result.as_json(), end="")
+        return result.exit_code
+    if args.command == "vault-artifacts":
+        result = check_vault_artifacts(args.root or _control_root())
         print(result.as_json(), end="")
         return result.exit_code
     if args.command == "export" and args.export_command == "jsonl":

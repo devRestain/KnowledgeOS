@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import shutil
 from pathlib import Path
+
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 from vaultops.cli import main
 from vaultops.triage import deterministic_triage
@@ -13,14 +18,11 @@ DAILY = "10_Journal/Daily/2026/2026-09-09.md"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
+    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
+    populate_vault_from_fixture(
         root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
     )
-    fixture = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
-    shutil.copytree(fixture, root / "KnowledgeHub")
     return root
 
 

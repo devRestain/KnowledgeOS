@@ -2,13 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
 from vaultops.base_dashboard import (
     BASE_NAMES,
     DASHBOARD_PATHS,
-    dashboard_sources,
-    render_base_documents,
 )
 from vaultops.portable_fixture import (
     FIXTURE_NAME,
@@ -20,7 +16,6 @@ from vaultops.portable_fixture import (
     validate_note_collection,
     verify_manifest_tree,
 )
-from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 S07_ROOT = fixture_root(CONTROL_ROOT)
@@ -64,21 +59,12 @@ def test_materialized_fixture_applies_fixed_mtime_and_keeps_note_validation_read
 
 def test_phase1_smoke_materializer_includes_core_surface_without_obsidian_config(tmp_path: Path) -> None:
     vault = materialize_phase1_smoke_vault(CONTROL_ROOT, tmp_path / "smoke-vault")
-    for relative in ("Home.md", "Mobile.md", *DASHBOARD_PATHS):
+    for relative in DASHBOARD_PATHS:
         assert (vault / relative).is_file(), relative
     assert all((vault / "99_System/Bases" / name).is_file() for name in BASE_NAMES)
     assert (vault / "10_Journal/Daily/2026/2026-09-09.md").is_file()
     assert not any(path.name.startswith(".obsidian") for path in vault.iterdir())
     assert not any(path.name.startswith(".vault-bridge") for path in vault.iterdir())
-
-
-def test_c08_surface_remains_blueprint_exact_inside_the_c09_gate() -> None:
-    blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
-    expected_bases = render_base_documents(blueprint)
-    for relative, expected in expected_bases.items():
-        assert yaml.safe_load((CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8")) == yaml.safe_load(expected)
-    sources = dashboard_sources()
-    assert tuple(sorted(sources)) == tuple(sorted(DASHBOARD_PATHS))
 
 
 def test_invalid_relation_duplicate_id_and_missing_locator_fail_closed() -> None:

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .base_dashboard import FrozenNote, evaluate_records
+from .base_dashboard import FrozenNote, evaluate_records, user_dashboard_sources
 from .note_engine import (
     FrontmatterError,
     NoteEngine,
@@ -26,6 +26,7 @@ from .note_engine import (
     parse_frontmatter,
     resolve_vault_relative_path,
 )
+from .vault_artifacts import expected_system_artifacts
 from .yaml_safe import load_yaml_file
 
 FIXTURE_NAME = "guestbook-horror"
@@ -444,22 +445,18 @@ def materialize_phase1_smoke_vault(
     target = Path(destination).resolve()
     if target.exists():
         raise FileExistsError(f"refusing to materialize over an existing path: {target}")
-    source_vault = workspace / "KnowledgeHub"
-    if source_vault.is_symlink() or not source_vault.is_dir():
-        raise ValueError("workspace Vault root is missing or symlinked")
     target.mkdir(parents=True)
-    for source_path in sorted(source_vault.rglob("*")):
-        relative = source_path.relative_to(source_vault)
-        if any(part.startswith(".") for part in relative.parts):
-            continue
+    generated: dict[str, bytes] = expected_system_artifacts(workspace)
+    generated.update(
+        {
+            relative: source.encode("utf-8")
+            for relative, source in user_dashboard_sources().items()
+        }
+    )
+    for relative, payload in sorted(generated.items()):
         target_path = target / relative
-        if source_path.is_symlink():
-            raise ValueError(f"workspace Vault contains an unsafe symlink: {relative}")
-        if source_path.is_dir():
-            target_path.mkdir(parents=True, exist_ok=True)
-        elif source_path.is_file():
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source_path, target_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_bytes(payload)
 
     manifest = load_fixture_manifest(workspace)
     section = manifest["input"]

@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import io
 import json
-import shutil
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 from vaultops.cli import main
 from vaultops.projection import (
@@ -29,25 +33,18 @@ from vaultops.vector import (
     vector_search,
 )
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_ROOT = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
 BASELINE_PATH = "ops/tests/fixtures/e01_vectors/evaluation.yaml"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
-        ),
+    root = make_control_root(
+        tmp_path,
+        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/e01_vectors"),
     )
-    shutil.copytree(FIXTURE_ROOT, root / "KnowledgeHub")
+    populate_vault_from_fixture(
+        root,
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
+    )
     return root
 
 
@@ -153,13 +150,6 @@ def test_e01_frozen_evaluation_reports_metrics_without_mutation(tmp_path: Path) 
     assert report["provider_called"] is False
     assert report["mutation_performed"] is False
     assert _runtime_snapshot(root) == before
-
-
-def test_e01_schema_artifact_matches_executable_contract() -> None:
-    artifact = json.loads(
-        (CONTROL_ROOT / "ops/schemas/e01-vector-evaluation.schema.json").read_text(encoding="utf-8")
-    )
-    assert artifact == vector_evaluation_schema()
 
 
 def test_e01_stale_projection_fails_closed(tmp_path: Path) -> None:

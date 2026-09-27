@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import yaml
+from support.control_factory import make_control_root
 
 from vaultops.base_dashboard import (
     BASE_NAMES,
@@ -12,6 +12,8 @@ from vaultops.base_dashboard import (
     evaluate_records,
     load_frozen_fixture,
     render_base_documents,
+    system_dashboard_sources,
+    user_dashboard_sources,
 )
 from vaultops.bootstrap import bootstrap
 from vaultops.note_engine import NoteEngine
@@ -22,25 +24,15 @@ FIXTURE_PATH = CONTROL_ROOT / "ops/tests/fixtures/c08_dashboard/fixture.yaml"
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
-    )
-    (root / "KnowledgeHub").mkdir()
-    return root
+    return make_control_root(tmp_path, ("blueprint",))
 
 
-def test_all_canonical_base_files_match_the_blueprint_compiler() -> None:
+def test_base_compiler_emits_the_exact_blueprint_owned_source_set() -> None:
     blueprint = load_yaml_file(CONTROL_ROOT / "blueprint/blueprint.yaml")
     expected = render_base_documents(blueprint)
-    actual_paths = tuple(sorted(path.relative_to(CONTROL_ROOT / "KnowledgeHub").as_posix() for path in (CONTROL_ROOT / "KnowledgeHub/99_System/Bases").glob("*.base")))
-    assert actual_paths == tuple(sorted(expected))
-    assert tuple(path.rsplit("/", 1)[-1] for path in actual_paths) == tuple(sorted(BASE_NAMES))
-    for relative, expected_text in expected.items():
-        actual = yaml.safe_load((CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8"))
-        assert actual == yaml.safe_load(expected_text), relative
+    emitted_paths = tuple(sorted(expected))
+    assert tuple(path.rsplit("/", 1)[-1] for path in emitted_paths) == tuple(sorted(BASE_NAMES))
+    assert all(yaml.safe_load(source) for source in expected.values())
 
 
 def test_frozen_evaluator_enforces_canonical_limits_order_and_mtime() -> None:
@@ -154,11 +146,11 @@ def test_frozen_evaluator_enforces_canonical_limits_order_and_mtime() -> None:
     assert first_knowledge.endswith("Knowledge-03.md")
 
 
-def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible() -> None:
+def test_dashboard_sources_preserve_current_navigation_and_core_fallbacks() -> None:
     sources = dashboard_sources()
     assert tuple(sorted(sources)) == tuple(sorted(DASHBOARD_PATHS))
-    for relative, expected in sources.items():
-        assert (CONTROL_ROOT / "KnowledgeHub" / relative).read_text(encoding="utf-8") == expected
+    assert tuple(user_dashboard_sources()) == ("Home.md", "Mobile.md")
+    assert set(system_dashboard_sources()) == set(DASHBOARD_PATHS) - {"Home.md", "Mobile.md"}
 
     home = sources["Home.md"]
     today_focus = sources["99_System/Dashboards/Today_Focus.md"]
@@ -190,24 +182,6 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
     assert "Journal.base#Today Focus" in today_focus
     assert "Today Focus 전체 보기" in today_focus
     assert "Journal.base#Open Reviews" in home
-    for removed_view in (
-        "Home Intake",
-        "Home Focus",
-        "Home Decisions",
-        "Home Reading",
-        "Home Conflicts",
-        "Home Pending",
-        "Home Connections",
-    ):
-        assert removed_view not in home
-    assert "Journal.base#Due Areas" not in home
-    assert "ko-home-strip" not in home
-    assert "ko-home-footer" not in home
-    assert "Today Focus" not in home
-    assert "기한이 지난·오늘 Task" not in home
-    assert "전체" not in home
-    assert "ko-home-connections" not in home
-    assert "ko-home-attention" not in home
     assert "description regex matches /\\S/" in home
     assert "QuickAdd" not in home
     assert "vaultctl" not in home
@@ -223,15 +197,10 @@ def test_dashboard_sources_are_exactly_deployed_and_core_fallbacks_are_visible()
     assert 'data-callout="ko-home-compass"]' in css
     assert "grid-column: span 12;" in css
     assert "grid-column: span 6;" in css
-    assert "grid-column: span 4;" not in css
-    assert 'data-callout="ko-home-strip"' not in css
-    assert 'data-callout="ko-home-footer"' not in css
     assert "@media (max-width: 899px)" in css
-    assert ".knowledgeos-dashboard-grid" not in css
     assert "shortcuts://run-shortcut?name=KO%20%C2%B7%20Defer%20to%20Mac" in mobile
     assert "Projects.base#Mobile|프로젝트 전체 보기" in mobile
     assert "snapshot" in mobile
-    assert "modified" not in (CONTROL_ROOT / "KnowledgeHub/99_System/Bases/Knowledge.base").read_text(encoding="utf-8")
 
     engine = NoteEngine.from_root(CONTROL_ROOT)
     for relative in (

@@ -1,31 +1,33 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
+
+from support.control_factory import make_control_root
 
 from vaultops.cli import main
 from vaultops.schema_export import (
     NOT_APPLICABLE_ARTIFACTS,
     OWNED_ARTIFACTS,
+    OWNERSHIP_CONTRACT_PATH,
     export_schema_artifacts,
 )
 
-CONTROL_ROOT = Path(__file__).resolve().parents[2]
-
 
 def _control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".pytest_cache",
-            ".ruff_cache",
-            "KnowledgeHub",
-            "runtime",
+    inputs = {
+        OWNERSHIP_CONTRACT_PATH,
+        "blueprint/blueprint.schema.json",
+        "blueprint/blueprint.yaml",
+        *(
+            path
+            for spec in OWNED_ARTIFACTS
+            for path, _selectors in spec.authoritative_inputs
         ),
+    }
+    root = make_control_root(
+        tmp_path,
+        sorted(inputs),
     )
     for spec in OWNED_ARTIFACTS:
         (root / spec.path).unlink(missing_ok=True)
@@ -43,20 +45,14 @@ def test_schema_export_writes_only_explicit_owned_artifacts(tmp_path: Path) -> N
         item["status"] == "NOT_APPLICABLE_FOR_PROFILE"
         for item in result.report["artifacts"][len(OWNED_ARTIFACTS) :]
     )
-    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").exists()
-    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
-        root / "ops/expected/Property_Dictionary.md"
-    ).read_bytes()
+    assert all(not spec.path.startswith("KnowledgeHub/") for spec in OWNED_ARTIFACTS)
+    assert list((root / "KnowledgeHub").iterdir()) == []
     assert not (root / "runtime").exists()
     assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"
     )
-    assert (root / "ops/schemas/bridge-request.schema.json").read_bytes() == (
-        root / "KnowledgeHub/.vault-bridge/protocol/request.schema.json"
-    ).read_bytes()
-    assert (root / "ops/schemas/bridge-response.schema.json").read_bytes() == (
-        root / "KnowledgeHub/.vault-bridge/protocol/response.schema.json"
-    ).read_bytes()
+    assert (root / "ops/schemas/bridge-request.schema.json").is_file()
+    assert (root / "ops/schemas/bridge-response.schema.json").is_file()
 
 
 def test_schema_export_check_is_deterministic_and_reports_future_profiles(tmp_path: Path) -> None:
@@ -127,20 +123,7 @@ def test_note_schema_and_dictionary_share_the_registry_contract(tmp_path: Path) 
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert len(schema["oneOf"]) == 18
     assert all(branch["additionalProperties"] is False for branch in schema["oneOf"])
-    assert (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").read_bytes() == (
-        root / "ops/expected/Property_Dictionary.md"
-    ).read_bytes()
+    assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
+        "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"
+    )
     assert blueprint["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-
-
-def test_schema_export_refuses_to_overwrite_differing_deployed_vault_artifact(tmp_path: Path) -> None:
-    root = _control_copy(tmp_path)
-    deployed = root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
-    deployed.parent.mkdir(parents=True)
-    deployed.write_text("# User file\n", encoding="utf-8")
-
-    result = export_schema_artifacts(root)
-
-    assert not result.passed
-    assert "SCHEMA_EXPORT_DEPLOYED_COPY_CONFLICT" in {error["code"] for error in result.report["errors"]}
-    assert deployed.read_text(encoding="utf-8") == "# User file\n"

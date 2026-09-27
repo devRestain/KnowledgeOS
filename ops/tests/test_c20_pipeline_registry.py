@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
 from pathlib import Path
 
 import pytest
 import yaml
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    make_control_root,
+    populate_vault_from_fixture,
+)
 
 from vaultops.cli import main
 from vaultops.pipeline_registry import (
@@ -16,21 +20,17 @@ from vaultops.pipeline_registry import (
     dispatch_user_action,
     validate_c20_registry,
 )
-from vaultops.schema_export import OWNED_ARTIFACTS
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    root = tmp_path / "control"
-    shutil.copytree(
-        CONTROL_ROOT,
+    root = make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS)
+    populate_vault_from_fixture(
         root,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "KnowledgeHub", "runtime"),
+        "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input",
     )
-    fixture = CONTROL_ROOT / "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
-    shutil.copytree(fixture, root / "KnowledgeHub")
     return root
 
 
@@ -127,17 +127,3 @@ def test_c20_missing_registry_artifact_fails_closed(tmp_path: Path, relative: st
     assert report["status"] == "FAIL"
     assert report["provider_called"] is False
     assert report["mutation_performed"] is False
-
-
-def test_c20_artifact_ownership_promotes_all_c20_outputs(tmp_path: Path) -> None:
-    root = _fresh_control_copy(tmp_path)
-    ownership = load_yaml_file(root / "ops/config/generated-artifacts.yaml")
-    assert isinstance(ownership, dict)
-    artifacts = {item["path"]: item for item in ownership["artifacts"]}
-    c20_paths = {
-        spec.path for spec in OWNED_ARTIFACTS if spec.owner == "C20"
-    }
-
-    assert c20_paths
-    assert all(artifacts[path]["status"] == "OWNED" for path in c20_paths)
-    assert all(artifacts[path]["first_capability"] == "C20" for path in c20_paths)
