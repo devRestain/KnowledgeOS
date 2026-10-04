@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/mcp/read_result.data.schema.json",
+  "title": "KnowledgeOS MCP bounded read result data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query_sha256",
+    "policy_decision_sha256",
+    "index_generation_id",
+    "retrieval_config_sha256",
+    "candidate_count",
+    "candidates",
+    "truncated"
+  ],
+  "properties": {
+    "query_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "policy_decision_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "index_generation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "retrieval_config_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "candidate_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "chunk_id",
+        "chunk_hash",
+        "chunk_locator",
+        "resource_reference"
+      ],
+      "properties": {
+        "note_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "chunk_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "chunk_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "chunk_locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "resource_reference": {
+          "$ref": "resource_reference.schema.json"
+        }
+      }
+    }
+  }
+}

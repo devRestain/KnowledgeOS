@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from support.control_factory import make_control_root
+from support.control_factory import make_control_root, make_diagnostic_root
 
 from vaultops.cli import build_parser, main
 
@@ -32,6 +32,31 @@ def test_blueprint_status_reports_the_implemented_contract_profile(capsys) -> No
 def test_help_is_a_real_package_entrypoint(capsys) -> None:
     assert main([]) == 0
     assert "KnowledgeOS deterministic runtime" in capsys.readouterr().out
+
+
+def test_invalid_cli_root_does_not_fall_through_to_control_environment(tmp_path: Path, capsys, monkeypatch) -> None:
+    environment_root = make_diagnostic_root(tmp_path / "environment")
+    monkeypatch.setenv("KNOWLEDGEOS_CONTROL_ROOT", str(environment_root))
+    missing_root = tmp_path / "missing explicit control"
+
+    assert main(["blueprint", "validate", "--root", str(missing_root)]) == 11
+
+    report = json.loads(capsys.readouterr().out)
+    assert report["operation"] == "owner admission"
+    assert report["errors"][0]["code"] == "CONFIG_FILE_MISSING"
+
+
+def test_explicit_missing_config_does_not_fall_through_to_project_config(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    missing_config = tmp_path / "missing explicit config.toml"
+    monkeypatch.setenv("KNOWLEDGEOS_CONFIG_FILE", str(missing_config))
+
+    assert main(["blueprint", "validate", "--root", str(CONTROL_ROOT)]) == 11
+
+    report = json.loads(capsys.readouterr().out)
+    assert report["operation"] == "owner admission"
+    assert report["errors"][0]["code"] == "CONFIG_FILE_MISSING"
 
 
 def test_blueprint_validate_reports_json_schema_pass_without_writing(capsys) -> None:

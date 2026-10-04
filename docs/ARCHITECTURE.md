@@ -1,8 +1,11 @@
 # Agent Architecture Contract
 
-- Keep the control workspace, `KnowledgeHub/` Vault, and `runtime/` execution state as separate boundaries.
-- Keep `KnowledgeHub/` as an independent Git repository and canonical Obsidian root.
-- Keep `runtime/` untracked, mode `0700`, and outside every sync root.
+- Resolve Core, control, Vault, Operation State and host Runtime as five independent private config v3 roots.
+- Keep the bound KnowledgeHub Vault as an independent Git repository and canonical Obsidian root.
+- Keep State and Runtime untracked, mode `0700`, and outside every sync root.
+- Use Core 0.16.1 as read-only contracts, schemas and frozen manifest inputs; implement executable ports inside KnowledgeOS.
+- Route selected CLI/MCP workflows through KnowledgeApplication, use one OwnerJournal and bind human decisions to exact source/proposal/policy/schema/semantic bytes.
+- Keep the first Capsule profile graphless and separate admission ACK, execution, domain acceptance, human approval and canonical apply.
 - Keep the container as the canonical dependency and execution surface.
 - Keep `00_Inbox/Captures` as the single capture lifecycle path.
 - Keep fixed Vault namespaces, eight Base files, twenty views, sixteen templates, and eighteen note types aligned with Blueprint; `Compass.base` owns cross-type orientation signals.
@@ -25,3 +28,10 @@
 - Keep the installed Mac Thin Client as a presentation adapter only: send digest-bound requests through the authenticated `127.0.0.1` broker, recheck note/policy/index bindings, and dispatch the provider-free `vaultctl ask` path. Keep retrieval, provider, index, Vault-write, Git, and canonical-apply authority outside the plugin.
 - Keep the explicit local Ollama route separate from the Thin Client presentation path: one authorized `gemma4:12b` job may traverse the C31 frozen context, C40/C35 route validation, and C19 proposal boundary, but provider output remains proposal-only and unattended activation remains disabled.
 - Review large-binary storage and Git LFS only after observed asset size and remote policy justify it.
+
+## AgentFabric target model
+
+- Use the adopted Core environment model in source: Operation canonical and durable control State, host reconstructable Runtime and shared service execution, independently governed Vault knowledge.
+- Keep States/Operations/<operation_id> as the default detachable Operation storage; preserve old private data until the separately authorized C12 cutover.
+- Keep Operation routing/export policy, durable delivery intent, outcomes, and decisions when using a shared host transport.
+- Use planning/c12-preparation/CAPSULE_RESPONSIBILITIES.md for the nine selected responsibilities and C12_HANDOFF.md for binding, cutover, rollback and unrun gates.

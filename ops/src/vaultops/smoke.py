@@ -24,7 +24,8 @@ from threading import current_thread, main_thread
 from types import TracebackType
 from typing import Any, Self
 
-from .obsidian_status import _resolve_roots, _validate_vault_identity
+from .obsidian_status import _validate_vault_identity
+from .paths import ResolvedPaths, resolve_api_paths
 from .recovery import (
     RecoveryError,
     _ensure_private_directory,
@@ -176,7 +177,7 @@ def _read_private_file(path: Path, *, limit: int, code: str, description: str) -
 class _ValidatedRoots:
     control: Path
     vault: Path
-    runtime: Path
+    state: Path
     identity: dict[str, Any]
     sentinel: dict[str, Any]
     identity_sha256: str
@@ -200,9 +201,15 @@ class _Run:
 
 
 class _SmokeJournal:
-    def __init__(self, control: Path, run_id: str):
+    def __init__(
+        self,
+        control: str | Path | ResolvedPaths,
+        run_id: str,
+        *,
+        runtime_root: Path | None = None,
+    ):
         self.run_id = validate_job_id(run_id)
-        self.runtime = control / "runtime"
+        self.runtime = runtime_root or resolve_api_paths(control).state
         self.run_dir = self.runtime / "smoke" / "runs" / self.run_id
         self.path = self.run_dir / "journal.jsonl"
 
@@ -408,7 +415,8 @@ def _identity_digest(sentinel: dict[str, Any]) -> str:
 
 def _validated_roots(root: str | Path) -> _ValidatedRoots:
     try:
-        control, vault = _resolve_roots(root)
+        resolved = resolve_api_paths(root)
+        control, vault = resolved.control, resolved.vault
     except (OSError, TypeError, ValueError) as error:
         raise SmokeError("SMOKE_ROOT_INVALID", "control and Vault roots must be existing real directories") from error
     sentinel_path = vault / ".knowledgeos-root.json"
@@ -439,11 +447,11 @@ def _validated_roots(root: str | Path) -> _ValidatedRoots:
     system_root = vault / "99_System"
     if system_root.is_symlink() or not system_root.is_dir():
         raise SmokeError("SMOKE_SYSTEM_ROOT_INVALID", "99_System must be an existing real directory")
-    runtime = control / "runtime"
+    runtime = resolved.state
     return _ValidatedRoots(
         control=control,
         vault=vault,
-        runtime=runtime,
+        state=runtime,
         identity=identity,
         sentinel=sentinel_value,
         identity_sha256=_identity_digest(sentinel_value),
@@ -451,7 +459,7 @@ def _validated_roots(root: str | Path) -> _ValidatedRoots:
 
 
 def _active_path(roots: _ValidatedRoots) -> Path:
-    return roots.runtime / "smoke" / "active" / f"{roots.sentinel['vault_uuid']}.json"
+    return roots.state / "smoke" / "active" / f"{roots.sentinel['vault_uuid']}.json"
 
 
 def _validate_adapter(kind: str, adapter: str) -> bytes:
@@ -752,19 +760,19 @@ def _active_lock(path: Path) -> dict[str, Any] | None:
         raise SmokeError("SMOKE_ACTIVE_LOCK_INVALID", "active smoke lock identity or timestamp is invalid") from error
     if reserved_at.tzinfo is None or reserved_at.utcoffset() is None:
         raise SmokeError("SMOKE_ACTIVE_LOCK_INVALID", "active smoke lock timestamp must include a timezone")
-    if value.get("journal_relative_path") != f"runtime/smoke/runs/{value.get('run_id')}/journal.jsonl":
+    if value.get("journal_relative_path") != f"state/smoke/runs/{value.get('run_id')}/journal.jsonl":
         raise SmokeError("SMOKE_PRIVATE_JOURNAL_BINDING_MISMATCH", "active lock does not name the exact private journal path")
     return value
 
 
 def _create_active_lock(roots: _ValidatedRoots, run_id: str, intent_hash: str) -> Path:
     active = _active_path(roots)
-    _ensure_smoke_directories(roots.runtime, (roots.runtime / "smoke", roots.runtime / "smoke/active"))
+    _ensure_smoke_directories(roots.state, (roots.state / "smoke", roots.state / "smoke/active"))
     value = {
         "schema_version": SMOKE_SCHEMA_VERSION,
         "vault_uuid": roots.sentinel["vault_uuid"],
         "run_id": run_id,
-        "journal_relative_path": f"runtime/smoke/runs/{run_id}/journal.jsonl",
+        "journal_relative_path": f"state/smoke/runs/{run_id}/journal.jsonl",
         "intent_record_sha256": intent_hash,
         "reserved_at": _now().isoformat(timespec="seconds"),
     }
@@ -857,7 +865,7 @@ def _intent_and_run(roots: _ValidatedRoots, run_id: str, journal: _SmokeJournal)
         lock is None
         or lock.get("vault_uuid") != roots.sentinel.get("vault_uuid")
         or lock.get("run_id") != run_id
-        or lock.get("journal_relative_path") != f"runtime/smoke/runs/{run_id}/journal.jsonl"
+        or lock.get("journal_relative_path") != f"state/smoke/runs/{run_id}/journal.jsonl"
         or lock.get("intent_record_sha256") != records[0]["record_sha256"]
     ):
         raise SmokeError("SMOKE_ACTIVE_LOCK_MISMATCH", "private active lock does not bind this exact smoke journal")
@@ -911,7 +919,7 @@ def _confirmation_request(run: _Run, reason_code: str, current_digest: str | Non
         "relative_path": run.relative_path,
         "current_sha256": current_digest,
         "sealed_sha256": sealed_digests,
-        "private_journal_path": f"runtime/smoke/runs/{run.run_id}/journal.jsonl",
+        "private_journal_path": f"state/smoke/runs/{run.run_id}/journal.jsonl",
         "reason_code": reason_code,
         "automatic_deletion": False,
     }
@@ -930,7 +938,7 @@ def _remove_active_lock(run: _Run) -> None:
         or lock.get("schema_version") != SMOKE_SCHEMA_VERSION
         or lock.get("vault_uuid") != run.roots.sentinel.get("vault_uuid")
         or lock.get("run_id") != run.run_id
-        or lock.get("journal_relative_path") != f"runtime/smoke/runs/{run.run_id}/journal.jsonl"
+        or lock.get("journal_relative_path") != f"state/smoke/runs/{run.run_id}/journal.jsonl"
         or lock.get("intent_record_sha256") != run.intent_record_sha256
     ):
         raise SmokeError("SMOKE_ACTIVE_LOCK_MISMATCH", "active lock changed during smoke cleanup")
@@ -939,8 +947,8 @@ def _remove_active_lock(run: _Run) -> None:
 
 
 def _write_receipt(run: _Run, *, status: str, assertion_passed: bool, cleanup_passed: bool) -> dict[str, Any]:
-    receipts = run.roots.runtime / "smoke" / "receipts"
-    _ensure_smoke_directories(run.roots.runtime, (run.roots.runtime / "smoke", receipts))
+    receipts = run.roots.state / "smoke" / "receipts"
+    _ensure_smoke_directories(run.roots.state, (run.roots.state / "smoke", receipts))
     receipt = {
         "schema_version": SMOKE_SCHEMA_VERSION,
         "run_id": run.run_id,
@@ -961,10 +969,10 @@ def _write_receipt(run: _Run, *, status: str, assertion_passed: bool, cleanup_pa
 
 
 def _existing_receipt(run: _Run) -> dict[str, Any] | None:
-    path = run.roots.runtime / "smoke" / "receipts" / f"{run.run_id}.json"
+    path = run.roots.state / "smoke" / "receipts" / f"{run.run_id}.json"
     if not path.exists() and not path.is_symlink():
         return None
-    for directory in (run.roots.runtime, run.roots.runtime / "smoke", path.parent):
+    for directory in (run.roots.state, run.roots.state / "smoke", path.parent):
         _require_private_directory(directory, missing_code="SMOKE_RECEIPT_PATH_INVALID")
     try:
         value = json.loads(
@@ -1134,7 +1142,7 @@ def _reserve_run(
     prior_status = _git(roots.vault, "status", "--porcelain=v1", "--untracked-files=all", "--", relative_path)
     if prior_status:
         raise SmokeError("SMOKE_GIT_PATH_DIRTY", "the generated smoke path already has Vault Git state")
-    journal = _SmokeJournal(roots.control, identifier)
+    journal = _SmokeJournal(roots.control, identifier, runtime_root=roots.state)
     intent = {
         "schema_version": SMOKE_SCHEMA_VERSION,
         "run_id": identifier,
@@ -1205,7 +1213,7 @@ def _exercise(run: _Run, *, deadline: float) -> bool:
 
 
 def _manual_confirmation(run_id: str, reason_code: str, *, vault_uuid: str | None = None) -> dict[str, Any]:
-    journal_path = f"runtime/smoke/runs/{run_id}/journal.jsonl"
+    journal_path = f"state/smoke/runs/{run_id}/journal.jsonl"
     return {
         "status": "CONFLICT",
         "operation": "smoke recover",
@@ -1233,7 +1241,7 @@ def _manual_confirmation(run_id: str, reason_code: str, *, vault_uuid: str | Non
 def _unbound_active_lock_confirmation(
     roots: _ValidatedRoots, reason_code: str
 ) -> dict[str, Any]:
-    lock_path = f"runtime/smoke/active/{roots.sentinel['vault_uuid']}.json"
+    lock_path = f"state/smoke/active/{roots.sentinel['vault_uuid']}.json"
     return {
         "status": "CONFLICT",
         "operation": "smoke run",
@@ -1263,8 +1271,9 @@ def _confirmation_for_identity_mismatch(root: str | Path, run_id: str, reason_co
     try:
         if control_path.is_symlink() or not control_path.is_dir():
             return _manual_confirmation(run_id, reason_code)
-        control = control_path.resolve()
-        journal = _SmokeJournal(control, run_id)
+        resolved = resolve_api_paths(control_path)
+        control = resolved.control
+        journal = _SmokeJournal(control, run_id, runtime_root=resolved.state)
         records = journal.records()
         intent = journal.intent()
         vault_uuid = intent.get("vault_uuid") if isinstance(intent.get("vault_uuid"), str) else None
@@ -1285,7 +1294,7 @@ def _confirmation_for_identity_mismatch(root: str | Path, run_id: str, reason_co
         _relative_parts(relative)
         digest: str | None = None
         current_vault_uuid: str | None = None
-        vault = control / "KnowledgeHub"
+        vault = resolved.vault
         if vault.is_symlink() or not vault.is_dir() or (vault / "99_System").is_symlink():
             return _manual_confirmation(run_id, reason_code, vault_uuid=vault_uuid)
         sentinel_path = vault / ".knowledgeos-root.json"
@@ -1307,7 +1316,7 @@ def _confirmation_for_identity_mismatch(root: str | Path, run_id: str, reason_co
             "relative_path": relative,
             "current_sha256": digest,
             "sealed_sha256": sorted(_sealed_digests(records)),
-            "private_journal_path": f"runtime/smoke/runs/{run_id}/journal.jsonl",
+            "private_journal_path": f"state/smoke/runs/{run_id}/journal.jsonl",
             "reason_code": reason_code,
             "automatic_deletion": False,
         }
@@ -1510,7 +1519,7 @@ def run_smoke(
         run_id = validate_job_id(active.get("run_id"))
         if active.get("vault_uuid") != roots.sentinel.get("vault_uuid"):
             return _confirmation_for_identity_mismatch(root, run_id, "SMOKE_ACTIVE_LOCK_IDENTITY_MISMATCH")
-        stale_journal = _SmokeJournal(roots.control, run_id)
+        stale_journal = _SmokeJournal(roots.control, run_id, runtime_root=roots.state)
         try:
             stale_run = _intent_and_run(roots, run_id, stale_journal)
         except SmokeError as error:
@@ -1605,11 +1614,12 @@ def recover_smoke(root: str | Path, *, run_id: str, authorized: bool) -> dict[st
         identifier = validate_job_id(run_id)
     except (TypeError, ValueError) as error:
         raise SmokeError("SMOKE_RUN_ID_INVALID", "smoke recovery requires a lowercase UUIDv4 run ID") from error
-    control = Path(root).expanduser()
-    if control.is_symlink() or not control.is_dir():
-        raise SmokeError("SMOKE_ROOT_INVALID", "control root must be an existing real directory")
-    control = control.resolve()
-    journal = _SmokeJournal(control, identifier)
+    try:
+        resolved = resolve_api_paths(root)
+    except (OSError, TypeError, ValueError) as error:
+        raise SmokeError("SMOKE_ROOT_INVALID", "control root must resolve to an existing real directory") from error
+    control = resolved.control
+    journal = _SmokeJournal(control, identifier, runtime_root=resolved.state)
     try:
         records = journal.records()
         intent = journal.intent()
@@ -1622,7 +1632,7 @@ def recover_smoke(root: str | Path, *, run_id: str, authorized: bool) -> dict[st
         return _manual_confirmation(identifier, "SMOKE_JOURNAL_CORRUPT")
     if intent.get("run_id") != identifier:
         return _manual_confirmation(identifier, "SMOKE_JOURNAL_CORRUPT", vault_uuid=vault_uuid)
-    active_path = control / "runtime" / "smoke" / "active" / f"{vault_uuid}.json"
+    active_path = resolved.state / "smoke" / "active" / f"{vault_uuid}.json"
     try:
         active = _active_lock(active_path)
     except SmokeError as error:
@@ -1631,7 +1641,7 @@ def recover_smoke(root: str | Path, *, run_id: str, authorized: bool) -> dict[st
         active is None
         or active.get("vault_uuid") != vault_uuid
         or active.get("run_id") != identifier
-        or active.get("journal_relative_path") != f"runtime/smoke/runs/{identifier}/journal.jsonl"
+        or active.get("journal_relative_path") != f"state/smoke/runs/{identifier}/journal.jsonl"
         or active.get("intent_record_sha256") != records[0]["record_sha256"]
     ):
         return _confirmation_for_identity_mismatch(control, identifier, "SMOKE_PRIVATE_JOURNAL_BINDING_MISMATCH")

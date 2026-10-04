@@ -333,7 +333,7 @@ def _storage_scope(
     return candidate
 
 
-def _job_paths(job_dir: str | Path) -> HostJobPaths:
+def _job_paths(job_dir: str | Path, *, state_root: str | Path | None = None) -> HostJobPaths:
     candidate = Path(job_dir).expanduser()
     _no_symlink_path(candidate, "job_dir")
     if not candidate.is_dir():
@@ -341,8 +341,20 @@ def _job_paths(job_dir: str | Path) -> HostJobPaths:
     _private_directory(candidate, "job_dir")
     if not _UUID4.fullmatch(candidate.name):
         raise E02Error("E02_JOB_ID_INVALID", "job_dir name must be a lowercase UUIDv4")
-    if candidate.parent.name != "runs" or candidate.parent.parent.name != "runtime":
-        raise E02Error("E02_JOB_DIRECTORY_INVALID", "job_dir must be runtime/runs/JOB_ID")
+    if candidate.parent.name != "runs":
+        raise E02Error("E02_JOB_DIRECTORY_INVALID", "job_dir must be <state-root>/runs/JOB_ID")
+    if state_root is None:
+        raise E02Error("E02_STORAGE_ROOT_INVALID", "an explicit State root binding is required")
+    root = Path(state_root).expanduser()
+    if not root.is_absolute():
+        raise E02Error("E02_STORAGE_ROOT_INVALID", "State root must be an absolute path")
+    _no_symlink_path(root, "State root")
+    _private_directory(root, "State root")
+    try:
+        if candidate.relative_to(root) != Path("runs") / candidate.name:
+            raise ValueError("job directory is not directly under State/runs")
+    except ValueError as error:
+        raise E02Error("E02_JOB_DIRECTORY_INVALID", "job_dir must be <state-root>/runs/JOB_ID") from error
     if any(part in _FORBIDDEN_PATH_PARTS for part in candidate.parts):
         raise E02Error("E02_CANONICAL_PATH_FORBIDDEN", "job_dir enters a forbidden path")
     receipts = candidate / "receipts"
@@ -379,7 +391,7 @@ def _validate_request_and_context(paths: HostJobPaths) -> tuple[dict[str, Any], 
     job_id = _uuid4(paths.job_dir.name)
     if request.get("job_id") != job_id or context.get("job_id") != job_id:
         raise E02Error("E02_JOB_ID_DRIFT", "request and context job_id must match job_dir")
-    expected_context_path = f"runtime/runs/{job_id}/context.json"
+    expected_context_path = f"state/runs/{job_id}/context.json"
     if request.get("context_path") != expected_context_path:
         raise E02Error("E02_CONTEXT_PATH_INVALID", "request context_path is not the selected job path")
     if request.get("context_sha256") != context.get("context_sha256"):
@@ -1095,13 +1107,14 @@ def run_e02_host_job(
     client: E02Client,
     *,
     storage_root: str | Path | None,
+    state_root: str | Path | None = None,
     authorized: bool = False,
     base_url: str = DEFAULT_BASE_URL,
 ) -> tuple[dict[str, Any], int]:
     """Run one C31 generation job through a job-spool-only host boundary."""
 
     _validate_base_url(base_url)
-    paths = _job_paths(job_dir)
+    paths = _job_paths(job_dir, state_root=state_root)
     job_id = _uuid4(paths.job_dir.name)
     if not authorized:
         return _deferred_report(
@@ -1276,10 +1289,11 @@ def write_e02_report(
     report: Mapping[str, Any],
     *,
     storage_root: str | Path | None,
+    state_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Persist one validated E02 report as a private immutable job artifact."""
 
-    paths = _job_paths(job_dir)
+    paths = _job_paths(job_dir, state_root=state_root)
     _storage_scope(paths.job_dir, storage_root=storage_root, label="job_dir")
     validated = validate_e02_report(report)
     job = validated.get("job")

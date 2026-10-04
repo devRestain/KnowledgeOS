@@ -31,6 +31,7 @@ from .note_engine import (
     resolve_vault_relative_path,
     write_note_file,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import (
     RecoveryConflict,
     RecoveryCorruption,
@@ -81,15 +82,13 @@ def _fail(operation: str, code: str, message: str, *, exit_code: int = EXIT_INPU
     }, exit_code
 
 
-def _workspace_and_vault(root: str | Path) -> tuple[Path, Path]:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise TransactionInputError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise TransactionInputError("Vault root must be an existing non-symlink directory")
-    return workspace, vault.resolve()
+def _workspace_and_vault(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise TransactionInputError(str(error)) from error
 
 
 def _safe_vault_path(vault: Path, relative: str) -> Path:
@@ -214,7 +213,7 @@ def _copy_create_only(source: Path, target: Path) -> tuple[str, int]:
 
 
 def import_asset(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     source_path: str | Path,
     target_directory: str = "Inbox",
@@ -237,7 +236,8 @@ def import_asset(
         if resolved_mime in _FORBIDDEN_MIME_TYPES or Path(target_name).suffix.casefold() in _FORBIDDEN_SUFFIXES:
             raise TransactionInputError("executable asset inputs are forbidden")
         expected = _validated_sha256(expected_sha256, label="expected source hash") if expected_sha256 is not None else None
-        _workspace, vault = _workspace_and_vault(root)
+        roots = _workspace_and_vault(root)
+        vault = roots.vault
         relative = f"80_Assets/{target_directory}/{target_name}"
         target = _safe_target_file(vault, relative)
         source_hash, source_size = _hash_regular_file(source, label="asset source")
@@ -442,7 +442,7 @@ def _complete_recovery_transaction(
             "source": source,
             "destination": destination,
             "postcondition_sha256": dict(postcondition_sha256),
-            "journal_path": journal.path.relative_to(journal.workspace).as_posix(),
+            "journal_path": journal.runtime_relative(journal.path),
         }
         journal.append(
             "completed",
@@ -489,7 +489,7 @@ def _capture_request_matches(
 
 
 def _render_capture_recovery_bytes(
-    workspace: Path,
+    workspace: ResolvedPaths,
     vault: Path,
     intent: Mapping[str, Any],
 ) -> str:
@@ -519,7 +519,7 @@ def _render_capture_recovery_bytes(
 
 def _apply_capture_recovery(
     journal: RecoveryJournal,
-    workspace: Path,
+    workspace: ResolvedPaths,
     vault: Path,
     *,
     updated_markdown: str | None = None,
@@ -651,7 +651,7 @@ def _apply_capture_recovery(
 
 
 def finalize_capture(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     capture_path: str,
     expected_sha256: str,
@@ -671,9 +671,10 @@ def finalize_capture(
         if outcome not in {"triaged", "discarded"}:
             raise TransactionInputError("outcome must be triaged or discarded")
         expected = _validated_sha256(expected_sha256, label="expected capture hash")
-        workspace, vault = _workspace_and_vault(root)
+        roots = _workspace_and_vault(root)
+        vault = roots.vault
         source_relative = normalize_vault_relative_path(capture_path)
-        journal = RecoveryJournal(workspace, job_id=resolved_job_id, operation="capture_finalize")
+        journal = RecoveryJournal(roots, job_id=resolved_job_id, operation="capture_finalize")
         if not dry_run and journal.exists:
             try:
                 intent = journal.intent()
@@ -702,7 +703,7 @@ def finalize_capture(
                     destination=str(intent.get("destination", "")) or None,
                 )
             try:
-                resumed, resumed_code = _apply_capture_recovery(journal, workspace, vault)
+                resumed, resumed_code = _apply_capture_recovery(journal, roots, vault)
                 resumed.update(
                     {
                         "operation": operation,
@@ -739,7 +740,7 @@ def finalize_capture(
             }, EXIT_CONFLICT
         raw_markdown = source.read_text(encoding="utf-8")
         parse_frontmatter(raw_markdown)
-        engine = NoteEngine.from_root(workspace)
+        engine = NoteEngine.from_root(roots)
         resolver = _target_types(vault, engine)
         original = engine.validate_text(source_relative, raw_markdown, target_types=resolver)
         if not original.passed or original.frontmatter is None or original.body is None:
@@ -839,7 +840,7 @@ def finalize_capture(
             journal.start(intent)
             applied, apply_code = _apply_capture_recovery(
                 journal,
-                workspace,
+                roots,
                 vault,
                 updated_markdown=updated_markdown,
             )
@@ -1050,7 +1051,7 @@ def _project_files(project_dir: Path, vault: Path) -> dict[str, Path]:
 
 
 def archive_project(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     project_path: str,
     expected_hashes: Mapping[str, str],
@@ -1064,7 +1065,8 @@ def archive_project(
     resolved_job_id = job_id
     try:
         resolved_job_id = validate_job_id(job_id)
-        workspace, vault = _workspace_and_vault(root)
+        roots = _workspace_and_vault(root)
+        vault = roots.vault
         source_relative = normalize_vault_relative_path(project_path)
         if not source_relative.startswith("20_Projects/") or not source_relative.endswith(".md"):
             raise TransactionInputError("project path must be a canonical 20_Projects root note")
@@ -1073,7 +1075,7 @@ def archive_project(
             raise TransactionInputError("project path must be 20_Projects/<name>/<name>.md")
         project_dir_relative = "/".join(parts[:2])
         expected = _normalize_expected_hashes(expected_hashes)
-        journal = RecoveryJournal(workspace, job_id=resolved_job_id, operation="project_archive")
+        journal = RecoveryJournal(roots, job_id=resolved_job_id, operation="project_archive")
         if not dry_run and journal.exists:
             try:
                 intent = journal.intent()
@@ -1113,7 +1115,7 @@ def archive_project(
         files = _project_files(project_dir, vault)
         if source_relative not in files:
             raise TransactionInputError("project root note is missing from its bundle")
-        engine = NoteEngine.from_root(workspace)
+        engine = NoteEngine.from_root(roots)
         resolver = _target_types(vault, engine)
         root_markdown = files[source_relative].read_text(encoding="utf-8")
         root_result = engine.validate_text(source_relative, root_markdown, target_types=resolver)

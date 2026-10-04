@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from support.control_factory import fixture_path
 from support.plugin_factory import (
     declared_community_plugins,
     make_plugin_profile,
@@ -12,6 +13,34 @@ from support.plugin_factory import (
 from support.snapshots import snapshot_files
 
 from vaultops.diagnostics import EXIT_CONFIG_INVALID, EXIT_DEGRADED, plugins_audit_report
+
+
+def _separate_profile_roots(root: Path) -> tuple[Path, Path, Path, Path]:
+    control = root.with_name("control Ω")
+    root.rename(control)
+    vault = control.parent / "KnowledgeHub Ω"
+    (fixture_path(control, "vault")).rename(vault)
+    runtime = control.parent / "runtime Ω"
+    (fixture_path(control, "runtime")).rename(runtime)
+    runtime.chmod(0o700)
+    config = control / "ops/vaultops.toml"
+    config.write_text(
+        "\n".join(
+            (
+                "schema_version = 3",
+                'project_name = "KnowledgeOS"',
+                f"control_root = {json.dumps(str(control), ensure_ascii=False)}",
+                f"vault_root = {json.dumps(str(vault), ensure_ascii=False)}",
+                f"runtime_root = {json.dumps(str(runtime), ensure_ascii=False)}",
+                f'core_root = {json.dumps(str(fixture_path(control, "core")), ensure_ascii=False)}',
+                f'state_root = {json.dumps(str(fixture_path(control, "state")), ensure_ascii=False)}',
+                'timezone = "Asia/Seoul"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    return control, vault, runtime, vault / ".obsidian-mac"
 
 
 def test_plugin_audit_accepts_required_subset_and_ignores_unmanaged_files(tmp_path: Path) -> None:
@@ -82,10 +111,44 @@ def test_plugin_audit_accepts_required_subset_and_ignores_unmanaged_files(tmp_pa
     assert after == before
 
 
+def test_plugin_audit_uses_configured_vault_profile_and_preserves_unknown_settings(
+    tmp_path: Path,
+) -> None:
+    flags = required_core_flags()
+    flags["future-core-flag"] = {"user_choice": True}
+    root, _profile = make_plugin_profile(
+        tmp_path,
+        core_flags=flags,
+        plugin_data={"quickadd": {"futureSetting": "user-owned"}},
+    )
+    control, vault, runtime, profile = _separate_profile_roots(root)
+
+    report, exit_code = plugins_audit_report(control)
+
+    assert exit_code == 0, report
+    assert report["status"] == "PASS"
+    assert report["profile_root"] == str(profile)
+    assert report["setting_registry"]["core_setting_registry"]["unknown_observed_flags"] == [
+        "future-core-flag"
+    ]
+    assert report["setting_registry"]["core_setting_registry"]["daily_notes_contract"][
+        "template_source_state"
+    ] == "pass"
+    quickadd = next(
+        item
+        for item in report["setting_registry"]["entries"]
+        if item["component_id"] == "plugin:quickadd"
+    )
+    assert "futureSetting" in quickadd["current_value"]["serialized_keys"]
+    assert not (control / "KnowledgeHub").exists()
+    assert not (control / "runtime").exists()
+    assert vault.is_dir() and runtime.is_dir()
+
+
 def test_plugin_audit_degrades_only_the_missing_declared_plugin(tmp_path: Path) -> None:
     root, _ = make_plugin_profile(tmp_path)
     installed = [plugin_id for plugin_id in declared_community_plugins(root) if plugin_id != "homepage"]
-    write_json(root / "KnowledgeHub" / ".obsidian-mac" / "community-plugins.json", installed)
+    write_json(fixture_path(root, "vault") / ".obsidian-mac" / "community-plugins.json", installed)
 
     report, exit_code = plugins_audit_report(root)
 
@@ -218,15 +281,48 @@ def test_plugin_audit_rejects_symlinked_owned_data_root_without_reading_it(
 
 def test_plugin_audit_reports_missing_profile_as_inactive_with_fallback(tmp_path: Path) -> None:
     root, profile = make_plugin_profile(tmp_path)
+    control, vault, _runtime, profile = _separate_profile_roots(root)
     profile.rename(profile.with_name("profile-preserved-outside-audit-path"))
 
-    report, exit_code = plugins_audit_report(root)
+    report, exit_code = plugins_audit_report(control)
 
     assert exit_code == 0, report
     assert report["status"] == "INACTIVE"
     assert report["profile_state"] == "not_configured"
+    assert report["profile_root"] == str(profile)
     assert report["fallback"] == "canonical_markdown_and_plugin_free_surface_available"
     assert all(item["state"] == "inactive" for item in report["declared_capabilities"])
+    assert not (control / "KnowledgeHub").exists()
+    assert (vault / "profile-preserved-outside-audit-path").is_dir()
+
+
+def test_plugin_audit_distinguishes_configured_empty_profile_from_missing_profile(
+    tmp_path: Path,
+) -> None:
+    root, _profile = make_plugin_profile(tmp_path)
+    control, _vault, _runtime, profile = _separate_profile_roots(root)
+    data_path = profile / "plugins/quickadd/data.json"
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    data.pop("choices")
+    write_json(data_path, data)
+
+    unknown_report, _unknown_exit_code = plugins_audit_report(control)
+    assert (
+        unknown_report["setting_registry"]["quickadd_setting_registry"]["observed_choices"]["state"]
+        == "unknown"
+    )
+
+    data["choices"] = []
+    write_json(data_path, data)
+    empty_report, _empty_exit_code = plugins_audit_report(control)
+
+    assert empty_report["profile_state"] == "configured"
+    assert empty_report["profile_root"] == str(profile)
+    assert (
+        empty_report["setting_registry"]["quickadd_setting_registry"]["observed_choices"]["state"]
+        == "unconfigured"
+    )
+    assert (profile / "community-plugins.json").is_file()
 
 
 def test_plugin_audit_preserves_malformed_profile_json_without_exposing_values(tmp_path: Path) -> None:

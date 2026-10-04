@@ -86,6 +86,7 @@ _STATIC_FILE_ACTIONS = {
     "99_System/Bases/Projects.base": ("projects", "Projects base"),
     "99_System/Bases/Review.base": ("review", "Review base"),
     "99_System/Bases/Sources.base": ("sources", "Sources base"),
+    "99_System/Bases/Journal.base#Open Reviews": ("period_reviews", "Journal period review view"),
 }
 
 _EXPECTED_TOOLBAR_TARGETS: dict[str, set[tuple[str, str]]] = {
@@ -94,8 +95,7 @@ _EXPECTED_TOOLBAR_TARGETS: dict[str, set[tuple[str, str]]] = {
         ("file", "99_System/Dashboards/Tasks.md"),
         ("file", "99_System/Dashboards/Weekly_Review.md"),
         ("command", "daily-notes"),
-        ("file_pattern", "weekly"),
-        ("file_pattern", "monthly"),
+        ("file", "99_System/Bases/Journal.base#Open Reviews"),
     },
     "KnowledgeOS Home": {
         ("command", "homepage:open-homepage"),
@@ -456,8 +456,7 @@ def _action_inventory(
     expected_actions = {
         "home": "Home dashboard or Homepage command",
         "today_daily": "Core Daily Notes command",
-        "weekly_open": "reviewed current weekly file link",
-        "monthly_open": "reviewed current monthly file link",
+        "period_reviews": "Journal Open Reviews view without a frozen period note",
         "tasks": "Tasks dashboard file",
         "weekly_review": "Weekly Review dashboard file",
         "review": "Review base file",

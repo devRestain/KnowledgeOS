@@ -18,6 +18,7 @@ from jsonschema import Draft202012Validator
 from yaml import YAMLError
 
 from .note_engine import NoteContractError, NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .paths import ResolvedPaths
 from .projection import (
     EXIT_CONFLICT,
     EXIT_INPUT_INVALID,
@@ -522,13 +523,13 @@ def _validate_expected_hash(expected_sha256: str | None) -> str:
 
 
 def _capture_query(
-    workspace: Path,
+    workspace: ResolvedPaths,
     source_path: str,
     expected_sha256: str,
 ) -> tuple[str, dict[str, str]]:
     expected = _validate_expected_hash(expected_sha256)
     relative_path = str(source_path)
-    vault = workspace / "KnowledgeHub"
+    vault = workspace.vault
     try:
         source = resolve_vault_relative_path(vault, relative_path)
     except (UnsafePathError, ValueError) as error:
@@ -538,7 +539,7 @@ def _capture_query(
     try:
         raw = source.read_bytes()
         text = raw.decode("utf-8")
-        typed = NoteEngine.from_root(workspace).typed_note(relative_path, text)
+        typed = NoteEngine.from_root(workspace.control).typed_note(relative_path, text)
     except (OSError, UnicodeError, NoteContractError, ValueError) as error:
         raise AnswerValidationError(f"source capture is invalid: {error}") from error
     observed = _sha256_bytes(raw)
@@ -614,7 +615,7 @@ def answer_projection(
 
 def _run_answer(
     operation: str,
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str | None,
     *,
     source_path: str | None = None,
@@ -691,7 +692,7 @@ def _run_answer(
 
 
 def answer(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str | None = None,
     *,
     source_path: str | None = None,
@@ -723,7 +724,7 @@ def answer(
 
 
 def ask(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str | None = None,
     **kwargs: Any,
 ) -> tuple[dict[str, Any], int]:
@@ -733,7 +734,7 @@ def ask(
 
 
 def answer_from_capture(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     source_path: str,
     expected_sha256: str,
@@ -854,7 +855,7 @@ def _evaluate_case(
 
 
 def evaluate_frozen_baseline(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     baseline_path: str | Path | None = None,
     expected_generation_id: str | None = None,
@@ -864,7 +865,7 @@ def evaluate_frozen_baseline(
     operation = "answer evaluate"
     try:
         workspace = retrieval_workspace(root)
-        baseline, baseline_sha256 = _load_baseline(workspace, baseline_path)
+        baseline, baseline_sha256 = _load_baseline(workspace.control, baseline_path)
     except (AnswerValidationError, OSError, UnicodeError, TypeError, ValueError) as error:
         return _failure(operation, "ANSWER_BASELINE_INVALID", str(error), EXIT_INPUT_INVALID)
     try:

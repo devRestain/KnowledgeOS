@@ -24,6 +24,7 @@ from typing import Any, Protocol
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .provider_contract import (
     LIMITS,
     ProviderConflict,
@@ -243,24 +244,31 @@ def _safe_relative_path(value: object, label: str) -> str:
     return path.as_posix()
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise BrokerError("C32_ROOT_INVALID", "control root must be an existing non-symlink directory") from error
+    if roots.control.is_symlink() or not roots.control.is_dir():
         raise BrokerError("C32_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+    return roots
 
 
-def _job_directory(workspace: Path, job_id: str) -> Path:
+def _job_directory(workspace: ResolvedPaths, job_id: str) -> Path:
     _validate_uuid(job_id, "job_id")
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     runs = runtime / "runs"
     job = runs / job_id
-    for path, label in ((runtime, "runtime"), (runs, "runtime/runs"), (job, "runtime job")):
+    for path, label in ((runtime, "runtime"), (runs, "state/runs"), (job, "runtime job")):
         if path.is_symlink() or not path.is_dir():
             raise BrokerError("C32_RUNTIME_PATH_INVALID", f"{label} must be an existing directory")
         if stat.S_IMODE(path.stat().st_mode) != 0o700:
             raise BrokerError("C32_RUNTIME_MODE_INVALID", f"{label} must be mode 0700")
     return job
+
+
+def _runtime_report_path(path: Path, workspace: ResolvedPaths) -> str:
+    return f"state/{path.relative_to(workspace.state).as_posix()}"
 
 
 def _read_private_json(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
@@ -327,7 +335,7 @@ def _verify_digest(document: Mapping[str, Any], field: str, code: str) -> None:
         raise BrokerError(code, f"{field} does not match canonical envelope bytes")
 
 
-def _schema_file(workspace: Path, binding: Mapping[str, Any]) -> tuple[Path, str, bytes, dict[str, Any]]:
+def _schema_file(workspace: ResolvedPaths, binding: Mapping[str, Any]) -> tuple[Path, str, bytes, dict[str, Any]]:
     raw_path = binding.get("path")
     if not isinstance(raw_path, str):
         raise BrokerError("C32_OUTPUT_SCHEMA_INVALID", "output schema path is required")
@@ -336,7 +344,7 @@ def _schema_file(workspace: Path, binding: Mapping[str, Any]) -> tuple[Path, str
     else:
         relative, fragment = raw_path, ""
     relative = _safe_relative_path(relative, "output schema path")
-    path = workspace / relative
+    path = workspace.control / relative
     if path.is_symlink() or not path.is_file():
         raise BrokerError("C32_OUTPUT_SCHEMA_UNAVAILABLE", "bound output schema is not a regular file")
     raw = path.read_bytes()
@@ -387,7 +395,7 @@ def _find_schema_anchor(document: Mapping[str, Any], anchor: str) -> Any:
 
 
 def _validate_output_schema(
-    workspace: Path,
+    workspace: ResolvedPaths,
     context: Mapping[str, Any],
     output: Any,
     *,
@@ -396,7 +404,7 @@ def _validate_output_schema(
     binding = _as_mapping(context.get("output_schema"), "output_schema")
     path, fragment, raw, schema = _schema_file(workspace, binding)
     expected_path, expected_fragment = _SCHEMA_FILES[pipeline]
-    if path.relative_to(workspace).as_posix() != expected_path or fragment != (expected_fragment or ""):
+    if path.relative_to(workspace.control).as_posix() != expected_path or fragment != (expected_fragment or ""):
         raise BrokerError(
             "C32_OUTPUT_SCHEMA_BINDING",
             f"{pipeline} must bind {expected_path}{('#' + expected_fragment) if expected_fragment else ''}",
@@ -410,7 +418,7 @@ def _validate_output_schema(
         locator = "/".join(str(part) for part in error.path) or "/"
         raise BrokerError("C32_OUTPUT_SCHEMA_INVALID", f"output invalid at {locator}: {error.message}")
     return {
-        "path": path.relative_to(workspace).as_posix(),
+        "path": path.relative_to(workspace.control).as_posix(),
         "fragment": fragment or None,
         "sha256": _sha256(raw),
         "output_sha256": _digest_json(output),
@@ -454,8 +462,9 @@ def _first_source(context: Mapping[str, Any]) -> Mapping[str, Any]:
     return _as_mapping(sources[0], "source hash")
 
 
-def _file_binding(workspace: Path, relative: str) -> dict[str, str]:
-    path = workspace / relative
+def _file_binding(workspace: str | Path | ResolvedPaths, relative: str) -> dict[str, str]:
+    roots = workspace if isinstance(workspace, ResolvedPaths) else _workspace(workspace)
+    path = roots.control / relative
     if path.is_symlink() or not path.is_file():
         raise BrokerError("C32_ARTIFACT_MISSING", f"required artifact is unavailable: {relative}")
     raw = path.read_bytes()
@@ -812,7 +821,7 @@ def _resolve_pipeline(action: str, requested: str | None) -> str:
 
 
 def _validate_request_and_context(
-    workspace: Path,
+    workspace: ResolvedPaths,
     job_id: str,
 ) -> tuple[dict[str, Any], dict[str, Any], bytes]:
     job = _job_directory(workspace, job_id)
@@ -821,7 +830,7 @@ def _validate_request_and_context(
     _verify_digest(request, "request_sha256", "C32_REQUEST_DIGEST_DRIFT")
     if request["job_id"] != job_id:
         raise BrokerError("C32_JOB_ID_DRIFT", "request job_id does not match the selected job")
-    expected_context_path = f"runtime/runs/{job_id}/context.json"
+    expected_context_path = f"state/runs/{job_id}/context.json"
     if request["context_path"] != expected_context_path:
         raise BrokerError("C32_CONTEXT_PATH_INVALID", "request context_path is outside the selected job")
     context = read_context_envelope(workspace, job_id=job_id)
@@ -971,15 +980,15 @@ def _persist_terminal(
         receipt,
     )
     return {
-        "response_path": (job / _RESPONSE_FILENAME).relative_to(workspace).as_posix(),
+        "response_path": _runtime_report_path(job / _RESPONSE_FILENAME, workspace),
         "response_sha256": response_digest,
         "response_byte_length": response_bytes,
         "response_write": response_state,
-        "failure_path": (job / _FAILURE_FILENAME).relative_to(workspace).as_posix(),
+        "failure_path": _runtime_report_path(job / _FAILURE_FILENAME, workspace),
         "failure_sha256": failure_digest,
         "failure_byte_length": failure_bytes,
         "failure_write": failure_state,
-        "receipt_path": (receipts / _RECEIPT_FILENAME).relative_to(workspace).as_posix(),
+        "receipt_path": _runtime_report_path(receipts / _RECEIPT_FILENAME, workspace),
         "receipt_sha256": receipt_digest,
         "receipt_byte_length": receipt_bytes,
         "receipt_write": receipt_state,
@@ -1069,16 +1078,16 @@ def _replayed_report(
         scenario=scenario,
         replayed=True,
         synthetic_provider_called=False,
-        response_path=(job / _RESPONSE_FILENAME).relative_to(workspace).as_posix(),
+        response_path=_runtime_report_path(job / _RESPONSE_FILENAME, workspace),
         response_sha256=_sha256(response_raw),
-        receipt_path=receipt_path.relative_to(workspace).as_posix(),
+        receipt_path=_runtime_report_path(receipt_path, workspace),
         receipt_sha256=_sha256(receipt_raw),
         output_outcome=response["status"],
     )
 
 
 def run_synthetic_job(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     job_id: str,
     scenario: str = "success",
@@ -1097,7 +1106,7 @@ def run_synthetic_job(
         _validate_uuid(job_id, "job_id")
         request, context, _ = _validate_request_and_context(workspace, job_id)
         selected_pipeline = _resolve_pipeline(str(request["action"]), pipeline)
-        if (workspace / "runtime/runs" / job_id / _RESPONSE_FILENAME).exists():
+        if (workspace.state / "runs" / job_id / _RESPONSE_FILENAME).exists():
             replay = _replayed_report(
                 workspace,
                 request,
@@ -1203,11 +1212,11 @@ def run_synthetic_job(
             pipeline=selected_pipeline,
             scenario=scenario,
             **adapter_flags,
-            response_path=(job / _RESPONSE_FILENAME).relative_to(workspace).as_posix(),
+            response_path=_runtime_report_path(job / _RESPONSE_FILENAME, workspace),
             response_sha256=response_digest,
             response_byte_length=response_bytes,
             response_write=response_state,
-            receipt_path=(receipts / _RECEIPT_FILENAME).relative_to(workspace).as_posix(),
+            receipt_path=_runtime_report_path(receipts / _RECEIPT_FILENAME, workspace),
             receipt_sha256=receipt_digest,
             receipt_byte_length=receipt_bytes,
             receipt_write=receipt_state,
@@ -1369,7 +1378,7 @@ def run_synthetic_job(
 
 
 def validate_synthetic_output(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     context: Mapping[str, Any],
     output: Any,
     *,

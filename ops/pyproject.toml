@@ -5,6 +5,7 @@ description = "KnowledgeOS deterministic runtime and validation harness"
 requires-python = ">=3.12"
 dependencies = [
   "jsonschema>=4.25,<5",
+  "mcp==2.2.0",
   "pathspec>=0.12,<1",
   "pydantic>=2.11,<3",
   "PyYAML>=6.0,<7",
@@ -14,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 vaultctl = "vaultops.cli:app"
+vaultmcp = "vaultops.mcp_server:main"
 
 [dependency-groups]
 dev = [

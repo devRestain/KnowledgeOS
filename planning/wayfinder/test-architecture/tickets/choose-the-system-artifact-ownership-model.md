@@ -59,7 +59,7 @@ generator producing a default does not by itself own the deployed copy.
 | Class | Surfaces | Canonical contract | Allowed verification |
 |---|---|---|---|
 | `control_exact` | Blueprint sources plus generated `ops/actions`, `ops/config`, `ops/expected`, `ops/launchd`, `ops/policies`, `ops/prompts`, and `ops/schemas` | Exact deterministic bytes in the control Git root | `make schema-check` and hermetic pytest may compare bytes without mounting the real Vault |
-| `system_deployed` | Explicit allowlisted files below `KnowledgeHub/99_System` | Generator output and path allowlist remain in the control root; the deployed copy is a replaceable projection | Only an explicit read-only `make vault-artifact-check` may compare deployed bytes |
+| `system_deployed` | Explicit allowlisted files below `../../../../../../Vaults/KnowledgeHub/99_System` | Generator output and path allowlist remain in the control root; the deployed copy is a replaceable projection | Only an explicit read-only `make vault-artifact-check` may compare deployed bytes |
 | `user_overlay` | `Home.md`, `Mobile.md`, ordinary notes, assets, empty namespaces, structural markers, and every `.obsidian*` profile | Path safety and create-only default behavior, never exact deployed bytes or total inventory | Hermetic tests use synthesized temporary Vaults; an explicit diagnostic may inspect only accepted required subsets |
 | `deployment_identity` | `.knowledgeos-root.json`, `.vault-bridge`, runtime layout, Git identity, services, and device state | Minimal identity, protocol, path-confinement, and authorization invariants | Explicit deployment, runtime, or live commands only; never default pytest or control artifact parity |
 
@@ -96,7 +96,7 @@ generator producing a default does not by itself own the deployed copy.
   and ordinary-document structure is not a regression contract; this supersedes
   the earlier wording to test both renderers in memory. Permit exact deployed
   comparison only for the `99_System` outputs.
-- Remove `KnowledgeHub/.vault-bridge/protocol/request.schema.json` and
+- Remove `../../../../../../Vaults/KnowledgeHub/.vault-bridge/protocol/request.schema.json` and
   `response.schema.json` from generated-artifact ownership. Keep the canonical
   schemas under `ops/schemas`; bridge operations already consume the control
   request schema. Existing deployed copies are preserved as unmanaged

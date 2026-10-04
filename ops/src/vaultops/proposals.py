@@ -37,6 +37,7 @@ from .note_engine import (
     resolve_vault_relative_path,
     write_note_file,
 )
+from .paths import ResolvedPaths, resolve_paths
 from .recovery import (
     RecoveryConflict,
     RecoveryCorruption,
@@ -61,9 +62,9 @@ _MAX_MANIFEST = 256 * 1024
 PENDING_ROOT = "01_AI_Review/Pending"
 RESOLVED_ROOT = "01_AI_Review/Resolved"
 REJECTED_ROOT = "01_AI_Review/Rejected"
-APPROVED_ROOT = "runtime/approved"
-RECEIPTS_ROOT = "runtime/receipts"
-PROPOSAL_QUARANTINE_ROOT = "runtime/quarantine/proposals"
+APPROVED_ROOT = "state/approved"
+RECEIPTS_ROOT = "state/receipts"
+PROPOSAL_QUARANTINE_ROOT = "state/quarantine/proposals"
 
 
 def _now() -> str:
@@ -151,15 +152,14 @@ def _rejection_replay_identity(
     )
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ValueError("control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    return resolve_paths(root)
 
 
-def _vault(workspace: Path) -> Path:
-    root = workspace / "KnowledgeHub"
+def _vault(workspace: ResolvedPaths) -> Path:
+    root = workspace.vault
     if root.is_symlink() or not root.is_dir():
         raise ValueError("KnowledgeHub must be an existing non-symlink directory")
     return root
@@ -187,8 +187,8 @@ def _private_dir(path: Path) -> None:
         raise ValueError(f"runtime directory mode must be 0700: {path}")
 
 
-def _runtime_dirs(workspace: Path) -> tuple[Path, Path]:
-    runtime = workspace / "runtime"
+def _runtime_dirs(workspace: ResolvedPaths) -> tuple[Path, Path]:
+    runtime = workspace.state
     _private_dir(runtime)
     approved = runtime / "approved"
     receipts = runtime / "receipts"
@@ -251,14 +251,14 @@ def _directory_digest(root: Path) -> str:
     return _hash_json(entries)
 
 
-def _git_baselines(workspace: Path, vault: Path) -> dict[str, str | None]:
+def _git_baselines(workspace: ResolvedPaths, vault: Path) -> dict[str, str | None]:
     return {
-        "control_head": _git_head(workspace),
+        "control_head": _git_head(workspace.control),
         "vault_head": _git_head(vault),
     }
 
 
-def _load_proposal(workspace: Path, relative: str) -> tuple[dict[str, Any], int] | Any:
+def _load_proposal(workspace: ResolvedPaths, relative: str) -> tuple[dict[str, Any], int] | Any:
     vault = _vault(workspace)
     normalized, path = _safe_vault_path(vault, relative)
     try:
@@ -381,7 +381,7 @@ def _target_type_index(vault: Path, engine: NoteEngine) -> dict[str, str]:
     return result
 
 
-def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[dict[str, str]], int] | list[dict[str, str]]:
+def _parse_sources(workspace: ResolvedPaths, document: ProposalDocument) -> tuple[list[dict[str, str]], int] | list[dict[str, str]]:
     values = document.typed.properties.get("source_hashes")
     if not isinstance(values, list) or not values:
         return _problem("proposal", "PROPOSAL_SOURCES_INVALID", "source_hashes must be a non-empty list")
@@ -408,7 +408,7 @@ def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[di
             return _problem("proposal", error.code, str(error))
         return sources
     if any(
-        isinstance(item, str) and item.startswith("runtime/")
+        isinstance(item, str) and item.startswith("state/")
         for item in values
     ):
         return _problem(
@@ -452,7 +452,7 @@ def _parse_sources(workspace: Path, document: ProposalDocument) -> tuple[list[di
     return result
 
 
-def _plan(workspace: Path, document: ProposalDocument) -> tuple[MutationPlan, int] | MutationPlan:
+def _plan(workspace: ResolvedPaths, document: ProposalDocument) -> tuple[MutationPlan, int] | MutationPlan:
     manifest = _manifest(document)
     if isinstance(manifest, tuple):
         return manifest
@@ -518,12 +518,12 @@ def _plan(workspace: Path, document: ProposalDocument) -> tuple[MutationPlan, in
     )
 
 
-def _binding(workspace: Path, document: ProposalDocument, plan: MutationPlan, sources: list[dict[str, str]]) -> dict[str, Any]:
+def _binding(workspace: ResolvedPaths, document: ProposalDocument, plan: MutationPlan, sources: list[dict[str, str]]) -> dict[str, Any]:
     vault = _vault(workspace)
-    policies = workspace / "ops/policies"
-    actions = workspace / "ops/actions"
-    prompts = workspace / "ops/prompts"
-    schema_path = workspace / "blueprint/blueprint.schema.json"
+    policies = workspace.control / "ops/policies"
+    actions = workspace.control / "ops/actions"
+    prompts = workspace.control / "ops/prompts"
+    schema_path = workspace.control / "blueprint/blueprint.schema.json"
     return {
         "proposal_sha256": document.sha256,
         "diff_sha256": plan.target_after_sha256,
@@ -576,15 +576,15 @@ def _create_only_json(path: Path, payload: Mapping[str, Any]) -> None:
     fsync_directory(path.parent)
 
 
-def _quarantine_runtime_file(workspace: Path, path: Path, *, reason: str) -> str:
+def _quarantine_runtime_file(workspace: ResolvedPaths, path: Path, *, reason: str) -> str:
     """Move one conflicting private artifact out of the active runtime set."""
 
     if path.is_symlink() or not path.is_file():
         raise RecoveryConflict(f"conflicting runtime artifact is not a regular file: {path}")
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     _private_dir(runtime)
-    quarantine = workspace / PROPOSAL_QUARANTINE_ROOT
-    _private_dir(workspace / "runtime" / "quarantine")
+    quarantine = runtime / PROPOSAL_QUARANTINE_ROOT.removeprefix("state/")
+    _private_dir(runtime / "quarantine")
     _private_dir(quarantine)
     destination = quarantine / f"{path.name}.conflict-{uuid.uuid4().hex[:12]}"
     os.rename(path, destination)
@@ -594,20 +594,20 @@ def _quarantine_runtime_file(workspace: Path, path: Path, *, reason: str) -> str
         marker,
         {
             "schema_version": SCHEMA_VERSION,
-            "original_path": path.relative_to(workspace).as_posix(),
-            "quarantined_path": destination.relative_to(workspace).as_posix(),
+            "original_path": f"state/{path.relative_to(runtime).as_posix()}",
+            "quarantined_path": f"state/{destination.relative_to(runtime).as_posix()}",
             "reason": reason,
         },
     )
-    return destination.relative_to(workspace).as_posix()
+    return f"state/{destination.relative_to(runtime).as_posix()}"
 
 
-def _approval_path(workspace: Path, proposal_id: str) -> Path:
+def _approval_path(workspace: ResolvedPaths, proposal_id: str) -> Path:
     approved, _ = _runtime_dirs(workspace)
     return approved / f"{proposal_id}.json"
 
 
-def _receipt_path(workspace: Path, proposal_id: str, operation: str) -> Path:
+def _receipt_path(workspace: ResolvedPaths, proposal_id: str, operation: str) -> Path:
     _, receipts = _runtime_dirs(workspace)
     return receipts / f"{proposal_id}-proposal-{operation}.json"
 
@@ -622,7 +622,7 @@ def _load_json(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _summary(workspace: Path, document: ProposalDocument, plan: MutationPlan, sources: list[dict[str, str]]) -> dict[str, Any]:
+def _summary(workspace: ResolvedPaths, document: ProposalDocument, plan: MutationPlan, sources: list[dict[str, str]]) -> dict[str, Any]:
     return {
         "proposal_id": document.proposal_id,
         "proposal_path": document.path,
@@ -636,7 +636,7 @@ def _summary(workspace: Path, document: ProposalDocument, plan: MutationPlan, so
 
 
 def review_proposals(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     proposal_path: str | None = None,
 ) -> tuple[dict[str, Any], int]:
@@ -645,9 +645,9 @@ def review_proposals(
     operation = "ai review"
     try:
         workspace = _workspace(root)
-        validation = validate_blueprint(workspace)
+        validation = validate_blueprint(workspace.control)
         if not validation.passed:
-            return _problem(operation, "BLUEPRINT_INVALID", "blueprint validation failed")
+            return _problem(operation, "BLUEPRINT_INVALID", "blueprint validation failed: " + str(validation.report["errors"]))
         vault = _vault(workspace)
         if proposal_path is None:
             pending = vault / PENDING_ROOT
@@ -689,7 +689,7 @@ def review_proposals(
 
 
 def approve_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     proposal_path: str,
     expected_sha256: str,
@@ -705,7 +705,7 @@ def approve_proposal(
         if isinstance(loaded, tuple):
             return loaded
         document = loaded
-        approval_file = workspace / APPROVED_ROOT / f"{document.proposal_id}.json"
+        approval_file = workspace.state / APPROVED_ROOT.removeprefix("state/") / f"{document.proposal_id}.json"
         existing = _load_json(approval_file)
         if document.sha256 != expected_sha256:
             bound_hash = existing.get("approval_binds", {}).get("proposal_sha256") if existing else None
@@ -801,7 +801,7 @@ def approve_proposal(
 
 
 def _decision_payload(
-    workspace: Path,
+    workspace: ResolvedPaths,
     document: ProposalDocument,
     *,
     decision: str,
@@ -834,7 +834,7 @@ def _decision_payload(
     }
 
 
-def _document_from_raw(workspace: Path, relative: str, raw: bytes) -> ProposalDocument:
+def _document_from_raw(workspace: ResolvedPaths, relative: str, raw: bytes) -> ProposalDocument:
     """Validate a proposal note without requiring its status to remain pending."""
 
     normalized, path = _safe_vault_path(_vault(workspace), relative)
@@ -867,8 +867,8 @@ def _rejection_request_matches(
     }
 
 
-def _rejection_journal_for_path(workspace: Path, proposal_path: str) -> RecoveryJournal | None:
-    runs = workspace / "runtime" / "runs"
+def _rejection_journal_for_path(workspace: ResolvedPaths, proposal_path: str) -> RecoveryJournal | None:
+    runs = workspace.state / "runs"
     if runs.is_symlink() or not runs.is_dir():
         return None
     for job_dir in sorted(runs.iterdir(), key=lambda item: item.name):
@@ -891,13 +891,13 @@ def _rejection_journal_for_path(workspace: Path, proposal_path: str) -> Recovery
 
 
 def _rejection_receipt_replay(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     proposal_path: str,
     expected_sha256: str,
     reason: str,
 ) -> tuple[dict[str, Any], int] | None:
-    receipts = workspace / RECEIPTS_ROOT
+    receipts = workspace.state / RECEIPTS_ROOT.removeprefix("state/")
     if receipts.is_symlink() or not receipts.is_dir():
         return None
     reason_sha256 = _hash_bytes(reason.encode("utf-8"))
@@ -964,7 +964,7 @@ def _rejection_recovery_conflict(
     return _conflict("ai reject", code, message, quarantined=quarantined)
 
 
-def _closed_rejection_bytes(workspace: Path, relative: str, raw: bytes, intent: Mapping[str, Any]) -> bytes:
+def _closed_rejection_bytes(workspace: ResolvedPaths, relative: str, raw: bytes, intent: Mapping[str, Any]) -> bytes:
     observed = _hash_bytes(raw)
     expected_source = intent.get("proposal_sha256")
     expected_closed = intent.get("closed_proposal_sha256")
@@ -988,7 +988,7 @@ def _closed_rejection_bytes(workspace: Path, relative: str, raw: bytes, intent: 
     return rendered
 
 
-def _apply_rejection_recovery(journal: RecoveryJournal, workspace: Path) -> tuple[dict[str, Any], int]:
+def _apply_rejection_recovery(journal: RecoveryJournal, workspace: ResolvedPaths) -> tuple[dict[str, Any], int]:
     operation = "ai reject"
     try:
         records = journal.records()
@@ -1120,7 +1120,7 @@ def _apply_rejection_recovery(journal: RecoveryJournal, workspace: Path) -> tupl
 
 
 def reject_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     proposal_path: str,
     expected_sha256: str,
@@ -1227,8 +1227,8 @@ def _closed_proposal_text(
     return render_frontmatter(properties, document.typed.body)
 
 
-def _replay_apply(workspace: Path, requested_path: str) -> tuple[dict[str, Any], int] | None:
-    receipts = workspace / "runtime/receipts"
+def _replay_apply(workspace: ResolvedPaths, requested_path: str) -> tuple[dict[str, Any], int] | None:
+    receipts = workspace.state / "receipts"
     if receipts.is_symlink() or not receipts.is_dir():
         return None
     for path in sorted(receipts.glob("*-proposal-apply.json")):
@@ -1274,7 +1274,7 @@ def _apply_receipt(
 
 
 def apply_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     proposal_path: str,
     approval_path: str | None = None,
@@ -1302,7 +1302,7 @@ def apply_proposal(
         if approval_file.is_absolute():
             approval = _load_json(approval_file)
         else:
-            approval = _load_json(workspace / approval_file)
+            approval = _load_json(workspace.control / approval_file)
         if approval is None:
             return _problem(operation, "APPROVAL_MISSING", "no approval artifact exists")
         if _validate_approval(approval):

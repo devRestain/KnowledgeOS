@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import (
+    fixture_path,
+    make_portable_fixture_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.answer import answer
 from vaultops.blueprint import validate_blueprint
@@ -35,8 +39,18 @@ def _build(root: Path, generation_id: str = "c22-fixture") -> None:
 
 def _runtime_snapshot(root: Path) -> dict[str, bytes]:
     return {
+        f"{kind}/{path.relative_to(selected).as_posix()}": path.read_bytes()
+        for kind in ("state", "runtime")
+        for selected in [fixture_path(root, kind)]
+        for path in selected.rglob("*")
+        if path.is_file()
+    }
+
+
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
         path.relative_to(root).as_posix(): path.read_bytes()
-        for path in (root / "runtime").rglob("*")
+        for path in root.rglob("*")
         if path.is_file()
     }
 
@@ -76,7 +90,7 @@ def _write_review_note(
     if related is not None:
         properties["related"] = related
     body = f"# {filename}\n\nC25 review signal for the privacy gate.\n"
-    path = root / "KnowledgeHub" / relative
+    path = fixture_path(root, "vault") / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render_frontmatter(properties, body), encoding="utf-8")
     return relative
@@ -103,6 +117,58 @@ def test_c22_search_is_lexical_deterministic_and_schema_valid(tmp_path: Path) ->
     for candidate in first["candidates"]:
         assert not list(Draft202012Validator(retrieval_candidate_schema()).iter_errors(candidate))
     assert _runtime_snapshot(root) == before
+
+
+def test_c22_cli_reads_separate_roots_without_mutating_runtime_or_vault(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    roots = make_separate_portable_fixture_roots(
+        tmp_path,
+        extra_inputs=("ops/tests/fixtures/c22_retrieval",),
+    )
+    missing, missing_code = search(roots, "확정되지 않은 정보")
+    assert missing_code == EXIT_CONFLICT
+    assert missing["errors"][0]["code"] == "RETRIEVAL_INDEX_UNAVAILABLE"
+    assert not [path for path in roots.runtime.rglob("*") if path.is_file()]
+
+    _build(roots)
+    runtime_before = {
+        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
+        for path in roots.runtime.rglob("*")
+        if path.is_file()
+    }
+    vault_before = _file_snapshot(roots.vault)
+    lexical, code = search(roots, "확정되지 않은 정보")
+
+    assert code == EXIT_OK, lexical
+    assert lexical["provider_called"] is False
+    assert lexical["candidates"][0]["path"] == "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("synthetic source\n"))
+    assert main(["search", "--query-stdin", "--root", str(roots.control)]) == EXIT_OK
+    cli_report = json.loads(capsys.readouterr().out)
+    assert cli_report["candidates"][0]["path"] == "40_Knowledge/Sources/Guestbook Horror Design Note.md"
+    assert _file_snapshot(roots.vault) == vault_before
+    assert {
+        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
+        for path in roots.runtime.rglob("*")
+        if path.is_file()
+    } == runtime_before
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
+
+    source = roots.vault / "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
+    source.write_bytes(source.read_bytes() + b"\nsynthetic source drift\n")
+    stale, stale_code = search(roots, "확정되지 않은 정보")
+    assert stale_code == EXIT_CONFLICT
+    assert stale["errors"][0]["code"] == "RETRIEVAL_INDEX_STALE"
+    assert {
+        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
+        for path in roots.runtime.rglob("*")
+        if path.is_file()
+    } == runtime_before
 
 
 def test_c22_retrieve_expands_one_hop_typed_links_without_excluded_targets(tmp_path: Path) -> None:
@@ -265,7 +331,7 @@ def test_c25_candidate_revalidation_rejects_pinned_identity_drift(tmp_path: Path
 def test_c22_stale_projection_fails_closed_without_runtime_mutation(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root)
-    source = root / "KnowledgeHub/20_Projects/guestbook-horror/guestbook-horror.md"
+    source = (fixture_path(root, "vault") / "20_Projects/guestbook-horror/guestbook-horror.md")
     source.write_bytes(source.read_bytes() + b"\n")
     before = _runtime_snapshot(root)
 

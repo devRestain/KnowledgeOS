@@ -45,7 +45,7 @@ filesystem observations remain separate evidence classes.
   argv, arbitrary Obsidian commands, absolute paths, globs, or caller-selected
   deletion paths.
 - Create at most one note per run and permit at most one active smoke per Vault.
-- Put every probe note beneath `KnowledgeHub/99_System/Smoke`; never create a
+- Put every probe note beneath `../../../../../../Vaults/KnowledgeHub/99_System/Smoke`; never create a
   probe in `Home.md`, `Mobile.md`, Inbox, Journal, Projects, Knowledge, a user
   folder, or the profile.
 - Keep journals and receipts in private ignored `runtime/`, never in the Vault,

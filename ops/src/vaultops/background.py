@@ -12,6 +12,7 @@ does not install or activate it; that is the separately gated E03 overlay.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import plistlib
@@ -19,6 +20,7 @@ import re
 import stat
 import sys
 import time
+import uuid
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +29,7 @@ from typing import Any
 from yaml import YAMLError
 
 from .bridge_publish import ingest_bridge_request
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .reconcile import reconcile_transactions
 from .recovery import canonical_json_bytes, sha256_bytes
 from .yaml_safe import load_yaml_file
@@ -41,8 +44,13 @@ LAUNCHD_ARTIFACT_PATH = "ops/launchd/com.knowledgeos.vaultops.plist"
 BACKGROUND_CONFIG_PATH = "ops/config/background.yaml"
 WORKER_REPORT_SCHEMA_PATH = "ops/schemas/worker-report.schema.json"
 DEFAULT_BASELINE_PATH = "ops/tests/fixtures/c24_background/evaluation.yaml"
-WORKER_STDOUT_LOG_PATH = "runtime/logs/worker.stdout.log"
-WORKER_STDERR_LOG_PATH = "runtime/logs/worker.stderr.log"
+WORKER_STDOUT_LOG_PATH = "logs/worker.stdout.log"
+WORKER_STDERR_LOG_PATH = "logs/worker.stderr.log"
+WORKER_STDOUT_LOG_TEMPLATE = "__KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stdout.log"
+WORKER_STDERR_LOG_TEMPLATE = "__KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stderr.log"
+CONTROL_ROOT_TEMPLATE = "__KNOWLEDGEOS_CONTROL_ROOT__"
+VAULT_ROOT_TEMPLATE = "__KNOWLEDGEOS_VAULT_ROOT__"
+RUNTIME_ROOT_TEMPLATE = "__KNOWLEDGEOS_RUNTIME_ROOT__"
 WORKER_LOG_MAX_AGE_SECONDS = 60 * 60
 WORKER_LOG_MAX_BYTES = 16 * 1024
 WORKER_LOG_RETAIN_BYTES = 8 * 1024
@@ -65,6 +73,10 @@ class BackgroundError(ValueError):
 
 class BackgroundConflict(BackgroundError):
     """Raised when a background pass finds a state that must not be adopted."""
+
+
+class WorkerBusy(BackgroundConflict):
+    """Raised when another worker owns the non-blocking execution lock."""
 
 
 class _BoundedTextWriter:
@@ -173,20 +185,20 @@ def _prepare_bounded_log_fd(file_descriptor: int, path: Path) -> int | None:
     return len(retained)
 
 
-def configure_worker_log_streams(root: str | Path) -> bool:
+def configure_worker_log_streams(root: str | Path | ResolvedPaths) -> bool:
     """Bound only the two files opened by launchd, leaving terminal output unchanged."""
 
-    workspace = Path(root).expanduser()
-    if not workspace.is_absolute():
-        return False
     try:
-        workspace = workspace.resolve()
-    except OSError:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError):
+        return False
+    runtime = roots.runtime
+    if not runtime.is_absolute():
         return False
 
     streams = (
-        (1, workspace / WORKER_STDOUT_LOG_PATH, "stdout"),
-        (2, workspace / WORKER_STDERR_LOG_PATH, "stderr"),
+        (1, runtime / WORKER_STDOUT_LOG_PATH, "stdout"),
+        (2, runtime / WORKER_STDERR_LOG_PATH, "stderr"),
     )
     bounded_stdout = False
     for file_descriptor, path, stream_name in streams:
@@ -246,6 +258,188 @@ def worker_log_record(
     }
 
 
+def scheduled_worker_record(report: Mapping[str, Any], exit_code: int) -> dict[str, Any]:
+    """Return the fixed, privacy-minimized result emitted by the scheduler adapter."""
+
+    status = report.get("status")
+    if status not in {"PASS", "REPAIR_REQUIRED", "CONFLICT", "FAIL"}:
+        status = "FAIL"
+    recovery_status = report.get("recovery_status", "NOT_RUN")
+    if recovery_status not in {"PASS", "REPAIR_REQUIRED", "CONFLICT", "FAIL", "NOT_RUN"}:
+        recovery_status = "FAIL"
+    recovery = report.get("recovery")
+    recovery_summary = recovery.get("summary", {}) if isinstance(recovery, Mapping) else {}
+    summary: dict[str, int] = {}
+    if isinstance(recovery_summary, Mapping):
+        for key in ("jobs", "complete", "repairable", "conflict"):
+            value = recovery_summary.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 100_000:
+                summary[key] = value
+    request_count = report.get("request_count", 0)
+    if not isinstance(request_count, int) or isinstance(request_count, bool):
+        request_count = 0
+    return {
+        "schema_version": 1,
+        "record_type": "scheduled_worker_result",
+        "operation": "ai worker",
+        "status": status,
+        "outcome": "needs_attention" if status == "REPAIR_REQUIRED" else (
+            "completed" if status == "PASS" else "failed"
+        ),
+        "exit_code": int(exit_code),
+        "delivery": "local",
+        "agent_reasoning": False,
+        "provider_called": False,
+        "vault_mutated": False,
+        "git_network_called": False,
+        "request_count": min(max(request_count, 0), 100),
+        "recovery_status": recovery_status,
+        "recovery_summary": summary,
+    }
+
+
+_WORKER_ATTEMPT_RELATIVE = Path("worker/attempt.json")
+_WORKER_LOCK_RELATIVE = Path("worker/worker.lock")
+_WORKER_ATTEMPT_KEYS = frozenset(
+    {"schema_version", "attempt_id", "owner", "status", "started_at", "finished_at", "result_status"}
+)
+
+
+def _worker_directory(state: Path) -> Path:
+    directory = state / "worker"
+    if directory.is_symlink():
+        raise BackgroundError("worker state directory must not be a symlink")
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.stat()
+    if stat.S_IMODE(info.st_mode) != 0o700 or info.st_uid != os.geteuid():
+        raise BackgroundError("worker state directory must be owned by the caller with mode 0700")
+    return directory
+
+
+def _read_worker_attempt(directory: Path) -> dict[str, Any] | None:
+    path = directory / _WORKER_ATTEMPT_RELATIVE.name
+    if not path.exists() and not path.is_symlink():
+        return None
+    try:
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BackgroundError("worker attempt marker must be a regular file")
+        if stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.geteuid() or info.st_size > 4096:
+            raise BackgroundError("worker attempt marker permissions or size are invalid")
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except BackgroundError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise BackgroundError("worker attempt marker is unreadable") from error
+    if not isinstance(value, dict) or set(value) != _WORKER_ATTEMPT_KEYS:
+        raise BackgroundError("worker attempt marker schema is invalid")
+    attempt_id = value.get("attempt_id")
+    owner = value.get("owner")
+    status = value.get("status")
+    started_at = value.get("started_at")
+    finished_at = value.get("finished_at")
+    result_status = value.get("result_status")
+    if (
+        raw != canonical_json_bytes(value) + b"\n"
+        or type(value.get("schema_version")) is not int
+        or value.get("schema_version") != 1
+        or not isinstance(attempt_id, str)
+        or not re.fullmatch(r"[0-9a-f]{32}", attempt_id)
+        or not isinstance(owner, str)
+        or owner not in {"manual", "scheduler"}
+        or not isinstance(status, str)
+        or status not in {"running", "completed", "needs_attention"}
+        or not isinstance(started_at, str)
+        or not started_at
+        or finished_at is not None and (not isinstance(finished_at, str) or not finished_at)
+        or result_status is not None and not isinstance(result_status, str)
+        or result_status not in {"PASS", "REPAIR_REQUIRED", "CONFLICT", "FAIL", None}
+        or status == "running" and (finished_at is not None or result_status is not None)
+        or status == "completed" and (finished_at is None or result_status != "PASS")
+        or status == "needs_attention"
+        and (finished_at is None or result_status not in {"REPAIR_REQUIRED", "CONFLICT", "FAIL"})
+    ):
+        raise BackgroundError("worker attempt marker schema is invalid")
+    return value
+
+
+def _write_worker_attempt(directory: Path, record: Mapping[str, Any]) -> None:
+    path = directory / _WORKER_ATTEMPT_RELATIVE.name
+    if path.is_symlink():
+        raise BackgroundError("worker attempt marker must not be a symlink")
+    temporary = directory / f".attempt-{uuid.uuid4().hex}.tmp"
+    payload = canonical_json_bytes(dict(record)) + b"\n"
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if stat.S_IMODE(temporary.stat().st_mode) != 0o600:
+            raise BackgroundError("worker attempt temporary marker mode is invalid")
+        os.replace(temporary, path)
+        directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except BaseException:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+
+
+def _worker_attempt_record(
+    *,
+    attempt_id: str,
+    owner: str,
+    status: str,
+    started_at: str,
+    result_status: str | None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "attempt_id": attempt_id,
+        "owner": owner,
+        "status": status,
+        "started_at": started_at,
+        "finished_at": None if status == "running" else datetime.now(UTC).isoformat(timespec="seconds"),
+        "result_status": result_status,
+    }
+
+
+def _recovery_block_report(recovery: Mapping[str, Any], exit_code: int) -> tuple[dict[str, Any], int]:
+    status = recovery.get("status")
+    if status not in {"PASS", "REPAIR_REQUIRED", "CONFLICT", "FAIL"}:
+        status = "FAIL"
+    return {
+        "status": status,
+        "operation": "ai worker",
+        "capability": CAPABILITY,
+        "mode": "once",
+        "wake": {"kind": "invocation", "id": "recovery-check", "synthetic": False},
+        "requests": [],
+        "request_count": 0,
+        "recovery": dict(recovery),
+        "recovery_status": status,
+        "provider_called": False,
+        "vault_mutated": False,
+        "git_network_called": False,
+        "mutation_performed": False,
+        "runtime_mutation_performed": False,
+        "dry_run": False,
+        "activation": {"launchd_active": False, "installation": "deferred_to_E03"},
+        "errors": [_issue("WORKER_RECOVERY_REQUIRED", "/state/worker/attempt", "previous worker attempt requires operator attention")],
+    }, exit_code
+
+
 def _issue(code: str, locator: str, message: str, **details: Any) -> dict[str, Any]:
     result: dict[str, Any] = {"code": code, "locator": locator, "message": message}
     if details:
@@ -281,20 +475,19 @@ def _failure(
     return report, exit_code
 
 
-def _workspace(root: str | Path) -> tuple[Path, Path]:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise BackgroundError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    runtime = workspace / "runtime"
-    if vault.is_symlink() or not vault.is_dir():
-        raise BackgroundError("KnowledgeHub must be an existing non-symlink directory")
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise BackgroundError(str(error)) from error
+    if roots.vault.is_symlink() or not roots.vault.is_dir():
+        raise BackgroundError("selected Vault root must be an existing non-symlink directory")
+    runtime = roots.state
     if runtime.is_symlink() or not runtime.is_dir():
-        raise BackgroundError("runtime must be an existing non-symlink directory")
+        raise BackgroundError("selected runtime root must be an existing non-symlink directory")
     if stat.S_IMODE(runtime.stat().st_mode) != 0o700:
         raise BackgroundError("runtime root mode must be 0700")
-    return workspace, vault.resolve()
+    return roots
 
 
 def _private_directory(path: Path, *, label: str) -> None:
@@ -304,10 +497,10 @@ def _private_directory(path: Path, *, label: str) -> None:
         raise BackgroundError(f"{label} mode must be 0700")
 
 
-def _validate_runtime(workspace: Path) -> None:
-    runtime = workspace / "runtime"
-    for name in ("queue", "quarantine", "runs", "logs", "cache"):
-        _private_directory(runtime / name, label=f"runtime/{name}")
+def _validate_runtime(state: Path) -> None:
+    """Validate the durable queue and recovery directories in Operation State."""
+    for name in ("queue", "quarantine", "runs"):
+        _private_directory(state / name, label=f"state/{name}")
 
 
 def _validate_wake_id(wake_id: str) -> str:
@@ -398,8 +591,8 @@ def _recovery_summary(recovery: Mapping[str, Any]) -> tuple[str, int]:
     return "FAIL", EXIT_INPUT_INVALID
 
 
-def worker_once(
-    root: str | Path,
+def _worker_once_pass(
+    root: str | Path | ResolvedPaths,
     *,
     wake_id: str | None = None,
     request_path: str | Path | None = None,
@@ -419,8 +612,9 @@ def worker_once(
     is_synthetic = bool(synthetic) if synthetic is not None else wake_id is not None
     operation = "ai worker"
     try:
-        workspace, vault = _workspace(root)
-        _validate_runtime(workspace)
+        roots = _workspace(root)
+        vault = roots.vault
+        _validate_runtime(roots.state)
         if request_path is None:
             paths = _request_files(vault)
         else:
@@ -437,12 +631,12 @@ def worker_once(
         requests = [_request_item(path, vault) for path in paths]
     else:
         for path in paths:
-            result, code = ingest_bridge_request(workspace, request_path=path)
+            result, code = ingest_bridge_request(roots.control, request_path=path)
             request_codes.append(code)
             requests.append(_request_item(path, vault, result))
             runtime_mutation = runtime_mutation or result.get("queue_write") == "CREATED"
 
-    recovery, recovery_code = reconcile_transactions(workspace)
+    recovery, recovery_code = reconcile_transactions(roots)
     recovery_status, recovery_exit = _recovery_summary(recovery)
     request_conflict = any(code == EXIT_CONFLICT for code in request_codes)
     request_invalid = any(code not in {EXIT_OK, EXIT_CONFLICT} for code in request_codes)
@@ -490,8 +684,165 @@ def worker_once(
     return report, exit_code
 
 
+def _acquire_worker_lock(directory: Path) -> int:
+    path = directory / _WORKER_LOCK_RELATIVE.name
+    descriptor = os.open(
+        path,
+        os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    try:
+        info = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.geteuid()
+        ):
+            raise BackgroundError("worker lock permissions or file type are invalid")
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise WorkerBusy("another worker owns the execution lock") from error
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def worker_once(
+    root: str | Path | ResolvedPaths,
+    *,
+    wake_id: str | None = None,
+    request_path: str | Path | None = None,
+    dry_run: bool = False,
+    max_requests: int = 100,
+    synthetic: bool | None = None,
+    scheduler_attempt_id: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    """Run one non-blocking, recoverable worker pass shared by manual and scheduled calls."""
+
+    try:
+        if scheduler_attempt_id is not None and not re.fullmatch(r"[0-9a-f]{32}", scheduler_attempt_id):
+            raise BackgroundError("scheduled attempt identity is invalid")
+        roots = _workspace(root)
+        _validate_runtime(roots.state)
+        directory = _worker_directory(roots.state)
+        descriptor = _acquire_worker_lock(directory)
+    except WorkerBusy as error:
+        report, _ = _failure("ai worker", "WORKER_ALREADY_RUNNING", str(error))
+        report["status"] = "CONFLICT"
+        return report, EXIT_CONFLICT
+    except (BackgroundError, OSError, TypeError, ValueError) as error:
+        return _failure("ai worker", "BACKGROUND_INPUT_INVALID", str(error))
+
+    try:
+        try:
+            previous = _read_worker_attempt(directory)
+        except BackgroundError as error:
+            return _failure("ai worker", "WORKER_ATTEMPT_INVALID", str(error))
+
+        scheduled_current = (
+            scheduler_attempt_id is not None
+            and previous is not None
+            and previous["owner"] == "scheduler"
+            and previous["status"] == "running"
+            and previous["attempt_id"] == scheduler_attempt_id
+        )
+        if scheduler_attempt_id is not None and not scheduled_current:
+            report, _ = _failure(
+                "ai worker",
+                "SCHEDULED_ATTEMPT_MISMATCH",
+                "scheduled attempt does not own the current State marker",
+            )
+            report["status"] = "CONFLICT"
+            return report, EXIT_CONFLICT
+        if (
+            scheduler_attempt_id is None
+            and previous is not None
+            and previous["owner"] == "scheduler"
+            and previous["status"] == "running"
+        ):
+            report, _ = _failure(
+                "ai worker",
+                "SCHEDULED_ATTEMPT_PENDING",
+                "a scheduled attempt is unresolved and blocks manual replay",
+            )
+            report["status"] = "CONFLICT"
+            return report, EXIT_CONFLICT
+
+        if (
+            not scheduled_current
+            and previous is not None
+            and previous["status"] in {"running", "needs_attention"}
+        ):
+            recovery, recovery_code = reconcile_transactions(roots)
+            if recovery.get("status") != "PASS":
+                status = recovery.get("status")
+                final_status = status if status in {"REPAIR_REQUIRED", "CONFLICT", "FAIL"} else "FAIL"
+                blocked, code = _recovery_block_report(recovery, recovery_code)
+                blocked["status"] = final_status
+                _write_worker_attempt(
+                    directory,
+                    _worker_attempt_record(
+                        attempt_id=previous["attempt_id"],
+                        owner=previous["owner"],
+                        status="needs_attention",
+                        started_at=previous["started_at"],
+                        result_status=final_status,
+                    ),
+                )
+                return blocked, code
+
+        if scheduled_current:
+            attempt_id = scheduler_attempt_id
+            owner = "scheduler"
+            started_at = previous["started_at"]
+        else:
+            attempt_id = uuid.uuid4().hex
+            owner = "manual"
+            started_at = datetime.now(UTC).isoformat(timespec="seconds")
+            _write_worker_attempt(
+                directory,
+                _worker_attempt_record(
+                    attempt_id=attempt_id,
+                    owner=owner,
+                    status="running",
+                    started_at=started_at,
+                    result_status=None,
+                ),
+            )
+        report, exit_code = _worker_once_pass(
+            roots,
+            wake_id=wake_id,
+            request_path=request_path,
+            dry_run=dry_run,
+            max_requests=max_requests,
+            synthetic=synthetic,
+        )
+        result_status = report.get("status")
+        marker_status = "completed" if result_status == "PASS" else "needs_attention"
+        _write_worker_attempt(
+            directory,
+            _worker_attempt_record(
+                attempt_id=attempt_id,
+                owner=owner,
+                status=marker_status,
+                started_at=started_at,
+                result_status=result_status if result_status in {"PASS", "REPAIR_REQUIRED", "CONFLICT", "FAIL"} else "FAIL",
+            ),
+        )
+        return report, exit_code
+    except (BackgroundError, OSError, TypeError, ValueError) as error:
+        return _failure("ai worker", "WORKER_ATTEMPT_WRITE_FAILED", str(error))
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+
 def run_worker_once(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     **kwargs: Any,
 ) -> tuple[dict[str, Any], int]:
     """Compatibility entry point for one bounded worker pass."""
@@ -500,12 +851,13 @@ def run_worker_once(
 
 
 def run_worker(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     once: bool = True,
     max_cycles: int | None = None,
     wake_id: str | None = None,
     dry_run: bool = False,
+    scheduler_attempt_id: str | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Run one pass or a bounded file-watch loop.
 
@@ -516,26 +868,33 @@ def run_worker(
     """
 
     if once:
-        return worker_once(root, wake_id=wake_id, dry_run=dry_run)
+        return worker_once(
+            root,
+            wake_id=wake_id,
+            dry_run=dry_run,
+            scheduler_attempt_id=scheduler_attempt_id,
+        )
+    if scheduler_attempt_id is not None:
+        return _failure("ai worker", "BACKGROUND_WATCH_UNAVAILABLE", "scheduled mode requires one pass")
     if max_cycles is not None and (not isinstance(max_cycles, int) or max_cycles < 1):
         return _failure("ai worker", "BACKGROUND_INPUT_INVALID", "max_cycles must be a positive integer")
 
     try:
-        workspace, vault = _workspace(root)
-        _validate_runtime(workspace)
+        roots = _workspace(root)
+        _validate_runtime(roots.state)
         watch_roots = (
-            vault / ".vault-bridge" / "requests",
-            workspace / "runtime" / "runs",
+            roots.vault / ".vault-bridge" / "requests",
+            roots.state / "runs",
         )
         for path in watch_roots:
-            _private_or_tracked_directory(path, label=str(path.relative_to(workspace)))
+            _private_or_tracked_directory(path, label=str(path))
         from watchfiles import watch
     except (BackgroundError, ImportError, OSError, TypeError, ValueError) as error:
         return _failure("ai worker", "BACKGROUND_WATCH_UNAVAILABLE", str(error))
 
     reports: list[dict[str, Any]] = []
     first, first_code = worker_once(
-        workspace,
+        roots,
         wake_id=wake_id or "watch-initial",
         dry_run=dry_run,
         synthetic=True,
@@ -551,7 +910,7 @@ def run_worker(
         return first, first_code
     for _changes in watch(*watch_roots):
         current, current_code = worker_once(
-            workspace,
+            roots,
             wake_id=f"watch-{cycles}",
             dry_run=dry_run,
             synthetic=True,
@@ -665,6 +1024,11 @@ def background_config_document(
         "contract_id": "knowledgeos-background-v1",
         "capability": CAPABILITY,
         "authoritative_inputs": _source_records(source_info),
+        "roots": {
+            "control_root": CONTROL_ROOT_TEMPLATE,
+            "vault_root": VAULT_ROOT_TEMPLATE,
+            "runtime_root": RUNTIME_ROOT_TEMPLATE,
+        },
         "activation": {
             "enabled_by_default": False,
             "launchd_active": False,
@@ -674,7 +1038,7 @@ def background_config_document(
         "worker": {
             "command": ["vaultctl", "ai", "worker", "--once"],
             "declared_command": "vaultctl ai worker" in command_list,
-            "request_namespace": ".vault-bridge/requests/YYYY/MM/JOB_ID.json",
+            "request_namespace": "__KNOWLEDGEOS_VAULT_ROOT__/.vault-bridge/requests/YYYY/MM/JOB_ID.json",
             "detection_baseline": detection.get("baseline"),
             "scheduled_reconcile_scans_local_committed_head": detection.get(
                 "scheduled_reconcile_scans_local_committed_head"
@@ -690,8 +1054,8 @@ def background_config_document(
         },
         "logging": {
             "format": "bounded_jsonl_summary",
-            "stdout_path": WORKER_STDOUT_LOG_PATH,
-            "stderr_path": WORKER_STDERR_LOG_PATH,
+            "stdout_path": WORKER_STDOUT_LOG_TEMPLATE,
+            "stderr_path": WORKER_STDERR_LOG_TEMPLATE,
             "max_age_seconds": WORKER_LOG_MAX_AGE_SECONDS,
             "max_bytes": WORKER_LOG_MAX_BYTES,
             "retain_bytes": WORKER_LOG_RETAIN_BYTES,
@@ -733,7 +1097,9 @@ def launchd_plist_document(
         ],
         "WorkingDirectory": "__KNOWLEDGEOS_CONTROL_ROOT__",
         "EnvironmentVariables": {
-            "KNOWLEDGEOS_CONTROL_ROOT": "__KNOWLEDGEOS_CONTROL_ROOT__",
+            "KNOWLEDGEOS_CONTROL_ROOT": CONTROL_ROOT_TEMPLATE,
+            "KNOWLEDGEOS_VAULT_ROOT": VAULT_ROOT_TEMPLATE,
+            "KNOWLEDGEOS_RUNTIME_ROOT": RUNTIME_ROOT_TEMPLATE,
             "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
         },
         "RunAtLoad": False,
@@ -743,8 +1109,8 @@ def launchd_plist_document(
         "LowPriorityIO": True,
         "AbandonProcessGroup": True,
         "Umask": 0o077,
-        "StandardOutPath": "__KNOWLEDGEOS_CONTROL_ROOT__/runtime/logs/worker.stdout.log",
-        "StandardErrorPath": "__KNOWLEDGEOS_CONTROL_ROOT__/runtime/logs/worker.stderr.log",
+        "StandardOutPath": WORKER_STDOUT_LOG_TEMPLATE,
+        "StandardErrorPath": WORKER_STDERR_LOG_TEMPLATE,
         "KnowledgeOS": {
             "capability": CAPABILITY,
             "enabled_by_default": False,
@@ -949,14 +1315,40 @@ def render_background_artifacts(root: str | Path) -> tuple[dict[str, Any], int]:
         logging = config.get("logging", {})
         if logging != {
             "format": "bounded_jsonl_summary",
-            "stdout_path": WORKER_STDOUT_LOG_PATH,
-            "stderr_path": WORKER_STDERR_LOG_PATH,
+            "stdout_path": WORKER_STDOUT_LOG_TEMPLATE,
+            "stderr_path": WORKER_STDERR_LOG_TEMPLATE,
             "max_age_seconds": WORKER_LOG_MAX_AGE_SECONDS,
             "max_bytes": WORKER_LOG_MAX_BYTES,
             "retain_bytes": WORKER_LOG_RETAIN_BYTES,
             "legacy_format_action": "discard_on_first_bounded_wake",
         }:
             raise BackgroundError("C24 worker logging policy is invalid")
+        if config.get("roots") != {
+            "control_root": CONTROL_ROOT_TEMPLATE,
+            "vault_root": VAULT_ROOT_TEMPLATE,
+            "runtime_root": RUNTIME_ROOT_TEMPLATE,
+        }:
+            raise BackgroundError("C24 background root bindings are invalid")
+        worker = config.get("worker", {})
+        if not isinstance(worker, Mapping) or worker.get("request_namespace") != (
+            "__KNOWLEDGEOS_VAULT_ROOT__/.vault-bridge/requests/YYYY/MM/JOB_ID.json"
+        ):
+            raise BackgroundError("C24 background request root binding is invalid")
+        environment = plist.get("EnvironmentVariables", {})
+        if not isinstance(environment, Mapping) or any(
+            environment.get(key) != value
+            for key, value in {
+                "KNOWLEDGEOS_CONTROL_ROOT": CONTROL_ROOT_TEMPLATE,
+                "KNOWLEDGEOS_VAULT_ROOT": VAULT_ROOT_TEMPLATE,
+                "KNOWLEDGEOS_RUNTIME_ROOT": RUNTIME_ROOT_TEMPLATE,
+            }.items()
+        ):
+            raise BackgroundError("C24 LaunchAgent root environment bindings are invalid")
+        if (
+            plist.get("StandardOutPath") != WORKER_STDOUT_LOG_TEMPLATE
+            or plist.get("StandardErrorPath") != WORKER_STDERR_LOG_TEMPLATE
+        ):
+            raise BackgroundError("C24 LaunchAgent log paths must use the selected runtime root")
         if schema.get("$id") != "https://local.invalid/knowledgeos/worker-report.schema.json":
             raise BackgroundError("C24 worker schema identity is invalid")
     except (BackgroundError, OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError, YAMLError) as error:

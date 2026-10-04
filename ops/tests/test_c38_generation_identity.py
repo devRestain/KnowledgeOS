@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from support.control_factory import (
+    bind_existing_control,
+    fixture_path,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.e02 import generation_profile
 from vaultops.generation_identity import (
@@ -65,13 +70,13 @@ def _frozen_evidence() -> dict[str, object]:
 def _artifacts(job_id: str = JOB_ID) -> dict[str, dict[str, object] | None]:
     return {
         "context": {
-            "path": f"runtime/runs/{job_id}/context.json",
+            "path": f"state/runs/{job_id}/context.json",
             "sha256": "6" * 64,
             "byte_length": 100,
             "mode": "0600",
         },
         "request": {
-            "path": f"runtime/runs/{job_id}/request.json",
+            "path": f"state/runs/{job_id}/request.json",
             "sha256": "7" * 64,
             "byte_length": 100,
             "mode": "0600",
@@ -147,13 +152,14 @@ def test_c38_identity_binds_full_model_identity_and_keeps_profile_disabled() -> 
 
 
 def test_c38_identity_write_is_private_immutable_and_replay_safe(tmp_path: Path) -> None:
+    bind_existing_control(tmp_path)
     envelope = build_generation_identity(**_identity())
 
     report, code = write_generation_identity(tmp_path, envelope)
 
     assert code == 0
     assert report["write"] == "CREATED"
-    path = tmp_path / "runtime/runs" / JOB_ID / "receipts/generation-identity.json"
+    path = fixture_path(tmp_path, "state") / "runs" / JOB_ID / "receipts/generation-identity.json"
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
     assert read_generation_identity(tmp_path, job_id=JOB_ID) == envelope
@@ -170,6 +176,19 @@ def test_c38_identity_write_is_private_immutable_and_replay_safe(tmp_path: Path)
     assert conflict_code == 30
     assert conflict["status"] == "CONFLICT"
     assert path.read_bytes() == raw
+
+
+def test_c38_identity_uses_selected_runtime_root(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    envelope = build_generation_identity(**_identity())
+
+    report, code = write_generation_identity(roots, envelope)
+
+    assert code == 0
+    assert report["path"] == f"state/runs/{JOB_ID}/receipts/generation-identity.json"
+    assert (roots.state / "runs" / JOB_ID / "receipts/generation-identity.json").is_file()
+    assert read_generation_identity(roots, job_id=JOB_ID) == envelope
+    assert not (roots.control / "runtime").exists()
 
 
 @pytest.mark.parametrize(
@@ -213,6 +232,7 @@ def test_c38_rejects_artifacts_outside_the_private_runtime_job() -> None:
 
 
 def test_c38_binds_an_existing_c31_request_without_raw_prompt_or_candidates(tmp_path: Path) -> None:
+    bind_existing_control(tmp_path)
     candidate_text = "C38 frozen evidence"
     candidate: dict[str, object] = {
         "note_id": "c38-note",

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/mcp/proposal_create.data.schema.json",
+  "title": "KnowledgeOS MCP normalize proposal result data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_reference",
+    "proposal_id",
+    "proposal_reference",
+    "proposal_sha256"
+  ],
+  "properties": {
+    "source_reference": {
+      "$ref": "resource_reference.schema.json"
+    },
+    "proposal_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proposal_reference": {
+      "anyOf": [
+        {
+          "$ref": "resource_reference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proposal_sha256": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

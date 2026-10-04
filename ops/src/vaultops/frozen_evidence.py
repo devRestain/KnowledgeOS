@@ -24,6 +24,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .gemma_routes import GemmaRouteError, validate_gemma_output
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .provider_contract import (
     ProviderContractError,
     canonical_json_bytes,
@@ -36,7 +37,7 @@ _UUID4 = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
 _RUNTIME_SOURCE = re.compile(
-    r"^runtime/runs/(?P<job>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/"
+    r"^state/runs/(?P<job>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/"
     r"(?P<name>context\.json|response\.json|receipts/provider-receipt\.json)$"
 )
 _SOURCE_BINDING = re.compile(r"^(.+)\|sha256:([0-9a-f]{64})$")
@@ -81,11 +82,13 @@ def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise FrozenEvidenceError("E05_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise FrozenEvidenceError("E05_ROOT_INVALID", str(error)) from error
 
 
 def _error(code: str, message: str) -> FrozenEvidenceError:
@@ -155,12 +158,21 @@ def _binding_map(bindings: Sequence[str]) -> tuple[str, dict[str, str]]:
 
 
 def _load_runtime_evidence(
-    workspace: Path,
+    workspace: ResolvedPaths,
     bindings: Sequence[str],
 ) -> tuple[str, dict[str, str], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
     job_id, expected_hashes = _binding_map(bindings)
-    job_root = workspace / "runtime" / "runs" / job_id
-    if not _UUID4.fullmatch(job_id) or job_root.is_symlink() or not job_root.is_dir():
+    runtime_root = workspace.state
+    runs_root = runtime_root / "runs"
+    job_root = runs_root / job_id
+    if (
+        not _UUID4.fullmatch(job_id)
+        or runtime_root.is_symlink()
+        or runs_root.is_symlink()
+        or not runs_root.is_dir()
+        or job_root.is_symlink()
+        or not job_root.is_dir()
+    ):
         raise _error("E05_RUNTIME_JOB_INVALID", "frozen runtime job directory is unavailable")
     receipt_root = job_root / "receipts"
     if receipt_root.is_symlink() or not receipt_root.is_dir():
@@ -173,8 +185,8 @@ def _load_runtime_evidence(
     loaded: dict[str, dict[str, Any]] = {}
     raws: dict[str, bytes] = {}
     for name, path in paths.items():
-        value, raw = _canonical_private_json(path, label=f"runtime/{name}")
-        relative = f"runtime/runs/{job_id}/{name}"
+        value, raw = _canonical_private_json(path, label=f"state/{name}")
+        relative = f"state/runs/{job_id}/{name}"
         observed = _sha256(raw)
         if expected_hashes[relative] != observed:
             raise _error("E05_RUNTIME_SOURCE_DRIFT", f"runtime source digest differs: {relative}")
@@ -183,7 +195,7 @@ def _load_runtime_evidence(
 
     context = loaded["context.json"]
     request_path = job_root / "request.json"
-    request, _request_raw = _canonical_private_json(request_path, label="runtime/request.json")
+    request, _request_raw = _canonical_private_json(request_path, label="state/request.json")
     try:
         context = validate_context_envelope(context)
     except ProviderContractError as error:
@@ -225,7 +237,7 @@ def _load_runtime_evidence(
 
     output = response["output"]
     try:
-        validate_gemma_output(workspace, context, output, route="triage")
+        validate_gemma_output(workspace.control, context, output, route="triage")
     except GemmaRouteError as error:
         raise _error("E05_RUNTIME_C35_INVALID", str(error)) from error
     return job_id, expected_hashes, context, request, response, receipt, output
@@ -300,7 +312,7 @@ def _validate_manifest(
 
 
 def inspect_frozen_triage_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     source_bindings: Sequence[str],
     candidate_id: str,
@@ -356,7 +368,7 @@ def runtime_source_bindings(values: Sequence[str]) -> bool:
 
 
 def validate_runtime_proposal_sources(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     source_bindings: Sequence[str],
     candidate_id: str,

@@ -84,7 +84,7 @@ subsequent writes are isolated.
 Artifact parity is a separate explicit tier, not part of default pytest. It may
 compare control-repository expected outputs with a later accepted allowlist of
 deployed system outputs. Any deployed Markdown path in that allowlist must be
-under `KnowledgeHub/99_System`; ordinary root notes and user content are never
+under `../../../../../../Vaults/KnowledgeHub/99_System`; ordinary root notes and user content are never
 artifact inputs.
 
 The artifact check is read-only. A generator/export command is a separate

@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from support.control_factory import fixture_path
 from vaultops.yaml_safe import load_yaml_file
 
 from .control_factory import PLUGIN_CONTROL_INPUTS, make_control_root
@@ -44,8 +45,7 @@ _P11_REQUIRED_TOOLBAR_TARGETS: dict[str, set[tuple[str, str]]] = {
         ("file", "99_System/Dashboards/Tasks.md"),
         ("file", "99_System/Dashboards/Weekly_Review.md"),
         ("command", "daily-notes"),
-        ("file_pattern", "weekly"),
-        ("file_pattern", "monthly"),
+        ("file", "99_System/Bases/Journal.base#Open Reviews"),
     },
     "KnowledgeOS Home": {
         ("command", "homepage:open-homepage"),
@@ -141,7 +141,7 @@ def _minimal_plugin_settings(
     if "obsidian-meta-bind-plugin" in selected:
         template_names.add("T20_Project.md")
     for name in template_names:
-        path = root / "KnowledgeHub/99_System/Templates" / name
+        path = (fixture_path(root, "vault") / "99_System/Templates") / name
         path.parent.mkdir(parents=True, exist_ok=True)
         contents = "# Temporary owned template fixture\n"
         if name == "T10_Daily.md":
@@ -152,7 +152,7 @@ def _minimal_plugin_settings(
 
     if selected.intersection({"breadcrumbs", "obsidian-meta-bind-plugin"}):
         expected_dictionary = root / "ops/expected/Property_Dictionary.md"
-        dictionary = root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md"
+        dictionary = (fixture_path(root, "vault") / "99_System/Schemas/Property_Dictionary.md")
         dictionary.parent.mkdir(parents=True, exist_ok=True)
         dictionary.write_bytes(expected_dictionary.read_bytes())
 
@@ -162,7 +162,7 @@ def _minimal_plugin_settings(
             "```tasks\ntags include #task\nnot done\n```\n"
         )
         for relative in ("99_System/Dashboards/Tasks.md", "99_System/Dashboards/Weekly_Review.md"):
-            path = root / "KnowledgeHub" / relative
+            path = fixture_path(root, "vault") / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("# Temporary Tasks fixture\n\n" + task_query, encoding="utf-8")
 
@@ -174,10 +174,6 @@ def _minimal_plugin_settings(
         for kind, target in sorted(targets):
             link = target
             command_id = target if kind == "command" else ""
-            if kind == "file_pattern" and target == "weekly":
-                link = "10_Journal/Weekly/2026/2026-W39.md"
-            elif kind == "file_pattern" and target == "monthly":
-                link = "10_Journal/Monthly/2026/2026-09.md"
             toolbar_items.append(
                 {
                     "link": link,
@@ -339,13 +335,9 @@ def make_plugin_profile(
     the arguments; no installed profile, Vault document, or plugin data is read.
     """
 
-    root = make_control_root(
-        tmp_path,
-        PLUGIN_CONTROL_INPUTS,
-        with_vault=True,
-        with_runtime=True,
-    )
-    profile = root / "KnowledgeHub" / ".obsidian-mac"
+    inputs = tuple(item for item in PLUGIN_CONTROL_INPUTS if item != "ops/vaultops.toml")
+    root = make_control_root(tmp_path, inputs, with_vault=True, with_runtime=True)
+    profile = fixture_path(root, "vault") / ".obsidian-mac"
     profile.mkdir(parents=True)
     ids = list(plugins) if plugins is not None else declared_community_plugins(root)
     write_json(profile / "community-plugins.json", ids)
@@ -358,7 +350,7 @@ def make_plugin_profile(
         },
     )
     write_json(profile / "app.json", {"propertiesInDocument": "visible"})
-    template = root / "KnowledgeHub" / "99_System" / "Templates" / "T10_Daily.md"
+    template = fixture_path(root, "vault") / "99_System" / "Templates" / "T10_Daily.md"
     template.parent.mkdir(parents=True, exist_ok=True)
     template.write_text("# Daily\n\n{{date:YYYY-MM-DD}}\n", encoding="utf-8")
 

@@ -7,7 +7,9 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from support.control_factory import (
     APPLICATION_CONTROL_INPUTS,
+    fixture_path,
     make_control_root,
+    make_separate_portable_fixture_roots,
     populate_vault_from_fixture,
 )
 
@@ -39,7 +41,11 @@ BASELINE_PATH = "ops/tests/fixtures/e01_vectors/evaluation.yaml"
 def _fresh_control_copy(tmp_path: Path) -> Path:
     root = make_control_root(
         tmp_path,
-        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/e01_vectors"),
+        tuple(
+            item
+            for item in (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/e01_vectors")
+            if item != "ops/vaultops.toml"
+        ),
     )
     populate_vault_from_fixture(
         root,
@@ -55,8 +61,10 @@ def _build(root: Path, generation_id: str = "e01-fixture") -> None:
 
 def _runtime_snapshot(root: Path) -> dict[str, bytes]:
     return {
-        path.relative_to(root).as_posix(): path.read_bytes()
-        for path in (root / "runtime").rglob("*")
+        f"{kind}/{path.relative_to(selected).as_posix()}": path.read_bytes()
+        for kind in ("state", "runtime")
+        for selected in [fixture_path(root, kind)]
+        for path in selected.rglob("*")
         if path.is_file()
     }
 
@@ -155,7 +163,7 @@ def test_e01_frozen_evaluation_reports_metrics_without_mutation(tmp_path: Path) 
 def test_e01_stale_projection_fails_closed(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root)
-    source = root / "KnowledgeHub/20_Projects/guestbook-horror/guestbook-horror.md"
+    source = (fixture_path(root, "vault") / "20_Projects/guestbook-horror/guestbook-horror.md")
     source.write_bytes(source.read_bytes() + b"\n")
     before = _runtime_snapshot(root)
 
@@ -192,3 +200,43 @@ def test_e01_cli_exposes_explicit_vector_routes(tmp_path: Path, monkeypatch, cap
     evaluated = json.loads(capsys.readouterr().out)
     assert evaluated["operation"] == "vector evaluate"
     assert evaluated["metrics"]["all_cases_passed"] is True
+
+
+def test_e01_vector_api_and_cli_use_separate_roots_from_unrelated_cwd(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    roots = make_separate_portable_fixture_roots(
+        tmp_path,
+        extra_inputs=("ops/tests/fixtures/e01_vectors",),
+    )
+    _build(roots, generation_id="e01-portable")
+    unrelated = tmp_path / "unrelated cwd"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    before = _runtime_snapshot(roots.control)
+    vault_before = {path.relative_to(roots.vault).as_posix(): path.read_bytes() for path in roots.vault.rglob("*") if path.is_file()}
+
+    report, code = vector_retrieve(roots, "플레이 루프", scope="project:guestbook-horror")
+    assert code == EXIT_OK, report
+    assert report["retrieval_mode"] == "vector_rrf"
+    assert report["provider_called"] is False
+    assert report["mutation_performed"] is False
+
+    assert main(
+        [
+            "vector",
+            "evaluate",
+            "--evaluation-file",
+            BASELINE_PATH,
+            "--generation-id",
+            "e01-portable",
+            "--root",
+            str(roots.control),
+        ]
+    ) == EXIT_OK
+    evaluated = json.loads(capsys.readouterr().out)
+    assert evaluated["metrics"]["all_cases_passed"] is True
+    assert _runtime_snapshot(roots.control) == before
+    assert {path.relative_to(roots.vault).as_posix(): path.read_bytes() for path in roots.vault.rglob("*") if path.is_file()} == vault_before

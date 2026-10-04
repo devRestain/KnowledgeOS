@@ -1,6 +1,10 @@
-schema_version = 1
+# Deployment root values are absolute or relative to this file's directory.
+# The Compose paths below are container targets; host bind sources are separate.
+schema_version = 3
 project_name = "KnowledgeOS"
+core_root = "/workspace/Core"
 control_root = "/workspace/control"
 vault_root = "/workspace/KnowledgeHub"
+state_root = "/workspace/state"
 runtime_root = "/workspace/runtime"
 timezone = "Asia/Seoul"

@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/mcp/proposal_create.input.schema.json",
+  "title": "proposal_create logical owner input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_reference"
+  ],
+  "properties": {
+    "source_reference": {
+      "$id": "https://local.invalid/knowledgeos/mcp/resource_reference.schema.json",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "availability": {
+                "const": "available_by_owner_export"
+              }
+            },
+            "required": [
+              "availability"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_revision",
+              "content_digest"
+            ]
+          },
+          "x-agentfabric-error": "INVALID_PAYLOAD"
+        }
+      ],
+      "description": "Owner-scoped logical identifier; it is not a path or access grant",
+      "properties": {
+        "availability": {
+          "enum": [
+            "available_by_owner_export",
+            "unavailable",
+            "expired",
+            "revoked",
+            "unknown"
+          ],
+          "maxLength": 25,
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "required",
+            "semantic_term": "agentfabric.core.evidence_availability"
+          }
+        },
+        "classification": {
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "maxLength": 12,
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "required",
+            "semantic_term": "agentfabric.core.evidence_availability"
+          }
+        },
+        "content_digest": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "optional",
+            "semantic_term": "agentfabric.core.logical_resource"
+          }
+        },
+        "logical_id": {
+          "maxLength": 96,
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "required",
+            "semantic_term": "agentfabric.core.logical_resource"
+          }
+        },
+        "owner_operation_id": {
+          "maxLength": 96,
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "required",
+            "semantic_term": "agentfabric.core.operation_identity"
+          }
+        },
+        "resource_kind": {
+          "enum": [
+            "operation",
+            "runtime",
+            "state",
+            "work",
+            "artifact",
+            "secret",
+            "exchange",
+            "vault"
+          ],
+          "maxLength": 9,
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Core",
+            "privacy": "internal",
+            "requiredness": "required",
+            "semantic_term": "agentfabric.core.logical_resource"
+          }
+        },
+        "source_revision": {
+          "maxLength": 96,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+          "type": "string",
+          "x-agentfabric-field": {
+            "owner": "Operation",
+            "privacy": "internal",
+            "requiredness": "optional",
+            "semantic_term": "agentfabric.core.logical_resource"
+          }
+        }
+      },
+      "required": [
+        "availability",
+        "classification",
+        "logical_id",
+        "owner_operation_id",
+        "resource_kind"
+      ],
+      "title": "ResourceReference",
+      "type": "object",
+      "x-agentfabric-contract": {
+        "catalog_id": "agentfabric.core.contract-catalog",
+        "catalog_version": "0.16.1",
+        "owner": "Operation",
+        "release_version": "0.16.1",
+        "source_of_truth": "contracts/catalog.json",
+        "unknown_field_policy": "reject"
+      }
+    }
+  }
+}

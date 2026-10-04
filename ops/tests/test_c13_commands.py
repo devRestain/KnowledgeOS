@@ -6,10 +6,14 @@ import sys
 from pathlib import Path
 
 import pytest
-from support.control_factory import make_control_root
+from support.control_factory import (
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import main
-from vaultops.local_commands import PERIOD_NOTE_GUI_MESSAGE
+from vaultops.local_commands import PERIOD_NOTE_GUI_MESSAGE, capture_text
 from vaultops.workflows import create_project_bundle
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
@@ -73,7 +77,7 @@ def test_capture_text_is_typed_create_only_and_replay_is_a_conflict(
     report = _json_output(capsys)
     assert report["status"] == "PASS"
     assert report["path"] == "00_Inbox/Captures/2026/09/20260913-102030 CLI Capture.md"
-    target = root / "KnowledgeHub" / str(report["path"])
+    target = fixture_path(root, "vault") / str(report["path"])
     before = target.read_bytes()
     assert "원문 한 줄" in before.decode()
 
@@ -111,7 +115,7 @@ def test_capture_url_uses_validated_files_and_keeps_url_and_comment_in_body(
     ) == 0
     report = _json_output(capsys)
     assert report["status"] == "PASS"
-    text = (root / "KnowledgeHub" / str(report["path"])).read_text(encoding="utf-8")
+    text = (fixture_path(root, "vault") / str(report["path"])).read_text(encoding="utf-8")
     assert "https://example.com/articles/portable" in text
     assert "나중에 출처를 다시 확인한다." in text
 
@@ -146,7 +150,7 @@ def test_note_create_supports_project_local_notes_and_dry_run_does_not_write(
     preview = _json_output(capsys)
     assert preview["status"] == "PASS"
     assert preview["mode"] == "dry-run"
-    target = root / "KnowledgeHub/20_Projects/C13 Project/Working/Working Note.md"
+    target = (fixture_path(root, "vault") / "20_Projects/C13 Project/Working/Working Note.md")
     assert not target.exists()
 
     assert main([item for item in command if item != "--dry-run"]) == 0
@@ -178,7 +182,7 @@ def test_create_content_rejects_invalid_utf8_nul_and_oversize_without_writing(
         assert main(command) == 10
         report = _json_output(capsys)
         assert report["status"] == "FAIL"
-        assert not list((root / "KnowledgeHub").rglob("Rejected.md"))
+        assert not list((fixture_path(root, "vault")).rglob("Rejected.md"))
 
 
 def test_fmt_check_is_read_only_and_guarded_write_is_idempotent(tmp_path: Path, capsys) -> None:
@@ -202,7 +206,7 @@ def test_fmt_check_is_read_only_and_guarded_write_is_idempotent(tmp_path: Path, 
         ]
     ) == 0
     created = _json_output(capsys)
-    target = root / "KnowledgeHub" / str(created["path"])
+    target = fixture_path(root, "vault") / str(created["path"])
     raw = target.read_bytes()
     target.write_bytes(raw.replace(b"\nschema_version: 1\n", b"\r\nschema_version: 1\r\n", 1))
     before_check = target.read_bytes()
@@ -243,7 +247,7 @@ def test_unsafe_title_and_url_do_not_create_a_target(tmp_path: Path, capsys, mon
         ]
     ) == 10
     assert _json_output(capsys)["status"] == "FAIL"
-    assert not list((root / "KnowledgeHub").rglob("*.md"))
+    assert not list((fixture_path(root, "vault")).rglob("*.md"))
 
     url_file = tmp_path / "bad-url.txt"
     url_file.write_text("javascript:alert(1)\n", encoding="utf-8")
@@ -258,3 +262,30 @@ def test_unsafe_title_and_url_do_not_create_a_target(tmp_path: Path, capsys, mon
         ]
     ) == 10
     assert _json_output(capsys)["status"] == "FAIL"
+
+
+def test_note_writers_use_separate_control_and_vault_roots(tmp_path: Path, monkeypatch) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.stdin", _BytesStdin(b"portable capture body\n"))
+
+    capture, capture_code = capture_text(
+        roots,
+        stdin=True,
+        device="mac",
+        title="Portable C13",
+        created_at="2026-09-14T10:30:00+09:00",
+    )
+    project = create_project_bundle(
+        roots,
+        title="Portable Bundle",
+        created_at="2026-09-14T10:31:00+09:00",
+    )
+
+    assert capture_code == 0, capture
+    assert capture["status"] == "PASS"
+    assert (roots.vault / str(capture["path"])).is_file()
+    assert project["status"] == "PASS", project
+    assert (roots.vault / project["created"][0]).is_file()
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()

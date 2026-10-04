@@ -129,7 +129,7 @@ TEMPLATE_SOURCES: dict[str, str] = {
         proposal_id: "{{JOB_ID}}"
         source_hashes: {{SOURCE_HASH_LIST_YAML}}
         ---
-        > 이 노트는 정본이 아니다. 승인·거절은 terminal의 vaultctl 명령으로 수행한다.
+        > 제안 artifact는 owner decision의 대상이다. 검토는 읽기 전용이며 승인·거절은 trusted local owner control에서 수행한다. 승인은 decision과 pending intent를 기록하고 canonical apply는 별도 명시적 단계로 남는다.
 
         ## 제안 요약
 
@@ -153,6 +153,8 @@ TEMPLATE_SOURCES: dict[str, str] = {
         - [ ] 민감정보와 ai_policy를 다시 확인했다.
         - [ ] 링크와 target path가 맞다.
         - [ ] 덮어쓰기라면 현재 파일 hash가 기준과 같다.
+        - [ ] source·proposal·policy·schema·semantic pins가 owner HumanActionRequest의 target과 일치한다.
+        - [ ] 문서 status를 실행 결과·domain acceptance·human approval의 근거로 대신하지 않는다.
         """
     ),
     "T10_Daily.md": _source(

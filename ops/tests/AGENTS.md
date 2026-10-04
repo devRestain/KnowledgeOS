@@ -11,8 +11,8 @@
 ## Isolation
 
 - Build unit and integration inputs from deterministic fixtures and `tmp_path`.
-- Never read, copy, mutate, or snapshot real `KnowledgeHub/`, `runtime/`, or `.obsidian*` state.
-- Limit exact deployed Markdown reconciliation to accepted paths beneath `KnowledgeHub/99_System/`.
+- Never read, copy, mutate, or snapshot real `../../../../Vaults/KnowledgeHub/`, `runtime/`, or `.obsidian*` state.
+- Limit exact deployed Markdown reconciliation to accepted paths beneath `../../../../Vaults/KnowledgeHub/99_System/`.
 - Treat ordinary notes, unrelated plugins, unknown settings, presentation preferences, ordering, and versions as user-owned inputs.
 - Validate only KnowledgeOS-owned capabilities and fail-closed write, execution, network, overwrite, and review-bypass controls.
 - Keep live, runtime, and device smoke outside pytest and exercise its lifecycle with temporary fixtures.

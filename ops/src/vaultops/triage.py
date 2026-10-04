@@ -19,6 +19,7 @@ from jsonschema import Draft202012Validator
 
 from .fragments import FragmentError, verify_daily_fragment
 from .note_engine import NoteContractError, NoteEngine, UnsafePathError, resolve_vault_relative_path
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 
 _CANDIDATE_TYPES = ("task", "idea", "question", "knowledge", "project", "source")
 _SOURCE_TYPES = ("capture", "daily")
@@ -83,7 +84,7 @@ def _candidate_type(note_type: str, hint: object) -> str:
 
 
 def deterministic_triage(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     source_path: str,
     expected_sha256: str,
@@ -104,7 +105,8 @@ def deterministic_triage(
     if fragment_sha256 is not None and not re.fullmatch(_SHA256, fragment_sha256):
         return _problem("TRIAGE_FRAGMENT_HASH_INVALID", "fragment_sha256 must be lowercase SHA-256")
     try:
-        vault = Path(root).resolve() / "KnowledgeHub"
+        roots = root if isinstance(root, ResolvedPaths) else resolve_paths(root)
+        vault = roots.vault
         path = resolve_vault_relative_path(vault, source_path)
         if path.is_symlink() or not path.is_file():
             return _problem("TRIAGE_SOURCE_INVALID", "source must be a regular Vault note")
@@ -113,8 +115,8 @@ def deterministic_triage(
         if digest != expected_sha256:
             return _problem("TRIAGE_SOURCE_DRIFT", "source digest does not match expected_sha256")
         text = content.decode("utf-8")
-        typed = NoteEngine.from_root(root).typed_note(source_path, text)
-    except (OSError, UnicodeError, UnsafePathError, NoteContractError, ValueError) as error:
+        typed = NoteEngine.from_root(roots.control).typed_note(source_path, text)
+    except (OSError, UnicodeError, UnsafePathError, NoteContractError, RootResolutionError, ValueError) as error:
         return _problem("TRIAGE_SOURCE_INVALID", str(error))
 
     if typed.note_type not in _SOURCE_TYPES:

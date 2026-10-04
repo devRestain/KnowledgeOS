@@ -52,6 +52,7 @@ from .embedding_index import (
     _write_pointer,
     _zero_lexical,
 )
+from .paths import ResolvedPaths
 from .projection import (
     EXIT_CONFLICT,
     EXIT_OK,
@@ -425,7 +426,7 @@ def _build_records(
 
 
 def _publish_index(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     index_id: str,
     manifest_bytes: bytes,
@@ -457,7 +458,7 @@ def _publish_index(
 
 
 def build_qwen_candidate_index_projection(
-    workspace: str | Path,
+    workspace: str | Path | ResolvedPaths,
     projection: ProjectionRead,
     *,
     retrieval: Mapping[str, Any],
@@ -526,7 +527,7 @@ def build_qwen_candidate_index_projection(
     }, EXIT_OK
 
 
-def _load_qwen_index_from_pointer(workspace: Path) -> QwenCandidateIndex:
+def _load_qwen_index_from_pointer(workspace: ResolvedPaths) -> QwenCandidateIndex:
     pointer_path = _runtime_path(workspace, QWEN_CURRENT_POINTER)
     pointer = _json_object(_regular_private_file(pointer_path, "Qwen candidate current pointer"), "Qwen candidate current pointer")
     expected_keys = {
@@ -608,7 +609,7 @@ def _load_qwen_index_from_pointer(workspace: Path) -> QwenCandidateIndex:
 
 
 def load_qwen_candidate_index(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     projection: ProjectionRead | None = None,
     retrieval_config_sha256: str | None = None,
@@ -857,7 +858,7 @@ def _qwen_projection(
 
 def _run_qwen(
     operation: str,
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,
@@ -933,7 +934,7 @@ def _failure(operation: str, code: str, message: str) -> tuple[dict[str, Any], i
 
 
 def build_qwen_candidate_index(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     provider: EmbeddingProvider,
     *,
     model_digest: str,
@@ -966,7 +967,7 @@ def build_qwen_candidate_index(
 
 
 def qwen_learned_search(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,
@@ -997,7 +998,7 @@ def qwen_learned_search(
 
 
 def qwen_learned_retrieve(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,

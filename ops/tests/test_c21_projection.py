@@ -5,10 +5,15 @@ import json
 from pathlib import Path
 
 import pytest
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import (
+    fixture_path,
+    make_portable_fixture_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import main
 from vaultops.projection import (
+    CURRENT_POINTER,
     EXIT_CONFLICT,
     EXIT_OK,
     build_projection,
@@ -47,7 +52,7 @@ def test_c21_build_is_deterministic_and_does_not_write_runtime_or_vault(tmp_path
     assert first.edges_bytes == second.edges_bytes
     assert first.manifest_bytes == second.manifest_bytes
     assert first.source_snapshot_sha256 == second.source_snapshot_sha256
-    assert not (root / "runtime/index/exports/current.json").exists()
+    assert not (fixture_path(root, "state") / "index/exports/current.json").exists()
     assert _file_snapshot(root) == before
 
     notes = _jsonl_records(first.notes_bytes)
@@ -82,15 +87,38 @@ def test_c21_build_is_deterministic_and_does_not_write_runtime_or_vault(tmp_path
     assert derived["object_locator"] == "#^daily-origin"
 
 
+def test_c21_cli_uses_configured_separate_vault_and_runtime_roots(tmp_path: Path, capsys) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    vault_before = _file_snapshot(roots.vault)
+
+    built = build_projection(roots, generation_id="c21-separated")
+    assert len(built.notes) == 10
+    assert not (roots.state / CURRENT_POINTER).exists()
+
+    assert main(
+        ["export", "jsonl", "--generation-id", "c21-separated-cli", "--root", str(roots.control)]
+    ) == EXIT_OK
+    exported = json.loads(capsys.readouterr().out)
+    assert exported["provider_called"] is False
+    assert (roots.state / CURRENT_POINTER).is_file()
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
+
+    assert main(["index", "verify", "--root", str(roots.control)]) == EXIT_OK
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["generation_id"] == "c21-separated-cli"
+    assert _file_snapshot(roots.vault) == vault_before
+
+
 def test_c21_publish_replays_same_generation_and_reader_pins_one_pointer(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
 
     first, first_code = generate_projection(root, generation_id="c21-fixture")
     assert first_code == EXIT_OK, first
     assert first["pointer_swapped"] is True
-    pointer_path = root / "runtime/index/exports/current.json"
+    pointer_path = (fixture_path(root, "state") / "index/exports/current.json")
     pointer_before = pointer_path.read_bytes()
-    generation_root = root / "runtime" / first["generation_root"]
+    generation_root = fixture_path(root, "runtime") / first["generation_root"]
     assert generation_root.is_dir()
     assert (generation_root / "notes.jsonl").stat().st_mode & 0o777 == 0o600
     assert generation_root.stat().st_mode & 0o777 == 0o700
@@ -113,7 +141,7 @@ def test_c21_cli_exposes_export_build_and_verify_without_provider_or_vault_mutat
     tmp_path: Path, capsys
 ) -> None:
     root = _fresh_control_copy(tmp_path)
-    before = _file_snapshot(root / "KnowledgeHub")
+    before = _file_snapshot(fixture_path(root, "vault"))
 
     assert main(["export", "jsonl", "--generation-id", "c21-cli", "--root", str(root)]) == EXIT_OK
     exported = json.loads(capsys.readouterr().out)
@@ -130,7 +158,7 @@ def test_c21_cli_exposes_export_build_and_verify_without_provider_or_vault_mutat
     assert verified["status"] == "PASS"
     assert verified["generation_id"] == "c21-cli"
     assert verified["mutation_performed"] is False
-    assert _file_snapshot(root / "KnowledgeHub") == before
+    assert _file_snapshot(fixture_path(root, "vault")) == before
 
 
 def test_c21_reader_rejects_stale_source_and_tampered_generation(tmp_path: Path) -> None:
@@ -138,7 +166,7 @@ def test_c21_reader_rejects_stale_source_and_tampered_generation(tmp_path: Path)
     report, code = generate_projection(root, generation_id="c21-fixture")
     assert code == EXIT_OK, report
 
-    source = root / "KnowledgeHub/20_Projects/guestbook-horror/guestbook-horror.md"
+    source = (fixture_path(root, "vault") / "20_Projects/guestbook-horror/guestbook-horror.md")
     source.write_bytes(source.read_bytes() + b"\n")
     stale, stale_code = read_current_projection(root)
     assert stale_code == EXIT_CONFLICT
@@ -146,7 +174,7 @@ def test_c21_reader_rejects_stale_source_and_tampered_generation(tmp_path: Path)
     assert "stale" in stale["errors"][0]["message"]
 
     source.write_bytes(source.read_bytes().removesuffix(b"\n"))
-    notes_path = root / "runtime" / report["notes_path"]
+    notes_path = fixture_path(root, "runtime") / report["notes_path"]
     notes_path.write_bytes(notes_path.read_bytes().replace(b"guestbook-horror", b"guestbook-horrors", 1))
     tampered, tampered_code = read_current_projection(root, verify_sources=False)
     assert tampered_code == EXIT_CONFLICT
@@ -169,7 +197,7 @@ def test_c21_reader_rejects_stale_source_and_tampered_generation(tmp_path: Path)
 )
 def test_c21_rejects_noncanonical_source_bytes(tmp_path: Path, relative: str, payload: bytes) -> None:
     root = _fresh_control_copy(tmp_path)
-    path = root / "KnowledgeHub" / relative
+    path = fixture_path(root, "vault") / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(payload)
 
@@ -186,9 +214,9 @@ def test_c21_manifest_and_pointer_hashes_use_canonical_json_bytes(tmp_path: Path
     report, code = generate_projection(root, generation_id="c21-hash")
     assert code == EXIT_OK, report
 
-    pointer_path = root / "runtime/index/exports/current.json"
+    pointer_path = (fixture_path(root, "state") / "index/exports/current.json")
     pointer = json.loads(pointer_path.read_bytes())
-    manifest_path = root / "runtime" / pointer["manifest_path"]
+    manifest_path = fixture_path(root, "runtime") / pointer["manifest_path"]
     manifest_bytes = manifest_path.read_bytes()
     assert pointer["manifest_sha256"] == hashlib.sha256(manifest_bytes).hexdigest()
     assert manifest_bytes == canonical_json_bytes(json.loads(manifest_bytes))

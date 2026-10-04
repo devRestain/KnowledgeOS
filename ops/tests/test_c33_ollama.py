@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from support.control_factory import bind_existing_control
 
 from vaultops.ollama import OllamaClient, OllamaError, OllamaProfile, run_ollama_job
 from vaultops.provider_broker import _answer_output
@@ -225,6 +226,7 @@ def _copy_adapter_contract(root: Path) -> None:
 
 
 def _write_answer_job(root: Path) -> tuple[str, dict[str, Any]]:
+    bind_existing_control(root)
     _copy_adapter_contract(root)
     job_id = str(uuid.uuid4())
     excerpt = "The fake C33 service returns a bounded answer payload."

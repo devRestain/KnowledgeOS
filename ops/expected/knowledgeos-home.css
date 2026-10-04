@@ -1,0 +1,142 @@
+/* KnowledgeOS C08: scoped Home layout. Markdown/Base content remains authoritative. */
+.knowledgeos-home {
+  --g-field: #f1f5f9;
+  --g-surface: #ffffff;
+  --g-navy: #1e3a5f;
+  --g-slate: #334155;
+  --g-ink: #0f172a;
+  --g-muted: #64748b;
+  --g-secure: #059669;
+  --g-attention: #b45309;
+  --g-conflict: #b91c1c;
+  --g-line: #cbd5e1;
+  font-family: "Fira Sans", system-ui, sans-serif;
+  color: var(--g-ink);
+}
+
+/* Keep Home's body heading as its one document title. */
+.knowledgeos-home .inline-title {
+  display: none;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] {
+  border: 0;
+  background: transparent;
+  margin: 0.75rem 0;
+  padding: 0;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-title {
+  display: none;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--g-line);
+  border-top: 2px solid var(--g-navy);
+  border-radius: 6px;
+  background: var(--g-surface);
+  padding: 0.65rem 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+/* MacBook hierarchy: Task, Inbox, and AI review first, then projects/decisions, then Review Pulse and Compass. */
+.knowledgeos-home .callout[data-callout="ko-home-tasks"],
+.knowledgeos-home .callout[data-callout="ko-home-inbox"],
+.knowledgeos-home .callout[data-callout="ko-home-ai-review"] {
+  grid-column: span 12;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-projects"],
+.knowledgeos-home .callout[data-callout="ko-home-decisions"] {
+  grid-column: span 6;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-review"],
+.knowledgeos-home .callout[data-callout="ko-home-compass"] {
+  grid-column: span 6;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .callout-title {
+  color: var(--g-slate);
+  font-family: "Fira Sans", system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .callout-content {
+  min-width: 0;
+}
+
+.knowledgeos-home table {
+  width: 100%;
+  table-layout: auto;
+  font-size: 0.88em;
+}
+
+.knowledgeos-home th,
+.knowledgeos-home td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.knowledgeos-home code,
+.knowledgeos-home .tasks-count {
+  font-family: "Fira Code", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.knowledgeos-home a:focus-visible,
+.knowledgeos-home button:focus-visible,
+.knowledgeos-home input:focus-visible {
+  outline: 2px solid var(--g-attention);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1199px) {
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .knowledgeos-home .callout[data-callout^="ko-home-"] {
+    grid-column: span 1;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-tasks"],
+  .knowledgeos-home .callout[data-callout="ko-home-inbox"],
+  .knowledgeos-home .callout[data-callout="ko-home-ai-review"],
+  .knowledgeos-home .callout[data-callout="ko-home-projects"],
+  .knowledgeos-home .callout[data-callout="ko-home-decisions"],
+  .knowledgeos-home .callout[data-callout="ko-home-review"],
+  .knowledgeos-home .callout[data-callout="ko-home-compass"] {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 899px) {
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knowledgeos-home .callout[data-callout^="ko-home-"] {
+    grid-column: span 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledgeos-home *,
+  .knowledgeos-home *::before,
+  .knowledgeos-home *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

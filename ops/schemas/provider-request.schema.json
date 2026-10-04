@@ -51,7 +51,7 @@
     },
     "context_path": {
       "type": "string",
-      "pattern": "^runtime/runs/[0-9a-f-]{36}/context\\.json$"
+      "pattern": "^state/runs/[0-9a-f-]{36}/context\\.json$"
     },
     "context_sha256": {
       "type": "string",

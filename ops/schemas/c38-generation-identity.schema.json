@@ -563,7 +563,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 300,
-              "pattern": "^runtime/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
+              "pattern": "^state/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
             },
             "sha256": {
               "type": "string",
@@ -596,7 +596,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 300,
-              "pattern": "^runtime/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
+              "pattern": "^state/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
             },
             "sha256": {
               "type": "string",
@@ -629,7 +629,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 300,
-              "pattern": "^runtime/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
+              "pattern": "^state/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
             },
             "sha256": {
               "type": "string",
@@ -662,7 +662,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 300,
-              "pattern": "^runtime/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
+              "pattern": "^state/runs/(?P<job>[0-9a-f-]{36})/(?:context\\.json|request\\.json|response\\.json|receipts/provider-receipt\\.json)$"
             },
             "sha256": {
               "type": "string",

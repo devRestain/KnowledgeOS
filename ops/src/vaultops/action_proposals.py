@@ -34,6 +34,7 @@ from .note_engine import (
     validate_relation_candidate,
     write_note_file,
 )
+from .paths import ResolvedPaths, resolve_paths
 from .recovery import canonical_json_bytes, fsync_directory
 from .template_engine import TemplateRenderError, render_note_template
 from .triage import deterministic_triage
@@ -453,15 +454,17 @@ def _failure(operation: str, code: str, message: str) -> tuple[dict[str, Any], i
     }, EXIT_CONFLICT
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ActionProposalError("C27_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except ValueError as error:
+        raise ActionProposalError("C27_ROOT_INVALID", str(error)) from error
 
 
-def _vault(workspace: Path) -> Path:
-    vault = workspace / "KnowledgeHub"
+def _vault(workspace: ResolvedPaths) -> Path:
+    vault = workspace.vault
     if vault.is_symlink() or not vault.is_dir():
         raise ActionProposalError("C27_VAULT_INVALID", "KnowledgeHub must be an existing non-symlink directory")
     return vault
@@ -520,7 +523,7 @@ def _target_types(vault: Path, engine: NoteEngine) -> dict[str, str]:
 
 
 def _load_source(
-    workspace: Path,
+    workspace: ResolvedPaths,
     source_path: str,
     expected_sha256: str,
 ) -> tuple[str, Path, bytes, str, Any, NoteEngine, Path]:
@@ -582,7 +585,7 @@ def _safe_title(value: object) -> str:
 
 
 def _target_for_draft(
-    workspace: Path,
+    workspace: ResolvedPaths,
     engine: NoteEngine,
     vault: Path,
     *,
@@ -631,7 +634,7 @@ def _source_excerpt(text: str, fragment: DailyFragment | None) -> str:
 
 
 def _draft_candidate(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     source_path: str,
     source_hash: str,
@@ -680,11 +683,12 @@ def _draft_candidate(
     return candidate
 
 
-def _resolve_control_file(workspace: Path, value: str | Path, *, label: str, limit: int) -> tuple[str, Path, bytes]:
+def _resolve_control_file(workspace: ResolvedPaths, value: str | Path, *, label: str, limit: int) -> tuple[str, Path, bytes]:
+    control = workspace.control
     candidate = Path(value)
     if candidate.is_absolute():
         try:
-            relative = candidate.resolve(strict=False).relative_to(workspace).as_posix()
+            relative = candidate.resolve(strict=False).relative_to(control).as_posix()
         except ValueError as error:
             raise ActionProposalError(
                 "C27_CANDIDATE_SET_PATH_INVALID",
@@ -695,7 +699,7 @@ def _resolve_control_file(workspace: Path, value: str | Path, *, label: str, lim
         relative = candidate.as_posix()
         if not relative or any(part in {"", ".", ".."} for part in candidate.parts):
             raise ActionProposalError("C27_CANDIDATE_SET_PATH_INVALID", "candidate-set path must be a safe control-relative file")
-        path = workspace.joinpath(*candidate.parts)
+        path = control.joinpath(*candidate.parts)
     raw = _read_regular(path, label, limit=limit)
     return relative, path, raw
 
@@ -710,7 +714,7 @@ def _strict_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _load_candidate_set(
-    workspace: Path,
+    workspace: ResolvedPaths,
     vault: Path,
     engine: NoteEngine,
     value: str | Path | None,
@@ -819,7 +823,7 @@ def _unified_diff(target_path: str, before: str, after: str) -> str:
 
 
 def _artifact_bindings(
-    workspace: Path,
+    workspace: ResolvedPaths,
     action: str,
     *,
     source: Any,
@@ -827,7 +831,7 @@ def _artifact_bindings(
     retrieval_profile_id: str | None,
 ) -> dict[str, Any]:
     def file_binding(relative: str) -> dict[str, str]:
-        path = workspace / relative
+        path = workspace.control / relative
         raw = _read_regular(path, relative, limit=2 * 1024 * 1024)
         return {"path": relative, "sha256": _sha256(raw)}
 
@@ -934,7 +938,7 @@ def _manifest_json(value: Mapping[str, Any]) -> str:
 
 
 def _write_pending_artifact(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     action: str,
     source: Any,
@@ -943,6 +947,7 @@ def _write_pending_artifact(
     payload: dict[str, Any],
     target_markdown: str,
     diff: str,
+    prepare_only: bool = False,
 ) -> tuple[dict[str, Any], int]:
     _validate_payload(payload)
     target = payload["target"]
@@ -1007,6 +1012,13 @@ def _write_pending_artifact(
     except (NoteContractError, ValueError, UnicodeError) as error:
         raise ActionProposalError("C27_PROPOSAL_NOTE_INVALID", str(error)) from error
     artifact_hash = _sha256(artifact.encode("utf-8"))
+    if prepare_only:
+        return {
+            "status": "PASS", "operation": f"ai propose {action}",
+            "action": action, "provider_called": False, "mutation_performed": False,
+            "proposal_path": proposal_relative, "proposal_sha256": artifact_hash,
+            "proposal": payload, "artifact_bytes": artifact.encode("utf-8"),
+        }, EXIT_OK
     if proposal_path.exists() or proposal_path.is_symlink():
         if proposal_path.is_symlink() or not proposal_path.is_file() or proposal_path.read_bytes() != artifact.encode("utf-8"):
             raise ActionProposalError("C27_PROPOSAL_CONFLICT", "existing Pending artifact differs")
@@ -1074,7 +1086,7 @@ def _target_markdown_for_update(
 
 
 def _make_draft(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     source_path: str,
     source_hash: str,
@@ -1176,7 +1188,7 @@ def _make_draft(
 
 
 def _make_link_suggestions(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     source_path: str,
     source_hash: str,
@@ -1274,7 +1286,7 @@ def _make_link_suggestions(
 
 
 def _make_normalize(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     source_path: str,
     source_hash: str,
@@ -1339,7 +1351,7 @@ def _make_normalize(
 
 
 def generate_action_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     action: str,
     source_path: str,
@@ -1463,7 +1475,7 @@ def generate_action_proposal(
 
 
 def generate_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     action: str,
     source_path: str,
@@ -1481,15 +1493,15 @@ def generate_proposal(
     )
 
 
-def generate_draft_note_proposal(root: str | Path, **kwargs: Any) -> tuple[dict[str, Any], int]:
+def generate_draft_note_proposal(root: str | Path | ResolvedPaths, **kwargs: Any) -> tuple[dict[str, Any], int]:
     return generate_action_proposal(root, action="draft_note", **kwargs)
 
 
-def generate_link_suggestions_proposal(root: str | Path, **kwargs: Any) -> tuple[dict[str, Any], int]:
+def generate_link_suggestions_proposal(root: str | Path | ResolvedPaths, **kwargs: Any) -> tuple[dict[str, Any], int]:
     return generate_action_proposal(root, action="link_suggestions", **kwargs)
 
 
-def generate_normalize_proposal(root: str | Path, **kwargs: Any) -> tuple[dict[str, Any], int]:
+def generate_normalize_proposal(root: str | Path | ResolvedPaths, **kwargs: Any) -> tuple[dict[str, Any], int]:
     return generate_action_proposal(root, action="normalize", **kwargs)
 
 

@@ -26,6 +26,7 @@ from .bridge_contract import (
     validate_bridge_response,
     validate_root_sentinel,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .recovery import (
     RecoveryConflict,
     RecoveryCorruption,
@@ -93,21 +94,24 @@ def _failure(
     return report, exit_code
 
 
-def _workspace_and_vault(root: str | Path) -> tuple[Path, Path]:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise BridgeInputError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise BridgeInputError("KnowledgeHub must be an existing non-symlink directory")
-    return workspace, vault.resolve()
+def _workspace_and_vault(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        if isinstance(error, RootResolutionError) and error.code in {
+            "ROOT_RUNTIME_MODE",
+            "ROOT_STATE_MODE",
+        }:
+            raise BridgeInputError("runtime root mode must be 0700") from error
+        raise BridgeInputError("control, Vault and runtime roots could not be resolved safely") from error
+    if roots.vault.is_symlink() or not roots.vault.is_dir():
+        raise BridgeInputError("selected Vault root must be an existing non-symlink directory")
+    return roots
 
 
-def _runtime_ready(workspace: Path) -> None:
-    runtime = workspace / "runtime"
+def _runtime_ready(runtime: Path) -> None:
     if runtime.is_symlink() or not runtime.is_dir():
-        raise BridgeInputError("runtime must be an existing non-symlink directory")
+        raise BridgeInputError("selected runtime root must be an existing non-symlink directory")
     if stat.S_IMODE(runtime.stat().st_mode) != 0o700:
         raise BridgeInputError("runtime root mode must be 0700")
 
@@ -400,11 +404,10 @@ def _queue_manifest(workspace: Path, ingest: Mapping[str, Any], request: Mapping
     }
 
 
-def _persist_queue_manifest(workspace: Path, manifest: Mapping[str, Any]) -> str:
-    runtime = workspace / "runtime"
+def _persist_queue_manifest(runtime: Path, manifest: Mapping[str, Any]) -> str:
     queue = runtime / "queue"
     if queue.is_symlink() or not queue.is_dir() or stat.S_IMODE(queue.stat().st_mode) != 0o700:
-        raise BridgeInputError("runtime/queue must be an existing private directory")
+        raise BridgeInputError("state/queue must be an existing private directory")
     job_id = validate_job_id(str(manifest["job_id"]))
     path = queue / f"{job_id}.json"
     payload = canonical_json_bytes(manifest) + b"\n"
@@ -418,7 +421,7 @@ def _persist_queue_manifest(workspace: Path, manifest: Mapping[str, Any]) -> str
             quarantine_root.mkdir(mode=0o700)
             fsync_directory(quarantine_root.parent)
         if not quarantine_root.is_dir() or stat.S_IMODE(quarantine_root.stat().st_mode) != 0o700:
-            raise BridgeInputError("runtime/quarantine/bridge must be a private directory")
+            raise BridgeInputError("state/quarantine/bridge must be a private directory")
         destination = quarantine_root / f"{job_id}-{uuid.uuid4().hex[:12]}.json"
         os.rename(path, destination)
         fsync_directory(quarantine_root)
@@ -427,12 +430,13 @@ def _persist_queue_manifest(workspace: Path, manifest: Mapping[str, Any]) -> str
 
 
 def _ingest_one(
-    workspace: Path,
-    vault: Path,
+    roots: ResolvedPaths,
     path: Path,
     *,
     allowed_worktree_paths: set[str] | None = None,
 ) -> dict[str, Any]:
+    workspace = roots.control
+    vault = roots.vault
     blueprint = _load_blueprint(workspace)
     relative, path_job_id = _parse_request_path(path, vault)
     request, raw = _read_strict_json(path, maximum=MAX_REQUEST_BYTES, label="bridge request")
@@ -502,18 +506,18 @@ def _ingest_one(
         "created": [],
     }
     manifest = _queue_manifest(workspace, result, request)
-    queue_write = _persist_queue_manifest(workspace, manifest)
+    queue_write = _persist_queue_manifest(roots.state, manifest)
     result["queue_manifest"] = manifest
     result["queue_write"] = queue_write
     if queue_write == "CREATED":
-        result["created"] = [f"runtime/queue/{job_id}.json"]
+        result["created"] = [f"state/queue/{job_id}.json"]
     else:
         result["status"] = "NO_OP"
     return result
 
 
 def ingest_bridge_request(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     request_path: str | Path | None = None,
     job_id: str | None = None,
@@ -522,10 +526,11 @@ def ingest_bridge_request(
     """Validate one committed request and create its local queue manifest."""
 
     try:
-        workspace, vault = _workspace_and_vault(root)
-        path = _resolve_request_path(vault, request_path, job_id)
+        roots = _workspace_and_vault(root)
+        _runtime_ready(roots.state)
+        path = _resolve_request_path(roots.vault, request_path, job_id)
         result = _ingest_one(
-            workspace, vault, path, allowed_worktree_paths=allowed_worktree_paths
+            roots, path, allowed_worktree_paths=allowed_worktree_paths
         )
         return result, EXIT_OK
     except BridgeConflict as error:
@@ -821,18 +826,20 @@ def _resume_publish(
 
 
 def publish_bridge_response(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     response_file: str | Path,
     proposal_file: str | Path | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Publish one validated response and optional proposal in one local commit."""
 
+    roots: ResolvedPaths | None = None
     workspace: Path | None = None
     journal: RecoveryJournal | None = None
     try:
-        workspace, vault = _workspace_and_vault(root)
-        _runtime_ready(workspace)
+        roots = _workspace_and_vault(root)
+        workspace, vault = roots.control, roots.vault
+        _runtime_ready(roots.state)
         blueprint = _load_blueprint(workspace)
         response, _raw_response = _read_strict_json(
             Path(response_file), maximum=MAX_RESPONSE_BYTES, label="bridge response"
@@ -844,7 +851,7 @@ def publish_bridge_response(
                 + json.dumps(validation.as_dict(), ensure_ascii=False, sort_keys=True)
             )
         job_id = validate_job_id(str(response["job_id"]))
-        journal = RecoveryJournal(workspace, job_id=job_id, operation="bridge_publish")
+        journal = RecoveryJournal(roots, job_id=job_id, operation="bridge_publish")
         allowed_worktree_paths: set[str] | None = None
         if journal.exists:
             try:
@@ -862,7 +869,7 @@ def publish_bridge_response(
                 )
             allowed_worktree_paths = set(existing_paths)
         ingest, ingest_code = ingest_bridge_request(
-            workspace,
+            roots,
             job_id=job_id,
             allowed_worktree_paths=allowed_worktree_paths,
         )
@@ -950,12 +957,13 @@ def publish_bridge_response(
 
 
 def bridge_status(
-    root: str | Path, *, job_id: str | None = None
+    root: str | Path | ResolvedPaths, *, job_id: str | None = None
 ) -> tuple[dict[str, Any], int]:
     """List local request/response transport files without changing state."""
 
     try:
-        workspace, vault = _workspace_and_vault(root)
+        roots = _workspace_and_vault(root)
+        workspace, vault = roots.control, roots.vault
         request_root = vault / REQUEST_ROOT
         response_root = vault / RESPONSE_ROOT
         requests = []

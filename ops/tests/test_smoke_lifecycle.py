@@ -12,10 +12,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from support.control_factory import fixture_path
 from support.control_factory import make_identity_root as _smoke_root
 
 from vaultops import smoke
 from vaultops.bridge_contract import canonical_json_bytes
+from vaultops.paths import resolve_paths
 
 _RUN_ID = "411602c1-5278-4a8b-8b96-9183fb6ef8c2"
 
@@ -75,6 +77,36 @@ def _fast_forward_cleanup_window(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(smoke.time, "sleep", lambda _seconds: None)
 
 
+def _separate_smoke_roots(tmp_path: Path):
+    legacy_control = _smoke_root(tmp_path)
+    control = legacy_control.with_name("control Ω")
+    legacy_control.rename(control)
+    vault = control.parent / "KnowledgeHub Ω"
+    (fixture_path(control, "vault")).rename(vault)
+    runtime = control.parent / "runtime Ω"
+    (fixture_path(control, "runtime")).rename(runtime)
+    runtime.chmod(0o700)
+    config = control / "ops/vaultops.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text(
+        "\n".join(
+            (
+                "schema_version = 3",
+                'project_name = "KnowledgeOS"',
+                f"control_root = {json.dumps(str(control), ensure_ascii=False)}",
+                f"vault_root = {json.dumps(str(vault), ensure_ascii=False)}",
+                f"runtime_root = {json.dumps(str(runtime), ensure_ascii=False)}",
+                f'core_root = {json.dumps(str(fixture_path(control, "core")), ensure_ascii=False)}',
+                f'state_root = {json.dumps(str(fixture_path(control, "state")), ensure_ascii=False)}',
+                'timezone = "Asia/Seoul"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    return resolve_paths(control)
+
+
 def test_smoke_plan_is_read_only_and_requires_separate_run_authorization(tmp_path: Path) -> None:
     root = _smoke_root(tmp_path)
 
@@ -89,8 +121,8 @@ def test_smoke_plan_is_read_only_and_requires_separate_run_authorization(tmp_pat
         "device": {"state": "not_run", "evidence_class": "device"},
     }
     assert plan["relative_path"].startswith("99_System/Smoke/KnowledgeOS-Smoke-filesystem-")
-    assert not (root / "KnowledgeHub/99_System/Smoke").exists()
-    assert not (root / "runtime/smoke").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Smoke").exists()
+    assert not (fixture_path(root, "state") / "smoke").exists()
 
 
 @pytest.mark.parametrize(
@@ -144,14 +176,14 @@ def test_smoke_success_cleans_exact_probe_and_retains_private_receipt(tmp_path: 
     assert report["observations"]["runtime"]["state"] == "pass"
     assert report["observations"]["deployment"]["state"] == "not_run"
     assert report["observations"]["device"]["state"] == "not_run"
-    assert not (root / "KnowledgeHub/99_System/Smoke").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Smoke").exists()
     assert report["relative_path"].startswith("99_System/Smoke/")
-    smoke_root = root / "runtime/smoke"
+    smoke_root = (fixture_path(root, "state") / "smoke")
     journal = smoke_root / "runs" / report["run_id"] / "journal.jsonl"
     receipt_path = smoke_root / "receipts" / f"{report['run_id']}.json"
     assert journal.is_file() and receipt_path.is_file()
     assert stat.S_IMODE(smoke_root.stat().st_mode) == 0o700
-    assert stat.S_IMODE((root / "runtime").stat().st_mode) == 0o700
+    assert stat.S_IMODE((fixture_path(root, "state")).stat().st_mode) == 0o700
     assert stat.S_IMODE((smoke_root / "runs").stat().st_mode) == 0o700
     assert stat.S_IMODE((smoke_root / "receipts").stat().st_mode) == 0o700
     assert stat.S_IMODE((smoke_root / "active").stat().st_mode) == 0o700
@@ -165,12 +197,56 @@ def test_smoke_success_cleans_exact_probe_and_retains_private_receipt(tmp_path: 
     assert not smoke._path_git_status(smoke._validated_roots(root), report["relative_path"])
 
 
+def test_smoke_success_uses_selected_vault_and_runtime_roots(tmp_path: Path) -> None:
+    roots = _separate_smoke_roots(tmp_path)
+
+    report = smoke.run_smoke(
+        roots.control,
+        kind="filesystem",
+        adapter="filesystem-roundtrip",
+        authorized=True,
+        timeout_seconds=5,
+    )
+
+    assert report["status"] == "PASS"
+    assert not (roots.vault / report["relative_path"]).exists()
+    assert not (roots.vault / "99_System/Smoke").exists()
+    journal = roots.state / "smoke/runs" / report["run_id"] / "journal.jsonl"
+    receipt = roots.state / "smoke/receipts" / f"{report['run_id']}.json"
+    assert journal.is_file() and receipt.is_file()
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
+
+
+def test_smoke_refusal_with_selected_roots_has_no_vault_or_runtime_effect(
+    tmp_path: Path,
+) -> None:
+    roots = _separate_smoke_roots(tmp_path)
+    control_before = tuple(sorted(path.relative_to(roots.control).as_posix() for path in roots.control.rglob("*")))
+    vault_before = tuple(sorted(path.relative_to(roots.vault).as_posix() for path in roots.vault.rglob("*")))
+    runtime_before = tuple(sorted(path.relative_to(roots.runtime).as_posix() for path in roots.runtime.rglob("*")))
+
+    with pytest.raises(smoke.SmokeError) as caught:
+        smoke.run_smoke(
+            roots.control,
+            kind="filesystem",
+            adapter="filesystem-roundtrip",
+            authorized=False,
+            timeout_seconds=5,
+        )
+
+    assert caught.value.code == "SMOKE_AUTHORIZATION_REQUIRED"
+    assert tuple(sorted(path.relative_to(roots.control).as_posix() for path in roots.control.rglob("*"))) == control_before
+    assert tuple(sorted(path.relative_to(roots.vault).as_posix() for path in roots.vault.rglob("*"))) == vault_before
+    assert tuple(sorted(path.relative_to(roots.runtime).as_posix() for path in roots.runtime.rglob("*"))) == runtime_before
+
+
 def test_stale_recovery_deletes_only_the_journal_bound_sealed_probe(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = _smoke_root(tmp_path)
     run = _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     assert probe.is_file()
     sealed = smoke.sha256_bytes(probe.read_bytes())
 
@@ -190,7 +266,7 @@ def test_stale_recovery_deletes_only_the_journal_bound_sealed_probe(
 def test_uncatchable_child_exit_leaves_a_probe_that_stale_recovery_removes(
     tmp_path: Path,
 ) -> None:
-    root = _smoke_root(tmp_path)
+    roots = _separate_smoke_roots(tmp_path)
     child_program = textwrap.dedent(
         """\
         import os
@@ -217,7 +293,7 @@ def test_uncatchable_child_exit_leaves_a_probe_that_stale_recovery_removes(
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     completed = subprocess.run(
-        [sys.executable, "-c", child_program, str(root)],
+        [sys.executable, "-c", child_program, str(roots.control)],
         cwd=Path(__file__).resolve().parents[1],
         env=environment,
         capture_output=True,
@@ -227,36 +303,68 @@ def test_uncatchable_child_exit_leaves_a_probe_that_stale_recovery_removes(
     )
 
     assert completed.returncode == 86, completed.stderr
-    journal = smoke._SmokeJournal(root, _RUN_ID)
+    journal = smoke._SmokeJournal(roots.control, _RUN_ID)
     intent = journal.intent()
-    probe = root / "KnowledgeHub" / intent["relative_path"]
+    probe = roots.vault / intent["relative_path"]
     assert probe.is_file()
-    active = smoke._active_lock(smoke._active_path(smoke._validated_roots(root)))
+    assert journal.path.is_relative_to(roots.state)
+    active = smoke._active_lock(smoke._active_path(smoke._validated_roots(roots.control)))
     assert active is not None and active["run_id"] == _RUN_ID
 
-    report = smoke.recover_smoke(root, run_id=_RUN_ID, authorized=True)
+    report = smoke.recover_smoke(roots.control, run_id=_RUN_ID, authorized=True)
 
     assert report["status"] == "PASS"
     assert report["removed"] is True
     assert not probe.exists()
     assert journal.records()[-1]["state"] == "cleaned"
+    assert (roots.state / "smoke/receipts" / f"{_RUN_ID}.json").is_file()
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
+
+
+def test_selected_root_identity_mismatch_requests_confirmation_without_deletion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roots = _separate_smoke_roots(tmp_path)
+    run = _start_stale_run(roots.control, monkeypatch)
+    probe = roots.vault / run.relative_path
+    original = probe.read_bytes()
+    sentinel_path = roots.vault / ".knowledgeos-root.json"
+    sentinel = json.loads(sentinel_path.read_text(encoding="utf-8"))
+    sentinel["vault_uuid"] = "511602c1-5278-4a8b-8b96-9183fb6ef8c2"
+    sentinel_path.write_bytes(canonical_json_bytes(sentinel) + b"\n")
+
+    report = smoke.recover_smoke(roots.control, run_id=run.run_id, authorized=True)
+
+    assert report["status"] == "CONFLICT"
+    assert report["reason_code"] == "SMOKE_VAULT_IDENTITY_MISMATCH"
+    confirmation = report["confirmation_request"]
+    assert confirmation["required"] is True
+    assert confirmation["relative_path"] == run.relative_path
+    assert confirmation["current_sha256"] == smoke.sha256_bytes(original)
+    assert confirmation["automatic_deletion"] is False
+    assert probe.read_bytes() == original
+    assert run.active_path.is_file()
+    assert run.journal.path.is_relative_to(roots.state)
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
 
 
 def test_stale_recovery_accepts_absent_probe_without_touching_user_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = _smoke_root(tmp_path)
-    user_note = root / "KnowledgeHub/Ordinary.md"
+    user_note = (fixture_path(root, "vault") / "Ordinary.md")
     user_note.write_text("user-owned\n", encoding="utf-8")
     run = _start_stale_run(root, monkeypatch)
-    (root / "KnowledgeHub" / run.relative_path).unlink()
+    (fixture_path(root, "vault") / run.relative_path).unlink()
 
     report = smoke.recover_smoke(root, run_id=run.run_id, authorized=True)
 
     assert report["status"] == "PASS"
     assert report["removed"] is True
     assert user_note.read_text(encoding="utf-8") == "user-owned\n"
-    assert not (root / "KnowledgeHub/99_System/Smoke").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Smoke").exists()
 
 
 @pytest.mark.parametrize(
@@ -276,7 +384,7 @@ def test_stale_note_mismatch_is_preserved_with_exact_confirmation(
 ) -> None:
     root = _smoke_root(tmp_path)
     run = _start_unsealed_run(root, monkeypatch) if mutation == "unsealed" else _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     outside = tmp_path / "user-owned.txt"
     outside.write_text("never delete\n", encoding="utf-8")
     if mutation == "marker":
@@ -311,7 +419,7 @@ def test_probe_changed_during_cleanup_is_rechecked_and_preserved(
 ) -> None:
     root = _smoke_root(tmp_path)
     run = _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     append = smoke._SmokeJournal.append
     raced_bytes = probe.read_bytes() + b"concurrent-user-edit\n"
 
@@ -338,7 +446,7 @@ def test_probe_recreated_after_unlink_is_preserved_as_cleanup_conflict(
 ) -> None:
     root = _smoke_root(tmp_path)
     run = _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     recreated_bytes = b"user recreation after the owned probe was removed\n"
     unlink = smoke._unlink_probe
 
@@ -357,7 +465,7 @@ def test_probe_recreated_after_unlink_is_preserved_as_cleanup_conflict(
     assert probe.read_bytes() == recreated_bytes
     assert run.active_path.is_file()
     assert run.journal.records()[-1]["state"] == "conflict"
-    assert not (root / "runtime/smoke/receipts" / f"{run.run_id}.json").exists()
+    assert not ((fixture_path(root, "state") / "smoke/receipts") / f"{run.run_id}.json").exists()
 
 
 def test_run_probe_recreated_after_unlink_is_preserved_as_cleanup_conflict(
@@ -397,25 +505,25 @@ def test_run_probe_recreated_after_unlink_is_preserved_as_cleanup_conflict(
     assert confirmation["required"] is True
     assert confirmation["reason_code"] == "SMOKE_PROBE_RECREATED"
     assert confirmation["current_sha256"] == smoke.sha256_bytes(recreated_bytes)
-    probe = root / "KnowledgeHub" / report["relative_path"]
+    probe = fixture_path(root, "vault") / report["relative_path"]
     assert probe.read_bytes() == recreated_bytes
     journal = smoke._SmokeJournal(root, report["run_id"])
     assert journal.records()[-1]["state"] == "conflict"
     assert smoke._active_path(smoke._validated_roots(root)).is_file()
-    assert not (root / "runtime/smoke/receipts" / f"{report['run_id']}.json").exists()
+    assert not ((fixture_path(root, "state") / "smoke/receipts") / f"{report['run_id']}.json").exists()
 
 
 def _mutate_stale_recovery_binding(
     root: Path, run: smoke._Run, tmp_path: Path, mutation: str
 ) -> Path | None:
     if mutation == "vault_identity":
-        path = root / "KnowledgeHub/.knowledgeos-root.json"
+        path = (fixture_path(root, "vault") / ".knowledgeos-root.json")
         sentinel = json.loads(path.read_text(encoding="utf-8"))
         sentinel["vault_uuid"] = "511602c1-5278-4a8b-8b96-9183fb6ef8c2"
         path.write_bytes(canonical_json_bytes(sentinel) + b"\n")
     elif mutation == "journal_binding":
         lock = json.loads(run.active_path.read_text(encoding="utf-8"))
-        lock["journal_relative_path"] = "runtime/smoke/runs/another-run/journal.jsonl"
+        lock["journal_relative_path"] = "state/smoke/runs/another-run/journal.jsonl"
         run.active_path.write_bytes(canonical_json_bytes(lock) + b"\n")
     elif mutation == "corrupt_journal":
         run.journal.path.write_bytes(b"not-json\n")
@@ -458,7 +566,7 @@ def test_stale_recovery_binding_mismatches_preserve_note_and_request_exact_confi
 ) -> None:
     root = _smoke_root(tmp_path)
     run = _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     original = probe.read_bytes()
     original_inode = probe.lstat().st_ino
     original_journal = run.journal.path.read_bytes()
@@ -472,7 +580,7 @@ def test_stale_recovery_binding_mismatches_preserve_note_and_request_exact_confi
     assert confirmation["required"] is True
     assert confirmation["automatic_deletion"] is False
     assert confirmation["private_journal_path"] == (
-        f"runtime/smoke/runs/{run.run_id}/journal.jsonl"
+        f"state/smoke/runs/{run.run_id}/journal.jsonl"
     )
     if bound_note_known:
         assert confirmation["relative_path"] == run.relative_path
@@ -533,7 +641,7 @@ def test_existing_receipt_requires_exact_run_binding_and_shape(
         receipt["status"] = {"not": "a status"}
     else:
         receipt["schema_version"] = True
-    path = root / "runtime/smoke/receipts" / f"{run.run_id}.json"
+    path = (fixture_path(root, "state") / "smoke/receipts") / f"{run.run_id}.json"
     path.write_bytes(canonical_json_bytes(receipt) + b"\n")
 
     with pytest.raises(smoke.SmokeError) as caught:
@@ -546,12 +654,12 @@ def test_recovery_removes_only_exact_probe_and_preserves_extra_namespace_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = _smoke_root(tmp_path)
-    smoke_directory = root / "KnowledgeHub/99_System/Smoke"
+    smoke_directory = (fixture_path(root, "vault") / "99_System/Smoke")
     smoke_directory.mkdir()
     extra = smoke_directory / "user-owned.md"
     extra.write_text("do not touch\n", encoding="utf-8")
     run = _start_stale_run(root, monkeypatch)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
 
     report = smoke.recover_smoke(root, run_id=run.run_id, authorized=True)
 
@@ -563,7 +671,7 @@ def test_recovery_removes_only_exact_probe_and_preserves_extra_namespace_file(
 
 def test_recovery_keeps_a_preexisting_empty_smoke_namespace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _smoke_root(tmp_path)
-    smoke_directory = root / "KnowledgeHub/99_System/Smoke"
+    smoke_directory = (fixture_path(root, "vault") / "99_System/Smoke")
     smoke_directory.mkdir()
     run = _start_stale_run(root, monkeypatch)
 
@@ -585,7 +693,7 @@ def test_unexpired_run_cannot_be_recovered_or_deleted(tmp_path: Path) -> None:
         run_id=_RUN_ID,
     )
     assert smoke._exercise(run, deadline=time.monotonic() + 5)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     original = probe.read_bytes()
 
     report = smoke.recover_smoke(root, run_id=run.run_id, authorized=True)
@@ -619,7 +727,7 @@ def test_second_active_run_is_refused_before_a_second_journal_is_written(tmp_pat
         )
 
     assert caught.value.code == "SMOKE_ACTIVE_RUN_EXISTS"
-    assert not (root / "runtime/smoke/runs" / second_id).exists()
+    assert not ((fixture_path(root, "state") / "smoke/runs") / second_id).exists()
     assert first.active_path.is_file()
 
 
@@ -659,8 +767,8 @@ def test_catchable_timeout_exception_and_signal_all_clean_the_probe(
 
     assert report["status"] == expected_status
     assert report["cleanup_passed"] is True
-    assert not (root / "KnowledgeHub/99_System/Smoke").exists()
-    assert not (root / "runtime/smoke/active" / f"{_RUN_ID}.json").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Smoke").exists()
+    assert not ((fixture_path(root, "state") / "smoke/active") / f"{_RUN_ID}.json").exists()
 
 
 def test_smoke_cli_exposes_plan_and_requires_explicit_live_authorization(
@@ -699,8 +807,8 @@ def test_smoke_cli_exposes_plan_and_requires_explicit_live_authorization(
             ]
         )
     assert caught.value.code == 2
-    assert not (root / "KnowledgeHub/99_System/Smoke").exists()
-    assert not (root / "runtime/smoke").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Smoke").exists()
+    assert not (fixture_path(root, "state") / "smoke").exists()
 
 
 def test_smoke_cli_maps_cleanup_conflict_to_conflict_exit(
@@ -708,6 +816,7 @@ def test_smoke_cli_maps_cleanup_conflict_to_conflict_exit(
 ) -> None:
     from vaultops import cli
 
+    root = _smoke_root(tmp_path)
     monkeypatch.setattr(
         cli,
         "run_smoke",
@@ -726,7 +835,7 @@ def test_smoke_cli_maps_cleanup_conflict_to_conflict_exit(
             "5",
             "--authorize-live-smoke",
             "--root",
-            str(tmp_path),
+            str(root),
         ]
     )
 
@@ -747,7 +856,7 @@ def test_invalid_active_lock_requests_manual_confirmation_without_new_run(
         run_id=_RUN_ID,
     )
     assert smoke._exercise(run, deadline=time.monotonic() + 5)
-    probe = root / "KnowledgeHub" / run.relative_path
+    probe = fixture_path(root, "vault") / run.relative_path
     original = probe.read_bytes()
     run.active_path.write_text("not-json\n", encoding="utf-8")
 

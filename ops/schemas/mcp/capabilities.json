@@ -1,0 +1,381 @@
+{
+  "contract_id": "knowledgeos-vaultmcp-v2",
+  "application_schema_version": 2,
+  "status": "frozen_contract",
+  "transport": {
+    "kind": "stdio",
+    "stdout": "protocol_frames_only",
+    "stderr": "bounded_redacted_diagnostics_only",
+    "http_listener": false,
+    "host_shell": false
+  },
+  "sdk": {
+    "distribution": "mcp",
+    "upstream": "modelcontextprotocol/python-sdk",
+    "exact_version": "2.2.0",
+    "package_index": "https://pypi.org/simple",
+    "wheel_sha256": "bde982589473a060ae145e3406e9a5333fe538c97229ba841f5a7f92be004f81",
+    "lock_status": "sha256_pinned_in_ops_uv_lock",
+    "verification_status": "installed_and_imported_in_project_docker_builder",
+    "dependency_download_scope": "one_shot_knowledgeos_project_container_only",
+    "runtime_network_enabled": false,
+    "host_install_allowed": false
+  },
+  "server_scope": {
+    "root_owner": "server_startup_only",
+    "vault_identity": "one configured KnowledgeHub root and its validated vault identity",
+    "client_root_selectors": false,
+    "cross_vault_routing": false,
+    "state_selector": false,
+    "hermes_home_selector": false,
+    "allowed_note_types": [
+      "knowledge",
+      "source",
+      "project",
+      "project_note",
+      "artifact",
+      "idea",
+      "question"
+    ],
+    "include_review": false,
+    "vector_retrieval": false,
+    "provider_calls": false,
+    "excluded_paths": [
+      ".vault-bridge/**",
+      ".obsidian-*/**",
+      "99_System/**",
+      "01_AI_Review/Rejected/**",
+      "01_AI_Review/Expired/**"
+    ],
+    "pending_proposal_inspection": "one digest-bound Core ResourceReference",
+    "proposal_source": "one digest-bound owner ResourceReference"
+  },
+  "limits": {
+    "request_utf8_bytes": 65536,
+    "response_utf8_bytes": 102400,
+    "query_characters": 4096,
+    "path_characters": 500,
+    "results": 20,
+    "retrieve_hops": 1,
+    "read_timeout_seconds": 30,
+    "proposal_timeout_seconds": 30,
+    "concurrent_calls": 4,
+    "concurrent_proposal_writes": 1,
+    "stderr_event_bytes": 4096,
+    "stdout_diagnostic_bytes": 0
+  },
+  "effects": {
+    "knowledge_search": "read_only",
+    "knowledge_retrieve": "read_only",
+    "proposal_inspect": "read_only",
+    "proposal_create": [
+      "proposal_created",
+      "proposal_replayed",
+      "no_change",
+      "unknown"
+    ],
+    "proposal_target_change_allowed": false,
+    "proposal_artifact_path": "01_AI_Review/Pending/",
+    "proposal_create_action": "normalize",
+    "operator_approval_or_apply": false,
+    "provider_or_index_build": false,
+    "scheduler_or_worker_control": false
+  },
+  "errors": {
+    "codes": [
+      "INVALID_ARGUMENT",
+      "UNSUPPORTED_OPERATION",
+      "SCOPE_DENIED",
+      "NOT_FOUND",
+      "STALE_GENERATION",
+      "POLICY_STALE",
+      "CONFLICT",
+      "UNAVAILABLE",
+      "PERSISTENCE_ERROR",
+      "CANCELLED",
+      "INTERNAL_ERROR"
+    ],
+    "absolute_paths": false,
+    "stack_traces": false,
+    "secret_or_note_content": false
+  },
+  "tools": [
+    {
+      "name": "knowledge_search",
+      "input_schema": "knowledge_search.input.schema.json",
+      "data_schema": "read_result.data.schema.json",
+      "service": "vaultops.application.knowledge.KnowledgeApplication.search",
+      "effect": "read_only",
+      "server_values": {
+        "include_review": false,
+        "use_vector": false,
+        "hops": 0
+      },
+      "allowed_vectors": [
+        {
+          "query": "bounded deterministic search"
+        },
+        {
+          "query": "scope narrowed to one project",
+          "scope": "project:sample"
+        },
+        {
+          "query": "limit results",
+          "limit": 20
+        }
+      ],
+      "schema_denied_vectors": [
+        {
+          "query": "x",
+          "root": "/private/vault"
+        },
+        {
+          "query": "x",
+          "include_review": true
+        },
+        {
+          "query": "x",
+          "use_vector": true
+        },
+        {
+          "query": "x",
+          "limit": 21
+        },
+        {
+          "query": "x",
+          "path_prefix": "../secret"
+        }
+      ],
+      "policy_denied_vectors": [
+        {
+          "query": "x",
+          "path_prefix": ".vault-bridge/requests"
+        },
+        {
+          "query": "x",
+          "path_prefix": "99_System"
+        }
+      ]
+    },
+    {
+      "name": "knowledge_retrieve",
+      "input_schema": "knowledge_retrieve.input.schema.json",
+      "data_schema": "read_result.data.schema.json",
+      "service": "vaultops.application.knowledge.KnowledgeApplication.retrieve",
+      "effect": "read_only",
+      "server_values": {
+        "include_review": false,
+        "use_vector": false
+      },
+      "allowed_vectors": [
+        {
+          "query": "bounded retrieval"
+        },
+        {
+          "query": "one hop",
+          "hops": 1
+        }
+      ],
+      "schema_denied_vectors": [
+        {
+          "query": "x",
+          "root": "/private/vault"
+        },
+        {
+          "query": "x",
+          "hops": 2
+        },
+        {
+          "query": "x",
+          "include_review": true
+        },
+        {
+          "query": "x",
+          "operation": "approve"
+        },
+        {
+          "query": "x",
+          "include_types": [
+            "question",
+            "system"
+          ]
+        }
+      ],
+      "policy_denied_vectors": [
+        {
+          "query": "x",
+          "path_prefix": ".vault-bridge/requests"
+        },
+        {
+          "query": "x",
+          "path_prefix": "99_System"
+        }
+      ]
+    },
+    {
+      "name": "proposal_inspect",
+      "input_schema": "proposal_inspect.input.schema.json",
+      "data_schema": "proposal_inspect.data.schema.json",
+      "service": "vaultops.application.knowledge.KnowledgeApplication.inspect_proposal",
+      "effect": "read_only",
+      "server_values": {
+        "pending_item_count": 1,
+        "proposal_body": false
+      },
+      "allowed_vectors": [
+        {
+          "proposal_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "artifact",
+            "logical_id": "proposal.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          }
+        }
+      ],
+      "schema_denied_vectors": [
+        {
+          "proposal_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "artifact",
+            "logical_id": "proposal.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          },
+          "actor_id": "owner"
+        },
+        {
+          "proposal_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "artifact",
+            "logical_id": "proposal.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          },
+          "root": "/private/vault"
+        },
+        {
+          "proposal_path": "../outside.md"
+        }
+      ],
+      "policy_denied_vectors": [
+        {
+          "proposal_reference": {
+            "owner_operation_id": "foreign",
+            "resource_kind": "artifact",
+            "logical_id": "proposal.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          }
+        }
+      ]
+    },
+    {
+      "name": "proposal_create",
+      "input_schema": "proposal_create.input.schema.json",
+      "data_schema": "proposal_create.data.schema.json",
+      "service": "vaultops.application.knowledge.KnowledgeApplication.create_normalize_proposal",
+      "effect": "create_only_pending_normalize",
+      "server_values": {
+        "action": "normalize",
+        "canonical_target_changed": false
+      },
+      "allowed_vectors": [
+        {
+          "source_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "vault",
+            "logical_id": "note.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          }
+        }
+      ],
+      "schema_denied_vectors": [
+        {
+          "source_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "vault",
+            "logical_id": "note.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          },
+          "actor_id": "owner"
+        },
+        {
+          "source_reference": {
+            "owner_operation_id": "knowledgeos",
+            "resource_kind": "vault",
+            "logical_id": "note.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          },
+          "root": "/private/vault"
+        },
+        {
+          "source_path": "../outside.md"
+        }
+      ],
+      "policy_denied_vectors": [
+        {
+          "source_reference": {
+            "owner_operation_id": "foreign",
+            "resource_kind": "vault",
+            "logical_id": "note.sample",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "classification": "internal",
+            "availability": "available_by_owner_export"
+          }
+        }
+      ]
+    }
+  ],
+  "forbidden_tool_names": [
+    "proposal_approve",
+    "proposal_apply",
+    "provider_call",
+    "index_rebuild",
+    "scheduler_create",
+    "scheduler_update",
+    "worker_run",
+    "git",
+    "shell",
+    "file_read",
+    "vault_route"
+  ],
+  "core_adoption": {
+    "schema_version": 1,
+    "operation_id": "knowledgeos",
+    "fabric_id": "agentfabric",
+    "instance_id": "knowledgeos.local",
+    "core_version": "0.16.1",
+    "core_digest": "sha256:c6c2c9b7d48c365bbd1807f6657bbaa1fc1a51d4c984c9189072d421cce29a28",
+    "schema_version_pin": "0.16.1",
+    "semantic_version": "0.6.0",
+    "semantic_digest": "sha256:d219c2ef53abf0462e86b6facb7c4623a6087843649613e15d6dcfd73460cfce",
+    "capsule_version": "2.0.0",
+    "resource_binding_api": "0.3.0",
+    "host_binding_api": "0.3.0"
+  },
+  "observability": {
+    "execution_outcome": "owner execution evidence",
+    "acceptance_state": "separate owner domain evaluation",
+    "human_approval": "unknown; MCP has no human decision authority",
+    "proposal_artifact_and_canonical_note_effects": "separate"
+  }
+}

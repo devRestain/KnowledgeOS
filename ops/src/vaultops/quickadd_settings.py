@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .paths import resolve_api_paths
+
 P03_QUICKADD_REGISTRY_SCHEMA_VERSION = 1
 P03_PRIMARY_CHOICES = (
     "CAPTURE_THOUGHT",
@@ -77,10 +79,15 @@ def _home_quick_capture(blueprint: dict[str, Any]) -> tuple[list[str], list[str]
     return list(actions), list(hotkeys), errors
 
 
-def _template_observation(root: Path, template_folder: str, template_name: str) -> dict[str, Any]:
-    path = root / "KnowledgeHub" / template_folder / template_name
+def _template_observation(
+    root: Path,
+    vault_root: Path,
+    template_folder: str,
+    template_name: str,
+) -> dict[str, Any]:
+    path = vault_root / template_folder / template_name
     safe = template_folder == P03_CANONICAL_TEMPLATE_FOLDER and not Path(template_name).is_absolute() and Path(template_name).name == template_name
-    vault_present = (root / "KnowledgeHub").is_dir()
+    vault_present = vault_root.is_dir()
     exists = safe and template_name not in {".", ".."} and path.is_file() and not path.is_symlink()
     state = "pass" if exists else "blocked" if not safe else "unknown"
     return {
@@ -110,6 +117,7 @@ def build_quickadd_setting_registry(
     """Build the P03 registry from Blueprint and serialized plugin evidence."""
 
     errors: list[dict[str, str]] = []
+    vault_root = resolve_api_paths(root).vault
     data_path = profile_root / "plugins/quickadd/data.json"
     manifest_path = profile_root / "plugins/quickadd/manifest.json"
     data, data_error = _read_json(data_path)
@@ -188,7 +196,9 @@ def build_quickadd_setting_registry(
         if not isinstance(target, str) or not target or _SAFE_TARGET_PATTERN.fullmatch(target) is None:
             errors.append(_error("P03_CHOICE_TARGET_INVALID", f"blueprint/blueprint.yaml#/quickadd_choices/{choice_id}/target_pattern", "choice target pattern must be a safe relative pattern"))
             target = str(target or "")
-        template_observation = _template_observation(root, str(template_folder), template)
+        template_observation = _template_observation(
+            root, vault_root, str(template_folder), template
+        )
         if template_observation["state"] == "blocked":
             errors.append(_error("P03_CHOICE_TEMPLATE_MISSING", template_observation["source"], "declared QuickAdd template is not an ordinary canonical template file"))
         observed_choice = choice_id in observed_choice_ids

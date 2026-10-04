@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from .runtime import RUNTIME_DIRECTORIES
+from .runtime import STATE_DIRECTORIES
 
 EXPECTED_PROPERTY_KEYS = (
     "applies_to",
@@ -1898,7 +1898,7 @@ def _check_bridge(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) ->
                     details={"expected": expected, "actual": actual_projection},
                 )
             )
-        if runtime_path not in RUNTIME_DIRECTORIES:
+        if runtime_path not in STATE_DIRECTORIES:
             errors.append(
                 _error(
                     "SEMANTIC_BRIDGE_RUNTIME_PATH",

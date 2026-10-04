@@ -369,14 +369,14 @@ actions are disallowed.
 
 This document defines the design boundary. The separately authorized G03 static
 implementation traced the source chain below instead of editing
-`KnowledgeHub/Home.md` alone:
+`../../../Vaults/KnowledgeHub/Home.md` alone:
 
 ```text
 blueprint/blueprint.yaml
         ↓
 ops/src/vaultops/base_dashboard.py
         ↓
-KnowledgeHub/Home.md + 99_System/CSS/dashboard.css
+../../../Vaults/KnowledgeHub/Home.md + ../../../Vaults/KnowledgeHub/99_System/CSS/dashboard.css
         ↓
 ops/tests/test_c08_dashboard.py and canonical checks
 ```

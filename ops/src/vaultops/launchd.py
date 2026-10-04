@@ -21,15 +21,21 @@ from typing import Any
 from xml.parsers.expat import ExpatError
 
 from .background import (
+    CONTROL_ROOT_TEMPLATE,
     EXIT_CONFLICT,
     EXIT_INPUT_INVALID,
     EXIT_OK,
     LAUNCHD_ARTIFACT_PATH,
     LAUNCHD_LABEL,
+    RUNTIME_ROOT_TEMPLATE,
+    VAULT_ROOT_TEMPLATE,
+    WORKER_STDERR_LOG_PATH,
+    WORKER_STDOUT_LOG_PATH,
     _validate_runtime,
     render_background_artifacts,
 )
 from .background import _workspace as _background_workspace
+from .paths import ResolvedPaths
 from .recovery import fsync_directory, sha256_bytes
 
 CAPABILITY = "E03"
@@ -93,13 +99,13 @@ def _failure_with_context(
     return report, result_code
 
 
-def _workspace(root: str | Path) -> Path:
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
     try:
-        workspace, _vault = _background_workspace(root)
-        _validate_runtime(workspace)
+        roots = _background_workspace(root)
+        _validate_runtime(roots.state)
     except (OSError, TypeError, ValueError) as error:
         raise LaunchdError(str(error)) from error
-    return workspace
+    return roots
 
 
 def _c36_gate(workspace: Path) -> dict[str, bool]:
@@ -201,13 +207,13 @@ def _service_active(domain: str) -> tuple[bool, str]:
 
 
 def _template_and_bound_plist(
-    workspace: Path,
+    roots: ResolvedPaths,
     executable: Path,
 ) -> tuple[dict[str, Any], bytes, str]:
-    artifact_report, artifact_code = render_background_artifacts(workspace)
+    artifact_report, artifact_code = render_background_artifacts(roots.control)
     if artifact_code != EXIT_OK or artifact_report.get("status") != "PASS":
         raise LaunchdConflict("C24 background artifacts are not valid for E03 binding")
-    template_path = workspace / LAUNCHD_ARTIFACT_PATH
+    template_path = roots.control / LAUNCHD_ARTIFACT_PATH
     try:
         template_bytes = template_path.read_bytes()
         document = plistlib.loads(template_bytes)
@@ -217,24 +223,33 @@ def _template_and_bound_plist(
         raise LaunchdConflict("C24 LaunchAgent template label does not match E03")
     if document.get("RunAtLoad") is not False:
         raise LaunchdConflict("C24 LaunchAgent template must keep RunAtLoad false")
-    if "__KNOWLEDGEOS_CONTROL_ROOT__" not in str(document):
-        raise LaunchdConflict("C24 LaunchAgent template is already bound or missing its placeholder")
+    if any(
+        placeholder not in str(document)
+        for placeholder in (CONTROL_ROOT_TEMPLATE, VAULT_ROOT_TEMPLATE, RUNTIME_ROOT_TEMPLATE)
+    ):
+        raise LaunchdConflict("C24 LaunchAgent template is already bound or missing a root placeholder")
     template_sha256 = sha256_bytes(template_bytes)
-    root_text = str(workspace)
+    control_text = str(roots.control)
+    vault_text = str(roots.vault)
+    runtime_text = str(roots.runtime)
     document["ProgramArguments"] = [
         str(executable),
         "ai",
         "worker",
         "--once",
         "--root",
-        root_text,
+        control_text,
     ]
-    document["WorkingDirectory"] = root_text
+    document["WorkingDirectory"] = control_text
     environment = dict(document.get("EnvironmentVariables", {}))
-    environment["KNOWLEDGEOS_CONTROL_ROOT"] = root_text
+    environment["KNOWLEDGEOS_CONTROL_ROOT"] = control_text
+    environment["KNOWLEDGEOS_VAULT_ROOT"] = vault_text
+    environment["KNOWLEDGEOS_CORE_ROOT"] = str(roots.core)
+    environment["KNOWLEDGEOS_STATE_ROOT"] = str(roots.state)
+    environment["KNOWLEDGEOS_RUNTIME_ROOT"] = runtime_text
     document["EnvironmentVariables"] = environment
-    document["StandardOutPath"] = f"{root_text}/runtime/logs/worker.stdout.log"
-    document["StandardErrorPath"] = f"{root_text}/runtime/logs/worker.stderr.log"
+    document["StandardOutPath"] = str(roots.runtime / WORKER_STDOUT_LOG_PATH)
+    document["StandardErrorPath"] = str(roots.runtime / WORKER_STDERR_LOG_PATH)
     metadata = dict(document.get("KnowledgeOS", {}))
     metadata.update(
         {
@@ -242,7 +257,9 @@ def _template_and_bound_plist(
             "enabled_by_default": False,
             "installation": LAUNCHD_INSTALLATION,
             "launchd_active": True,
-            "bound_control_root": root_text,
+            "bound_control_root": control_text,
+            "bound_vault_root": vault_text,
+            "bound_runtime_root": runtime_text,
             "bound_executable": str(executable),
             "template_sha256": template_sha256,
             "rollback": ROLLBACK_CONTRACT,
@@ -315,14 +332,15 @@ def _bound_context(
     install_path: str | Path | None,
     require_c36: bool = True,
 ) -> dict[str, Any]:
-    workspace = _workspace(root)
-    c36_checks = _c36_gate(workspace) if require_c36 else {}
+    roots = _workspace(root)
+    c36_checks = _c36_gate(roots.control) if require_c36 else {}
     executable_path = _executable_path(executable)
     target = _install_path(install_path)
-    document, payload, template_sha256 = _template_and_bound_plist(workspace, executable_path)
+    document, payload, template_sha256 = _template_and_bound_plist(roots, executable_path)
     existing = _inspect_existing(target, payload)
     return {
-        "workspace": workspace,
+        "roots": roots,
+        "workspace": roots.control,
         "executable": executable_path,
         "path": target,
         "document": document,
@@ -336,14 +354,41 @@ def _bound_context(
 
 def _common_report(context: Mapping[str, Any]) -> dict[str, Any]:
     path = Path(context["path"])
-    workspace = Path(context["workspace"])
+    roots = context["roots"]
+    document = context["document"]
+    environment = document.get("EnvironmentVariables", {})
     return {
         "capability": CAPABILITY,
         "artifact": LAUNCHD_ARTIFACT_PATH,
         "install_path": str(path),
         "label": LAUNCHD_LABEL,
         "domain": _domain(),
-        "bound_control_root": str(workspace),
+        "bound_control_root": str(roots.control),
+        "bound_vault_root": str(roots.vault),
+        "bound_runtime_root": str(roots.runtime),
+        "resolved_roots": {
+            "core": str(roots.core),
+            "state": str(roots.state),
+            "control": str(roots.control),
+            "vault": str(roots.vault),
+            "runtime": str(roots.runtime),
+        },
+        "configuration_preview": {
+            "program_arguments": list(document.get("ProgramArguments", [])),
+            "working_directory": document.get("WorkingDirectory"),
+            "environment_roots": {
+                key: environment.get(key)
+                for key in (
+                    "KNOWLEDGEOS_CORE_ROOT",
+                    "KNOWLEDGEOS_STATE_ROOT",
+                    "KNOWLEDGEOS_CONTROL_ROOT",
+                    "KNOWLEDGEOS_VAULT_ROOT",
+                    "KNOWLEDGEOS_RUNTIME_ROOT",
+                )
+            },
+            "stdout_path": document.get("StandardOutPath"),
+            "stderr_path": document.get("StandardErrorPath"),
+        },
         "bound_executable": str(context["executable"]),
         "plist_sha256": context["plist_sha256"],
         "template_sha256": context["template_sha256"],
@@ -469,7 +514,10 @@ def install(
     return report, EXIT_OK
 
 
-def _owned_document(path: Path, root: str | Path) -> tuple[dict[str, Any], bytes]:
+def _owned_document(
+    path: Path,
+    root: str | Path | ResolvedPaths,
+) -> tuple[dict[str, Any], bytes]:
     if path.is_symlink() or not path.is_file():
         raise LaunchdConflict("E03 rollback target is not an existing regular file")
     raw = path.read_bytes()
@@ -478,12 +526,14 @@ def _owned_document(path: Path, root: str | Path) -> tuple[dict[str, Any], bytes
     except (ExpatError, plistlib.InvalidFileException, TypeError, ValueError) as error:
         raise LaunchdConflict("E03 rollback target is not a valid plist") from error
     metadata = document.get("KnowledgeOS")
-    workspace = _workspace(root)
+    roots = _workspace(root)
     if (
         document.get("Label") != LAUNCHD_LABEL
         or not isinstance(metadata, Mapping)
         or metadata.get("installation") != LAUNCHD_INSTALLATION
-        or metadata.get("bound_control_root") != str(workspace)
+        or metadata.get("bound_control_root") != str(roots.control)
+        or metadata.get("bound_vault_root") != str(roots.vault)
+        or metadata.get("bound_runtime_root") != str(roots.runtime)
         or metadata.get("rollback") != ROLLBACK_CONTRACT
     ):
         raise LaunchdConflict("E03 rollback target ownership could not be proven")
@@ -493,7 +543,7 @@ def _owned_document(path: Path, root: str | Path) -> tuple[dict[str, Any], bytes
 
 
 def rollback(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     apply: bool = False,
     install_path: str | Path | None = None,
@@ -501,10 +551,10 @@ def rollback(
     """Preview or apply rollback for the exact E03-owned service and plist."""
 
     try:
-        workspace = _workspace(root)
+        roots = _workspace(root)
         target = _install_path(install_path)
         if target.exists() or target.is_symlink():
-            _document, payload = _owned_document(target, workspace)
+            _document, payload = _owned_document(target, roots)
             ownership = "owned"
         else:
             payload = b""
@@ -522,6 +572,9 @@ def rollback(
         "install_path": str(target),
         "label": LAUNCHD_LABEL,
         "domain": domain,
+        "bound_control_root": str(roots.control),
+        "bound_vault_root": str(roots.vault),
+        "bound_runtime_root": str(roots.runtime),
         "ownership": ownership,
         "installed": ownership == "owned",
         "launchd_active": False,
@@ -570,14 +623,14 @@ def rollback(
 
 
 def status(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     install_path: str | Path | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Inspect the exact E03 plist and current-user service without mutation."""
 
     try:
-        workspace = _workspace(root)
+        roots = _workspace(root)
         target = _install_path(install_path)
         domain = _domain()
         if target.is_symlink():
@@ -588,6 +641,8 @@ def status(
         owned = False
         plist_sha256 = None
         bound_root = None
+        bound_vault_root = None
+        bound_runtime_root = None
         if installed:
             raw = target.read_bytes()
             plist_sha256 = sha256_bytes(raw)
@@ -602,6 +657,8 @@ def status(
                 and metadata.get("installation") == LAUNCHD_INSTALLATION
             )
             bound_root = metadata.get("bound_control_root") if isinstance(metadata, Mapping) else None
+            bound_vault_root = metadata.get("bound_vault_root") if isinstance(metadata, Mapping) else None
+            bound_runtime_root = metadata.get("bound_runtime_root") if isinstance(metadata, Mapping) else None
         active_check = "not_run"
         active = False
         detail = ""
@@ -610,8 +667,12 @@ def status(
             active_check = "verified"
         if installed and not owned:
             raise LaunchdConflict("a plist exists at the E03 path but is not E03-owned")
-        if owned and bound_root != str(workspace):
-            raise LaunchdConflict("E03 plist is bound to a different control root")
+        if owned and (
+            bound_root != str(roots.control)
+            or bound_vault_root != str(roots.vault)
+            or bound_runtime_root != str(roots.runtime)
+        ):
+            raise LaunchdConflict("E03 plist is bound to different selected roots")
     except LaunchdConflict as error:
         return _failure("launchd status", "E03_STATUS_CONFLICT", str(error), exit_code=EXIT_CONFLICT)
     except (LaunchdError, OSError, TypeError, ValueError) as error:
@@ -630,6 +691,8 @@ def status(
         "active_detail": detail,
         "plist_sha256": plist_sha256,
         "bound_control_root": bound_root,
+        "bound_vault_root": bound_vault_root,
+        "bound_runtime_root": bound_runtime_root,
         "mutation_performed": False,
         "provider_called": False,
         "vault_mutated": False,

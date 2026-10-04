@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 
 import pytest
+from support.control_factory import (
+    bind_existing_control,
+    fixture_path,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.operations import (
     OperationCrash,
@@ -36,7 +41,10 @@ def test_c43_dry_run_has_no_runtime_or_external_effect() -> None:
 
 def test_c43_simulated_crash_recovers_and_rolls_back_with_create_only_receipts(tmp_path: Path) -> None:
     root = tmp_path / "control"
-    root.mkdir()
+    bind_existing_control(root)
+    root.mkdir(exist_ok=True)
+    vault = fixture_path(root, "vault")
+    vault.mkdir(exist_ok=True)
 
     with pytest.raises(OperationCrash, match="after_intent"):
         run_operation(
@@ -63,15 +71,18 @@ def test_c43_simulated_crash_recovers_and_rolls_back_with_create_only_receipts(t
     assert verified["status"] == "PASS"
     assert verified["receipt_count"] == 2
     assert all(value is False for value in verified["effects"].values())
-    assert (root / "runtime/operations/c43-crash/intent.json").stat().st_mode & 0o777 == 0o600
-    assert (root / "runtime/operations/c43-crash/receipt.json").stat().st_mode & 0o777 == 0o600
-    assert (root / "runtime/operations/c43-crash/rollback.json").stat().st_mode & 0o777 == 0o600
-    assert not (root / "KnowledgeHub").exists()
+    assert (fixture_path(root, "state") / "operations/c43-crash/intent.json").stat().st_mode & 0o777 == 0o600
+    assert (fixture_path(root, "state") / "operations/c43-crash/receipt.json").stat().st_mode & 0o777 == 0o600
+    assert (fixture_path(root, "state") / "operations/c43-crash/rollback.json").stat().st_mode & 0o777 == 0o600
+    assert vault.is_dir()
+    assert not list(vault.iterdir())
 
 
 def test_c43_completed_operation_is_replay_safe_and_tamper_evident(tmp_path: Path) -> None:
     root = tmp_path / "control"
-    root.mkdir()
+    bind_existing_control(root)
+    root.mkdir(exist_ok=True)
+    (fixture_path(root, "vault")).mkdir(exist_ok=True)
     first, first_code = run_operation(
         root,
         operation_id="c43-complete",
@@ -93,9 +104,32 @@ def test_c43_completed_operation_is_replay_safe_and_tamper_evident(tmp_path: Pat
     assert first["mutation_performed"] is False
     assert second["effects"]["provider_effect"] is False
 
-    receipt_path = root / "runtime/operations/c43-complete/receipt.json"
+    receipt_path = (fixture_path(root, "state") / "operations/c43-complete/receipt.json")
     value = json.loads(receipt_path.read_text(encoding="utf-8"))
     value["target_sha256"] = "f" * 64
     receipt_path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
     with pytest.raises(OperationsError, match="receipt digest"):
         verify_operation(root, "c43-complete")
+
+
+def test_c43_journal_uses_selected_runtime_root(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    with pytest.raises(OperationCrash, match="after_intent"):
+        run_operation(
+            roots,
+            operation_id="c43-portable-crash",
+            component="broker",
+            action="upgrade",
+            before_profile=BEFORE,
+            target_profile=TARGET,
+            crash_stage="after_intent",
+        )
+
+    recovered, code = recover_operation(roots, "c43-portable-crash")
+
+    assert code == 0
+    assert recovered["status"] == "RECOVERED"
+    assert (roots.state / "operations/c43-portable-crash/receipt.json").is_file()
+    assert (roots.state / "operations/c43-portable-crash/intent.json").is_file()
+    assert not (roots.control / "runtime").exists()
+    assert not (roots.control / "KnowledgeHub").exists()

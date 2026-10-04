@@ -16,6 +16,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .paths import resolve_api_paths
+
 P12_META_BIND_REGISTRY_SCHEMA_VERSION = 1
 P12_PLUGIN_ID = "obsidian-meta-bind-plugin"
 P12_CANONICAL_TEMPLATE_FOLDER = "99_System/Templates"
@@ -253,10 +255,11 @@ def _parse_property_dictionary_rows(text: str) -> dict[str, dict[str, Any]]:
 def _property_dictionary_contract(
     *,
     root: Path,
+    vault_root: Path,
     blueprint_contract: dict[str, Any],
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
-    path = root / _PROPERTY_DICTIONARY_PATH
+    path = vault_root / "99_System/Schemas/Property_Dictionary.md"
     text, read_error = _read_text(path)
     if read_error:
         return {
@@ -503,11 +506,15 @@ def _input_template_contract(
     }
 
 
-def _protected_path_contract(root: Path, errors: list[dict[str, str]]) -> dict[str, Any]:
+def _protected_path_contract(
+    root: Path,
+    vault_root: Path,
+    errors: list[dict[str, str]],
+) -> dict[str, Any]:
     records: dict[str, dict[str, Any]] = {}
     scanned_files: list[str] = []
     for relative in P12_PROTECTED_PATHS:
-        directory = root / "KnowledgeHub" / relative
+        directory = vault_root / relative
         if directory.is_symlink() or not directory.is_dir():
             records[relative] = {
                 "state": "unknown",
@@ -646,9 +653,9 @@ def _view_contract(data: dict[str, Any], *, root: Path, data_path: Path, errors:
     }
 
 
-def _fallback_contract(root: Path) -> dict[str, Any]:
-    dictionary = root / _PROPERTY_DICTIONARY_PATH
-    template = root / "KnowledgeHub/99_System/Templates/T20_Project.md"
+def _fallback_contract(root: Path, vault_root: Path) -> dict[str, Any]:
+    dictionary = vault_root / "99_System/Schemas/Property_Dictionary.md"
+    template = vault_root / "99_System/Templates/T20_Project.md"
     if dictionary.is_symlink() or template.is_symlink():
         state = "unknown"
     elif dictionary.is_file() and template.is_file():
@@ -674,6 +681,7 @@ def build_meta_bind_setting_registry(
     """Build the P12 registry from installed Meta Bind data without mutation."""
 
     errors: list[dict[str, str]] = []
+    vault_root = resolve_api_paths(root).vault
     manifest_path = profile_root / "plugins/obsidian-meta-bind-plugin/manifest.json"
     data_path = profile_root / "plugins/obsidian-meta-bind-plugin/data.json"
     manifest, manifest_error = _read_json(manifest_path)
@@ -707,7 +715,12 @@ def build_meta_bind_setting_registry(
             errors.append(_error("P12_FORBIDDEN_CAPABILITY_ENABLED", _relative(root, data_path), f"Meta Bind {key} does not satisfy the disabled-by-contract policy"))
 
     blueprint_contract = _blueprint_property_contract(blueprint=blueprint, root=root, errors=errors)
-    property_dictionary = _property_dictionary_contract(root=root, blueprint_contract=blueprint_contract, errors=errors)
+    property_dictionary = _property_dictionary_contract(
+        root=root,
+        vault_root=vault_root,
+        blueprint_contract=blueprint_contract,
+        errors=errors,
+    )
     note_type_scope = _note_type_scope_contract(blueprint=blueprint, errors=errors)
     inputs = _input_template_contract(
         data=serialized,
@@ -717,10 +730,10 @@ def build_meta_bind_setting_registry(
         note_type_scope=note_type_scope,
         errors=errors,
     )
-    protected_paths = _protected_path_contract(root, errors)
+    protected_paths = _protected_path_contract(root, vault_root, errors)
     exclusion = _exclusion_contract(data=serialized, root=root, data_path=data_path, errors=errors)
     views = _view_contract(serialized, root=root, data_path=data_path, errors=errors)
-    fallback = _fallback_contract(root)
+    fallback = _fallback_contract(root, vault_root)
 
     registry = {
         "schema_version": P12_META_BIND_REGISTRY_SCHEMA_VERSION,

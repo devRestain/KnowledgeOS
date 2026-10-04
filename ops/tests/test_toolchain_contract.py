@@ -37,3 +37,33 @@ def test_compose_requires_the_invoking_host_uid_and_gid() -> None:
     assert "${KNOWLEDGEOS_GID:?" in compose
     assert "ARG KNOWLEDGEOS_UID=1000" not in dockerfile
     assert "ARG KNOWLEDGEOS_GID=1000" not in dockerfile
+
+
+def test_make_and_compose_parameterize_independent_host_root_sources() -> None:
+    makefile = (CONTROL_ROOT / "Makefile").read_text(encoding="utf-8")
+    compose = (OPS_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    test_compose = (OPS_ROOT / "compose.test.yaml").read_text(encoding="utf-8")
+
+    assert (
+        "export KNOWLEDGEOS_CONTROL_SOURCE KNOWLEDGEOS_VAULT_SOURCE KNOWLEDGEOS_RUNTIME_SOURCE KNOWLEDGEOS_STATE_SOURCE"
+        in makefile
+    )
+    for name in (
+        "KNOWLEDGEOS_CONTROL_SOURCE",
+        "KNOWLEDGEOS_VAULT_SOURCE",
+        "KNOWLEDGEOS_RUNTIME_SOURCE",
+        "KNOWLEDGEOS_STATE_SOURCE",
+    ):
+        assert f"source: ${{{name}:?" in compose
+    assert "KNOWLEDGEOS_CONTROL_SOURCE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))" in makefile
+    assert "KNOWLEDGEOS_VAULT_SOURCE ?= $(KNOWLEDGEOS_CONTROL_SOURCE)/KnowledgeHub" not in makefile
+    assert "KNOWLEDGEOS_RUNTIME_SOURCE ?= $(KNOWLEDGEOS_CONTROL_SOURCE)/runtime" not in makefile
+    assert (
+        "source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Set KNOWLEDGEOS_CONTROL_SOURCE through Make}"
+        in test_compose
+    )
+    assert "target: /workspace/control" in compose
+    assert "target: /workspace/KnowledgeHub" in compose
+    assert "target: /workspace/runtime" in compose
+    assert "target: /workspace/state" in compose
+    assert compose.count("create_host_path: false") == 5

@@ -5,7 +5,7 @@ existing C24 bridge queue, C32 synthetic broker, C31 private envelopes, and
 C17 exact response publisher.  It owns lifecycle state only; it does not
 become a provider, a scheduler, a Vault writer, or a Git network client.
 
-An eligible queue item is claimed by an atomic rename into ``runtime/running``
+An eligible queue item is claimed by an atomic rename into ``state/running``
 and receives a short-lived private lease.  The immutable bridge manifest is
 never edited.  Provider artifacts remain in the private C31 run directory;
 only a revalidated bridge response and (when needed) a review proposal are
@@ -36,6 +36,7 @@ from .bridge_contract import (
 )
 from .bridge_publish import ingest_bridge_request, publish_bridge_response
 from .note_engine import NoteContractError, NoteEngine
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .provider_broker import PIPELINES, run_synthetic_job, validate_synthetic_output
 from .provider_contract import (
     ProviderContractError,
@@ -133,11 +134,14 @@ def _hash_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise QueueError("C36_ROOT_INVALID", "control root must be an existing non-symlink directory") from error
+    if roots.control.is_symlink() or not roots.control.is_dir():
         raise QueueError("C36_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+    return roots
 
 
 def _private_directory(path: Path, label: str) -> None:
@@ -147,8 +151,8 @@ def _private_directory(path: Path, label: str) -> None:
         raise QueueError("C36_RUNTIME_MODE_INVALID", f"{label} must be mode 0700")
 
 
-def _runtime(workspace: Path) -> Path:
-    runtime = workspace / "runtime"
+def _runtime(workspace: ResolvedPaths) -> Path:
+    runtime = workspace.state
     _private_directory(runtime, "runtime")
     for name in (
         "queue",
@@ -161,7 +165,7 @@ def _runtime(workspace: Path) -> Path:
         "expired",
         "runs",
     ):
-        _private_directory(runtime / name, f"runtime/{name}")
+        _private_directory(runtime / name, f"state/{name}")
     return runtime
 
 
@@ -324,11 +328,11 @@ def _hash_json(value: Any) -> str:
     return sha256_bytes(canonical_json_bytes(value))
 
 
-def _private_job(workspace: Path, job_id: str) -> Path:
+def _private_job(workspace: ResolvedPaths, job_id: str) -> Path:
     validate_job_id(job_id)
-    runs = workspace / "runtime" / "runs"
+    runs = workspace.state / "runs"
     job = runs / job_id
-    _private_directory(job, f"runtime/runs/{job_id}")
+    _private_directory(job, f"state/runs/{job_id}")
     return job
 
 
@@ -355,7 +359,7 @@ def _validate_provider_digest(value: dict[str, Any], field: str, label: str) -> 
     return observed
 
 
-def _read_provider_artifacts(workspace: Path, claim: QueueClaim) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], bytes, bytes]:
+def _read_provider_artifacts(workspace: ResolvedPaths, claim: QueueClaim) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], bytes, bytes]:
     job = _private_job(workspace, claim.job_id)
     request, _request_raw = _read_private_json(job / "request.json", "provider request")
     response, response_raw = _read_private_json(job / "response.json", "provider response")
@@ -420,7 +424,7 @@ def _quarantine_paths(
 ) -> str | None:
     quarantine = runtime / "quarantine" / "provider"
     if quarantine.exists() or quarantine.is_symlink():
-        _private_directory(quarantine, "runtime/quarantine/provider")
+        _private_directory(quarantine, "state/quarantine/provider")
     else:
         quarantine.mkdir(mode=0o700)
         fsync_directory(quarantine.parent)
@@ -551,10 +555,10 @@ def _recover_running(runtime: Path, now: datetime) -> dict[str, Any]:
     return {"recovered": recovered, "active": active, "quarantined": quarantined}
 
 
-def _provider_job_preflight(workspace: Path, job_id: str) -> tuple[str | None, str | None]:
+def _provider_job_preflight(workspace: ResolvedPaths, job_id: str) -> tuple[str | None, str | None]:
     """Return (pipeline, defer_reason); only local lanes are eligible."""
 
-    job = workspace / "runtime" / "runs" / job_id
+    job = workspace.state / "runs" / job_id
     request_path = job / "request.json"
     context_path = job / "context.json"
     if not request_path.is_file() or not context_path.is_file():
@@ -575,7 +579,7 @@ def _provider_job_preflight(workspace: Path, job_id: str) -> tuple[str | None, s
 
 
 def _claim(
-    workspace: Path,
+    workspace: ResolvedPaths,
     runtime: Path,
     manifest_path: Path,
     manifest: dict[str, Any],
@@ -680,13 +684,13 @@ def _source_details(context: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def _proposal_manifest(
-    workspace: Path,
+    workspace: ResolvedPaths,
     context: dict[str, Any],
     pipeline: str,
     output: dict[str, Any],
 ) -> tuple[str, dict[str, Any], str]:
     source_path, source_hash, _locator = _source_details(context)
-    vault = workspace / "KnowledgeHub"
+    vault = workspace.vault
     if vault.is_symlink() or not vault.is_dir():
         raise QueueError("C36_VAULT_PATH_INVALID", "KnowledgeHub must be an existing directory")
     source_file = vault / source_path
@@ -780,14 +784,14 @@ def _proposal_manifest(
     )
     artifact = rendered.markdown
     try:
-        NoteEngine.from_root(workspace).typed_note(proposal_path, artifact)
+        NoteEngine.from_root(workspace.control).typed_note(proposal_path, artifact)
     except (NoteContractError, OSError, UnicodeError, ValueError) as error:
         raise QueueConflict("C36_PROPOSAL_NOTE_INVALID", str(error)) from error
     return proposal_path, manifest, artifact
 
 
 def _build_bridge_response(
-    workspace: Path,
+    workspace: ResolvedPaths,
     runtime: Path,
     claim: QueueClaim,
     request: dict[str, Any],
@@ -805,7 +809,7 @@ def _build_bridge_response(
     common: dict[str, Any] = {
         "schema_version": 1,
         "job_id": claim.job_id,
-        "sequence": _next_sequence(workspace / "KnowledgeHub", claim.job_id),
+        "sequence": _next_sequence(workspace.vault, claim.job_id),
         "event_at": _iso(event_at),
         "request_sha256": claim.request_sha256,
         "request_commit": claim.request_commit,
@@ -878,7 +882,7 @@ def _build_bridge_response(
                 "completed_at": str(response["completed_at"]),
             }
         )
-    blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
+    blueprint = load_yaml_file(workspace.control / "blueprint/blueprint.yaml")
     validation = validate_bridge_response(common, blueprint)
     if not validation.passed:
         raise QueueConflict(
@@ -974,7 +978,7 @@ def _claim_report(claim: QueueClaim) -> dict[str, Any]:
 
 
 def _process_claim(
-    workspace: Path,
+    workspace: ResolvedPaths,
     runtime: Path,
     claim: QueueClaim,
     *,
@@ -1002,8 +1006,8 @@ def _process_claim(
         if fault_after == "provider":
             raise InjectedQueueCrash("injected crash after provider artifacts")
         request, context, provider_response, response_raw, receipt_raw = _read_provider_artifacts(workspace, claim)
-        bridge_response_path = workspace / "runtime" / "runs" / claim.job_id / "c36-response.json"
-        proposal_path_private = workspace / "runtime" / "runs" / claim.job_id / "c36-proposal.md"
+        bridge_response_path = workspace.state / "runs" / claim.job_id / "c36-response.json"
+        proposal_path_private = workspace.state / "runs" / claim.job_id / "c36-proposal.md"
         if bridge_response_path.exists() or bridge_response_path.is_symlink():
             bridge_response, bridge_response_raw = _read_bridge_private_json(
                 bridge_response_path, "C36 bridge response"
@@ -1028,13 +1032,13 @@ def _process_claim(
             _persist_private_bridge_artifact(bridge_response_path, bridge_response_raw, "C36 bridge response")
             if proposal_bytes is not None:
                 _persist_private_bridge_artifact(proposal_path_private, proposal_bytes, "C36 proposal artifact")
-        blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
+        blueprint = load_yaml_file(workspace.control / "blueprint/blueprint.yaml")
         validation = validate_bridge_response(bridge_response, blueprint)
         if not validation.passed:
             raise QueueConflict("C36_BRIDGE_RESPONSE_INVALID", "stored C36 bridge response no longer validates")
         with publish_lock:
             publication, publish_code = publish_bridge_response(
-                workspace,
+                workspace.control,
                 response_file=bridge_response_path,
                 proposal_file=proposal_path_private if proposal_bytes is not None or proposal_path else None,
             )
@@ -1250,7 +1254,7 @@ def queue_report_schema() -> dict[str, Any]:
 
 
 def consume_provider_queue(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     max_jobs: int = DEFAULT_MAX_JOBS,
     max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
@@ -1264,7 +1268,7 @@ def consume_provider_queue(
 ) -> tuple[dict[str, Any], int]:
     """Consume at most one bounded batch of eligible local provider jobs."""
 
-    workspace: Path | None = None
+    workspace: ResolvedPaths | None = None
     try:
         if not isinstance(max_jobs, int) or isinstance(max_jobs, bool) or not 1 <= max_jobs <= MAX_QUEUE_JOBS:
             raise QueueError("C36_MAX_JOBS_INVALID", f"max_jobs must be between 1 and {MAX_QUEUE_JOBS}")
@@ -1319,7 +1323,7 @@ def consume_provider_queue(
                     pipeline = str(manifest.get("pipeline_kind", ""))
                 if pipeline not in PIPELINES:
                     raise QueueConflict("C36_PIPELINE_INVALID", "queue job does not bind a supported provider pipeline")
-                ingest_report, ingest_code = ingest_bridge_request(workspace, job_id=queue_job_id)
+                ingest_report, ingest_code = ingest_bridge_request(workspace.control, job_id=queue_job_id)
                 if ingest_code != EXIT_OK:
                     raise QueueConflict("C36_INGEST_FAILED", json.dumps(ingest_report, ensure_ascii=False, sort_keys=True))
                 request_commit = str(ingest_report.get("request_commit", ""))

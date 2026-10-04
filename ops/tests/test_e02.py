@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from support.control_factory import (
+    bind_existing_control,
+    fixture_path,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.e02 import (
     DEFAULT_GENERATION_TAG,
@@ -117,8 +122,7 @@ class _FakeE02Client:
 
 
 def _write_job(root: Path) -> tuple[Path, str]:
-    root.mkdir()
-    (root / "KnowledgeHub").mkdir()
+    bind_existing_control(root)
     job_id = str(uuid.uuid4())
     now = "2026-09-18T20:00:00+09:00"
     candidate_text = "The bounded E02 fake fixture is local-only evidence."
@@ -178,7 +182,7 @@ def _write_job(root: Path) -> tuple[Path, str]:
     request = build_provider_request(context, created_at=now, request_id=job_id)
     request_report, request_code = write_provider_request(root, request)
     assert request_code == 0, request_report
-    return root / "runtime" / "runs" / job_id, job_id
+    return fixture_path(root, "state") / "runs" / job_id, job_id
 
 
 def test_e02_contract_keeps_live_and_c34_boundaries_explicit() -> None:
@@ -282,7 +286,7 @@ def test_e02_job_runner_uses_only_one_private_spool_and_replays_without_call(tmp
     report, code = run_e02_host_job(
         job_dir,
         client,
-        storage_root=root,
+        storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"),
         authorized=True,
     )
 
@@ -297,7 +301,7 @@ def test_e02_job_runner_uses_only_one_private_spool_and_replays_without_call(tmp
     replay, replay_code = run_e02_host_job(
         job_dir,
         client,
-        storage_root=root,
+        storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"),
         authorized=True,
     )
 
@@ -305,12 +309,43 @@ def test_e02_job_runner_uses_only_one_private_spool_and_replays_without_call(tmp
     assert replay["status"] == "NO_OP"
     assert len(client.calls) == first_call_count
 
-    report_artifact = write_e02_report(job_dir, report, storage_root=root)
+    report_artifact = write_e02_report(job_dir, report, storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"))
     assert report_artifact["state"] == "CREATED"
     report_path = job_dir / "verification-report.json"
     assert report_path.stat().st_mode & 0o777 == 0o600
-    same_artifact = write_e02_report(job_dir, report, storage_root=root)
+    same_artifact = write_e02_report(job_dir, report, storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"))
     assert same_artifact["state"] == "NO_OP"
+
+
+def test_e02_offline_job_validation_accepts_selected_state_root(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    runs = roots.state / "runs"
+    runs.mkdir(mode=0o700)
+    job_dir = runs / str(uuid.uuid4())
+    job_dir.mkdir(mode=0o700)
+    client = _FakeE02Client()
+
+    report, code = run_e02_host_job(
+        job_dir,
+        client,
+        storage_root=roots.state,
+        state_root=roots.state,
+        authorized=False,
+    )
+
+    assert code == 30
+    assert report["status"] == "DEFERRED"
+    assert report["provider_called"] is False
+    assert client.calls == []
+    artifact = write_e02_report(
+        job_dir,
+        report,
+        storage_root=roots.state,
+        state_root=roots.state,
+    )
+    assert artifact["state"] == "CREATED"
+    assert (job_dir / "verification-report.json").is_file()
+    assert not (roots.control / "runtime").exists()
 
 
 def test_e02_job_runner_rejects_external_storage_and_invalid_job_paths(tmp_path: Path) -> None:
@@ -320,12 +355,12 @@ def test_e02_job_runner_rejects_external_storage_and_invalid_job_paths(tmp_path:
     external.mkdir()
 
     with pytest.raises(E02Error, match="outside the declared internal SSD root"):
-        run_e02_host_job(job_dir, _FakeE02Client(), storage_root=external, authorized=True)
+        run_e02_host_job(job_dir, _FakeE02Client(), storage_root=external, state_root=fixture_path(root, "state"), authorized=True)
 
     bad_job_dir = root / "bad-job"
     bad_job_dir.mkdir(mode=0o700)
     with pytest.raises(E02Error, match="lowercase UUIDv4"):
-        run_e02_host_job(bad_job_dir, _FakeE02Client(), storage_root=root, authorized=False)
+        run_e02_host_job(bad_job_dir, _FakeE02Client(), storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"), authorized=False)
 
 
 def test_e02_embedding_benchmark_uses_distinct_query_and_document_roles(tmp_path: Path) -> None:
@@ -423,10 +458,10 @@ def test_e02_report_writer_rejects_a_report_bound_to_another_job(tmp_path: Path)
     report, _code = run_e02_host_job(
         job_dir,
         _FakeE02Client(),
-        storage_root=root,
+        storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"),
         authorized=True,
     )
     report["job"]["job_id"] = str(uuid.uuid4())
 
     with pytest.raises(E02Error, match="report job_id"):
-        write_e02_report(job_dir, report, storage_root=root)
+        write_e02_report(job_dir, report, storage_root=fixture_path(root, "state"), state_root=fixture_path(root, "state"))

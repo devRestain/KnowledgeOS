@@ -13,7 +13,7 @@
 
 ## Runtime and storage model
 
-- Control repository is the workspace root; Vault repository is `KnowledgeHub/`; runtime is untracked and local under `runtime/`.
+- Control repository is the workspace root; Vault repository is `../../Vaults/KnowledgeHub/`; runtime is untracked and local under `runtime/`.
 - Canonical execution uses Compose service `dev` on the existing Colima VM, pinned Python `3.12.8`, and uv `0.8.14`.
 - Pass numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID` from the host; reject missing or fallback values.
 - Keep disposable caches, temp files, logs, queues, locks, indexes, and durable receipts in their declared runtime namespaces; never place them in Vault source folders.
@@ -43,7 +43,7 @@
 
 - Capture path is mobile/local outbox → immutable `.vault-bridge` request → schema validation → local queue → interactive Mac apply.
 - Bridge requests contain references and metadata, not executable code or hidden provider/network instructions.
-- Trusted protocol schemas are copied under `KnowledgeHub/.vault-bridge/protocol`; requests and responses are empty until an enabled lane produces them.
+- Trusted protocol schemas are copied under `../../Vaults/KnowledgeHub/.vault-bridge/protocol`; requests and responses are empty until an enabled lane produces them.
 - No bridge event grants Git pull/push, plugin install, remote API, or unattended execution.
 - Job states are explicit (`received`, `validated`, `queued`, `proposed`, `approved`, `applied`, `rejected`, `failed`, `expired`); each transition is append-only and idempotent.
 - Deduplicate by event/action id and source hash; quarantine invalid, stale, replayed, or path-escaping events.

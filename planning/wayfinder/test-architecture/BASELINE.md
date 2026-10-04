@@ -51,9 +51,9 @@ Sixteen test files currently contain direct real-Vault references:
 `make schema-check` also compares deployed copies in the real Vault. The
 current generated-artifact manifest names three KnowledgeHub paths:
 
-- `KnowledgeHub/99_System/Schemas/Property_Dictionary.md`
-- `KnowledgeHub/.vault-bridge/protocol/request.schema.json`
-- `KnowledgeHub/.vault-bridge/protocol/response.schema.json`
+- `../../../../../Vaults/KnowledgeHub/99_System/Schemas/Property_Dictionary.md`
+- `../../../../../Vaults/KnowledgeHub/.vault-bridge/protocol/request.schema.json`
+- `../../../../../Vaults/KnowledgeHub/.vault-bridge/protocol/response.schema.json`
 
 Only the Property Dictionary is under the user-approved `99_System` document
 boundary. The hidden bridge protocol files are machine protocol artifacts, not

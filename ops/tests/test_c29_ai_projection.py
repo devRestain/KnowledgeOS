@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import (
+    fixture_path,
+    make_portable_fixture_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.ai_projection import (
     EXIT_CONFLICT,
@@ -17,6 +21,7 @@ from vaultops.ai_projection import (
 )
 from vaultops.cli import main
 from vaultops.note_engine import render_frontmatter
+from vaultops.paths import ResolvedPaths
 from vaultops.projection import generate_projection
 
 
@@ -24,7 +29,16 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     return make_portable_fixture_root(tmp_path)
 
 
-def _write_eligibility_fixture(root: Path) -> None:
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def _write_eligibility_fixture(root: Path | ResolvedPaths) -> None:
+    vault = root.vault if isinstance(root, ResolvedPaths) else fixture_path(root, "vault")
     notes = (
         (
             "Remote C29",
@@ -86,7 +100,7 @@ def _write_eligibility_fixture(root: Path) -> None:
             "last_reviewed": "2026-09-17",
             "related": related or [],
         }
-        path = root / "KnowledgeHub/40_Knowledge/Notes" / f"{title}.md"
+        path = vault / "40_Knowledge/Notes" / f"{title}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             render_frontmatter(properties, f"# {title}\n\n{body_marker}\n"),
@@ -139,6 +153,55 @@ def test_c29_profiles_filter_notes_properties_and_incident_edges_before_serializ
     assert remote.manifest["eligible_note_count"] < local.manifest["eligible_note_count"]
 
 
+def test_c29_cli_publishes_privacy_filtered_projection_to_separate_runtime(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    _write_eligibility_fixture(roots)
+    vault_before = {
+        path.relative_to(roots.vault).as_posix(): path.read_bytes()
+        for path in roots.vault.rglob("*")
+        if path.is_file()
+    }
+
+    assert main(
+        [
+            "ai",
+            "projection",
+            "build",
+            "--profile",
+            "remote",
+            "--generation-id",
+            "c29-remote-separated",
+            "--root",
+            str(roots.control),
+        ]
+    ) == EXIT_OK
+    report = json.loads(capsys.readouterr().out)
+    assert report["projection_profile"] == "remote"
+    pointer = roots.state / "index/ai/remote/current.json"
+    assert pointer.is_file()
+
+    assert main(
+        ["ai", "projection", "verify", "--profile", "remote", "--root", str(roots.control)]
+    ) == EXIT_OK
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["generation_id"] == "c29-remote-separated"
+    assert all(record["properties"]["ai_policy"] == "remote_ok" for record in verified["notes"])
+    assert _file_snapshot(roots.vault) == vault_before
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
+
+    pointer_before = pointer.read_bytes()
+    source = roots.vault / "40_Knowledge/Notes/Denied C29.md"
+    source.write_bytes(source.read_bytes() + b"\nsynthetic source drift\n")
+    stale, stale_code = read_current_ai_projection(roots, profile="remote")
+    assert stale_code == EXIT_CONFLICT
+    assert "stale" in stale["errors"][0]["message"]
+    assert pointer.read_bytes() == pointer_before
+
+
 def test_c29_publishes_separate_atomic_profile_pointers_and_replays_immutably(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _write_eligibility_fixture(root)
@@ -151,8 +214,8 @@ def test_c29_publishes_separate_atomic_profile_pointers_and_replays_immutably(tm
     assert replay_code == EXIT_OK, replay_report
     assert replay_report["pointer_swapped"] is False
 
-    local_pointer = root / "runtime/index/ai/local/current.json"
-    remote_pointer = root / "runtime/index/ai/remote/current.json"
+    local_pointer = (fixture_path(root, "state") / "index/ai/local/current.json")
+    remote_pointer = (fixture_path(root, "state") / "index/ai/remote/current.json")
     assert json.loads(local_pointer.read_text(encoding="utf-8"))["projection_profile"] == "local"
     assert json.loads(remote_pointer.read_text(encoding="utf-8"))["projection_profile"] == "remote"
     assert local_pointer.stat().st_mode & 0o777 == 0o600
@@ -173,7 +236,7 @@ def test_c29_rejects_source_drift_and_a_c21_full_content_pointer(tmp_path: Path)
     report, code = generate_ai_projection(root, profile="remote", generation_id="c29-remote")
     assert code == EXIT_OK, report
 
-    denied = root / "KnowledgeHub/40_Knowledge/Notes/Denied C29.md"
+    denied = (fixture_path(root, "vault") / "40_Knowledge/Notes/Denied C29.md")
     denied.write_bytes(denied.read_bytes() + b"\nDRIFT")
     stale, stale_code = read_current_ai_projection(root, profile="remote")
     assert stale_code == EXIT_CONFLICT
@@ -184,9 +247,10 @@ def test_c29_rejects_source_drift_and_a_c21_full_content_pointer(tmp_path: Path)
     _write_eligibility_fixture(clean_root)
     full, full_code = generate_projection(clean_root, generation_id="c21-full")
     assert full_code == EXIT_OK, full
-    pointer = clean_root / "runtime/index/exports/current.json"
-    ai_pointer = clean_root / "runtime/index/ai/local/current.json"
-    ai_pointer.parent.mkdir(parents=True, exist_ok=True)
+    pointer = fixture_path(clean_root, "state") / "index/exports/current.json"
+    ai_pointer = fixture_path(clean_root, "state") / "index/ai/local/current.json"
+    ai_pointer.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    ai_pointer.parent.parent.chmod(0o700)
     ai_pointer.write_bytes(pointer.read_bytes())
     ai_pointer.chmod(0o600)
     rejected, rejected_code = read_current_ai_projection(clean_root, profile="local")

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from .bridge_publish import apply_bridge_recovery, reconcile_bridge_publish
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import (
     RecoveryCorruption,
     RecoveryError,
@@ -54,20 +55,31 @@ def _issue(code: str, locator: str, message: str, **details: Any) -> dict[str, A
     return issue
 
 
-def _workspace_and_vault(root: str | Path) -> tuple[Path, Path]:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ReconcileInputError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    runtime = workspace / "runtime"
-    vault = workspace / "KnowledgeHub"
+def _workspace_and_vault(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        roots = root
+    else:
+        try:
+            roots = resolve_paths(root)
+        except RootResolutionError as error:
+            raise ReconcileInputError(str(error)) from error
+    runtime = roots.state
+    vault = roots.vault
     if runtime.is_symlink() or not runtime.is_dir():
         raise ReconcileInputError("runtime root must be an existing non-symlink directory")
     if stat.S_IMODE(runtime.stat().st_mode) != 0o700:
         raise ReconcileInputError("runtime root mode must be 0700")
     if vault.is_symlink() or not vault.is_dir():
         raise ReconcileInputError("Vault root must be an existing non-symlink directory")
-    return workspace, vault.resolve()
+    return roots
+
+
+def _runtime_relative(runtime: Path, path: str | Path) -> str:
+    try:
+        relative = Path(path).relative_to(runtime).as_posix()
+    except ValueError as error:
+        raise ReconcileInputError("runtime artifact is outside the selected runtime root") from error
+    return f"state/{relative}"
 
 
 def _sha256(value: Any, *, label: str) -> str:
@@ -119,7 +131,7 @@ def _existing_path(path: Path) -> bool:
 
 
 def _capture_observation(
-    intent: Mapping[str, Any], workspace: Path, vault: Path
+    intent: Mapping[str, Any], workspace: ResolvedPaths, vault: Path
 ) -> tuple[str, dict[str, Any]]:
     source_relative = _safe_relative(intent.get("source"), label="capture source")
     destination_relative = _safe_relative(intent.get("destination"), label="capture destination")
@@ -359,23 +371,24 @@ def _extract_journal_identity(path: Path) -> tuple[str, str] | None:
 def _job_directories(runtime: Path, requested_job_id: str | None) -> list[Path]:
     runs = runtime / "runs"
     if runs.is_symlink() or not runs.is_dir():
-        raise ReconcileInputError("runtime/runs must be an existing non-symlink directory")
+        raise ReconcileInputError("state/runs must be an existing non-symlink directory")
     if stat.S_IMODE(runs.stat().st_mode) != 0o700:
-        raise ReconcileInputError("runtime/runs mode must be 0700")
+        raise ReconcileInputError("state/runs mode must be 0700")
     if requested_job_id is not None:
         validate_job_id(requested_job_id)
         return [runs / requested_job_id]
     return sorted(runs.iterdir(), key=lambda path: path.name)
 
 
-def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
+def _inspect_job(roots: ResolvedPaths, vault: Path, job_dir: Path) -> dict[str, Any]:
+    runtime = roots.state
     journal_path = job_dir / "journal.jsonl"
     if job_dir.is_symlink() or not job_dir.is_dir():
         return {
             "job_id": job_dir.name,
             "operation": None,
             "assessment": "conflict",
-            "journal_path": journal_path.relative_to(workspace).as_posix(),
+            "journal_path": _runtime_relative(runtime, journal_path),
             "journal_sha256": None,
             "reason": "recovery job path is not a real directory",
             "issues": [_issue("RECOVERY_PATH_MISMATCH", "/runs", "recovery job path is unsafe")],
@@ -387,7 +400,7 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
             "job_id": job_dir.name,
             "operation": None,
             "assessment": "conflict",
-            "journal_path": journal_path.relative_to(workspace).as_posix(),
+            "journal_path": _runtime_relative(runtime, journal_path),
             "journal_sha256": None,
             "reason": "journal identity cannot be read safely",
             "issues": [_issue("RECOVERY_JOURNAL_INVALID", "/journal", "journal identity is invalid")],
@@ -399,14 +412,14 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
             "job_id": job_id,
             "operation": operation,
             "assessment": "conflict",
-            "journal_path": journal_path.relative_to(workspace).as_posix(),
+            "journal_path": _runtime_relative(runtime, journal_path),
             "journal_sha256": None,
             "reason": "journal operation is outside the local transaction slice",
             "issues": [_issue("RECOVERY_OPERATION_UNSUPPORTED", "/operation", "operation is not supported")],
             "actions": [],
         }
     try:
-        journal = RecoveryJournal(workspace, job_id=job_id, operation=operation)
+        journal = RecoveryJournal(roots, job_id=job_id, operation=operation)
         records = journal.records()
         latest_state = str(records[-1]["state"])
         result: dict[str, Any] = {
@@ -414,7 +427,7 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
             "operation": operation,
             "assessment": "complete" if latest_state == "completed" else "repairable",
             "latest_state": latest_state,
-            "journal_path": journal.path.relative_to(workspace).as_posix(),
+            "journal_path": journal.runtime_relative(journal.path),
             "journal_sha256": journal.journal_sha256(),
             "actions": [],
         }
@@ -438,9 +451,9 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
             return result
         intent = journal.intent()
         if operation == "bridge_publish":
-            assessment, observation = reconcile_bridge_publish(workspace, vault, journal)
+            assessment, observation = reconcile_bridge_publish(roots.control, vault, journal)
         elif operation == "capture_finalize":
-            assessment, observation = _capture_observation(intent, workspace, vault)
+            assessment, observation = _capture_observation(intent, roots, vault)
         else:
             assessment, observation = _archive_observation(intent, vault)
         result.update(observation)
@@ -451,7 +464,7 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
             "job_id": job_id,
             "operation": operation,
             "assessment": "conflict",
-            "journal_path": journal_path.relative_to(workspace).as_posix(),
+            "journal_path": _runtime_relative(runtime, journal_path),
             "journal_sha256": None,
             "reason": str(error),
             "issues": [_issue("RECOVERY_JOURNAL_INVALID", "/journal", str(error))],
@@ -459,9 +472,9 @@ def _inspect_job(workspace: Path, vault: Path, job_dir: Path) -> dict[str, Any]:
         }
 
 
-def _plan_payload(root: str | Path, requested_job_id: str | None = None) -> dict[str, Any]:
-    workspace, vault = _workspace_and_vault(root)
-    jobs = [_inspect_job(workspace, vault, path) for path in _job_directories(workspace / "runtime", requested_job_id)]
+def _plan_payload(root: str | Path | ResolvedPaths, requested_job_id: str | None = None) -> dict[str, Any]:
+    roots = _workspace_and_vault(root)
+    jobs = [_inspect_job(roots, roots.vault, path) for path in _job_directories(roots.state, requested_job_id)]
     jobs.sort(key=lambda job: (str(job.get("job_id")), str(job.get("operation"))))
     summary = {
         "jobs": len(jobs),
@@ -517,27 +530,27 @@ def _write_create_only(path: Path, payload: bytes) -> None:
     fsync_directory(path.parent)
 
 
-def _write_plan(workspace: Path, plan: Mapping[str, Any], output: str | Path) -> str:
+def _write_plan(workspace: ResolvedPaths, plan: Mapping[str, Any], output: str | Path) -> str:
     raw_output = Path(output)
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     if raw_output.is_absolute():
         relative = raw_output.relative_to(runtime).as_posix()
     else:
         relative = raw_output.as_posix()
         if relative == "runtime":
             raise ReconcileInputError("repair plan output must name a file")
-        if relative.startswith("runtime/"):
-            relative = relative.removeprefix("runtime/")
+        if relative.startswith("state/"):
+            relative = relative.removeprefix("state/")
     path = _runtime_file(runtime, relative)
     relative_path = path.relative_to(runtime)
     if len(relative_path.parts) != 1 or path.suffix != ".json":
         raise ReconcileInputError("repair plan output must be directly under runtime")
     _write_create_only(path, canonical_json_bytes(plan) + b"\n")
-    return path.relative_to(workspace).as_posix()
+    return _runtime_relative(runtime, path)
 
 
 def reconcile_transactions(
-    root: str | Path, *, job_id: str | None = None
+    root: str | Path | ResolvedPaths, *, job_id: str | None = None
 ) -> tuple[dict[str, Any], int]:
     """Inspect transaction journals and return a deterministic read-only report."""
 
@@ -563,13 +576,13 @@ def reconcile_transactions(
 
 
 def repair_plan(
-    root: str | Path, *, job_id: str | None = None, output: str | Path | None = None
+    root: str | Path | ResolvedPaths, *, job_id: str | None = None, output: str | Path | None = None
 ) -> tuple[dict[str, Any], int]:
     """Build a deterministic repair plan, optionally persisting it create-only."""
 
     try:
-        workspace, _ = _workspace_and_vault(root)
-        plan = _plan_payload(root, job_id)
+        workspace = _workspace_and_vault(root)
+        plan = _plan_payload(workspace, job_id)
         if output is not None:
             plan = {**plan, "plan_path": _write_plan(workspace, plan, output)}
     except (OSError, TypeError, ValueError, ReconcileInputError, RecoveryError) as error:
@@ -586,20 +599,25 @@ def _load_plan(path: str | Path) -> dict[str, Any]:
 
 
 def apply_repair_plan(
-    root: str | Path, *, plan_path: str | Path
+    root: str | Path | ResolvedPaths, *, plan_path: str | Path
 ) -> tuple[dict[str, Any], int]:
     """Apply a still-current plan after a complete digest-bound preflight."""
 
     try:
-        workspace, vault = _workspace_and_vault(root)
+        workspace = _workspace_and_vault(root)
+        vault = workspace.vault
         candidate_plan_path = Path(plan_path)
         if not candidate_plan_path.is_absolute():
-            candidate_plan_path = workspace / candidate_plan_path
+            parts = candidate_plan_path.parts
+            if parts[:1] == ("runtime",):
+                candidate_plan_path = workspace.state.joinpath(*parts[1:])
+            else:
+                candidate_plan_path = workspace.control / candidate_plan_path
         plan = _load_plan(candidate_plan_path)
         requested_job_id = plan.get("scope_job_id")
         if requested_job_id is not None:
             validate_job_id(requested_job_id)
-        current = _plan_payload(root, requested_job_id)
+        current = _plan_payload(workspace, requested_job_id)
         if canonical_json_bytes(_plan_without_digest(plan)) != canonical_json_bytes(
             _plan_without_digest(current)
         ):
@@ -635,7 +653,7 @@ def apply_repair_plan(
                 receipt = journal.completion_receipt()
                 results.append({"job_id": job["job_id"], "operation": job["operation"], "status": "PASS", "action": action, "completion_receipt": receipt})
             elif job["operation"] == "bridge_publish":
-                result, code = apply_bridge_recovery(workspace, vault, journal)
+                result, code = apply_bridge_recovery(workspace.control, vault, journal)
                 if code != EXIT_OK:
                     return {"status": "CONFLICT", "operation": "repair apply", "results": [*results, result], "created": []}, code
                 results.append({**result, "action": action})
@@ -667,18 +685,18 @@ def apply_repair_plan(
 
 
 def verify_receipts(
-    root: str | Path, *, job_id: str | None = None
+    root: str | Path | ResolvedPaths, *, job_id: str | None = None
 ) -> tuple[dict[str, Any], int]:
     """Verify local transaction receipts without requiring current Vault bytes."""
 
     try:
-        workspace, _ = _workspace_and_vault(root)
-        runtime = workspace / "runtime"
+        workspace = _workspace_and_vault(root)
+        runtime = workspace.state
         receipts = runtime / "receipts"
         if receipts.is_symlink() or not receipts.is_dir():
-            raise ReconcileInputError("runtime/receipts must be an existing non-symlink directory")
+            raise ReconcileInputError("state/receipts must be an existing non-symlink directory")
         if stat.S_IMODE(receipts.stat().st_mode) != 0o700:
-            raise ReconcileInputError("runtime/receipts mode must be 0700")
+            raise ReconcileInputError("state/receipts mode must be 0700")
         if job_id is not None:
             validate_job_id(job_id)
             candidates = sorted(receipts.glob(f"{job_id}-*.json"), key=lambda path: path.name)
@@ -687,11 +705,11 @@ def verify_receipts(
         checks: list[dict[str, Any]] = []
         for path in candidates:
             if path.is_symlink() or not path.is_file():
-                checks.append({"path": path.relative_to(workspace).as_posix(), "status": "CONFLICT", "error": "receipt path is unsafe"})
+                checks.append({"path": _runtime_relative(runtime, path), "status": "CONFLICT", "error": "receipt path is unsafe"})
                 continue
             stem = path.name[:-5]
             if len(stem) <= 37 or stem[36] != "-":
-                checks.append({"path": path.relative_to(workspace).as_posix(), "status": "CONFLICT", "error": "receipt filename is invalid"})
+                checks.append({"path": _runtime_relative(runtime, path), "status": "CONFLICT", "error": "receipt filename is invalid"})
                 continue
             candidate_job_id, operation = stem[:36], stem[37:]
             try:
@@ -704,9 +722,9 @@ def verify_receipts(
                 expected_path = journal.receipt_path
                 if expected_path != path or not valid:
                     raise RecoveryCorruption(reason or "receipt does not match its journal")
-                checks.append({"path": path.relative_to(workspace).as_posix(), "job_id": candidate_job_id, "operation": operation, "status": "PASS", "journal_sha256": journal.journal_sha256()})
+                checks.append({"path": _runtime_relative(runtime, path), "job_id": candidate_job_id, "operation": operation, "status": "PASS", "journal_sha256": journal.journal_sha256()})
             except (OSError, TypeError, ValueError, RecoveryError, ReconcileInputError) as error:
-                checks.append({"path": path.relative_to(workspace).as_posix(), "status": "CONFLICT", "error": str(error)})
+                checks.append({"path": _runtime_relative(runtime, path), "status": "CONFLICT", "error": str(error)})
         if job_id is not None and not candidates:
             checks.append({"job_id": job_id, "status": "CONFLICT", "error": "completion receipt is missing"})
         failed = [check for check in checks if check["status"] != "PASS"]

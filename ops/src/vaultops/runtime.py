@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-RUNTIME_DIRECTORIES = (
+STATE_DIRECTORIES = (
     "staging",
     "queue",
     "quarantine",
@@ -22,10 +22,8 @@ RUNTIME_DIRECTORIES = (
     "runs",
     "receipts",
     "locks",
-    "index",
-    "cache",
-    "logs",
 )
+RUNTIME_DIRECTORIES = ("index", "cache", "logs", "locks")
 PRIVATE_TOOL_DIRECTORIES = ("host-runner",)
 
 
@@ -69,3 +67,10 @@ class RuntimeLayout:
             if payload.is_symlink():
                 problems.append(f"runtime symlink is not allowed: {payload}")
         return problems
+
+
+@dataclass(frozen=True)
+class StateLayout(RuntimeLayout):
+    @property
+    def directories(self) -> tuple[Path, ...]:
+        return tuple(self.root / name for name in STATE_DIRECTORIES)

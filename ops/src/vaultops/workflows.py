@@ -17,6 +17,7 @@ from .note_engine import (
     validate_path_collisions,
     write_note_file,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .template_engine import TemplateRenderError, render_note_template
 
 RESERVED_PATH_COMPONENTS = {"YYYY", "MM", "GGGG", "WWW", "PROJECT_NAME", "JOB_ID"}
@@ -38,8 +39,13 @@ def validate_title(title: str) -> str:
     return title
 
 
-def _workspace(root: str | Path) -> Path:
-    return Path(root).resolve()
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise ValueError(str(error)) from error
 
 
 def _parse_datetime(value: str | datetime | None) -> datetime:
@@ -82,7 +88,7 @@ def _safe_target(vault_root: Path, relative: str) -> Path:
 
 
 def create_project_bundle(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     title: str,
     dry_run: bool = False,
@@ -99,8 +105,8 @@ def create_project_bundle(
 
     try:
         title = validate_title(title)
-        workspace = _workspace(root)
-        vault_root = workspace / "KnowledgeHub"
+        roots = _workspace(root)
+        vault_root = roots.vault
         if vault_root.is_symlink() or not vault_root.is_dir():
             raise ValueError("Vault root is missing or is a symlink")
         targets = _project_targets(title)
@@ -158,7 +164,7 @@ def create_project_bundle(
         if target_date is not None:
             context["target_date"] = target_date
         rendered = render_note_template("T20_Project.md", context)
-        engine = NoteEngine.from_root(workspace)
+        engine = NoteEngine.from_root(roots)
         validation = engine.validate_text(targets[0], rendered.markdown)
         if not validation.passed:
             return {
@@ -231,7 +237,7 @@ def project_local_link_resolves(relative_path: str, project_link: str, project_r
     return len(local_parts) >= 4 and local_parts[0:2] == expected_parts[0:2] and local_parts[2] in {"Working", "Artifacts"}
 
 
-def render_project_local_sample(workspace: str | Path, *, title: str, note_kind: str = "exploration", artifact_title: str = "Artifact") -> tuple[str, str]:
+def render_project_local_sample(workspace: str | Path | ResolvedPaths, *, title: str, note_kind: str = "exploration", artifact_title: str = "Artifact") -> tuple[str, str]:
     """Render schema-valid project-local samples for the C07 fixture gate."""
 
     safe = validate_title(title)

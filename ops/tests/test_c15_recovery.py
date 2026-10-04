@@ -5,7 +5,11 @@ import json
 import uuid
 from pathlib import Path
 
-from support.control_factory import make_control_root
+from support.control_factory import (
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 import vaultops.recovery as recovery_module
 import vaultops.transactions as transactions_module
@@ -29,7 +33,7 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
         "90_Archive/Captures",
         "90_Archive/Projects",
     ):
-        (root / "KnowledgeHub" / relative).mkdir(parents=True)
+        (fixture_path(root, "vault") / relative).mkdir(parents=True)
     return root
 
 
@@ -45,7 +49,7 @@ def _capture(root: Path, tmp_path: Path) -> tuple[str, Path, str]:
     )
     assert exit_code == 0
     capture_path = str(report["path"])
-    source = root / "KnowledgeHub" / capture_path
+    source = fixture_path(root, "vault") / capture_path
     return capture_path, source, hashlib.sha256(source.read_bytes()).hexdigest()
 
 
@@ -102,7 +106,7 @@ def test_capture_recovery_resumes_after_destination_publish_and_replays_noop(
     )
     assert first_code == 10
     assert _first["status"] == "FAIL"
-    destination = root / "KnowledgeHub/90_Archive/Captures/2026/20260914-100000 Recovery Capture.md"
+    destination = (fixture_path(root, "vault") / "90_Archive/Captures/2026/20260914-100000 Recovery Capture.md")
     assert source.is_file()
     assert destination.is_file()
 
@@ -120,7 +124,7 @@ def test_capture_recovery_resumes_after_destination_publish_and_replays_noop(
     assert resumed["replayed"] is True
     assert not source.exists()
     assert resumed["completion_receipt"]["job_id"] == job_id
-    assert (root / "runtime/receipts" / f"{job_id}-capture_finalize.json").is_file()
+    assert ((fixture_path(root, "state") / "receipts") / f"{job_id}-capture_finalize.json").is_file()
 
     replay, replay_code = finalize_capture(
         root,
@@ -154,7 +158,7 @@ def test_recovery_intent_mismatch_quarantines_without_touching_vault(tmp_path: P
         job_id=job_id,
     )
     assert first_code == 10
-    destination = root / "KnowledgeHub/90_Archive/Captures/2026/20260914-100000 Recovery Capture.md"
+    destination = (fixture_path(root, "vault") / "90_Archive/Captures/2026/20260914-100000 Recovery Capture.md")
     before_source = source.read_bytes()
     before_destination = destination.read_bytes()
     monkeypatch.setattr(transactions_module, "write_note_file", original_write)
@@ -169,10 +173,10 @@ def test_recovery_intent_mismatch_quarantines_without_touching_vault(tmp_path: P
     assert conflict_code == 30
     assert conflict["status"] == "CONFLICT"
     assert conflict["errors"][0]["code"] == "RECOVERY_INTENT_MISMATCH"
-    assert conflict["quarantined"].startswith("runtime/quarantine/transactions/")
+    assert conflict["quarantined"].startswith("state/quarantine/transactions/")
     assert source.read_bytes() == before_source
     assert destination.read_bytes() == before_destination
-    assert not (root / "runtime/runs" / job_id).exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id).exists()
 
 
 def test_malformed_recovery_journal_is_quarantined_without_vault_mutation(tmp_path: Path) -> None:
@@ -213,16 +217,16 @@ def test_malformed_recovery_journal_is_quarantined_without_vault_mutation(tmp_pa
     assert report["status"] == "CONFLICT"
     assert report["errors"][0]["code"] == "RECOVERY_JOURNAL_INVALID"
     assert source.read_bytes() == before
-    assert report["quarantined"].startswith("runtime/quarantine/transactions/")
+    assert report["quarantined"].startswith("state/quarantine/transactions/")
 
 
 def test_project_archive_recovery_finishes_after_rename_fault(tmp_path: Path, monkeypatch) -> None:
     root = _fresh_control_copy(tmp_path)
     project = create_project_bundle(root, title="Recovery Archive", created_at="2026-09-14T09:00:00+09:00")
     assert project["status"] == "PASS"
-    project_dir = root / "KnowledgeHub/20_Projects/Recovery Archive"
+    project_dir = (fixture_path(root, "vault") / "20_Projects/Recovery Archive")
     before = {
-        path.relative_to(root / "KnowledgeHub").as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        path.relative_to(fixture_path(root, "vault")).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in project_dir.rglob("*")
         if path.is_file()
     }
@@ -242,7 +246,7 @@ def test_project_archive_recovery_finishes_after_rename_fault(tmp_path: Path, mo
     )
     assert first_code == 10
     assert first["status"] == "FAIL"
-    destination_dir = root / "KnowledgeHub/90_Archive/Projects/2026/Recovery Archive"
+    destination_dir = (fixture_path(root, "vault") / "90_Archive/Projects/2026/Recovery Archive")
     assert not project_dir.exists()
     assert destination_dir.is_dir()
 
@@ -258,3 +262,55 @@ def test_project_archive_recovery_finishes_after_rename_fault(tmp_path: Path, mo
     assert resumed["replayed"] is True
     assert resumed["identity_preserved"] is True
     assert resumed["completion_receipt"]["operation"] == "project_archive"
+
+
+def test_portable_capture_recovery_uses_selected_runtime_and_preserves_independent_edit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    (roots.vault / "90_Archive/Captures/2026").mkdir(parents=True, exist_ok=True)
+    source_relative = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
+    source = roots.vault / source_relative
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    independent = roots.vault / "20_Projects/guestbook-horror/guestbook-horror.md"
+    independent.write_bytes(independent.read_bytes() + b"\nIndependent user edit.\n")
+    independent_after_edit = independent.read_bytes()
+    job_id = str(uuid.uuid4())
+    original_write = transactions_module.write_note_file
+
+    def fail_after_publish(*args, **kwargs):
+        original_write(*args, **kwargs)
+        raise OSError("simulated crash after portable destination publish")
+
+    monkeypatch.setattr(transactions_module, "write_note_file", fail_after_publish)
+    interrupted, interrupted_code = finalize_capture(
+        roots,
+        capture_path=source_relative,
+        expected_sha256=digest,
+        outcome="discarded",
+        modified_at="2026-09-14T11:00:00+09:00",
+        job_id=job_id,
+    )
+    assert interrupted_code == 10
+    assert interrupted["status"] == "FAIL"
+    assert (roots.state / "runs" / job_id / "journal.jsonl").is_file()
+
+    monkeypatch.setattr(transactions_module, "write_note_file", original_write)
+    resumed, resumed_code = finalize_capture(
+        roots,
+        capture_path=source_relative,
+        expected_sha256=digest,
+        outcome="discarded",
+        modified_at="2026-09-14T11:00:00+09:00",
+        job_id=job_id,
+    )
+
+    assert resumed_code == 0, resumed
+    assert resumed["status"] == "PASS"
+    assert resumed["replayed"] is True
+    assert not source.exists()
+    assert independent.read_bytes() == independent_after_edit
+    assert (roots.state / "receipts" / f"{job_id}-capture_finalize.json").is_file()
+    assert not (roots.control / "runtime").exists()
+    assert not (roots.control / "KnowledgeHub").exists()

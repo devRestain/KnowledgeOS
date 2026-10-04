@@ -31,6 +31,7 @@ from .note_engine import (
     normalize_vault_relative_path,
     parse_frontmatter,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import fsync_directory
 
 EXIT_OK = 0
@@ -497,19 +498,17 @@ def build_answer_schema() -> dict[str, Any]:
     return answer_schema()
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ProjectionError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise ProjectionError("KnowledgeHub must be an existing non-symlink directory")
-    return workspace
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise ProjectionError(str(error)) from error
 
 
-def _vault(workspace: Path) -> Path:
-    return workspace / "KnowledgeHub"
+def _vault(workspace: ResolvedPaths) -> Path:
+    return workspace.vault
 
 
 def _safe_file(path: Path, label: str) -> bytes:
@@ -532,7 +531,7 @@ def _protected_source(relative: str) -> bool:
     return relative.startswith("99_System/Templates/")
 
 
-def _candidate_source_paths(workspace: Path) -> tuple[Path, ...]:
+def _candidate_source_paths(workspace: ResolvedPaths) -> tuple[Path, ...]:
     vault = _vault(workspace)
     paths: list[Path] = []
     for path in sorted(vault.rglob("*"), key=lambda item: item.relative_to(vault).as_posix()):
@@ -547,7 +546,7 @@ def _candidate_source_paths(workspace: Path) -> tuple[Path, ...]:
     return tuple(paths)
 
 
-def _read_source_candidate(workspace: Path, path: Path, engine: NoteEngine) -> SourceNote | None:
+def _read_source_candidate(workspace: ResolvedPaths, path: Path, engine: NoteEngine) -> SourceNote | None:
     vault = _vault(workspace)
     relative = normalize_vault_relative_path(path.relative_to(vault).as_posix())
     expected_type = engine.note_type_for_path(relative)
@@ -572,8 +571,8 @@ def _read_source_candidate(workspace: Path, path: Path, engine: NoteEngine) -> S
     return SourceNote(relative, raw, text, document.properties, document.body, expected_type)
 
 
-def _collect_source_notes(workspace: Path) -> tuple[SourceNote, ...]:
-    engine = NoteEngine.from_root(workspace)
+def _collect_source_notes(workspace: ResolvedPaths) -> tuple[SourceNote, ...]:
+    engine = NoteEngine.from_root(workspace.control)
     notes: list[SourceNote] = []
     for path in _candidate_source_paths(workspace):
         note = _read_source_candidate(workspace, path, engine)
@@ -696,12 +695,12 @@ def _edge_sort_key(record: Mapping[str, Any]) -> tuple[Any, ...]:
     )
 
 
-def _build_records(workspace: Path) -> tuple[tuple[SourceNote, ...], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+def _build_records(workspace: ResolvedPaths) -> tuple[tuple[SourceNote, ...], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
     notes = _collect_source_notes(workspace)
     if not notes:
         raise ProjectionValidationError("Vault contains no typed Markdown notes")
     targets, target_types = _target_index(notes)
-    engine = NoteEngine.from_root(workspace)
+    engine = NoteEngine.from_root(workspace.control)
     ids: dict[str, str] = {}
     note_records: list[dict[str, Any]] = []
     for note in notes:
@@ -790,10 +789,10 @@ def _build_records(workspace: Path) -> tuple[tuple[SourceNote, ...], tuple[dict[
     return notes, tuple(note_records), tuple(edge_records)
 
 
-def _schema_files(workspace: Path) -> tuple[tuple[dict[str, str], ...], str]:
+def _schema_files(workspace: ResolvedPaths) -> tuple[tuple[dict[str, str], ...], str]:
     result: list[dict[str, str]] = []
     for relative in PROJECTION_SCHEMA_PATHS:
-        path = workspace / relative
+        path = workspace.control / relative
         result.append({"path": relative, "sha256": _sha256_bytes(_safe_file(path, relative))})
     ordered = tuple(result)
     return ordered, _sha256_bytes(canonical_json_bytes(list(ordered)))
@@ -814,8 +813,8 @@ def _generation_id(
     return f"gen-{_sha256_bytes(seed)[:48]}"
 
 
-def _retrieval_config_hash(workspace: Path) -> str | None:
-    retrieval_path = workspace / "ops/policies/retrieval.yaml"
+def _retrieval_config_hash(workspace: ResolvedPaths) -> str | None:
+    retrieval_path = workspace.control / "ops/policies/retrieval.yaml"
     if retrieval_path.is_file() and not retrieval_path.is_symlink():
         return _sha256_bytes(_safe_file(retrieval_path, "retrieval policy"))
     return None
@@ -863,7 +862,7 @@ def _build_manifest(
     }
 
 
-def build_projection(root: str | Path, *, generation_id: str | None = None) -> ProjectionBuild:
+def build_projection(root: str | Path | ResolvedPaths, *, generation_id: str | None = None) -> ProjectionBuild:
     """Build deterministic records without writing Vault or runtime state."""
 
     workspace = _workspace(root)
@@ -873,7 +872,7 @@ def build_projection(root: str | Path, *, generation_id: str | None = None) -> P
     source_files, source_snapshot_sha256 = _source_snapshot(notes)
     notes_bytes = _jsonl_bytes(note_records)
     edges_bytes = _jsonl_bytes(edge_records)
-    blueprint_path = workspace / "blueprint/blueprint.yaml"
+    blueprint_path = workspace.control / "blueprint/blueprint.yaml"
     blueprint_sha256 = _sha256_bytes(_safe_file(blueprint_path, "blueprint"))
     retrieval_config_sha256 = _retrieval_config_hash(workspace)
     schema_files, schema_bundle_sha256 = _schema_files(workspace)
@@ -956,9 +955,16 @@ def _runtime_relative_path(relative: str) -> PurePosixPath:
     return candidate
 
 
-def _runtime_path(workspace: Path, relative: str) -> Path:
+def _runtime_path(workspace: ResolvedPaths, relative: str) -> Path:
     candidate = _runtime_relative_path(relative)
-    runtime = workspace / "runtime"
+    runtime = workspace.state if relative.endswith('/current.json') else workspace.runtime
+    if relative.endswith('/current.json'):
+        from .embedding_index import _ensure_private_directory as ensure_private
+        ensure_private(runtime)
+        parent = runtime
+        for component in Path(relative).parts[:-1]:
+            parent /= component
+            ensure_private(parent)
     if runtime.is_symlink():
         raise ProjectionConflict(f"runtime root is a symlink: {runtime}")
     path = runtime.joinpath(*candidate.parts)
@@ -970,7 +976,7 @@ def _runtime_path(workspace: Path, relative: str) -> Path:
     return path
 
 
-def _generation_paths(workspace: Path, generation_id: str) -> tuple[Path, Path, Path, Path]:
+def _generation_paths(workspace: ResolvedPaths, generation_id: str) -> tuple[Path, Path, Path, Path]:
     if not _GENERATION_ID.fullmatch(generation_id):
         raise ProjectionError("generation_id contains unsafe characters")
     root_relative = f"{GENERATION_ROOT}/{generation_id}"
@@ -996,12 +1002,12 @@ def _assert_generation_file(path: Path, expected: bytes, label: str) -> bool:
     return True
 
 
-def _publish_generation(workspace: Path, build: ProjectionBuild) -> tuple[bool, str, str, str]:
+def _publish_generation(workspace: ResolvedPaths, build: ProjectionBuild) -> tuple[bool, str, str, str]:
     generation, notes_path, edges_path, manifest_path = _generation_paths(workspace, build.generation_id)
-    _ensure_private_directory(workspace / "runtime")
-    _ensure_private_directory(workspace / "runtime" / "index")
-    _ensure_private_directory(workspace / "runtime" / "index" / "exports")
-    _ensure_private_directory(workspace / "runtime" / "index" / "exports" / "generations")
+    _ensure_private_directory(workspace.runtime)
+    _ensure_private_directory(workspace.runtime / "index")
+    _ensure_private_directory(workspace.runtime / "index" / "exports")
+    _ensure_private_directory(workspace.runtime / "index" / "exports" / "generations")
     _ensure_private_directory(generation)
     existing = (
         _assert_generation_file(notes_path, build.notes_bytes, "notes.jsonl")
@@ -1051,7 +1057,7 @@ def _publish_generation(workspace: Path, build: ProjectionBuild) -> tuple[bool, 
     return changed, pointer["generation_root"], pointer["notes_path"], pointer["edges_path"]
 
 
-def _source_snapshot_matches(workspace: Path, expected: tuple[dict[str, str], ...]) -> bool:
+def _source_snapshot_matches(workspace: ResolvedPaths, expected: tuple[dict[str, str], ...]) -> bool:
     try:
         notes = _collect_source_notes(workspace)
     except ProjectionError:
@@ -1072,7 +1078,7 @@ def _failure(operation: str, code: str, message: str, *, mutation: bool = False)
 
 
 def generate_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     generation_id: str | None = None,
 ) -> tuple[dict[str, Any], int]:
@@ -1108,13 +1114,17 @@ def generate_projection(
         return _failure(operation, "PROJECTION_INVALID", str(error))
 
 
-def project_vault(root: str | Path, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
+def project_vault(root: str | Path | ResolvedPaths, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
     """Compatibility alias for :func:`generate_projection`."""
 
     return generate_projection(root, generation_id=generation_id)
 
 
-def export_jsonl(root: str | Path, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
+def export_jsonl(
+    root: str | Path | ResolvedPaths,
+    *,
+    generation_id: str | None = None,
+) -> tuple[dict[str, Any], int]:
     """Compatibility alias for the ``vaultctl export jsonl`` command."""
 
     return generate_projection(root, generation_id=generation_id)
@@ -1204,7 +1214,7 @@ def _validated_source_files(manifest: Mapping[str, Any]) -> tuple[dict[str, str]
 
 
 def _verify_manifest_metadata(
-    workspace: Path,
+    workspace: ResolvedPaths,
     pointer: Mapping[str, Any],
     manifest: Mapping[str, Any],
     generation_id: str,
@@ -1233,7 +1243,7 @@ def _verify_manifest_metadata(
     blueprint_sha256 = manifest.get("blueprint_sha256")
     if not isinstance(blueprint_sha256, str) or not _SHA256.fullmatch(blueprint_sha256):
         raise ProjectionValidationError("manifest blueprint_sha256 is invalid")
-    if blueprint_sha256 != _sha256_bytes(_safe_file(workspace / "blueprint/blueprint.yaml", "blueprint")):
+    if blueprint_sha256 != _sha256_bytes(_safe_file(workspace.control / "blueprint/blueprint.yaml", "blueprint")):
         raise ProjectionConflict("projection blueprint digest does not match")
 
     retrieval_config_sha256 = manifest.get("retrieval_config_sha256")
@@ -1265,14 +1275,14 @@ def _verify_manifest_metadata(
     return source_files
 
 
-def _verify_source_records(workspace: Path, manifest: Mapping[str, Any]) -> None:
+def _verify_source_records(workspace: ResolvedPaths, manifest: Mapping[str, Any]) -> None:
     expected = _validated_source_files(manifest)
     if not _source_snapshot_matches(workspace, expected):
         raise ProjectionConflict("current projection is stale against Vault source bytes")
 
 
 def read_current_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     verify_sources: bool = True,
 ) -> tuple[dict[str, Any], int]:
@@ -1378,25 +1388,29 @@ def read_current_projection(
         return _failure(operation, "PROJECTION_INVALID", str(error))
 
 
-def read_projection(root: str | Path, *, verify_sources: bool = True) -> tuple[dict[str, Any], int]:
+def read_projection(
+    root: str | Path | ResolvedPaths,
+    *,
+    verify_sources: bool = True,
+) -> tuple[dict[str, Any], int]:
     """Compatibility alias for :func:`read_current_projection`."""
 
     return read_current_projection(root, verify_sources=verify_sources)
 
 
-def verify_projection(root: str | Path, *, verify_sources: bool = True) -> tuple[dict[str, Any], int]:
+def verify_projection(root: str | Path | ResolvedPaths, *, verify_sources: bool = True) -> tuple[dict[str, Any], int]:
     """Compatibility alias for the ``vaultctl index verify`` command."""
 
     return read_current_projection(root, verify_sources=verify_sources)
 
 
-def build_index(root: str | Path, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
+def build_index(root: str | Path | ResolvedPaths, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
     """Compatibility alias for the ``vaultctl index build`` command."""
 
     return generate_projection(root, generation_id=generation_id)
 
 
-def load_current_projection(root: str | Path, *, verify_sources: bool = True) -> ProjectionRead:
+def load_current_projection(root: str | Path | ResolvedPaths, *, verify_sources: bool = True) -> ProjectionRead:
     """Return a typed reader result or raise a projection error."""
 
     report, code = read_current_projection(root, verify_sources=verify_sources)

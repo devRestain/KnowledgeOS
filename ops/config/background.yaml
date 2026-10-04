@@ -8,6 +8,10 @@ authoritative_inputs:
   - /bridge/detection
   - /commands
   sha256: b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b
+roots:
+  control_root: __KNOWLEDGEOS_CONTROL_ROOT__
+  vault_root: __KNOWLEDGEOS_VAULT_ROOT__
+  runtime_root: __KNOWLEDGEOS_RUNTIME_ROOT__
 activation:
   enabled_by_default: false
   launchd_active: false
@@ -20,7 +24,7 @@ worker:
   - worker
   - --once
   declared_command: true
-  request_namespace: .vault-bridge/requests/YYYY/MM/JOB_ID.json
+  request_namespace: __KNOWLEDGEOS_VAULT_ROOT__/.vault-bridge/requests/YYYY/MM/JOB_ID.json
   detection_baseline: manual_sync_then_vaultctl_bridge_ingest
   scheduled_reconcile_scans_local_committed_head: true
   performs_git_network_io: false
@@ -36,8 +40,8 @@ worker:
   recovery_action: reconcile_local_transaction_journals_without_apply
 logging:
   format: bounded_jsonl_summary
-  stdout_path: runtime/logs/worker.stdout.log
-  stderr_path: runtime/logs/worker.stderr.log
+  stdout_path: __KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stdout.log
+  stderr_path: __KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stderr.log
   max_age_seconds: 3600
   max_bytes: 16384
   retain_bytes: 8192

@@ -27,6 +27,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .generation_identity import GENERATION_MODEL_TAG
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .provider_contract import (
     LIMITS,
     ProviderConflict,
@@ -235,25 +236,32 @@ def _validate_hash(value: object, label: str) -> str:
     return value
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise GemmaRouteError("C35_ROOT_INVALID", "control root must be an existing non-symlink directory") from error
+    if roots.control.is_symlink() or not roots.control.is_dir():
         raise GemmaRouteError("C35_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+    return roots
 
 
-def _job_directory(workspace: Path, job_id: str) -> Path:
+def _job_directory(workspace: ResolvedPaths, job_id: str) -> Path:
     if not isinstance(job_id, str) or not _UUID4.fullmatch(job_id):
         raise GemmaRouteError("C35_JOB_ID_INVALID", "job_id must be a lowercase UUIDv4")
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     runs = runtime / "runs"
     job = runs / job_id
-    for path, label in ((runtime, "runtime"), (runs, "runtime/runs"), (job, "runtime job")):
+    for path, label in ((runtime, "runtime"), (runs, "state/runs"), (job, "runtime job")):
         if path.is_symlink() or not path.is_dir():
             raise GemmaRouteError("C35_RUNTIME_PATH_INVALID", f"{label} must be an existing directory")
         if stat.S_IMODE(path.stat().st_mode) != 0o700:
             raise GemmaRouteError("C35_RUNTIME_MODE_INVALID", f"{label} must be mode 0700")
     return job
+
+
+def _runtime_report_path(path: Path, workspace: ResolvedPaths) -> str:
+    return f"state/{path.relative_to(workspace.state).as_posix()}"
 
 
 def _read_private_json(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
@@ -317,14 +325,14 @@ def _validate_envelope(document: Mapping[str, Any], kind: str) -> None:
         raise GemmaRouteError("C35_ENVELOPE_INVALID", f"{kind} envelope invalid at {locator}: {error.message}")
 
 
-def _read_request_and_context(workspace: Path, job_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _read_request_and_context(workspace: ResolvedPaths, job_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     job = _job_directory(workspace, job_id)
     request, _ = _read_private_json(job / "request.json", label="provider request")
     _validate_envelope(request, "request")
     _verify_digest(request, "request_sha256", "C35_REQUEST_DIGEST_DRIFT")
     if request["job_id"] != job_id:
         raise GemmaRouteError("C35_JOB_ID_DRIFT", "request job_id does not match the selected job")
-    expected_context_path = f"runtime/runs/{job_id}/context.json"
+    expected_context_path = f"state/runs/{job_id}/context.json"
     if request["context_path"] != expected_context_path:
         raise GemmaRouteError("C35_CONTEXT_PATH_INVALID", "request context_path is outside the selected job")
     context = read_context_envelope(workspace, job_id=job_id)
@@ -398,7 +406,7 @@ def _find_anchor(document: Mapping[str, Any], anchor: str) -> Any:
     return None
 
 
-def _schema_for_route(workspace: Path, context: Mapping[str, Any], route: GemmaRoute) -> tuple[dict[str, Any], dict[str, Any]]:
+def _schema_for_route(workspace: ResolvedPaths, context: Mapping[str, Any], route: GemmaRoute) -> tuple[dict[str, Any], dict[str, Any]]:
     binding = _as_mapping(context.get("output_schema"), "output_schema")
     raw_path = binding.get("path")
     if not isinstance(raw_path, str):
@@ -407,12 +415,12 @@ def _schema_for_route(workspace: Path, context: Mapping[str, Any], route: GemmaR
         relative, fragment = raw_path.split("#", 1)
     else:
         relative, fragment = raw_path, ""
-    path = workspace / relative
+    path = workspace.control / relative
     if path.is_symlink() or not path.is_file() or Path(relative).is_absolute() or ".." in Path(relative).parts:
         raise GemmaRouteError("C35_OUTPUT_SCHEMA_INVALID", "output schema path is unsafe or unavailable")
     expected_path = route.schema_path
     expected_fragment = route.schema_fragment or ""
-    if path.relative_to(workspace).as_posix() != expected_path or fragment != expected_fragment:
+    if path.relative_to(workspace.control).as_posix() != expected_path or fragment != expected_fragment:
         raise GemmaRouteError("C35_OUTPUT_SCHEMA_BINDING", "C31 output schema is not the C35 route schema")
     raw = path.read_bytes()
     observed = _sha256(raw)
@@ -589,14 +597,14 @@ def _verify_triage_semantics(context: Mapping[str, Any], output: Mapping[str, An
             raise GemmaRouteError("C35_SOURCE_DRIFT", "triage candidate source hash differs from the frozen source")
 
 
-def _file_binding(workspace: Path, relative: str) -> dict[str, str]:
-    path = workspace / relative
+def _file_binding(workspace: ResolvedPaths, relative: str) -> dict[str, str]:
+    path = workspace.control / relative
     if path.is_symlink() or not path.is_file():
         raise GemmaRouteError("C35_BINDING_UNAVAILABLE", f"required binding is unavailable: {relative}")
     return {"path": relative, "sha256": _sha256(path.read_bytes())}
 
 
-def _verify_proposal_semantics(workspace: Path, context: Mapping[str, Any], output: Mapping[str, Any], route: GemmaRoute) -> None:
+def _verify_proposal_semantics(workspace: ResolvedPaths, context: Mapping[str, Any], output: Mapping[str, Any], route: GemmaRoute) -> None:
     source = _source_for_path(context, _as_mapping(output.get("source"), "proposal source").get("path"))
     output_source = _as_mapping(output["source"], "proposal source")
     if output_source.get("sha256") != source.get("content_hash"):
@@ -655,7 +663,7 @@ def _verify_proposal_semantics(workspace: Path, context: Mapping[str, Any], outp
 
 
 def validate_gemma_output(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     context: Mapping[str, Any],
     output: Mapping[str, Any],
     *,
@@ -692,18 +700,28 @@ def validate_gemma_output(
     }
 
 
-def _safe_recorded_path(workspace: Path, value: str | Path) -> Path:
-    candidate = Path(value)
+def _safe_recorded_path(workspace: ResolvedPaths, value: str | Path) -> Path:
+    candidate = Path(value).expanduser()
     if candidate.is_absolute():
-        try:
-            candidate = candidate.resolve().relative_to(workspace)
-        except (OSError, ValueError) as error:
-            raise GemmaRouteError("C35_RESPONSE_PATH_INVALID", "recorded response must be inside the control root") from error
-    if not candidate.parts or any(part in {"", ".", ".."} for part in candidate.parts):
+        for base in (workspace.state, workspace.control):
+            try:
+                relative = candidate.relative_to(base)
+            except ValueError:
+                continue
+            break
+        else:
+            raise GemmaRouteError("C35_RESPONSE_PATH_INVALID", "recorded response must be inside a selected root")
+    elif candidate.parts and candidate.parts[0] == "state":
+        base = workspace.state
+        relative = Path(*candidate.parts[1:])
+    else:
+        base = workspace.control
+        relative = candidate
+    if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
         raise GemmaRouteError("C35_RESPONSE_PATH_INVALID", "recorded response path is unsafe")
-    path = workspace.joinpath(*candidate.parts)
-    current = workspace
-    for part in candidate.parts:
+    path = base.joinpath(*relative.parts)
+    current = base
+    for part in relative.parts:
         current = current / part
         if current.is_symlink():
             raise GemmaRouteError("C35_RESPONSE_PATH_INVALID", "recorded response path traverses a symlink")
@@ -713,7 +731,7 @@ def _safe_recorded_path(workspace: Path, value: str | Path) -> Path:
 
 
 def _load_recorded_response(
-    workspace: Path,
+    workspace: ResolvedPaths,
     recorded_response: Mapping[str, Any] | bytes | str | None,
     recorded_response_path: str | Path | None,
 ) -> tuple[dict[str, Any], str | None]:
@@ -738,7 +756,7 @@ def _verify_recorded_model(context: Mapping[str, Any], recorded_model: str | Non
         raise GemmaRouteError("C35_MODEL_DRIFT", "recorded response model differs from the frozen provider identity")
 
 
-def _read_replay(workspace: Path, request: Mapping[str, Any], context: Mapping[str, Any], route: GemmaRoute) -> tuple[dict[str, Any], bytes, dict[str, Any], bytes]:
+def _read_replay(workspace: ResolvedPaths, request: Mapping[str, Any], context: Mapping[str, Any], route: GemmaRoute) -> tuple[dict[str, Any], bytes, dict[str, Any], bytes]:
     job = _job_directory(workspace, str(request["job_id"]))
     response, response_raw = _read_private_json(job / RESPONSE_FILENAME, label="C35 provider response")
     _validate_envelope(response, "response")
@@ -788,7 +806,7 @@ def _report(
 
 
 def run_gemma_job(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     job_id: str,
     recorded_response: Mapping[str, Any] | bytes | str | None = None,
@@ -824,9 +842,9 @@ def run_gemma_job(
                 request=request,
                 route=selected,
                 replayed=True,
-                response_path=response_path.relative_to(workspace).as_posix(),
+                response_path=_runtime_report_path(response_path, workspace),
                 response_sha256=_sha256(response_raw),
-                receipt_path=(job / RECEIPT_FILENAME).relative_to(workspace).as_posix(),
+                receipt_path=_runtime_report_path(job / RECEIPT_FILENAME, workspace),
                 receipt_sha256=_sha256(receipt_raw),
                 output=existing["output"],
                 output_sha256=existing["output_sha256"],
@@ -863,11 +881,11 @@ def run_gemma_job(
             request=request,
             route=selected,
             recorded_response_used=True,
-            response_path=response_path.relative_to(workspace).as_posix(),
+            response_path=_runtime_report_path(response_path, workspace),
             response_sha256=response_digest,
             response_byte_length=response_bytes,
             response_write=response_state,
-            receipt_path=receipt_path.relative_to(workspace).as_posix(),
+            receipt_path=_runtime_report_path(receipt_path, workspace),
             receipt_sha256=receipt_digest,
             receipt_byte_length=receipt_bytes,
             receipt_write=receipt_state,

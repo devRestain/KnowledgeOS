@@ -25,6 +25,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .projection import (
     EXIT_CONFLICT,
     EXIT_OK,
@@ -255,15 +256,13 @@ def build_ai_edge_record_schema() -> dict[str, Any]:
     return ai_edge_record_schema()
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise AIProjectionError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise AIProjectionError("KnowledgeHub must be an existing non-symlink directory")
-    return workspace
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise AIProjectionError(str(error)) from error
 
 
 def _regular_file(path: Path, label: str) -> bytes:
@@ -275,9 +274,9 @@ def _regular_file(path: Path, label: str) -> bytes:
         raise AIProjectionError(f"cannot read {label}: {error}") from error
 
 
-def _schema_files(workspace: Path) -> tuple[tuple[dict[str, str], ...], str]:
+def _schema_files(workspace: ResolvedPaths) -> tuple[tuple[dict[str, str], ...], str]:
     files = tuple(
-        {"path": relative, "sha256": _sha256_bytes(_regular_file(workspace / relative, relative))}
+        {"path": relative, "sha256": _sha256_bytes(_regular_file(workspace.control / relative, relative))}
         for relative in AI_SCHEMA_PATHS
     )
     return files, _sha256_bytes(canonical_json_bytes(list(files)))
@@ -464,7 +463,7 @@ def _build_manifest(
 
 
 def build_ai_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     generation_id: str | None = None,
@@ -477,7 +476,9 @@ def build_ai_projection(
     notes, edges, excluded = _filter_records(base, normalized)
     notes_bytes = _jsonl_bytes(notes)
     edges_bytes = _jsonl_bytes(edges)
-    blueprint_sha256 = _sha256_bytes(_regular_file(workspace / "blueprint/blueprint.yaml", "blueprint"))
+    blueprint_sha256 = _sha256_bytes(
+        _regular_file(workspace.control / "blueprint/blueprint.yaml", "blueprint")
+    )
     schema_files, schema_bundle_sha256 = _schema_files(workspace)
     selected_generation_id = generation_id or _generation_id(
         profile=normalized,
@@ -516,7 +517,7 @@ def build_ai_projection(
 
 
 def build_privacy_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     generation_id: str | None = None,
@@ -526,7 +527,11 @@ def build_privacy_projection(
     return build_ai_projection(root, profile=profile, generation_id=generation_id)
 
 
-def _generation_paths(workspace: Path, profile: str, generation_id: str) -> tuple[Path, Path, Path, Path]:
+def _generation_paths(
+    workspace: ResolvedPaths,
+    profile: str,
+    generation_id: str,
+) -> tuple[Path, Path, Path, Path]:
     root = _runtime_path(workspace, _generation_root(profile, generation_id))
     return root, root / "notes.jsonl", root / "edges.jsonl", root / "manifest.json"
 
@@ -543,24 +548,24 @@ def _assert_generation_file(path: Path, expected: bytes, label: str) -> bool:
     return True
 
 
-def _source_snapshot_matches(workspace: Path, expected: str) -> bool:
+def _source_snapshot_matches(workspace: ResolvedPaths, expected: str) -> bool:
     try:
         return build_projection(workspace).source_snapshot_sha256 == expected
     except (OSError, UnicodeError, ProjectionError, KeyError, TypeError, ValueError):
         return False
 
 
-def _publish_generation(workspace: Path, build: AIProjectionBuild) -> bool:
+def _publish_generation(workspace: ResolvedPaths, build: AIProjectionBuild) -> bool:
     generation, notes_path, edges_path, manifest_path = _generation_paths(
         workspace,
         build.profile,
         build.generation_id,
     )
-    _ensure_private_directory(workspace / "runtime")
-    _ensure_private_directory(workspace / "runtime" / "index")
-    _ensure_private_directory(workspace / "runtime" / "index" / "ai")
-    _ensure_private_directory(workspace / "runtime" / "index" / "ai" / build.profile)
-    _ensure_private_directory(workspace / "runtime" / "index" / "ai" / build.profile / "generations")
+    _ensure_private_directory(workspace.runtime)
+    _ensure_private_directory(workspace.runtime / "index")
+    _ensure_private_directory(workspace.runtime / "index" / "ai")
+    _ensure_private_directory(workspace.runtime / "index" / "ai" / build.profile)
+    _ensure_private_directory(workspace.runtime / "index" / "ai" / build.profile / "generations")
     _ensure_private_directory(generation)
     existing = (
         _assert_generation_file(notes_path, build.notes_bytes, "notes.jsonl")
@@ -617,7 +622,7 @@ def _failure(operation: str, code: str, message: str) -> tuple[dict[str, Any], i
 
 
 def generate_ai_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     generation_id: str | None = None,
@@ -661,7 +666,7 @@ def generate_ai_projection(
 
 
 def generate_privacy_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     generation_id: str | None = None,
@@ -774,7 +779,7 @@ def _verify_records(
 
 
 def read_current_ai_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     verify_sources: bool = True,
@@ -832,7 +837,9 @@ def read_current_ai_projection(
         schema_files, schema_bundle_sha256 = _schema_files(workspace)
         if manifest.get("schema_files") != list(schema_files) or manifest.get("schema_bundle_sha256") != schema_bundle_sha256:
             raise AIProjectionConflict("AI projection schema bundle differs from the generation manifest")
-        blueprint_sha256 = _sha256_bytes(_regular_file(workspace / "blueprint/blueprint.yaml", "blueprint"))
+        blueprint_sha256 = _sha256_bytes(
+            _regular_file(workspace.control / "blueprint/blueprint.yaml", "blueprint")
+        )
         if manifest.get("blueprint_sha256") != blueprint_sha256:
             raise AIProjectionConflict("AI projection Blueprint digest does not match")
         notes_bytes = _regular_file(notes_path, "AI notes JSONL")
@@ -870,7 +877,7 @@ def read_current_ai_projection(
 
 
 def verify_ai_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     verify_sources: bool = True,
@@ -881,7 +888,7 @@ def verify_ai_projection(
 
 
 def read_privacy_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     verify_sources: bool = True,
@@ -892,7 +899,7 @@ def read_privacy_projection(
 
 
 def load_current_ai_projection(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     profile: str,
     verify_sources: bool = True,

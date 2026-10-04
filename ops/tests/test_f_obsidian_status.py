@@ -4,8 +4,12 @@ import sys
 from pathlib import Path
 
 import pytest
-from support.control_factory import make_identity_root
+from support.control_factory import (
+    make_identity_root,
+    make_separate_portable_fixture_roots,
+)
 
+from vaultops.bridge_contract import canonical_json_bytes, remote_identity_sha256
 from vaultops.obsidian_status import (
     EXIT_DEGRADED,
     FIXED_ARGV,
@@ -57,6 +61,35 @@ def test_status_adapter_accepts_installer_suffix_from_obsidian_cli(
     assert report["status"] == "PASS"
     assert report["adapter"]["state"] == "version_verified"
     assert report["adapter"]["version"] == "1.13.7"
+
+
+def test_status_adapter_resolves_selected_vault_with_a_different_directory_name(
+    tmp_path: Path,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    sentinel = {
+        "schema_version": 1,
+        "contract_id": "knowledgeos-vault-root-v1",
+        "vault_uuid": "411602c1-5278-4a8b-8b96-9183fb6ef8c2",
+        "canonical_vault_name": "KnowledgeHub",
+        "remote_identity_sha256": remote_identity_sha256(
+            "git@github.com:owner/knowledgehub.git"
+        ),
+        "expected_branch": "main",
+    }
+    (roots.vault / ".knowledgeos-root.json").write_bytes(canonical_json_bytes(sentinel))
+
+    report, exit_code = _collect_status(
+        roots.control,
+        executable_resolver=lambda _name: "/private/fake/obsidian",
+        probe=_run_probe(_ProbeResult(0, b"Obsidian 1.13.7\n", b"")),
+    )
+
+    assert exit_code == 0
+    assert report["status"] == "PASS"
+    assert report["adapter"]["vault_identity"]["state"] == "validated"
+    assert report["adapter"]["vault_identity"]["canonical_vault_name"] == "KnowledgeHub"
+    assert not (roots.control / "KnowledgeHub").exists()
 
 
 @pytest.mark.parametrize(

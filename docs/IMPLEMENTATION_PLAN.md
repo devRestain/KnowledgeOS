@@ -527,7 +527,7 @@ The normal human journey is GUI-first: Home or a contextual Note Toolbar button 
 
 ### F04 — Make Note Toolbar and contextual buttons the primary user path
 
-- Dependencies: `F03`, `P01`'s Note Toolbar state contract, the current toolbar mappings under `KnowledgeHub/.obsidian-mac/plugins/note-toolbar/data.json`, and the existing Home/dashboard action inventory.
+- Dependencies: `F03`, `P01`'s Note Toolbar state contract, the current toolbar mappings under `../../../Vaults/KnowledgeHub/.obsidian-mac/plugins/note-toolbar/data.json`, and the existing Home/dashboard action inventory.
 - Inventory every intended repeated Obsidian action and assign it a primary button or contextual surface. At minimum, provide explicit GUI access for Today/Daily, Open weekly note, Open monthly note, Home, and the relevant review/navigation surfaces. Use file links for stable notes and command actions only when the exact installed command ID is verified.
 - Treat Note Toolbar as a presentation and navigation layer, not a writer, policy engine, shell launcher, AI client, approval authority, or direct canonical mutation surface. Buttons must not execute arbitrary scripts, system commands, external processes, network calls, Git actions, `vaultctl`, or approval-free canonical mutation. A button that writes a property must remain an explicit human action with a declared mutation class and rollback path.
 - Remove command-palette-first language from the intended journey in the relevant human-facing documentation at the close of the implementation slice. Keep Command Palette instructions only as a recovery/diagnostic fallback. Do not read or modify README files during planning; any README update belongs to session close and must be derived from verified state.
@@ -610,7 +610,7 @@ canonical Vault namespace.
 ### G03 — Implement the Home hierarchy and theme source
 
 - Update the canonical C08 source (`ops/src/vaultops/base_dashboard.py`),
-  portable CSS (`KnowledgeHub/99_System/CSS/dashboard.css`), and focused tests
+  portable CSS (`../../../Vaults/KnowledgeHub/99_System/CSS/dashboard.css`), and focused tests
   together.
 - Use the two-pane/stacked layout and semantic tokens from G02 without
   introducing a plugin-owned data source, a second query, or a repeated card

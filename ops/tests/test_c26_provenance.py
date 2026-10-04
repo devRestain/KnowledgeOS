@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import fixture_path, make_portable_fixture_root
 
 from vaultops.answer import answer
 from vaultops.note_engine import render_frontmatter
@@ -50,7 +50,7 @@ def _write_frontmatter_fixture(root: Path) -> str:
         "last_reviewed": "2026-09-17",
     }
     body = "# Body-only fallback\n\nThis text must never be shown for a frontmatter citation.\n"
-    path = root / "KnowledgeHub" / relative
+    path = fixture_path(root, "vault") / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render_frontmatter(properties, body), encoding="utf-8")
     return relative

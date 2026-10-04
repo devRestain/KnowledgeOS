@@ -26,6 +26,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .recovery import fsync_directory
 
 CAPABILITY = "C38"
@@ -66,7 +67,7 @@ _UUID4 = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
 _JOB_PATH = re.compile(
-    r"^runtime/runs/(?P<job>[0-9a-f-]{36})/"
+    r"^state/runs/(?P<job>[0-9a-f-]{36})/"
     r"(?:context\.json|request\.json|response\.json|receipts/provider-receipt\.json)$"
 )
 _MODEL_TAG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -893,11 +894,14 @@ def build_generation_identity_from_c31(
     )
 
 
-def _workspace(root: str | Path) -> Path:
-    path = Path(root).expanduser()
-    if path.is_symlink() or not path.is_dir():
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise GenerationIdentityError("C38_ROOT_INVALID", "control root must be an existing non-symlink directory") from error
+    if roots.control.is_symlink() or not roots.control.is_dir():
         raise GenerationIdentityError("C38_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return path.resolve()
+    return roots
 
 
 def _ensure_private_directory(path: Path, label: str) -> None:
@@ -955,9 +959,9 @@ def _exclusive_private_write(path: Path, payload: bytes) -> str:
     return "CREATED"
 
 
-def _identity_path(workspace: Path, job_id: str, *, create: bool = True) -> Path:
+def _identity_path(workspace: ResolvedPaths, job_id: str, *, create: bool = True) -> Path:
     job = _uuid(job_id)
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     runs = runtime / "runs"
     job_dir = runs / job
     receipts = job_dir / "receipts"
@@ -969,13 +973,13 @@ def _identity_path(workspace: Path, job_id: str, *, create: bool = True) -> Path
         else:
             runtime.mkdir(mode=0o700)
             _ensure_private_directory(runtime, "runtime")
-        _ensure_private_directory(runs, "runtime/runs")
+        _ensure_private_directory(runs, "state/runs")
         _ensure_private_directory(job_dir, "runtime job directory")
         _ensure_private_directory(receipts, "runtime receipt directory")
     else:
         for directory, label in (
             (runtime, "runtime"),
-            (runs, "runtime/runs"),
+            (runs, "state/runs"),
             (job_dir, "runtime job directory"),
             (receipts, "runtime receipt directory"),
         ):
@@ -988,7 +992,7 @@ def _identity_path(workspace: Path, job_id: str, *, create: bool = True) -> Path
     return receipts / IDENTITY_FILENAME
 
 
-def write_generation_identity(root: str | Path, envelope: Mapping[str, Any]) -> tuple[dict[str, Any], int]:
+def write_generation_identity(root: str | Path | ResolvedPaths, envelope: Mapping[str, Any]) -> tuple[dict[str, Any], int]:
     """Create one immutable mode-0600 C38 identity envelope."""
 
     try:
@@ -1004,7 +1008,7 @@ def write_generation_identity(root: str | Path, envelope: Mapping[str, Any]) -> 
             "operation": "c38 generation identity",
             "capability": CAPABILITY,
             "write": state,
-            "path": str(path.relative_to(workspace)),
+            "path": f"state/{path.relative_to(workspace.state).as_posix()}",
             "sha256": _sha256(payload),
             "byte_length": len(payload),
             "provider_called": False,
@@ -1034,7 +1038,7 @@ def write_generation_identity(root: str | Path, envelope: Mapping[str, Any]) -> 
         }, 2
 
 
-def read_generation_identity(root: str | Path, *, job_id: str) -> dict[str, Any]:
+def read_generation_identity(root: str | Path | ResolvedPaths, *, job_id: str) -> dict[str, Any]:
     """Read one private C38 envelope and fail closed on mode or byte drift."""
 
     workspace = _workspace(root)

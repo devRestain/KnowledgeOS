@@ -8,6 +8,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from support.control_factory import (
+    bind_existing_control,
+    fixture_artifact,
+    fixture_path,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import main
 from vaultops.provider_broker import (
@@ -31,6 +37,7 @@ def _digest(value: bytes) -> str:
 
 
 def _copy_broker_contract(root: Path) -> None:
+    bind_existing_control(root)
     relative_paths = [
         "ops/schemas/triage-result.schema.json",
         "ops/schemas/proposal.schema.json",
@@ -169,15 +176,31 @@ def test_c32_runs_each_pipeline_through_strict_output_validation(tmp_path: Path,
     assert report["canonical_apply_allowed"] is False
     assert report["artifact_kind"] in {"proposal", "answer"}
 
-    response_path = root / report["response_path"]
+    response_path = fixture_artifact(root, report["response_path"])
     response = json.loads(response_path.read_text(encoding="utf-8"))
     assert response["status"] == "completed"
     assert response["model_output_untrusted"] is True
     if action not in {"summarize", "answer"}:
         assert response["output"]["provider_called"] is False
         assert response["output"]["mutation_performed"] is False
-    assert (root / report["receipt_path"]).is_file()
+    assert (fixture_artifact(root, report["receipt_path"])).is_file()
     assert "Run the bounded C32" not in response_path.read_text(encoding="utf-8")
+
+
+def test_c32_synthetic_job_uses_selected_control_and_runtime_roots(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    job_id = str(uuid.uuid4())
+    _context(roots.control, job_id=job_id, action="answer")
+
+    report, exit_code = run_synthetic_job(roots, job_id=job_id)
+
+    assert exit_code == 0, report
+    assert report["status"] == "PASS"
+    assert report["provider_called"] is False
+    assert report["synthetic_provider_called"] is True
+    assert report["response_path"] == f"state/runs/{job_id}/response.json"
+    assert (roots.state / "runs" / job_id / "response.json").is_file()
+    assert not (roots.control / "runtime").exists()
 
 
 def test_c32_replays_identical_private_artifacts_without_reinvoking_adapter(tmp_path: Path) -> None:
@@ -186,7 +209,7 @@ def test_c32_replays_identical_private_artifacts_without_reinvoking_adapter(tmp_
     _context(root, job_id=job_id, action="answer")
 
     first, first_code = run_synthetic_job(root, job_id=job_id)
-    response_before = (root / first["response_path"]).read_bytes()
+    response_before = (fixture_artifact(root, first["response_path"])).read_bytes()
     second, second_code = run_synthetic_job(root, job_id=job_id, scenario="replay")
 
     assert first_code == 0
@@ -194,7 +217,7 @@ def test_c32_replays_identical_private_artifacts_without_reinvoking_adapter(tmp_
     assert second["status"] == "NO_OP"
     assert second["replayed"] is True
     assert second["synthetic_provider_called"] is False
-    assert (root / second["response_path"]).read_bytes() == response_before
+    assert (fixture_artifact(root, second["response_path"])).read_bytes() == response_before
 
 
 @pytest.mark.parametrize(
@@ -227,14 +250,14 @@ def test_c32_failure_scenarios_persist_bounded_failure_and_receipt(
     assert exit_code == expected_exit, report
     assert report["status"] in {"FAIL", "CONFLICT"}
     assert report["errors"][0]["code"] == expected_code
-    assert (root / report["response_path"]).is_file()
-    assert (root / report["failure_path"]).is_file()
-    assert (root / report["receipt_path"]).is_file()
-    response = json.loads((root / report["response_path"]).read_text(encoding="utf-8"))
-    failure = json.loads((root / report["failure_path"]).read_text(encoding="utf-8"))
+    assert (fixture_artifact(root, report["response_path"])).is_file()
+    assert (fixture_artifact(root, report["failure_path"])).is_file()
+    assert (fixture_artifact(root, report["receipt_path"])).is_file()
+    response = json.loads((fixture_artifact(root, report["response_path"])).read_text(encoding="utf-8"))
+    failure = json.loads((fixture_artifact(root, report["failure_path"])).read_text(encoding="utf-8"))
     assert response["output"] is None
     assert failure["raw_payload_persisted"] is False
-    assert "Run the bounded C32" not in (root / report["failure_path"]).read_text(encoding="utf-8")
+    assert "Run the bounded C32" not in (fixture_artifact(root, report["failure_path"])).read_text(encoding="utf-8")
 
 
 def test_c32_policy_denial_prevents_synthetic_provider_execution(tmp_path: Path) -> None:
@@ -248,7 +271,7 @@ def test_c32_policy_denial_prevents_synthetic_provider_execution(tmp_path: Path)
     assert report["status"] == "FAIL"
     assert report["errors"][0]["code"] == "POLICY_DENIED"
     assert report["synthetic_provider_called"] is False
-    assert not (root / "runtime/runs" / job_id / "response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id / "response.json").exists()
 
 
 def test_c32_cli_exposes_explicit_broker_without_changing_provider_free_routes(
@@ -256,6 +279,7 @@ def test_c32_cli_exposes_explicit_broker_without_changing_provider_free_routes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     root = _job_root(tmp_path)
+    (fixture_path(root, "vault")).mkdir(exist_ok=True)
     job_id = str(uuid.uuid4())
     _context(root, job_id=job_id, action="answer")
 

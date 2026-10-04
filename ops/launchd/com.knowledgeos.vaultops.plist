@@ -20,6 +20,10 @@
 	<dict>
 		<key>KNOWLEDGEOS_CONTROL_ROOT</key>
 		<string>__KNOWLEDGEOS_CONTROL_ROOT__</string>
+		<key>KNOWLEDGEOS_VAULT_ROOT</key>
+		<string>__KNOWLEDGEOS_VAULT_ROOT__</string>
+		<key>KNOWLEDGEOS_RUNTIME_ROOT</key>
+		<string>__KNOWLEDGEOS_RUNTIME_ROOT__</string>
 		<key>PATH</key>
 		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
 	</dict>
@@ -38,9 +42,9 @@
 	<key>Umask</key>
 	<integer>63</integer>
 	<key>StandardOutPath</key>
-	<string>__KNOWLEDGEOS_CONTROL_ROOT__/runtime/logs/worker.stdout.log</string>
+	<string>__KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stdout.log</string>
 	<key>StandardErrorPath</key>
-	<string>__KNOWLEDGEOS_CONTROL_ROOT__/runtime/logs/worker.stderr.log</string>
+	<string>__KNOWLEDGEOS_RUNTIME_ROOT__/logs/worker.stderr.log</string>
 	<key>KnowledgeOS</key>
 	<dict>
 		<key>capability</key>

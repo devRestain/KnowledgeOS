@@ -15,6 +15,7 @@ from .base_dashboard import (
     render_base_documents,
     system_dashboard_sources,
 )
+from .paths import ResolvedPaths, resolve_api_paths
 from .template_engine import template_paths, template_source
 from .yaml_safe import load_yaml_file
 
@@ -115,13 +116,12 @@ def _deployed_target(vault_root: Path, relative: str) -> tuple[Path | None, str 
 
 
 def check_vault_artifacts(
-    control_root: str | Path,
+    control_root: str | Path | ResolvedPaths,
     *,
     paths: Iterable[str] | None = None,
 ) -> VaultArtifactCheckResult:
     """Compare named deployed copies without writing any Vault or control byte."""
 
-    root = Path(control_root).resolve()
     requested, errors = _requested_paths(paths)
     artifacts: list[dict[str, Any]] = []
     if errors:
@@ -135,6 +135,25 @@ def check_vault_artifacts(
             }
         )
     try:
+        roots = resolve_api_paths(control_root)
+    except (OSError, TypeError, ValueError):
+        return VaultArtifactCheckResult(
+            {
+                "status": "FAIL",
+                "mode": "read_only",
+                "vault_scope": "KnowledgeHub/99_System",
+                "artifacts": artifacts,
+                "errors": [
+                    _error(
+                        "VAULT_ARTIFACT_ROOT_INVALID",
+                        "vault_root",
+                        "selected Core, control, Vault, State and Runtime roots could not be resolved",
+                    )
+                ],
+            }
+        )
+    root = roots.control
+    try:
         expected = expected_system_artifacts(root)
     except (OSError, UnicodeError, TypeError, ValueError, KeyError) as error:
         errors.append(
@@ -142,7 +161,7 @@ def check_vault_artifacts(
         )
         expected = {}
 
-    vault_root = root / "KnowledgeHub"
+    vault_root = roots.vault
     for relative in requested:
         expected_bytes = expected.get(relative)
         item: dict[str, Any] = {"path": relative, "status": "NOT_CHECKED"}

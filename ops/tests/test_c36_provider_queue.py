@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from support.control_factory import fixture_path, make_separate_portable_fixture_roots
 from test_c17_bridge_publish import SOURCE_PATH, _fresh_control_copy
 
 from vaultops.bridge_contract import canonical_json_bytes
@@ -57,7 +58,7 @@ def _schema_binding(root: Path, relative: str, fragment: str | None = None) -> d
 
 
 def _prepare_answer_job(root: Path, *, route: str = "local:c36-synthetic") -> None:
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     source_hash = _digest((vault / SOURCE_PATH).read_bytes())
     request = {
         "schema_version": 1,
@@ -141,22 +142,23 @@ def test_c36_consumes_local_answer_and_publishes_exact_bridge_response(tmp_path:
     assert report["live_provider_called"] is False
     assert report["canonical_apply_allowed"] is False
     assert report["vault_mutation_performed"] is True
-    assert list((root / "runtime/queue").glob("*.json")) == []
-    assert (root / "runtime/review" / f"{JOB_ID}.json").is_file()
-    response_files = list((root / "KnowledgeHub/.vault-bridge/responses/2026/09" / JOB_ID).glob("*.json"))
+    assert list(((fixture_path(root, "state") / "queue")).glob("*.json")) == []
+    assert ((fixture_path(root, "state") / "review") / f"{JOB_ID}.json").is_file()
+    response_directory = fixture_path(root, "vault") / f".vault-bridge/responses/{now:%Y/%m}/{JOB_ID}"
+    response_files = list(response_directory.glob("*.json"))
     assert len(response_files) == 1
     response = json.loads(response_files[0].read_text(encoding="utf-8"))
     assert response["status"] == "answer_ready"
     assert response["request_sha256"] == ingest["request_sha256"]
     assert response["answer_id"].startswith("answer-")
-    assert (root / "runtime/runs" / JOB_ID / "response.json").is_file()
-    assert (root / "runtime/runs" / JOB_ID / "receipts/provider-receipt.json").is_file()
+    assert ((fixture_path(root, "state") / "runs") / JOB_ID / "response.json").is_file()
+    assert ((fixture_path(root, "state") / "runs") / JOB_ID / "receipts/provider-receipt.json").is_file()
 
     replay, replay_code = consume_provider_queue(root, owner_id="c36-test-replay", now=now + timedelta(seconds=1))
     assert replay_code == 0, replay
     assert replay["status"] == "PASS"
     assert replay["claimed"] == 0
-    assert len(list((root / "KnowledgeHub/.vault-bridge/responses/2026/09" / JOB_ID).glob("*.json"))) == 1
+    assert len(list(response_directory.glob("*.json"))) == 1
 
 
 def test_c36_requeues_expired_lease_and_replays_private_provider_artifacts(tmp_path: Path) -> None:
@@ -174,8 +176,8 @@ def test_c36_requeues_expired_lease_and_replays_private_provider_artifacts(tmp_p
     assert crashed_code == 30
     assert crashed["status"] == "FAIL"
     assert crashed["results"][0]["crashed"] is True
-    assert (root / "runtime/running" / f"{JOB_ID}.lease.json").is_file()
-    assert not list((root / "runtime/queue").glob("*.json"))
+    assert ((fixture_path(root, "state") / "running") / f"{JOB_ID}.lease.json").is_file()
+    assert not list(((fixture_path(root, "state") / "queue")).glob("*.json"))
 
     recovered, recovered_code = consume_provider_queue(
         root,
@@ -188,17 +190,39 @@ def test_c36_requeues_expired_lease_and_replays_private_provider_artifacts(tmp_p
     assert recovered["results"][0]["replayed"] is True
 
 
+def test_c36_quarantines_orphaned_selected_runtime_lease_state(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    runtime = roots.state
+    for name in ("queue", "quarantine", "running", "review", "done", "failed", "conflict", "expired", "runs"):
+        (runtime / name).mkdir(mode=0o700)
+    job_id = "650e8400-e29b-41d4-a716-446655440001"
+    orphan = runtime / "running" / f"{job_id}.manifest.json"
+    orphan.write_bytes(b"{}")
+    orphan.chmod(0o600)
+
+    report, exit_code = consume_provider_queue(roots, now=datetime.now(UTC))
+
+    assert exit_code == 0, report
+    assert report["status"] == "PASS"
+    assert report["live_provider_called"] is False
+    assert report["recovered"] == 0
+    assert report["quarantined"]
+    assert not orphan.exists()
+    assert list((runtime / "quarantine/provider").glob(f"{job_id}-*/quarantine.json"))
+    assert not (roots.control / "runtime").exists()
+
+
 def test_c36_quarantines_tampered_queue_bytes_and_defers_inactive_routes(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _prepare_answer_job(root)
     ingest_bridge_request(root, job_id=JOB_ID)
-    queue_path = root / "runtime/queue" / f"{JOB_ID}.json"
+    queue_path = (fixture_path(root, "state") / "queue") / f"{JOB_ID}.json"
     queue_path.write_bytes(queue_path.read_bytes() + b"tamper")
 
     conflict, conflict_code = consume_provider_queue(root, owner_id="c36-tamper")
     assert conflict_code == 30
     assert conflict["status"] == "CONFLICT"
-    assert list((root / "runtime/quarantine/provider").glob(f"{JOB_ID}-*/{JOB_ID}.json"))
+    assert list(((fixture_path(root, "state") / "quarantine/provider")).glob(f"{JOB_ID}-*/{JOB_ID}.json"))
 
     root = _fresh_control_copy(tmp_path / "inactive")
     _prepare_answer_job(root, route="codex_chatgpt_login")
@@ -207,4 +231,4 @@ def test_c36_quarantines_tampered_queue_bytes_and_defers_inactive_routes(tmp_pat
     assert deferred_code == 0
     assert deferred["status"] == "DEFERRED"
     assert deferred["deferred"] == 1
-    assert (root / "runtime/queue" / f"{JOB_ID}.json").is_file()
+    assert ((fixture_path(root, "state") / "queue") / f"{JOB_ID}.json").is_file()

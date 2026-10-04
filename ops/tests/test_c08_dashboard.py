@@ -3,11 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from support.control_factory import make_control_root
+from support.control_factory import (
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.base_dashboard import (
     BASE_NAMES,
     SYSTEM_DASHBOARD_PATHS,
+    evaluate_base_view,
     evaluate_records,
     load_frozen_fixture,
     render_base_documents,
@@ -185,11 +190,56 @@ def test_bootstrap_includes_c08_surface_without_overwriting_or_creating_sentinel
 
     applied = bootstrap(root)
     assert applied["status"] == "PASS", applied
-    assert (root / "KnowledgeHub/Home.md").is_file()
-    assert (root / "KnowledgeHub/99_System/Bases/Inbox.base").is_file()
-    assert (root / "KnowledgeHub/99_System/Dashboards/Tasks.md").is_file()
-    assert (root / "KnowledgeHub/99_System/Dashboards/Today_Focus.md").is_file()
-    assert (root / "KnowledgeHub/99_System/CSS/dashboard.css").is_file()
-    assert not (root / "KnowledgeHub/.knowledgeos-root.json").exists()
-    assert not (root / "KnowledgeHub/99_System/Schemas/Property_Dictionary.md").exists()
+    assert (fixture_path(root, "vault") / "Home.md").is_file()
+    assert (fixture_path(root, "vault") / "99_System/Bases/Inbox.base").is_file()
+    assert (fixture_path(root, "vault") / "99_System/Dashboards/Tasks.md").is_file()
+    assert (fixture_path(root, "vault") / "99_System/Dashboards/Today_Focus.md").is_file()
+    assert (fixture_path(root, "vault") / "99_System/CSS/dashboard.css").is_file()
+    assert not (fixture_path(root, "vault") / ".knowledgeos-root.json").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Schemas/Property_Dictionary.md").exists()
     assert bootstrap(root)["created"] == []
+
+
+def test_base_view_evaluator_uses_separate_control_and_vault_roots(tmp_path: Path, monkeypatch) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    blueprint = load_yaml_file(roots.control / "blueprint/blueprint.yaml")
+    base_path = roots.vault / "99_System/Bases/Projects.base"
+    base_path.parent.mkdir(parents=True)
+    base_path.write_text(render_base_documents(blueprint)["99_System/Bases/Projects.base"], encoding="utf-8")
+    unrelated = tmp_path / "unrelated cwd"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    control_before = {
+        path.relative_to(roots.control).as_posix(): path.read_bytes()
+        for path in roots.control.rglob("*")
+        if path.is_file()
+    }
+    vault_before = {
+        path.relative_to(roots.vault).as_posix(): path.read_bytes()
+        for path in roots.vault.rglob("*")
+        if path.is_file()
+    }
+    runtime_before = {
+        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
+        for path in roots.runtime.rglob("*")
+        if path.is_file()
+    }
+
+    rows = evaluate_base_view(roots, "Projects.base", "Now", today="2026-09-10")
+
+    assert [row["path"] for row in rows] == ["20_Projects/guestbook-horror/guestbook-horror.md"]
+    assert control_before == {
+        path.relative_to(roots.control).as_posix(): path.read_bytes()
+        for path in roots.control.rglob("*")
+        if path.is_file()
+    }
+    assert vault_before == {
+        path.relative_to(roots.vault).as_posix(): path.read_bytes()
+        for path in roots.vault.rglob("*")
+        if path.is_file()
+    }
+    assert runtime_before == {
+        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
+        for path in roots.runtime.rglob("*")
+        if path.is_file()
+    }

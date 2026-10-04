@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from support.control_factory import bind_existing_control
 
 from vaultops.cli import main
 from vaultops.thin_client import (
@@ -222,6 +223,7 @@ def test_c41_static_fixture_is_executable_through_plugin_free_cli(tmp_path: Path
     request = json.loads(
         (CONTROL_ROOT / "ops/tests/fixtures/c41_thin_client/request.json").read_text(encoding="utf-8")
     )
+    bind_existing_control(tmp_path)
     request_path = tmp_path / "request.json"
     request_path.write_text(json.dumps(request), encoding="utf-8")
 

@@ -25,6 +25,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from yaml import YAMLError
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .projection import (
     EXIT_CONFLICT,
     EXIT_INPUT_INVALID,
@@ -345,21 +346,20 @@ def _regular_file(path: Path, label: str) -> bytes:
         raise RetrievalValidationError(f"cannot read {label}: {error}") from error
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise RetrievalValidationError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise RetrievalValidationError("KnowledgeHub must be an existing non-symlink directory")
-    return workspace
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise RetrievalValidationError(str(error)) from error
 
 
-def _load_contract(workspace: Path) -> tuple[Mapping[str, Any], Mapping[str, Any], str]:
-    policy_path = workspace / RETRIEVAL_POLICY_PATH
+def _load_contract(workspace: Path | ResolvedPaths) -> tuple[Mapping[str, Any], Mapping[str, Any], str]:
+    control = workspace.control if isinstance(workspace, ResolvedPaths) else workspace
+    policy_path = control / RETRIEVAL_POLICY_PATH
     policy_bytes = _regular_file(policy_path, "retrieval policy")
-    blueprint_path = workspace / "blueprint/blueprint.yaml"
+    blueprint_path = control / "blueprint/blueprint.yaml"
     blueprint_bytes = _regular_file(blueprint_path, "blueprint")
     try:
         policy_value = load_yaml_text(policy_bytes.decode("utf-8"))
@@ -1423,7 +1423,7 @@ def _failure(operation: str, code: str, message: str, exit_code: int) -> tuple[d
 
 def _run_retrieval(
     operation: str,
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     *,
     scope: str | None,
@@ -1509,7 +1509,7 @@ def _run_retrieval(
 
 
 def search(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     *,
     scope: str | None = None,
@@ -1539,7 +1539,7 @@ def search(
 
 
 def retrieve(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     *,
     scope: str | None = None,
@@ -1746,7 +1746,7 @@ def _evaluate_case(
 
 
 def evaluate_frozen_baseline(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     baseline_path: str | Path | None = None,
     expected_generation_id: str | None = None,
@@ -1756,7 +1756,7 @@ def evaluate_frozen_baseline(
     operation = "retrieval evaluate"
     try:
         workspace = _workspace(root)
-        baseline, baseline_sha256 = _load_baseline(workspace, baseline_path)
+        baseline, baseline_sha256 = _load_baseline(workspace.control, baseline_path)
         if expected_generation_id is not None and (
             not isinstance(expected_generation_id, str) or not _GENERATION_ID_RE.fullmatch(expected_generation_id)
         ):

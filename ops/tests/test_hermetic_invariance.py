@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from support.control_factory import fixture_path
 from support.plugin_factory import declared_community_plugins, make_plugin_profile, write_json
 
 from vaultops.diagnostics import plugins_audit_report
@@ -30,9 +31,9 @@ def test_ordinary_note_add_edit_and_delete_leave_audit_health_unchanged(tmp_path
     baseline_root, _ = make_plugin_profile(tmp_path / "baseline")
     variant_root, _ = make_plugin_profile(tmp_path / "variant")
     expected = _health(baseline_root)
-    note = variant_root / "KnowledgeHub" / "20_Projects" / "Ordinary.md"
+    note = fixture_path(variant_root, "vault") / "20_Projects" / "Ordinary.md"
 
-    note.parent.mkdir(parents=True)
+    note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("# User note\nfirst version\n", encoding="utf-8")
     assert _health(variant_root) == expected
 
@@ -52,7 +53,7 @@ def test_unrelated_bytes_in_a_disposable_vault_alias_do_not_change_audit_health(
     root, _ = make_plugin_profile(tmp_path / "control")
     expected = _health(root)
 
-    alias_bytes = root / "KnowledgeHub" / ".user-owned" / "opaque.bin"
+    alias_bytes = fixture_path(root, "vault") / ".user-owned" / "opaque.bin"
     alias_bytes.parent.mkdir(parents=True)
     alias_bytes.write_bytes(b"unrelated disposable alias data\x00\xff")
 

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "operation_id": "knowledgeos",
+  "fabric_id": "agentfabric",
+  "instance_id": "knowledgeos.local",
+  "core_version": "0.16.1",
+  "core_digest": "sha256:c6c2c9b7d48c365bbd1807f6657bbaa1fc1a51d4c984c9189072d421cce29a28",
+  "schema_version_pin": "0.16.1",
+  "semantic_version": "0.6.0",
+  "semantic_digest": "sha256:d219c2ef53abf0462e86b6facb7c4623a6087843649613e15d6dcfd73460cfce",
+  "capsule_version": "2.0.0",
+  "resource_binding_api": "0.3.0",
+  "host_binding_api": "0.3.0"
+}

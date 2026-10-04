@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/knowledgeos/mcp/tool_result.schema.json",
+  "title": "KnowledgeOS MCP application result envelope",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/search"
+    },
+    {
+      "$ref": "#/$defs/retrieve"
+    },
+    {
+      "$ref": "#/$defs/inspect"
+    },
+    {
+      "$ref": "#/$defs/create"
+    }
+  ],
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "operation",
+        "status",
+        "effect",
+        "canonical_target_changed",
+        "data",
+        "error",
+        "execution_outcome",
+        "acceptance_state",
+        "human_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "knowledge_search",
+            "knowledge_retrieve",
+            "proposal_inspect",
+            "proposal_create"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "empty",
+            "created",
+            "replayed",
+            "no_change",
+            "denied",
+            "not_found",
+            "conflict",
+            "stale_generation",
+            "unavailable",
+            "cancelled",
+            "error"
+          ]
+        },
+        "effect": {
+          "enum": [
+            "read_only",
+            "proposal_created",
+            "proposal_replayed",
+            "no_change",
+            "none",
+            "unknown"
+          ]
+        },
+        "canonical_target_changed": {
+          "const": false
+        },
+        "data": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "tool_error.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_outcome": {
+          "enum": [
+            "not_started",
+            "completed",
+            "failed",
+            "unknown"
+          ]
+        },
+        "acceptance_state": {
+          "enum": [
+            "not_evaluated",
+            "not_applicable",
+            "pass",
+            "fail",
+            "partial",
+            "unknown"
+          ]
+        },
+        "human_approval": {
+          "const": "unknown"
+        }
+      }
+    },
+    "search": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "knowledge_search"
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/read_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "retrieve": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "knowledge_retrieve"
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/read_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "inspect": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "proposal_inspect"
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/inspect_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "create": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "properties": {
+            "operation": {
+              "const": "proposal_create"
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/create_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "read_data": {
+      "$ref": "read_result.data.schema.json"
+    },
+    "inspect_data": {
+      "$ref": "proposal_inspect.data.schema.json"
+    },
+    "create_data": {
+      "$ref": "proposal_create.data.schema.json"
+    }
+  }
+}

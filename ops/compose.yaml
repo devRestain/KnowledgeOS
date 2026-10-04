@@ -14,10 +14,34 @@ services:
       PYTHONPATH: /workspace/control/ops/src
       UV_PROJECT_ENVIRONMENT: /opt/venv
       UV_CACHE_DIR: /home/vaultops/.cache/uv
+      KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID: ${KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID:-}
     volumes:
-      - ..:/workspace/control
-      - ../KnowledgeHub:/workspace/KnowledgeHub
-      - ../runtime:/workspace/runtime
+      - type: bind
+        source: ${KNOWLEDGEOS_CORE_SOURCE:?Set KNOWLEDGEOS_CORE_SOURCE through Make}
+        target: /workspace/Core
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Set KNOWLEDGEOS_CONTROL_SOURCE through Make}
+        target: /workspace/control
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_VAULT_SOURCE:?Set KNOWLEDGEOS_VAULT_SOURCE through Make}
+        target: /workspace/KnowledgeHub
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_RUNTIME_SOURCE:?Set KNOWLEDGEOS_RUNTIME_SOURCE through Make}
+        target: /workspace/runtime
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_STATE_SOURCE:?Set KNOWLEDGEOS_STATE_SOURCE through Make}
+        target: /workspace/state
+        bind:
+          create_host_path: false
       - knowledgeos-uv-cache:/home/vaultops/.cache/uv
     network_mode: none
 

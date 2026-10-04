@@ -7,6 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from .paths import ResolvedPaths
 from .yaml_safe import load_yaml_file
 
 MANIFEST_SHA256 = "8766e8f920c8861119bd39d16f0ffa47f668e7503d06a2ababb55d44994167ce"
@@ -129,6 +130,18 @@ def check_source_manifest(root: str | Path) -> list[str]:
             problems.append(f"missing blueprint source: {relative}")
         elif _sha256(source) != expected:
             problems.append(f"blueprint checksum mismatch: {relative}")
+    return problems
+
+
+def check_bound_git_roots(roots: ResolvedPaths) -> list[str]:
+    """Inspect explicitly bound Git roots as adoption evidence, without mutation."""
+    if not isinstance(roots, ResolvedPaths):
+        raise TypeError("five resolved roots are required")
+    problems = []
+    for kind, path in (("control", roots.control), ("Vault", roots.vault)):
+        code, top = _git_output(path, "rev-parse", "--show-toplevel")
+        if code != 0 or Path(top).resolve() != path:
+            problems.append(f"configured {kind} must remain an independent Git root")
     return problems
 
 

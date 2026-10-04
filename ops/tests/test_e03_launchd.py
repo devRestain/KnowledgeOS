@@ -8,6 +8,7 @@ import sys
 import time
 from pathlib import Path
 
+from support.control_factory import fixture_path, make_separate_portable_fixture_roots
 from test_c24_background import _fresh_control_copy
 
 from vaultops import launchd
@@ -18,6 +19,7 @@ from vaultops.background import (
     worker_log_record,
 )
 from vaultops.launchd import EXIT_CONFLICT, EXIT_OK
+from vaultops.runtime import RUNTIME_DIRECTORIES, STATE_DIRECTORIES
 
 
 def _host_executable(tmp_path: Path) -> Path:
@@ -57,7 +59,6 @@ def test_e03_dry_run_binds_exact_root_and_requires_explicit_activation(tmp_path:
         "c36_background_inactive": True,
     }
     assert not install_path.exists()
-
     deferred, deferred_code = launchd.install(
         root,
         executable=executable,
@@ -68,6 +69,62 @@ def test_e03_dry_run_binds_exact_root_and_requires_explicit_activation(tmp_path:
     assert deferred["errors"][0]["code"] == "LAUNCHD_ACTIVATION_REQUIRED"
     assert not install_path.exists()
 
+
+def test_e03_dry_run_names_each_selected_root_and_runtime_log_path(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(
+        tmp_path,
+        extra_inputs=(
+            "ops/config/background.yaml",
+            "ops/launchd/com.knowledgeos.vaultops.plist",
+            "ops/schemas/worker-report.schema.json",
+        ),
+    )
+    (roots.control / "PROJECT_STATE.md").write_text(
+        "/goal phase=history id=C36 state=complete\n"
+        "/evidence id=E_C36_GATES class=runtime result=pass\n"
+        "background activation stays disabled\n",
+        encoding="utf-8",
+    )
+    for relative in STATE_DIRECTORIES:
+        directory = roots.state / relative
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.chmod(0o700)
+    for relative in RUNTIME_DIRECTORIES:
+        directory = roots.runtime / relative
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.chmod(0o700)
+    executable = _host_executable(tmp_path)
+    install_path = _install_path(tmp_path)
+
+    preview, preview_code = launchd.install(
+        roots.control,
+        dry_run=True,
+        executable=executable,
+        install_path=install_path,
+    )
+
+    assert preview_code == EXIT_OK
+    assert preview["status"] == "PASS"
+    assert preview["resolved_roots"] == {
+        "core": str(roots.core),
+        "state": str(roots.state),
+        "control": str(roots.control),
+        "vault": str(roots.vault),
+        "runtime": str(roots.runtime),
+    }
+    configuration = preview["configuration_preview"]
+    assert configuration["working_directory"] == str(roots.control)
+    assert configuration["program_arguments"][-2:] == ["--root", str(roots.control)]
+    assert configuration["environment_roots"] == {
+        "KNOWLEDGEOS_CORE_ROOT": str(roots.core),
+        "KNOWLEDGEOS_STATE_ROOT": str(roots.state),
+        "KNOWLEDGEOS_CONTROL_ROOT": str(roots.control),
+        "KNOWLEDGEOS_VAULT_ROOT": str(roots.vault),
+        "KNOWLEDGEOS_RUNTIME_ROOT": str(roots.runtime),
+    }
+    assert configuration["stdout_path"] == str(roots.runtime / "logs/worker.stdout.log")
+    assert configuration["stderr_path"] == str(roots.runtime / "logs/worker.stderr.log")
+    assert not install_path.exists()
 
 def test_e03_activation_is_idempotent_and_rollback_is_exact(tmp_path: Path, monkeypatch) -> None:
     root = _fresh_control_copy(tmp_path)
@@ -266,7 +323,7 @@ def test_worker_log_record_is_timestamped_and_does_not_copy_request_content() ->
 
 def test_launchd_bound_worker_logs_discard_legacy_bytes_and_stay_bounded(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    logs = root / "runtime" / "logs"
+    logs = fixture_path(root, "runtime") / "logs"
     stdout_path = logs / "worker.stdout.log"
     stderr_path = logs / "worker.stderr.log"
     stdout_path.write_bytes(b"legacy unbounded report\n")
@@ -314,7 +371,7 @@ print('new-error\\n' * 10000, file=sys.stderr, end='')
 
 def test_launchd_bound_worker_logs_discard_stale_tail(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    logs = root / "runtime" / "logs"
+    logs = fixture_path(root, "runtime") / "logs"
     stdout_path = logs / "worker.stdout.log"
     stderr_path = logs / "worker.stderr.log"
     for path in (stdout_path, stderr_path):

@@ -14,7 +14,7 @@
 ## Scope and repositories
 
 - Control root: `.`; track policies, schemas, source, tests, and agent docs in the control Git root.
-- Vault root: `KnowledgeHub/`; independent Git root opened by Obsidian and Working Copy.
+- Vault root: `../../Vaults/KnowledgeHub/`; independent Git root opened by Obsidian and Working Copy.
 - Runtime root: `runtime/`; Git-untracked local queue, locks, receipts, journals, indexes, caches, and logs.
 - Keep control, Vault, and runtime responsibilities separate; a receipt records both Git heads.
 - Keep secrets, restricted data, provider state, and device credentials outside the Vault corpus.
@@ -35,7 +35,7 @@
 - Home capture choices and hotkeys remain profile-owned and hidden from the page. Home must not advertise provider, runtime, sync, Git, command-runner, or stale-success status; Note Toolbar at the Mac desktop bottom is the navigation surface that replaces the removed Home footer.
 - Today Focus is a separate `99_System/Dashboards/Today_Focus.md` system document that can be opened from the sidebar; it is intentionally not a Home component.
 - Keep document Properties hidden in the note body and use the Mac Properties sidebar for independent inspection and editing; this is a profile/UI contract, not a Home body projection.
-- The Home layout is scoped by the Home-only `cssclasses: [knowledgeos-home]` field and the generated C08 chain (`blueprint/blueprint.yaml` → `ops/src/vaultops/base_dashboard.py` → `KnowledgeHub/Home.md`, canonical Bases, and `99_System/CSS/dashboard.css`).
+- The Home layout is scoped by the Home-only `cssclasses: [knowledgeos-home]` field and the generated C08 chain (`blueprint/blueprint.yaml` → `ops/src/vaultops/base_dashboard.py` → `../../Vaults/KnowledgeHub/Home.md`, canonical Bases, and `../../Vaults/KnowledgeHub/99_System/CSS/dashboard.css`).
 - `00_Inbox/Captures/YYYY/MM/` stores immutable captures; do not recreate the removed `Imports` namespace.
 - `01_AI_Review/{Pending,Resolved}/YYYY/MM/` stores review artifacts, not canonical notes.
 - `20_Projects/`, `30_Areas/`, `40_Knowledge/`, `50_Maps/`, `60_Meetings/`, `80_Assets/`, `90_Archive/`, `99_System/` retain PARA-lite responsibilities.
@@ -93,7 +93,7 @@ capture → durable outbox → validate/triage proposal → human review/approva
 - Default sensitivity is personal/ask; people and meeting content is deny-by-default for AI; confidential/restricted data stays in a separate Vault.
 - One writer per file; use create-only or hash-checked atomic replace/move with journal and receipt.
 - Never force-push, reset, stash, rebase, or implicitly pull/push; use exact paths and explicit credential/network gates.
-- Preserve `KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}` and separate device/bridge namespaces.
+- Preserve `../../Vaults/KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}` and separate device/bridge namespaces.
 
 ## Implementation and acceptance map
 

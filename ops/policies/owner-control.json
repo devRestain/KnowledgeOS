@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "operation_id": "knowledgeos",
+  "operator_actions": ["search", "retrieve", "inspect", "propose", "approve", "reject", "apply", "recover", "legacy"],
+  "mcp_actions": ["search", "retrieve", "inspect", "propose"],
+  "gateway_actions": ["read", "export", "submit"],
+  "external_transport": "unconfigured"
+}

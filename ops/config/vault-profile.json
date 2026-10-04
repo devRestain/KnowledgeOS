@@ -1,0 +1,3290 @@
+{
+  ".obsidian-mac/app.json": {
+    "propertiesInDocument": "hidden",
+    "readableLineLength": false
+  },
+  ".obsidian-mac/appearance.json": {
+    "enabledCssSnippets": [
+      "knowledgeos-home"
+    ],
+    "showRibbon": false,
+    "showViewHeader": true,
+    "theme": "system"
+  },
+  ".obsidian-mac/community-plugins.json": [
+    "quickadd",
+    "templater-obsidian",
+    "obsidian-tasks-plugin",
+    "obsidian-linter",
+    "homepage",
+    "note-toolbar",
+    "breadcrumbs",
+    "notebook-navigator",
+    "obsidian-meta-bind-plugin"
+  ],
+  ".obsidian-mac/core-plugins.json": {
+    "audio-recorder": false,
+    "backlink": true,
+    "bases": true,
+    "bookmarks": true,
+    "canvas": true,
+    "command-palette": true,
+    "daily-notes": true,
+    "editor-status": true,
+    "file-explorer": true,
+    "file-recovery": true,
+    "footnotes": false,
+    "global-search": true,
+    "graph": true,
+    "markdown-importer": false,
+    "note-composer": true,
+    "outgoing-link": true,
+    "outline": true,
+    "page-preview": true,
+    "properties": true,
+    "publish": false,
+    "random-note": false,
+    "slash-command": false,
+    "slides": false,
+    "switcher": true,
+    "sync": false,
+    "tag-pane": true,
+    "templates": true,
+    "webviewer": false,
+    "word-count": true,
+    "workspaces": true,
+    "zk-prefixer": false
+  },
+  ".obsidian-mac/daily-notes.json": {
+    "folder": "10_Journal/Daily",
+    "template": "99_System/Templates/T10_Daily.md"
+  },
+  ".obsidian-mac/hotkeys.json": {
+    "app:toggle-left-sidebar": [
+      {
+        "key": "J",
+        "modifiers": [
+          "Mod"
+        ]
+      }
+    ],
+    "app:toggle-right-sidebar": [
+      {
+        "key": "K",
+        "modifiers": [
+          "Mod"
+        ]
+      }
+    ],
+    "backlink:open-backlinks": [
+      {
+        "key": "L",
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ]
+      }
+    ],
+    "daily-notes": [
+      {
+        "key": "E",
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ]
+      }
+    ],
+    "editor:insert-link": [],
+    "editor:open-link-in-new-leaf": [],
+    "obsidian-tasks-plugin:toggle-done": [
+      {
+        "key": "Enter",
+        "modifiers": [
+          "Mod"
+        ]
+      }
+    ],
+    "quickadd:choice:5eddd4fc-24b8-4189-b926-c91f34b20ce1": [
+      {
+        "key": "Q",
+        "modifiers": [
+          "Alt",
+          "Mod"
+        ]
+      }
+    ],
+    "quickadd:choice:9bba3ca7-d9c7-4df3-8ab4-425ddd7da0a6": [
+      {
+        "key": "J",
+        "modifiers": [
+          "Alt",
+          "Mod"
+        ]
+      }
+    ],
+    "quickadd:choice:c44007fc-f3e5-47f0-b295-d9c99cc5aa9b": [
+      {
+        "key": "K",
+        "modifiers": [
+          "Alt",
+          "Mod"
+        ]
+      }
+    ],
+    "quickadd:choice:dc798d84-85be-465e-b461-c4cc13d198aa": [
+      {
+        "key": "P",
+        "modifiers": [
+          "Alt",
+          "Mod"
+        ]
+      }
+    ],
+    "quickadd:choice:f29c95dc-1f39-4ff0-81bd-2ef12181bdcf": [
+      {
+        "key": "C",
+        "modifiers": [
+          "Alt",
+          "Mod"
+        ]
+      }
+    ]
+  },
+  ".obsidian-mac/plugins/breadcrumbs/data.json": {
+    "_bc_migrations": {
+      "tree_find_root_default": true,
+      "tree_ups_with_downs_default": true
+    },
+    "commands": {
+      "create_canvas": {
+        "default_options": {
+          "depth": 5,
+          "direction": "LR",
+          "field_group_labels": [],
+          "fields": [],
+          "target_path_template": "{{source.folder}}/{{source.basename}} canvas"
+        }
+      },
+      "edge_audit": {
+        "ignore_paths": [],
+        "report_path": "Breadcrumbs Edge Audit.md"
+      },
+      "freeze_implied_edges": {
+        "default_options": {
+          "destination": "frontmatter",
+          "included_fields": [],
+          "use_alias": true
+        }
+      },
+      "list_index": {
+        "default_options": {
+          "edge_sort_id": {
+            "field": "basename",
+            "order": 1
+          },
+          "field_group_labels": [],
+          "fields": [],
+          "indent": "\\t",
+          "link_kind": "wiki",
+          "show_attributes": [],
+          "show_node_options": {
+            "alias": true,
+            "ext": false,
+            "folder": false
+          }
+        }
+      },
+      "rebuild_graph": {
+        "notify": true,
+        "trigger": {
+          "layout_change": false,
+          "note_save": false
+        }
+      },
+      "thread": {
+        "default_options": {
+          "destination": "frontmatter",
+          "target_path_template": "{{source.folder}}/{{attr.field}} {{source.basename}}"
+        }
+      }
+    },
+    "debug": {
+      "level": "SILENT"
+    },
+    "edge_field_groups": [
+      {
+        "fields": [
+          "projects",
+          "sources",
+          "related"
+        ],
+        "label": "Context relation group"
+      },
+      {
+        "fields": [
+          "supports",
+          "contradicts",
+          "explains",
+          "applies_to",
+          "derived_from",
+          "implements",
+          "raises"
+        ],
+        "label": "Semantic relation group"
+      }
+    ],
+    "edge_fields": [
+      {
+        "label": "projects"
+      },
+      {
+        "label": "sources"
+      },
+      {
+        "label": "related"
+      },
+      {
+        "label": "supports"
+      },
+      {
+        "label": "contradicts"
+      },
+      {
+        "label": "explains"
+      },
+      {
+        "label": "applies_to"
+      },
+      {
+        "label": "derived_from"
+      },
+      {
+        "label": "implements"
+      },
+      {
+        "label": "raises"
+      }
+    ],
+    "exclude_folders": [],
+    "explicit_edge_sources": {
+      "dataview_note": {
+        "default_field": ""
+      },
+      "date_note": {
+        "date_format": "yyyy-MM-dd",
+        "default_field": "",
+        "enabled": false,
+        "month": {
+          "date_format": "yyyy-MM",
+          "enabled": false,
+          "folder": "",
+          "next_field": "",
+          "up_field": ""
+        },
+        "quarter": {
+          "date_format": "yyyy-'Q'q",
+          "enabled": false,
+          "folder": "",
+          "next_field": "",
+          "up_field": ""
+        },
+        "stretch_to_existing": false,
+        "week": {
+          "date_format": "kkkk-'W'WW",
+          "enabled": false,
+          "folder": "",
+          "next_field": "",
+          "up_field": ""
+        },
+        "week_start": "monday",
+        "year": {
+          "date_format": "yyyy",
+          "enabled": false,
+          "folder": "",
+          "next_field": "",
+          "up_field": ""
+        }
+      },
+      "dendron_note": {
+        "default_field": "",
+        "default_sibling_field": "",
+        "delimiter": ".",
+        "display_trimmed": false,
+        "enabled": false
+      },
+      "johnny_decimal_note": {
+        "default_field": "",
+        "default_sibling_field": "",
+        "delimiter": ".",
+        "enabled": false
+      },
+      "list_note": {
+        "default_neighbour_field": ""
+      },
+      "regex_note": {
+        "default_field": ""
+      },
+      "tag_note": {
+        "default_field": "",
+        "default_sibling_field": ""
+      },
+      "traverse_note": {},
+      "typed_link": {}
+    },
+    "implied_relations": {
+      "transitive": []
+    },
+    "is_dirty": false,
+    "self_is_sibling": [],
+    "suggestors": {
+      "edge_field": {
+        "enabled": false,
+        "trigger": "."
+      }
+    },
+    "views": {
+      "codeblocks": {
+        "show_node_options": {
+          "alias": false,
+          "ext": false,
+          "folder": false
+        }
+      },
+      "page": {
+        "all": {
+          "sticky": false
+        },
+        "prev_next": {
+          "enabled": true,
+          "field_group_labels": {
+            "next": [
+              "nexts"
+            ],
+            "prev": [
+              "prevs"
+            ]
+          },
+          "period_rows": {
+            "month": false,
+            "quarter": false,
+            "week": false,
+            "year": false
+          },
+          "show_node_options": {
+            "alias": false,
+            "ext": false,
+            "folder": false
+          }
+        },
+        "trail": {
+          "default_depth": 999,
+          "enabled": true,
+          "field_group_labels": [
+            "Context relation group"
+          ],
+          "format": "grid",
+          "merge_fields": false,
+          "no_path_message": "",
+          "selection": "longest",
+          "show_controls": true,
+          "show_node_options": {
+            "alias": false,
+            "ext": false,
+            "folder": false
+          }
+        }
+      },
+      "side": {
+        "matrix": {
+          "collapse": false,
+          "custom_sort_field_labels": [],
+          "custom_sort_fields": false,
+          "edge_sort_id": {
+            "field": "basename",
+            "order": 1
+          },
+          "field_group_labels": [
+            "Context relation group",
+            "Semantic relation group",
+            "sames",
+            "nexts",
+            "prevs"
+          ],
+          "lock_path": "",
+          "lock_view": false,
+          "show_attributes": [
+            "source",
+            "implied_kind",
+            "round"
+          ],
+          "show_node_options": {
+            "alias": false,
+            "ext": false,
+            "folder": false
+          }
+        },
+        "tree": {
+          "collapse": false,
+          "default_depth": 5,
+          "edge_sort_id": {
+            "field": "basename",
+            "order": 1
+          },
+          "field_group_labels": [
+            "ups",
+            "downs"
+          ],
+          "find_root": true,
+          "find_root_field_group_labels": [
+            "ups"
+          ],
+          "lock_path": "",
+          "lock_view": false,
+          "merge_fields": false,
+          "show_attributes": [],
+          "show_node_options": {
+            "alias": false,
+            "ext": false,
+            "folder": false
+          }
+        }
+      }
+    }
+  },
+  ".obsidian-mac/plugins/homepage/data.json": {
+    "homepages": {
+      "Main Homepage": {
+        "alwaysApply": true,
+        "autoCreate": false,
+        "autoScroll": false,
+        "commands": [],
+        "hideReleaseNotes": true,
+        "kind": "File",
+        "manualOpenMode": "Replace last note",
+        "openMode": "Replace last note",
+        "openOnStartup": true,
+        "openWhenEmpty": true,
+        "pin": false,
+        "refreshDataview": false,
+        "revertView": true,
+        "value": "Home",
+        "view": "Reading view"
+      }
+    },
+    "separateMobile": false,
+    "version": 3
+  },
+  ".obsidian-mac/plugins/knowledgeos-thin-client/data.json": {
+    "brokerEndpoint": "",
+    "indexGenerationId": "",
+    "policySha256": "",
+    "privacyPolicySha256": ""
+  },
+  ".obsidian-mac/plugins/note-toolbar/data.json": {
+    "debugEnabled": false,
+    "emptyViewToolbar": null,
+    "export": {
+      "includeIcons": true,
+      "replaceVars": true,
+      "useDataEls": true,
+      "useIds": true
+    },
+    "folderMappings": [
+      {
+        "folder": "01_AI_Review",
+        "toolbar": "66f3ca7e-4c9a-4ead-a6da-dc8329f48aaf"
+      },
+      {
+        "folder": "10_Journal",
+        "toolbar": "cbe297a3-6e2e-4396-a945-b3003e3e3ab3"
+      },
+      {
+        "folder": "20_Projects",
+        "toolbar": "c80aab67-134b-47ca-9e6e-fff3d577ac00"
+      },
+      {
+        "folder": "00_Inbox",
+        "toolbar": "9121b9b8-1202-493e-a420-a7b8aa5bc09c"
+      },
+      {
+        "folder": "40_Knowledge",
+        "toolbar": "b7472a0a-ad8b-4dc4-bf75-4bff46dc976c"
+      },
+      {
+        "folder": "/",
+        "toolbar": "86151f9e-d3de-49ff-beec-834b6add2f31"
+      }
+    ],
+    "icon": "circle-ellipsis",
+    "keepPropsState": false,
+    "lockCallouts": false,
+    "onboarding": {},
+    "ribbonAction": "toolbar",
+    "rules": [],
+    "scriptingEnabled": false,
+    "showEditInFabMenu": false,
+    "showLaunchpad": false,
+    "showToolbarIn": {
+      "audio": false,
+      "bases": false,
+      "canvas": false,
+      "image": false,
+      "kanban": false,
+      "pdf": false,
+      "video": false
+    },
+    "showToolbarInFileMenu": false,
+    "showToolbarInOther": "",
+    "toolbarProp": "none",
+    "toolbars": [
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "Home.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "8398f302-f8d9-4481-94fa-3a40d70a7534",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-layout-dashboard",
+            "inGallery": false,
+            "label": "Tasks dashboard",
+            "link": "99_System/Dashboards/Tasks.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "b6fab4f2-f8ca-465f-9aa7-555e97075633",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-clock",
+            "inGallery": false,
+            "label": "Weekly Review",
+            "link": "99_System/Dashboards/Weekly_Review.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "096acfc9-f79d-42c8-92c7-c167e1777fa9",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-days",
+            "inGallery": false,
+            "label": "Daily note",
+            "link": "daily-notes",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "daily-notes",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "30d4cccf-e2a1-4138-987e-a7cb0e6b5b50",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "",
+            "inGallery": false,
+            "label": "Period reviews",
+            "link": "99_System/Bases/Journal.base#Open Reviews",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "a6aa8de8-904a-4c0a-8712-ff74cb97e12f",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Daily",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T08:45:47.957Z",
+        "uuid": "cbe297a3-6e2e-4396-a945-b3003e3e3ab3"
+      },
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "homepage:open-homepage",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "homepage:open-homepage",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "d061527e-7a09-446a-98b9-0cd756977398",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-days",
+            "inGallery": false,
+            "label": "Daily note",
+            "link": "daily-notes",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "daily-notes",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "308c8e9b-d0f7-4d13-be5c-ee306b234054",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-layout-dashboard",
+            "inGallery": false,
+            "label": "Tasks dashboard",
+            "link": "99_System/Dashboards/Tasks.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "36d88d50-f080-4992-a78c-385a86c55b52",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-user-round-check",
+            "inGallery": false,
+            "label": "Review bases",
+            "link": "99_System/Bases/Review.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "92c9639c-05d7-4510-83dd-7feb7cde89aa",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Home",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T09:18:41.732Z",
+        "uuid": "86151f9e-d3de-49ff-beec-834b6add2f31"
+      },
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "Home.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "698ba7a1-a81f-46b7-ab1b-34c6497588db",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-inbox",
+            "inGallery": false,
+            "label": "Inbox bases",
+            "link": "99_System/Bases/Inbox.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "1b57c084-f3f6-4588-b78c-fdc1b62dd32f",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-table-properties",
+            "inGallery": false,
+            "label": "Project bases",
+            "link": "99_System/Bases/Projects.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "7e50454b-7415-4215-a5db-6ae28196da0e",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-user-round-check",
+            "inGallery": false,
+            "label": "Review bases",
+            "link": "99_System/Bases/Review.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "4cb1421c-5cdb-43ee-9b40-e4128d010376",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-arrow-left-to-line",
+            "inGallery": false,
+            "label": "Backlinks",
+            "link": "backlink:open-backlinks",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "backlink:open-backlinks",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "e8f7fc75-9e33-4300-a7e8-fdf49843967e",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Inbox",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T08:46:00.971Z",
+        "uuid": "9121b9b8-1202-493e-a420-a7b8aa5bc09c"
+      },
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "Home.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "8ed59353-9c02-4e25-8176-9d07b2a3eb7d",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-book-copy",
+            "inGallery": false,
+            "label": "Knowledge bases",
+            "link": "99_System/Bases/Knowledge.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "38d0492d-936d-4ce7-b8e3-7f55105ff006",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-database",
+            "inGallery": false,
+            "label": "Sources bases",
+            "link": "99_System/Bases/Sources.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "c50faac7-602e-4549-80fa-8118a729504c",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-arrow-left-to-line",
+            "inGallery": false,
+            "label": "Backlinks",
+            "link": "backlink:open-backlinks",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "backlink:open-backlinks",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "e04b5146-8a8d-4878-80f8-13f77bc82350",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-arrow-right-to-line",
+            "inGallery": false,
+            "label": "Outgoing links",
+            "link": "outgoing-links:open-for-current",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "outgoing-links:open-for-current",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "99709c13-e26b-4837-a0f8-370656d96c0e",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Knowledge",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T08:46:07.704Z",
+        "uuid": "b7472a0a-ad8b-4dc4-bf75-4bff46dc976c"
+      },
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "Home.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "94abe01b-46f2-4258-8253-26c44a460faf",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-table-properties",
+            "inGallery": false,
+            "label": "Project bases",
+            "link": "99_System/Bases/Projects.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "a1ea2a1c-4438-4749-a884-fb310d3a5050",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-clock",
+            "inGallery": false,
+            "label": "Weekly Review",
+            "link": "99_System/Dashboards/Weekly_Review.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "1a4b4a93-0e0e-49d9-97b2-f1c536c75fef",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-list-tree",
+            "inGallery": false,
+            "label": "Tree view",
+            "link": "breadcrumbs:open-tree-view",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "breadcrumbs:open-tree-view",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "9cd00fda-ac25-4d7e-916d-840008a82abe",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-arrow-left-to-line",
+            "inGallery": false,
+            "label": "Backlinks",
+            "link": "backlink:open-backlinks",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "backlink:open-backlinks",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "655c7fe5-abb9-406b-a6c0-179a9a78a323",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-arrow-right-to-line",
+            "inGallery": false,
+            "label": "Outgoing links",
+            "link": "outgoing-links:open-for-current",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "outgoing-links:open-for-current",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "",
+            "uuid": "ed5d69ef-c1e1-4e18-aa1d-954ea3dcf5cb",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Project",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T08:46:13.537Z",
+        "uuid": "c80aab67-134b-47ca-9e6e-fff3d577ac00"
+      },
+      {
+        "customClasses": "",
+        "defaultItem": null,
+        "defaultStyles": [
+          "border",
+          "even",
+          "sticky"
+        ],
+        "hasCommand": false,
+        "items": [
+          {
+            "hasCommand": false,
+            "icon": "homepage",
+            "inGallery": false,
+            "label": "Homepage",
+            "link": "Home.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "d3de77ba-02b6-47af-af75-453f456010dc",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-user-round-check",
+            "inGallery": false,
+            "label": "Review bases",
+            "link": "99_System/Bases/Review.base",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "94bce6cd-8b33-40c6-a802-4fd84e39bcd5",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-clock",
+            "inGallery": false,
+            "label": "Weekly Review",
+            "link": "99_System/Dashboards/Weekly_Review.md",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "",
+              "hasVars": false,
+              "type": "file"
+            },
+            "tooltip": "",
+            "uuid": "2b5f1eae-9220-4296-987a-65d5696fa35e",
+            "visibility": {
+              "desktop": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "mobile": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              },
+              "tablet": {
+                "allViews": {
+                  "components": [
+                    "icon",
+                    "label"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "mobileStyles": [],
+        "name": "KnowledgeOS Review",
+        "position": {
+          "desktop": {
+            "allViews": {
+              "position": "bottom"
+            }
+          },
+          "mobile": {
+            "allViews": {
+              "position": "props"
+            }
+          },
+          "tablet": {
+            "allViews": {
+              "position": "props"
+            }
+          }
+        },
+        "updated": "2026-09-26T08:46:17.454Z",
+        "uuid": "66f3ca7e-4c9a-4ead-a6da-dc8329f48aaf"
+      }
+    ],
+    "version": 20250313.1,
+    "whatsnew_version": "1.25"
+  },
+  ".obsidian-mac/plugins/notebook-navigator/data.json": {
+    "alphabeticalDateMode": "modified",
+    "autoExpandNavItems": false,
+    "autoRevealActiveFile": true,
+    "autoRevealIgnoreOtherWindows": true,
+    "autoRevealIgnoreRightSidebar": true,
+    "autoRevealShortestPath": true,
+    "autoSelectFirstFileOnFocusChange": false,
+    "calendarConfirmBeforeCreate": true,
+    "calendarCustomFilePattern": "[Daily]/YYYY-MM-DD",
+    "calendarCustomFileTemplate": "99_System/Templates/T10_Daily.md",
+    "calendarCustomMonthPattern": "[Monthly]/YYYY/YYYY-MM",
+    "calendarCustomMonthTemplate": "99_System/Templates/T12_Monthly.md",
+    "calendarCustomQuarterPattern": "YYYY/[Q]Q",
+    "calendarCustomQuarterTemplate": null,
+    "calendarCustomWeekPattern": "[Weekly]/GGGG/GGGG-[W]WW",
+    "calendarCustomWeekTemplate": "99_System/Templates/T11_Weekly.md",
+    "calendarCustomYearPattern": "YYYY",
+    "calendarCustomYearTemplate": null,
+    "calendarEnabled": true,
+    "calendarHighlightToday": true,
+    "calendarIntegrationMode": "notebook-navigator",
+    "calendarLocale": "system-default",
+    "calendarMonthHeadingFormat": "full",
+    "calendarMonthHighlights": {},
+    "calendarPeriodicNotesLocaleSource": "calendar",
+    "calendarShowFeatureImage": true,
+    "calendarShowHiddenItems": false,
+    "calendarShowOutsideMonthDays": true,
+    "calendarShowQuarter": false,
+    "calendarShowTasks": true,
+    "calendarShowWeekNumber": true,
+    "calendarShowYearCalendar": false,
+    "calendarTemplateFolder": "",
+    "calendarWeekendDays": "sat-sun",
+    "characterCountSpaces": "include",
+    "checkForUpdatesOnStart": false,
+    "cmdCtrlEnterOpenContext": "split",
+    "collapseBehavior": "all",
+    "collapseOtherBranchesOnExpand": false,
+    "colorFileProperties": true,
+    "colorFileTags": true,
+    "colorIconOnly": false,
+    "colorListPaneTitle": false,
+    "compactItemHeight": 28,
+    "compactItemHeightScaleText": true,
+    "confirmBeforeDelete": true,
+    "confirmBeforeManualSort": true,
+    "createNewNotesInNewTab": false,
+    "customVaultName": "",
+    "dateFormat": "YYYY-MM-DD",
+    "defaultFolderSort": "modified-desc",
+    "defaultFolderSortPropertyKey": "",
+    "defaultListMode": "standard",
+    "deleteAttachments": "ask",
+    "desktopBackground": "secondary",
+    "downloadExternalFeatureImages": false,
+    "enableFolderNoteLinks": true,
+    "enableFolderNotes": false,
+    "enablePropertyExternalLinks": true,
+    "enablePropertyInternalLinks": true,
+    "enterToOpenFiles": false,
+    "excludeVaultRootFromCollapse": false,
+    "externalIconProviders": {},
+    "featureImageExcludeProperties": [],
+    "featureImagePixelSize": "256",
+    "featureImageProperties": [],
+    "featureImageSize": "64",
+    "fileBackgroundColors": {},
+    "fileColors": {},
+    "fileIcons": {},
+    "fileNameIconMap": {},
+    "fileNameRows": 1,
+    "fileTypeIconMap": {},
+    "fileTypeIconPreset": "none",
+    "filterPinnedByFolder": false,
+    "folderAppearances": {},
+    "folderBackgroundColors": {},
+    "folderColors": {},
+    "folderIcons": {},
+    "folderNoteNamePattern": "{{folder}}",
+    "folderNoteOpenLocation": "current-tab",
+    "folderNoteTemplate": null,
+    "folderNoteType": "markdown",
+    "folderSortOverrides": {},
+    "folderTemplates": {},
+    "folderTreeSortOverrides": {},
+    "forceSquareFeatureImage": true,
+    "frontmatterBackgroundField": "background",
+    "frontmatterColorField": "color",
+    "frontmatterCreatedField": "",
+    "frontmatterDateFormat": "",
+    "frontmatterIconField": "icon",
+    "frontmatterModifiedField": "",
+    "frontmatterNameField": "",
+    "hideDrawingPreviewImages": true,
+    "hideFileTaskProgressWhenComplete": false,
+    "hideFolderNoteInList": true,
+    "hideRecentNotes": "none",
+    "inheritFolderColors": true,
+    "inheritPropertyColors": true,
+    "inheritTagColors": true,
+    "interfaceIcons": {},
+    "keepEmptyTagsProperty": false,
+    "keyboardShortcuts": {
+      "list:extend-selection-down": [
+        {
+          "key": "ArrowDown",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ],
+      "list:extend-selection-up": [
+        {
+          "key": "ArrowUp",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ],
+      "list:focus-editor": [
+        {
+          "key": "ArrowRight",
+          "modifiers": []
+        },
+        {
+          "key": "Tab",
+          "modifiers": []
+        }
+      ],
+      "list:focus-navigation": [
+        {
+          "key": "ArrowLeft",
+          "modifiers": []
+        },
+        {
+          "key": "Tab",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ],
+      "list:manual-sort-down": [
+        {
+          "key": "ArrowDown",
+          "modifiers": [
+            "Mod"
+          ]
+        }
+      ],
+      "list:manual-sort-up": [
+        {
+          "key": "ArrowUp",
+          "modifiers": [
+            "Mod"
+          ]
+        }
+      ],
+      "list:range-to-end": [
+        {
+          "key": "End",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ],
+      "list:range-to-start": [
+        {
+          "key": "Home",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ],
+      "list:select-all": [
+        {
+          "key": "A",
+          "modifiers": [
+            "Mod"
+          ]
+        }
+      ],
+      "navigation:collapse-or-parent": [
+        {
+          "key": "ArrowLeft",
+          "modifiers": []
+        }
+      ],
+      "navigation:expand-or-focus-list": [
+        {
+          "key": "ArrowRight",
+          "modifiers": []
+        }
+      ],
+      "navigation:focus-list": [
+        {
+          "key": "Tab",
+          "modifiers": []
+        }
+      ],
+      "pane:delete-selected": [
+        {
+          "key": "Delete",
+          "modifiers": []
+        },
+        {
+          "key": "Backspace",
+          "modifiers": []
+        }
+      ],
+      "pane:end": [
+        {
+          "key": "End",
+          "modifiers": []
+        }
+      ],
+      "pane:home": [
+        {
+          "key": "Home",
+          "modifiers": []
+        }
+      ],
+      "pane:move-down": [
+        {
+          "key": "ArrowDown",
+          "modifiers": []
+        }
+      ],
+      "pane:move-up": [
+        {
+          "key": "ArrowUp",
+          "modifiers": []
+        }
+      ],
+      "pane:page-down": [
+        {
+          "key": "PageDown",
+          "modifiers": []
+        }
+      ],
+      "pane:page-up": [
+        {
+          "key": "PageUp",
+          "modifiers": []
+        }
+      ],
+      "pane:rename": [
+        {
+          "key": "Enter",
+          "modifiers": []
+        }
+      ],
+      "search:close": [
+        {
+          "key": "Escape",
+          "modifiers": []
+        }
+      ],
+      "search:focus-list": [
+        {
+          "key": "Tab",
+          "modifiers": []
+        },
+        {
+          "key": "Enter",
+          "modifiers": []
+        }
+      ],
+      "search:focus-navigation": [
+        {
+          "key": "Tab",
+          "modifiers": [
+            "Shift"
+          ]
+        }
+      ]
+    },
+    "lastShownVersion": "3.4.1",
+    "listPaneTitle": "header",
+    "manualSortGroupHeaderProperty": "group_header",
+    "manualSortNewNotePlacement": "below-selected-note",
+    "manualSortPropertyKey": "sort_index",
+    "mouseBackForwardAction": "history",
+    "moveFileConflicts": "ask",
+    "multiSelectModifier": "cmdCtrl",
+    "narrowSidebarCustomWidth": 350,
+    "navCountLeaderStyle": "none",
+    "navigationSeparators": {},
+    "noteGrouping": "date",
+    "parentFolderClickRevealsFile": false,
+    "pinCreatedFolderNote": false,
+    "pinRecentNotesWithShortcuts": false,
+    "pinnedNotes": {},
+    "previewProperties": [],
+    "previewPropertiesFallback": true,
+    "previewRows": 2,
+    "prioritizeColoredFileProperties": true,
+    "prioritizeColoredFileTags": true,
+    "propertyAppearances": {},
+    "propertyBackgroundColors": {},
+    "propertyColors": {},
+    "propertyGroupKey": "",
+    "propertyIcons": {},
+    "propertySortKey": "",
+    "propertySortOverrides": {},
+    "propertySortSecondary": "title",
+    "propertyTreeSortOverrides": {},
+    "quickActionAddTag": true,
+    "quickActionAddToShortcuts": true,
+    "quickActionOpenInNewTab": false,
+    "quickActionPinNote": true,
+    "quickActionRevealInFolder": false,
+    "recentNotesCount": 5,
+    "revealFileOnListChanges": true,
+    "rootFolderOrder": [],
+    "rootLevelSpacing": 0,
+    "rootPropertyOrder": [],
+    "rootTagOrder": [],
+    "scopePropertiesToCurrentContext": false,
+    "scopeTagsToCurrentContext": false,
+    "separateNoteCounts": true,
+    "shiftEnterOpenContext": "tab",
+    "shortcutBadgeDisplay": "index",
+    "showAllPropertiesFolder": true,
+    "showAllTagsFolder": true,
+    "showCategoryIcons": true,
+    "showCurrentFolderFilesAtBottom": false,
+    "showFeatureImage": true,
+    "showFileBackgroundUnfinishedTask": false,
+    "showFileDate": true,
+    "showFileIcons": true,
+    "showFilePreview": true,
+    "showFileProperties": true,
+    "showFilePropertiesInCompactMode": false,
+    "showFileTagAncestors": false,
+    "showFileTags": true,
+    "showFileTagsInCompactMode": false,
+    "showFileTaskProgress": true,
+    "showFileTaskProgressBar": true,
+    "showFileTaskProgressCount": true,
+    "showFilenameMatchIcons": false,
+    "showFolderGroupPaths": true,
+    "showFolderIcons": true,
+    "showFolderTemplateIcons": true,
+    "showGroupHeaderItemCounts": false,
+    "showIndentGuides": false,
+    "showInfoButtons": true,
+    "showNearestFolderNoteInSidebar": true,
+    "showNoteCount": true,
+    "showParentFolder": true,
+    "showParentFolderColor": false,
+    "showParentFolderFullPath": false,
+    "showParentFolderIcon": false,
+    "showProperties": true,
+    "showPropertiesOnSeparateRows": false,
+    "showPropertyIcons": true,
+    "showQuickActions": true,
+    "showRecentNotes": true,
+    "showReleaseNotes": false,
+    "showRootFolder": true,
+    "showSectionIcons": true,
+    "showSelectedNavigationPills": false,
+    "showShortcuts": true,
+    "showTagIcons": true,
+    "showTags": true,
+    "showTooltipPath": true,
+    "showTooltipTags": true,
+    "showTooltipWordCount": false,
+    "showTooltips": true,
+    "showUntagged": true,
+    "showWordCountPercentage": false,
+    "skipAutoScroll": false,
+    "skipCalloutsInPreview": false,
+    "skipCodeBlocksInPreview": true,
+    "skipHeadingsInPreview": true,
+    "smartCollapse": true,
+    "springLoadedFolders": true,
+    "springLoadedFoldersInitialDelay": 0.5,
+    "springLoadedFoldersSubsequentDelay": 0.5,
+    "startView": "navigation",
+    "stickyGroupHeaders": true,
+    "stripHtmlInPreview": true,
+    "stripLatexInPreview": true,
+    "syncModes": {
+      "calendarLeftPlacement": "local",
+      "calendarPlacement": "local",
+      "calendarWeeksToShow": "local",
+      "compactItemHeight": "synced",
+      "compactItemHeightScaleText": "synced",
+      "dualPane": "local",
+      "dualPaneOrientation": "local",
+      "featureImagePixelSize": "synced",
+      "featureImageSize": "synced",
+      "folderSortOrder": "local",
+      "homepage": "local",
+      "includeDescendantNotes": "local",
+      "narrowSidebarCustomWidth": "synced",
+      "narrowSidebarLayout": "local",
+      "narrowSidebarTriggerMode": "local",
+      "navIndent": "local",
+      "navItemHeight": "local",
+      "navItemHeightScaleText": "local",
+      "paneTransitionDuration": "local",
+      "pinNavigationBanner": "local",
+      "propertySortOrder": "local",
+      "tagSortOrder": "local",
+      "toolbarVisibility": "local",
+      "uiScale": "local",
+      "useFloatingToolbars": "synced",
+      "vaultProfile": "local"
+    },
+    "tagAppearances": {},
+    "tagBackgroundColors": {},
+    "tagColors": {},
+    "tagIcons": {},
+    "tagSortOverrides": {},
+    "tagTreeSortOverrides": {},
+    "templateCommands": [],
+    "templateEngine": "automatic",
+    "textCountDisplay": "none",
+    "textCountPlacement": "title",
+    "timeFormat": "h:mm a",
+    "unfinishedTaskBackgroundColor": "#ef000050",
+    "unfinishedTaskBackgroundColorDark": "#ef000050",
+    "unfinishedTaskIcon": "compact",
+    "useFloatingToolbars": true,
+    "useFolderColorForTitles": false,
+    "useFolderIconForFiles": false,
+    "useFrontmatterMetadata": false,
+    "userColors": [
+      "#ffffff",
+      "#d9d9d9",
+      "#a6a6a6",
+      "#737373",
+      "#000000",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040",
+      "#404040"
+    ],
+    "vaultProfiles": [
+      {
+        "descendantExcludedFolders": [],
+        "fileVisibility": "supported",
+        "hiddenFileNames": [],
+        "hiddenFileProperties": [],
+        "hiddenFileTags": [],
+        "hiddenFolders": [],
+        "hiddenTags": [],
+        "id": "default",
+        "name": "기본",
+        "navRainbow": {
+          "balanceHueLuminance": true,
+          "folders": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": true,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          },
+          "mode": "none",
+          "properties": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          },
+          "recent": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "transitionStyle": "rgb"
+          },
+          "separateThemeColors": false,
+          "shortcuts": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "transitionStyle": "rgb"
+          },
+          "tags": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          }
+        },
+        "navigationBanner": null,
+        "periodicNotesFolder": "",
+        "propertyKeys": [],
+        "shortcuts": []
+      },
+      {
+        "descendantExcludedFolders": [],
+        "fileVisibility": "all",
+        "hiddenFileNames": [],
+        "hiddenFileProperties": [],
+        "hiddenFileTags": [],
+        "hiddenFolders": [],
+        "hiddenTags": [],
+        "id": "mu85ir8j-hrv039",
+        "name": "KnowledgeOS Mac",
+        "navRainbow": {
+          "balanceHueLuminance": true,
+          "folders": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": true,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          },
+          "mode": "none",
+          "properties": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          },
+          "recent": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "transitionStyle": "rgb"
+          },
+          "separateThemeColors": false,
+          "shortcuts": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "transitionStyle": "rgb"
+          },
+          "tags": {
+            "darkFirstColor": "#fb7185",
+            "darkLastColor": "#c084fc",
+            "enabled": false,
+            "firstColor": "#ef4444",
+            "lastColor": "#8b5cf6",
+            "scope": "root",
+            "transitionStyle": "hue"
+          }
+        },
+        "navigationBanner": null,
+        "periodicNotesFolder": "10_Journal",
+        "propertyKeys": [],
+        "shortcuts": []
+      }
+    ],
+    "vaultTitle": "header",
+    "virtualFolderBackgroundColors": {},
+    "virtualFolderColors": {},
+    "wordCountTargetProperty": "word-goal"
+  },
+  ".obsidian-mac/plugins/obsidian-git/data.json": {
+    "authorInHistoryView": "hide",
+    "autoBackupAfterFileChange": false,
+    "autoCommitMessage": "vault backup: {{date}}",
+    "autoCommitOnlyStaged": false,
+    "autoPullInterval": 0,
+    "autoPullOnBoot": false,
+    "autoPushInterval": 0,
+    "autoSaveInterval": 0,
+    "basePath": "",
+    "changedFilesInStatusBar": false,
+    "commitDateFormat": "YYYY-MM-DD HH:mm:ss",
+    "commitMessage": "vault backup: {{date}}",
+    "commitMessageScript": "",
+    "customMessageOnAutoBackup": false,
+    "dateInHistoryView": false,
+    "diffStyle": "split",
+    "differentIntervalCommitAndPush": false,
+    "disablePopups": false,
+    "disablePopupsForNoChanges": false,
+    "disablePush": true,
+    "gitDir": "",
+    "hunks": {
+      "hunkCommands": false,
+      "showSigns": false,
+      "statusBar": "disabled"
+    },
+    "lineAuthor": {
+      "authorDisplay": "initials",
+      "colorNew": {
+        "b": 150,
+        "g": 150,
+        "r": 255
+      },
+      "colorOld": {
+        "b": 255,
+        "g": 160,
+        "r": 120
+      },
+      "coloringMaxAge": "1y",
+      "dateTimeFormatCustomString": "YYYY-MM-DD HH:mm",
+      "dateTimeFormatOptions": "date",
+      "dateTimeTimezone": "viewer-local",
+      "followMovement": "inactive",
+      "ignoreWhitespace": false,
+      "lastShownAuthorDisplay": "initials",
+      "lastShownDateTimeFormatOptions": "date",
+      "show": false,
+      "showCommitHash": false,
+      "textColorCss": "var(--text-muted)"
+    },
+    "listChangedFilesInMessageBody": false,
+    "mergeStrategy": "none",
+    "pullBeforePush": false,
+    "refreshSourceControl": true,
+    "refreshSourceControlTimer": 7000,
+    "setLastSaveToLastCommit": false,
+    "showBranchStatusBar": true,
+    "showErrorNotices": true,
+    "showFileMenu": true,
+    "showStatusBar": true,
+    "showedMobileNotice": true,
+    "squashCommitsBeforePush": false,
+    "submoduleRecurseCheckout": false,
+    "syncMethod": "merge",
+    "treeStructure": false,
+    "updateSubmodules": false
+  },
+  ".obsidian-mac/plugins/obsidian-linter/data.json": {
+    "commonStyles": {
+      "aliasArrayStyle": "single-line",
+      "escapeCharacter": "\"",
+      "minimumNumberOfDollarSignsToBeAMathBlock": 2,
+      "removeUnnecessaryEscapeCharsForMultiLineArrays": false,
+      "tagArrayStyle": "single-line"
+    },
+    "customRegexes": [],
+    "displayChanged": true,
+    "displayLintOnFileChangeNotice": false,
+    "filesToIgnore": [],
+    "foldersToIgnore": [
+      "99_System"
+    ],
+    "lintCommands": [],
+    "lintOnFileChange": false,
+    "lintOnSave": false,
+    "linterLocale": "system-default",
+    "logLevel": "ERROR",
+    "recordLintOnSaveLogs": false,
+    "ruleConfigs": {
+      "add-blank-line-after-yaml": {
+        "enabled": false
+      },
+      "add-blockquote-indentation-on-paste": {
+        "enabled": false
+      },
+      "auto-correct-common-misspellings": {
+        "enabled": false,
+        "extra-auto-correct-files": [],
+        "ignore-words": "",
+        "skip-words-with-multiple-capitals": false
+      },
+      "blockquote-style": {
+        "enabled": false,
+        "style": "space"
+      },
+      "capitalize-headings": {
+        "enabled": false,
+        "ignore-case-words": true,
+        "ignore-words": "macOS, iOS, iPhone, iPad, JavaScript, TypeScript, AppleScript, I",
+        "lowercase-words": "a, an, the, aboard, about, abt., above, abreast, absent, across, after, against, along, aloft, alongside, amid, amidst, mid, midst, among, amongst, anti, apropos, around, round, as, aslant, astride, at, atop, ontop, bar, barring, before, B4, behind, below, beneath, neath, beside, besides, between, 'tween, beyond, but, by, chez, circa, c., ca., come, concerning, contra, counting, cum, despite, spite, down, during, effective, ere, except, excepting, excluding, failing, following, for, from, in, including, inside, into, less, like, minus, modulo, mod, near, nearer, nearest, next, notwithstanding, of, o', off, offshore, on, onto, opposite, out, outside, over, o'er, pace, past, pending, per, plus, post, pre, pro, qua, re, regarding, respecting, sans, save, saving, short, since, sub, than, through, thru, throughout, thruout, till, times, to, t', touching, toward, towards, under, underneath, unlike, until, unto, up, upon, versus, vs., v., via, vice, vis-à-vis, wanting, with, w/, w., c̄, within, w/i, without, 'thout, w/o, abroad, adrift, aft, afterward, afterwards, ahead, apart, ashore, aside, away, back, backward, backwards, beforehand, downhill, downstage, downstairs, downstream, downward, downwards, downwind, east, eastward, eastwards, forth, forward, forwards, heavenward, heavenwards, hence, henceforth, here, hereby, herein, hereof, hereto, herewith, home, homeward, homewards, indoors, inward, inwards, leftward, leftwards, north, northeast, northward, northwards, northwest, now, onward, onwards, outdoors, outward, outwards, overboard, overhead, overland, overseas, rightward, rightwards, seaward, seawards, skywards, skyward, south, southeast, southwards, southward, southwest, then, thence, thenceforth, there, thereby, therein, thereof, thereto, therewith, together, underfoot, underground, uphill, upstage, upstairs, upstream, upward, upwards, upwind, west, westward, westwards, when, whence, where, whereby, wherein, whereto, wherewith, although, because, considering, given, granted, if, lest, once, provided, providing, seeing, so, supposing, though, unless, whenever, whereas, wherever, while, whilst, ago, inasmuch, even, whether, whose, whoever, why, how, whatever, what, both, and, or, either, neither, nor, just, rather, such, that, yet, is, it",
+        "style": "Title Case"
+      },
+      "compact-yaml": {
+        "enabled": false,
+        "inner-new-lines": false
+      },
+      "consecutive-blank-lines": {
+        "enabled": false
+      },
+      "convert-bullet-list-markers": {
+        "enabled": false
+      },
+      "convert-spaces-to-tabs": {
+        "enabled": false,
+        "tabsize": 4
+      },
+      "dedupe-yaml-array-values": {
+        "dedupe-alias-key": true,
+        "dedupe-array-keys": true,
+        "dedupe-tag-key": true,
+        "enabled": false,
+        "ignore-keys": ""
+      },
+      "default-language-for-code-fences": {
+        "default-language": "",
+        "enabled": false
+      },
+      "emphasis-style": {
+        "enabled": false,
+        "style": "consistent"
+      },
+      "empty-line-around-blockquotes": {
+        "enabled": false
+      },
+      "empty-line-around-code-fences": {
+        "enabled": false
+      },
+      "empty-line-around-horizontal-rules": {
+        "enabled": false
+      },
+      "empty-line-around-math-blocks": {
+        "enabled": false
+      },
+      "empty-line-around-tables": {
+        "enabled": false
+      },
+      "escape-yaml-special-characters": {
+        "enabled": false,
+        "try-to-escape-single-line-arrays": false
+      },
+      "file-name-heading": {
+        "enabled": false
+      },
+      "footnote-after-punctuation": {
+        "enabled": false
+      },
+      "force-yaml-escape": {
+        "enabled": false,
+        "force-yaml-escape-keys": ""
+      },
+      "format-tags-in-yaml": {
+        "enabled": false
+      },
+      "format-yaml-array": {
+        "alias-key": true,
+        "default-array-keys": true,
+        "default-array-style": "single-line",
+        "enabled": false,
+        "force-multi-line-array-style": "",
+        "force-single-line-array-style": "",
+        "tag-key": true
+      },
+      "header-increment": {
+        "enabled": false,
+        "start-at-h2": false
+      },
+      "heading-blank-lines": {
+        "bottom": true,
+        "empty-line-after-yaml": true,
+        "enabled": false
+      },
+      "headings-start-line": {
+        "enabled": false
+      },
+      "insert-yaml-attributes": {
+        "enabled": false,
+        "text-to-insert": "aliases: \ntags: "
+      },
+      "line-break-at-document-end": {
+        "enabled": false
+      },
+      "move-footnotes-to-the-bottom": {
+        "enabled": false,
+        "include-blank-line-between-footnotes": false
+      },
+      "move-math-block-indicators-to-their-own-line": {
+        "enabled": false
+      },
+      "move-tags-to-yaml": {
+        "enabled": false,
+        "how-to-handle-existing-tags": "Nothing",
+        "tags-to-ignore": ""
+      },
+      "no-bare-urls": {
+        "enabled": false,
+        "no-bare-uris": false
+      },
+      "ordered-list-style": {
+        "enabled": false,
+        "list-end-style": ".",
+        "number-style": "ascending"
+      },
+      "paragraph-blank-lines": {
+        "enabled": false
+      },
+      "prevent-double-checklist-indicator-on-paste": {
+        "enabled": false
+      },
+      "prevent-double-list-item-indicator-on-paste": {
+        "enabled": false
+      },
+      "proper-ellipsis": {
+        "enabled": false
+      },
+      "proper-ellipsis-on-paste": {
+        "enabled": false
+      },
+      "quote-style": {
+        "double-quote-enabled": true,
+        "double-quote-style": "\"\"",
+        "enabled": false,
+        "single-quote-enabled": true,
+        "single-quote-style": "''"
+      },
+      "re-index-footnotes": {
+        "enabled": false
+      },
+      "remove-consecutive-list-markers": {
+        "enabled": false
+      },
+      "remove-empty-lines-between-list-markers-and-checklists": {
+        "enabled": false
+      },
+      "remove-empty-list-markers": {
+        "enabled": false
+      },
+      "remove-hyphenated-line-breaks": {
+        "enabled": false
+      },
+      "remove-hyphens-on-paste": {
+        "enabled": false
+      },
+      "remove-leading-or-trailing-whitespace-on-paste": {
+        "enabled": false
+      },
+      "remove-leftover-footnotes-from-quote-on-paste": {
+        "enabled": false
+      },
+      "remove-link-spacing": {
+        "enabled": false
+      },
+      "remove-multiple-blank-lines-on-paste": {
+        "enabled": false
+      },
+      "remove-multiple-spaces": {
+        "enabled": false
+      },
+      "remove-space-around-characters": {
+        "enabled": false,
+        "include-cjk-symbols-and-punctuation": true,
+        "include-dashes": true,
+        "include-fullwidth-forms": true,
+        "other-symbols": ""
+      },
+      "remove-space-before-or-after-characters": {
+        "characters-to-remove-space-after": "¿¡‘“([",
+        "characters-to-remove-space-before": ",!?;:).’”]",
+        "enabled": false
+      },
+      "remove-trailing-punctuation-in-heading": {
+        "enabled": false,
+        "punctuation-to-remove": ".,;:!。，；：！"
+      },
+      "remove-yaml-keys": {
+        "enabled": false,
+        "yaml-keys-to-remove": ""
+      },
+      "sort-yaml-array-values": {
+        "enabled": false,
+        "ignore-keys": "",
+        "sort-alias-key": true,
+        "sort-array-keys": true,
+        "sort-order": "Ascending Alphabetical",
+        "sort-tag-key": true
+      },
+      "space-after-list-markers": {
+        "enabled": false
+      },
+      "space-between-chinese-japanese-or-korean-and-english-or-numbers": {
+        "enabled": false,
+        "english-symbols-punctuation-after": "-+'\"([¥$",
+        "english-symbols-punctuation-before": "-+;:'\"°%$)]"
+      },
+      "strong-style": {
+        "enabled": false,
+        "style": "consistent"
+      },
+      "trailing-spaces": {
+        "enabled": false,
+        "two-space-line-break": false
+      },
+      "two-spaces-between-lines-with-content": {
+        "enabled": false,
+        "line-break-indicator": "  "
+      },
+      "unordered-list-style": {
+        "enabled": false,
+        "list-style": "consistent"
+      },
+      "yaml-key-sort": {
+        "enabled": false,
+        "priority-keys-at-start-of-yaml": true,
+        "yaml-key-priority-sort-order": "",
+        "yaml-sort-order-for-other-keys": "None"
+      },
+      "yaml-timestamp": {
+        "convert-to-utc": false,
+        "date-created": true,
+        "date-created-key": "date created",
+        "date-created-source-of-truth": "file system",
+        "date-modified": true,
+        "date-modified-key": "date modified",
+        "date-modified-source-of-truth": "file system",
+        "enabled": false,
+        "format": "dddd, MMMM Do YYYY, h:mm:ss a",
+        "update-on-file-contents-updated": "never"
+      },
+      "yaml-title": {
+        "enabled": false,
+        "mode": "first-h1-or-filename-if-h1-missing",
+        "title-key": "title"
+      },
+      "yaml-title-alias": {
+        "alias-helper-key": "linter-yaml-title-alias",
+        "enabled": false,
+        "keep-alias-that-matches-the-filename": false,
+        "preserve-existing-alias-section-style": true,
+        "use-yaml-key-to-keep-track-of-old-filename-or-heading": true
+      }
+    },
+    "settingsConvertedToConfigKeyValues": true,
+    "suppressMessageWhenNoChange": false
+  },
+  ".obsidian-mac/plugins/obsidian-meta-bind-plugin/data.json": {
+    "buttonTemplates": [],
+    "devMode": false,
+    "enableEditorRightClickMenu": true,
+    "enableJs": false,
+    "enableSyntaxHighlighting": true,
+    "excludedFolders": [
+      "templates"
+    ],
+    "firstWeekday": "Monday",
+    "ignoreCodeBlockRestrictions": false,
+    "inputFieldTemplates": [
+      {
+        "declaration": "INPUT[inlineSelect(option(planned), option(active), option(blocked), option(done), option(cancelled)):status]",
+        "name": "상태"
+      },
+      {
+        "declaration": "INPUT[inlineSelect(option(high), option(medium), option(low)):priority]",
+        "name": "우선순위"
+      },
+      {
+        "declaration": "INPUT[text:next_action]",
+        "name": "다음 행동"
+      },
+      {
+        "declaration": "INPUT[text:today_focus]",
+        "name": "오늘의 방향"
+      }
+    ],
+    "preferredDateFormat": "YYYY-MM-DD",
+    "syncInterval": 200,
+    "viewFieldDisplayNullAsEmpty": false
+  },
+  ".obsidian-mac/plugins/obsidian-tasks-plugin/data.json": {
+    "autoSuggestInEditor": true,
+    "autoSuggestMaxItems": 20,
+    "autoSuggestMinMatch": 0,
+    "debugSettings": {
+      "ignoreSortInstructions": false,
+      "recordTimings": false,
+      "showTaskHiddenData": false
+    },
+    "dismissedNotices": {
+      "live-preview-callout-warning": false
+    },
+    "features": {
+      "INTERNAL_TESTING_ENABLED_BY_DEFAULT": true
+    },
+    "filenameAsDateFolders": [],
+    "filenameAsScheduledDateFormat": "",
+    "generalSettings": {},
+    "globalFilter": "#task",
+    "globalQuery": "",
+    "headingOpened": {
+      "사용자 정의 상태": true,
+      "코어 상태": true
+    },
+    "isShownInEditModal": {
+      "after_this": true,
+      "before_this": true,
+      "cancelled": true,
+      "created": true,
+      "done": true,
+      "due": true,
+      "priority": true,
+      "recurrence": true,
+      "scheduled": true,
+      "start": true,
+      "status": true
+    },
+    "loggingOptions": {
+      "minLevels": {
+        "": "info",
+        "tasks": "info",
+        "tasks.Cache": "info",
+        "tasks.Events": "info",
+        "tasks.File": "info",
+        "tasks.Query": "info",
+        "tasks.Task": "info"
+      }
+    },
+    "presets": {
+      "hide_date_fields": "# Hide any values for all date fields\nhide due date\nhide scheduled date\nhide start date\nhide created date\nhide done date\nhide cancelled date",
+      "hide_everything": "# Hide everything except description and any tags\npreset hide_date_fields\npreset hide_non_date_fields\npreset hide_query_elements",
+      "hide_non_date_fields": "# Hide all the non-date fields, but not tags\nhide id\nhide depends on\nhide recurrence rule\nhide on completion\nhide priority",
+      "hide_query_elements": "# Hide toolbar, postpone, edit, backlinks and task count\nhide toolbar\nhide postpone button\nhide edit button\nhide backlinks\nhide task count",
+      "this_file": "path includes {{query.file.path}}",
+      "this_folder": "folder includes {{query.file.folder}}",
+      "this_folder_only": "filter by function task.file.folder === query.file.folder",
+      "this_root": "root includes {{query.file.root}}"
+    },
+    "provideAccessKeys": true,
+    "recurrenceOnNextLine": false,
+    "removeGlobalFilter": false,
+    "removeScheduledDateOnRecurrence": false,
+    "searchResults": {
+      "taskCountLocation": "bottom"
+    },
+    "setCancelledDate": true,
+    "setCreatedDate": false,
+    "setDoneDate": true,
+    "statusSettings": {
+      "coreStatuses": [
+        {
+          "availableAsCommand": true,
+          "name": "Todo",
+          "nextStatusSymbol": "x",
+          "symbol": " ",
+          "type": "TODO"
+        },
+        {
+          "availableAsCommand": true,
+          "name": "Done",
+          "nextStatusSymbol": " ",
+          "symbol": "x",
+          "type": "DONE"
+        }
+      ],
+      "customStatuses": [
+        {
+          "availableAsCommand": true,
+          "name": "In Progress",
+          "nextStatusSymbol": "x",
+          "symbol": "/",
+          "type": "IN_PROGRESS"
+        },
+        {
+          "availableAsCommand": true,
+          "name": "Cancelled",
+          "nextStatusSymbol": " ",
+          "symbol": "-",
+          "type": "CANCELLED"
+        }
+      ]
+    },
+    "taskFormat": "tasksPluginEmoji",
+    "useFilenameAsScheduledDate": false
+  },
+  ".obsidian-mac/plugins/quickadd/data.json": {
+    "ai": {
+      "defaultModel": "",
+      "defaultSystemPrompt": "As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+etacdotdelta_jcdot x_{ij}$$ on a separate line, but you can write \"($eta$ = learning rate, $delta_j$ = error term, $x_{ij}$ = input)\" inline.",
+      "promptTemplatesFolderPath": "",
+      "providers": [],
+      "showAssistant": true
+    },
+    "announceUpdates": "major",
+    "choices": [
+      {
+        "command": true,
+        "id": "79b42bc5-c4d6-40c4-b486-96637f57eda2",
+        "macro": {
+          "commands": [
+            {
+              "id": "0124759d-c8d9-4e8d-878e-1339f962c56f",
+              "name": "PrepareInputs",
+              "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+              "settings": {},
+              "type": "UserScript"
+            }
+          ],
+          "id": "4d2075e3-6f53-4e4c-9c10-133daefdb855",
+          "name": "KOS_HELPERS"
+        },
+        "name": "KOS_HELPERS",
+        "runOnStartup": false,
+        "type": "Macro"
+      },
+      {
+        "appendLink": false,
+        "command": true,
+        "fileExistsMode": "Increment the file name",
+        "fileNameFormat": {
+          "enabled": true,
+          "format": "{{DATE:YYYYMMDD-HHmmss}} {{MACRO:KOS_HELPERS::prepareInputs}}"
+        },
+        "fileOpening": {
+          "direction": "vertical",
+          "focus": true,
+          "location": "tab",
+          "mode": "default"
+        },
+        "folder": {
+          "chooseFromSubfolders": false,
+          "chooseWhenCreatingNote": false,
+          "createInSameFolderAsActiveFile": false,
+          "enabled": true,
+          "folders": [
+            "00_Inbox/Captures/{{DATE:YYYY}}/{{DATE:MM}}"
+          ]
+        },
+        "id": "f29c95dc-1f39-4ff0-81bd-2ef12181bdcf",
+        "name": "CAPTURE_THOUGHT",
+        "openFile": true,
+        "setFileExistsBehavior": false,
+        "templatePath": "99_System/Templates/T00_Capture.md",
+        "type": "Template"
+      },
+      {
+        "appendLink": false,
+        "command": true,
+        "fileExistsMode": "Increment the file name",
+        "fileNameFormat": {
+          "enabled": true,
+          "format": "{{MACRO:KOS_HELPERS::prepareInputs}}"
+        },
+        "fileOpening": {
+          "direction": "vertical",
+          "focus": true,
+          "location": "tab",
+          "mode": "default"
+        },
+        "folder": {
+          "chooseFromSubfolders": false,
+          "chooseWhenCreatingNote": false,
+          "createInSameFolderAsActiveFile": false,
+          "enabled": true,
+          "folders": [
+            "40_Knowledge/Questions"
+          ]
+        },
+        "id": "5eddd4fc-24b8-4189-b926-c91f34b20ce1",
+        "name": "NEW_QUESTION",
+        "openFile": true,
+        "setFileExistsBehavior": false,
+        "templatePath": "99_System/Templates/T22_Question.md",
+        "type": "Template"
+      },
+      {
+        "appendLink": false,
+        "command": true,
+        "fileExistsMode": "Increment the file name",
+        "fileNameFormat": {
+          "enabled": true,
+          "format": "{{MACRO:KOS_HELPERS::prepareInputs}}"
+        },
+        "fileOpening": {
+          "direction": "vertical",
+          "focus": true,
+          "location": "tab",
+          "mode": "default"
+        },
+        "folder": {
+          "chooseFromSubfolders": false,
+          "chooseWhenCreatingNote": false,
+          "createInSameFolderAsActiveFile": false,
+          "enabled": true,
+          "folders": [
+            "40_Knowledge/Ideas"
+          ]
+        },
+        "id": "9bba3ca7-d9c7-4df3-8ab4-425ddd7da0a6",
+        "name": "NEW_IDEA",
+        "openFile": true,
+        "setFileExistsBehavior": false,
+        "templatePath": "99_System/Templates/T21_Idea.md",
+        "type": "Template"
+      },
+      {
+        "appendLink": false,
+        "command": true,
+        "fileExistsMode": "Increment the file name",
+        "fileNameFormat": {
+          "enabled": true,
+          "format": "{{MACRO:KOS_HELPERS::prepareInputs}} {{MACRO:KOS_HELPERS::ensureProjectDirectories}}"
+        },
+        "fileOpening": {
+          "direction": "vertical",
+          "focus": true,
+          "location": "tab",
+          "mode": "default"
+        },
+        "folder": {
+          "chooseFromSubfolders": false,
+          "chooseWhenCreatingNote": false,
+          "createInSameFolderAsActiveFile": false,
+          "enabled": true,
+          "folders": [
+            "20_Projects/{{MACRO:KOS_HELPERS::prepareInputs}}"
+          ]
+        },
+        "id": "dc798d84-85be-465e-b461-c4cc13d198aa",
+        "name": "NEW_PROJECT",
+        "openFile": true,
+        "setFileExistsBehavior": false,
+        "templatePath": "99_System/Templates/T20_Project.md",
+        "type": "Template"
+      },
+      {
+        "appendLink": false,
+        "command": true,
+        "fileExistsMode": "Increment the file name",
+        "fileNameFormat": {
+          "enabled": true,
+          "format": "{{MACRO:KOS_HELPERS::prepareInputs}}"
+        },
+        "fileOpening": {
+          "direction": "vertical",
+          "focus": true,
+          "location": "tab",
+          "mode": "default"
+        },
+        "folder": {
+          "chooseFromSubfolders": false,
+          "chooseWhenCreatingNote": false,
+          "createInSameFolderAsActiveFile": false,
+          "enabled": true,
+          "folders": [
+            "40_Knowledge/Notes"
+          ]
+        },
+        "id": "c44007fc-f3e5-47f0-b295-d9c99cc5aa9b",
+        "name": "NEW_KNOWLEDGE",
+        "openFile": true,
+        "setFileExistsBehavior": false,
+        "templatePath": "99_System/Templates/T40_Knowledge.md",
+        "type": "Template"
+      }
+    ],
+    "devMode": false,
+    "disableOnlineFeatures": true,
+    "enableRibbonIcon": false,
+    "enableTemplatePropertyTypes": false,
+    "globalVariables": {},
+    "inputPrompt": "single-line",
+    "migrations": {
+      "addDefaultAIProviders": true,
+      "incrementFileNameSettingMoveToDefaultBehavior": true,
+      "migrateFileOpeningSettings": true,
+      "migrateToMacroIDFromEmbeddedMacro": true,
+      "mutualExclusionInsertAfterAndWriteToBottomOfFile": true,
+      "removeMacroIndirection": true,
+      "setProviderModelDiscoveryMode": true,
+      "setVersionAfterUpdateModalRelease": true,
+      "useQuickAddTemplateFolder": true
+    },
+    "onePageInputEnabled": false,
+    "showCaptureNotification": false,
+    "showInputCancellationNotification": false,
+    "templateFolderPath": "99_System/Templates",
+    "version": "2.9.3"
+  },
+  ".obsidian-mac/plugins/templater-obsidian/data.json": {
+    "auto_jump_to_cursor": false,
+    "command_timeout": 5,
+    "enable_file_templates": false,
+    "enable_folder_templates": true,
+    "enable_system_commands": false,
+    "enabled_templates_hotkeys": [
+      ""
+    ],
+    "file_templates": [
+      {
+        "regex": ".*",
+        "template": ""
+      }
+    ],
+    "folder_templates": [
+      {
+        "folder": "",
+        "template": ""
+      }
+    ],
+    "intellisense_render": 1,
+    "shell_path": "",
+    "startup_templates": [],
+    "syntax_highlighting": true,
+    "syntax_highlighting_mobile": false,
+    "templates_folder": "99_System/Templates",
+    "templates_pairs": [
+      [
+        "",
+        ""
+      ]
+    ],
+    "trigger_on_file_creation": false,
+    "user_scripts_folder": ""
+  },
+  ".obsidian-mac/types.json": {
+    "types": {
+      "BC-dataview-note-field": "text",
+      "BC-dataview-note-query": "text",
+      "BC-dendron-note-field": "text",
+      "BC-folder-note-field": "text",
+      "BC-folder-note-recurse": "checkbox",
+      "BC-ignore-in-edges": "checkbox",
+      "BC-ignore-out-edges": "checkbox",
+      "BC-johnny-decimal-note-field": "text",
+      "BC-list-note-exclude": "multitext",
+      "BC-list-note-exclude-index": "checkbox",
+      "BC-list-note-field": "text",
+      "BC-list-note-neighbour-field": "text",
+      "BC-list-note-section": "text",
+      "BC-regex-note-field": "text",
+      "BC-regex-note-flags": "text",
+      "BC-regex-note-regex": "text",
+      "BC-tag-note-exact": "checkbox",
+      "BC-tag-note-field": "text",
+      "BC-tag-note-sibling-field": "text",
+      "BC-tag-note-tag": "text",
+      "BC-traverse-note-field": "text",
+      "TQ_explain": "checkbox",
+      "TQ_extra_instructions": "text",
+      "TQ_short_mode": "checkbox",
+      "TQ_show_backlink": "checkbox",
+      "TQ_show_cancelled_date": "checkbox",
+      "TQ_show_created_date": "checkbox",
+      "TQ_show_depends_on": "checkbox",
+      "TQ_show_done_date": "checkbox",
+      "TQ_show_due_date": "checkbox",
+      "TQ_show_edit_button": "checkbox",
+      "TQ_show_id": "checkbox",
+      "TQ_show_on_completion": "checkbox",
+      "TQ_show_postpone_button": "checkbox",
+      "TQ_show_priority": "checkbox",
+      "TQ_show_recurrence_rule": "checkbox",
+      "TQ_show_scheduled_date": "checkbox",
+      "TQ_show_start_date": "checkbox",
+      "TQ_show_tags": "checkbox",
+      "TQ_show_task_count": "checkbox",
+      "TQ_show_toolbar": "checkbox",
+      "TQ_show_tree": "checkbox",
+      "TQ_show_urgency": "checkbox",
+      "aliases": "aliases",
+      "applies_to": "multitext",
+      "contradicts": "multitext",
+      "cssclasses": "multitext",
+      "derived_from": "multitext",
+      "down": "multitext",
+      "explains": "multitext",
+      "implements": "multitext",
+      "next": "multitext",
+      "prev": "multitext",
+      "projects": "multitext",
+      "raises": "multitext",
+      "related": "multitext",
+      "same": "multitext",
+      "sources": "multitext",
+      "supports": "multitext",
+      "tags": "tags",
+      "up": "multitext"
+    }
+  },
+  ".obsidian/app.json": {},
+  ".obsidian/appearance.json": {
+    "translucency": false
+  },
+  ".obsidian/core-plugins.json": {
+    "publish": false,
+    "sync": false
+  }
+}

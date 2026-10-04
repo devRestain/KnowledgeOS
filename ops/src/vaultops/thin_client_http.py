@@ -22,6 +22,7 @@ from typing import Any
 
 from .answer import ask
 from .note_engine import resolve_vault_relative_path
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .projection import load_current_projection
 from .provider_contract import canonical_json_bytes
 from .thin_client import (
@@ -70,15 +71,15 @@ def _read_regular_file(path: Path, label: str, *, maximum: int = MAX_NOTE_BYTES)
     return raw
 
 
-def _validate_root(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ThinClientError("C41_ROOT_INVALID", "control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _validate_root(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        return resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise ThinClientError("C41_ROOT_INVALID", "selected roots could not be resolved safely") from error
 
 
-def _default_content_digest(root: Path, relative_path: str) -> str:
-    vault = root / "KnowledgeHub"
+def _default_content_digest(roots: ResolvedPaths, relative_path: str) -> str:
+    vault = roots.vault
     if vault.is_symlink() or not vault.is_dir():
         raise ThinClientError("C41_RECHECK_UNAVAILABLE", "KnowledgeHub is unavailable")
     try:
@@ -88,17 +89,17 @@ def _default_content_digest(root: Path, relative_path: str) -> str:
     return _sha256(_read_regular_file(path, "current note"))
 
 
-def _default_policy_digests(root: Path) -> tuple[str, str]:
+def _default_policy_digests(roots: ResolvedPaths) -> tuple[str, str]:
     retrieval, privacy = _POLICY_PATHS
     return (
-        _sha256(_read_regular_file(root / retrieval, retrieval)),
-        _sha256(_read_regular_file(root / privacy, privacy)),
+        _sha256(_read_regular_file(roots.control / retrieval, retrieval)),
+        _sha256(_read_regular_file(roots.control / privacy, privacy)),
     )
 
 
-def _default_index_generation(root: Path) -> str:
+def _default_index_generation(roots: ResolvedPaths) -> str:
     try:
-        projection = load_current_projection(root, verify_sources=True)
+        projection = load_current_projection(roots, verify_sources=True)
     except (OSError, TypeError, ValueError) as error:
         raise ThinClientError("C41_RECHECK_UNAVAILABLE", "current index generation could not be verified") from error
     generation_id = projection.manifest.get("generation_id")
@@ -107,12 +108,16 @@ def _default_index_generation(root: Path) -> str:
     return generation_id
 
 
-def _default_answer_runner(root: Path) -> AnswerRunner:
+def _default_answer_runner(roots: ResolvedPaths) -> AnswerRunner:
+    answer_root: str | Path | ResolvedPaths = (
+        roots
+    )
+
     def run(request: Mapping[str, Any]) -> tuple[Mapping[str, Any], int]:
         scope = request["scope"]
         policy = request["policy"]
         return ask(
-            root,
+            answer_root,
             request["question"]["text"],
             path_prefix=scope["path"],
             expected_generation_id=policy["index_generation_id"],
@@ -238,7 +243,7 @@ class VaultThinClientBroker:
 
     def __init__(
         self,
-        root: str | Path,
+        root: str | Path | ResolvedPaths,
         *,
         content_digest_reader: ContentDigestReader | None = None,
         policy_digest_reader: PolicyDigestReader | None = None,

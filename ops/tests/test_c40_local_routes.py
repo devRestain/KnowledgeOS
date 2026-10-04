@@ -12,7 +12,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support.control_factory import C40_LOCAL_CONTROL_INPUTS, make_control_root
+from support.control_factory import (
+    C40_LOCAL_CONTROL_INPUTS,
+    fixture_artifact,
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.gemma_routes import GEMMA_MODEL_TAG
 from vaultops.ollama import OllamaClient, OllamaProfile
@@ -223,8 +229,8 @@ def test_c40_enabled_local_routes_validate_c35_output_and_remain_proposal_only(
     assert report["mutation_performed"] is False
     assert report["vault_mutation_performed"] is False
     assert report["canonical_apply_allowed"] is False
-    response_path = root / report["response_path"]
-    receipt_path = root / report["receipt_path"]
+    response_path = fixture_artifact(root, report["response_path"])
+    receipt_path = fixture_artifact(root, report["receipt_path"])
     assert stat.S_IMODE(response_path.stat().st_mode) == 0o600
     assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
     response = json.loads(response_path.read_text(encoding="utf-8"))
@@ -265,7 +271,28 @@ def test_c40_default_and_unauthorized_paths_defer_without_provider_access(tmp_pa
     assert unauthorized["status"] == "DEFERRED"
     assert unauthorized["errors"][0]["code"] == "C40_AUTHORIZATION_REQUIRED"
     assert unauthorized["provider_called"] is False
-    assert not (root / "runtime/runs" / job_id / "response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id / "response.json").exists()
+
+
+def test_c40_reads_selected_runtime_job_before_preserving_disabled_route(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path, extra_inputs=C40_LOCAL_CONTROL_INPUTS)
+    job_id, _context_value = _job(roots.control, "answer")
+
+    report, code = run_local_route(
+        roots,
+        job_id=job_id,
+        client=None,
+        enabled=False,
+        authorized=False,
+    )
+
+    assert code == 30
+    assert report["status"] == "DEFERRED"
+    assert report["errors"][0]["code"] == "C40_ROUTE_DISABLED"
+    assert report["provider_called"] is False
+    assert report["live_provider_called"] is False
+    assert (roots.state / "runs" / job_id / "request.json").is_file()
+    assert not (roots.control / "runtime").exists()
 
 
 @pytest.mark.parametrize(
@@ -305,7 +332,7 @@ def test_c40_rejects_unsafe_or_invalid_transport_output_before_completed_persist
     assert report["status"] in {"FAIL", "CONFLICT"}
     assert report["errors"][0]["code"] == expected_code
     assert report["provider_called"] is True
-    response = json.loads((root / "runtime/runs" / job_id / "response.json").read_text(encoding="utf-8"))
+    response = json.loads(((fixture_path(root, "state") / "runs") / job_id / "response.json").read_text(encoding="utf-8"))
     assert response["status"] == ("conflict" if expected_code == "DIGEST_CONFLICT" else "failed")
     assert response["output"] is None
 
@@ -336,7 +363,7 @@ def test_c40_rejects_stale_citation_and_replays_only_after_route_revalidation(tm
     assert stale["status"] == "CONFLICT"
     assert stale["errors"][0]["code"] == "C35_CITATION_DRIFT"
     stale_response = json.loads(
-        (root / "runtime/runs" / job_id / "response.json").read_text(encoding="utf-8")
+        ((fixture_path(root, "state") / "runs") / job_id / "response.json").read_text(encoding="utf-8")
     )
     assert stale_response["status"] == "failed"
     assert stale_response["output"] is None

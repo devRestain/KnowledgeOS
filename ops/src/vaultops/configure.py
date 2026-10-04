@@ -17,6 +17,7 @@ from .bridge_contract import (
     remote_identity_sha256,
     validate_root_sentinel,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .yaml_safe import load_yaml_file
 
 SENTINEL_RELATIVE_PATH = ".knowledgeos-root.json"
@@ -74,7 +75,7 @@ def _prompt(value: str | None, label: str) -> str:
 
 
 def configure(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     remote: str | None = None,
     branch: str | None = None,
@@ -94,7 +95,11 @@ def configure(
     """
 
     mode = "dry-run" if dry_run else "apply"
-    workspace = Path(root).resolve()
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        return _failure(mode, [_issue("CONFIGURE_ROOTS_INVALID", str(error))])
+    workspace = roots.control
     validation = validate_blueprint(workspace)
     if not validation.passed:
         return _failure(mode, validation.report.get("errors", []))
@@ -155,10 +160,10 @@ def configure(
             [_issue("CONFIGURE_BRANCH_INVALID", "expected branch does not satisfy the branch contract", "/expected_branch")],
         )
 
-    vault_root = workspace / "KnowledgeHub"
+    vault_root = roots.vault
     sentinel = vault_root / SENTINEL_RELATIVE_PATH
     if not vault_root.is_dir() or vault_root.is_symlink():
-        return _failure(mode, [_issue("CONFIGURE_VAULT_ROOT_INVALID", "KnowledgeHub must be a real directory")])
+        return _failure(mode, [_issue("CONFIGURE_VAULT_ROOT_INVALID", "selected Vault root must be a real directory")])
     if sentinel.is_symlink():
         return _failure(mode, [_issue("CONFIGURE_SENTINEL_SYMLINK", "sentinel must not be a symlink")])
 
@@ -177,7 +182,7 @@ def configure(
     if Path(control_git).resolve() != workspace or Path(vault_git).resolve() != vault_root:
         return _failure(
             mode,
-            [_issue("CONFIGURE_GIT_ROOT_INVALID", "control and KnowledgeHub Git roots are not the expected independent roots")],
+            [_issue("CONFIGURE_GIT_ROOT_INVALID", "control and selected Vault Git roots are not the expected independent roots")],
         )
 
     remote_code, configured_remote, remote_error = _git(vault_root, "config", "--get", "remote.origin.url")
@@ -254,6 +259,13 @@ def configure(
         "status": "PASS",
         "operation": "configure",
         "mode": mode,
+        "resolved_roots": {
+            "control": str(roots.control),
+            "vault": str(roots.vault),
+            "runtime": str(roots.runtime),
+            "state": str(roots.state),
+            "core": str(roots.core),
+        },
         "sentinel_path": SENTINEL_RELATIVE_PATH,
         "configured_remote": configured_canonical.rstrip("\n"),
         "remote_identity_sha256": digest,
@@ -291,5 +303,5 @@ def configure(
     return report
 
 
-def configure_json(root: str | Path, **kwargs: Any) -> str:
+def configure_json(root: str | Path | ResolvedPaths, **kwargs: Any) -> str:
     return json.dumps(configure(root, **kwargs), ensure_ascii=False, indent=2, sort_keys=True) + "\n"

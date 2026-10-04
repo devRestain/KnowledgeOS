@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 import yaml
 
 from .note_engine import FrontmatterError, parse_frontmatter, resolve_vault_relative_path
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .yaml_safe import load_yaml_file
 
 BASE_DIRECTORY = "99_System/Bases"
@@ -83,6 +84,9 @@ def dashboard_sources() -> dict[str, str]:
             ai_status: idle
             ---
             # Home
+
+            > [!info] KnowledgeOS 계약
+            > [[99_System/Guides/KnowledgeOS|조회·제안·승인 사용 경계]]를 확인한다. Review의 문서 status는 실행 완료나 human approval의 근거를 대신하지 않는다.
 
             > [!ko-home-grid]
             > > [!ko-home-tasks] Task
@@ -149,20 +153,18 @@ def dashboard_sources() -> dict[str, str]:
             ---
             # Mobile
 
-            > [!info] 동기화 상태
-            > 이 화면은 이 기기의 마지막 Working Copy 동기화 snapshot 기준입니다. 대량 변경을 받으려면
-            > Obsidian을 닫고 `KO · Sync`를 실행하세요. 이 문서에는 성공 여부를 저장하지 않습니다.
+            > [!info] 조회 화면
+            > 이 화면은 현재 기기에 있는 문서의 조회 화면이다. 동기화, mobile shortcut과 원격 실행은 구성되지 않았다. 최신 실행·수락·승인은 KnowledgeOS owner status에서 확인한다.
 
             ## 빠른 입력
 
-            - [＋ 생각 포착](shortcuts://run-shortcut?name=KO%20%C2%B7%20Capture)
-            - [＋ 자료 저장](shortcuts://run-shortcut?name=KO%20%C2%B7%20Save%20Source)
-            - [＋ AI 작업 요청](shortcuts://run-shortcut?name=KO%20%C2%B7%20Defer%20to%20Mac)
-            - [↻ 안전 동기화](shortcuts://run-shortcut?name=KO%20%C2%B7%20Sync)
+            - [[99_System/Guides/KnowledgeOS|KnowledgeOS 사용 경계]]를 확인한다.
+            - 입력과 제안은 trusted local owner 경계에서 수행한다.
+            - 이 화면에는 승인·실행·동기화 action을 두지 않는다.
 
             ## 오늘
 
-            - [오늘 Daily 열기](obsidian://daily?vault=KnowledgeHub)
+            - [[99_System/Bases/Journal.base#Today Focus|현재 Daily 조회]]
 
             ![[99_System/Bases/Projects.base#Mobile]]
 
@@ -340,7 +342,9 @@ def dashboard_sources() -> dict[str, str]:
             ![[99_System/Bases/Review.base#PendingOrConflict]]
 
             - [[99_System/Bases/Review.base#PendingOrConflict|AI Review 전체 보기]]
-            - terminal에서 diff와 hash를 보고 approve 또는 reject한다.
+            - terminal의 owner control에서 diff와 정확한 digest를 보고 approve 또는 reject한다.
+            - 승인은 pending intent를 기록한다. canonical apply는 별도로 명시적으로 실행한다.
+            - [[99_System/Guides/KnowledgeOS|계약과 상태 의미]]를 확인한다.
 
             ## 7. 주 닫기
 
@@ -1116,7 +1120,7 @@ def evaluate_records(
 
 
 def evaluate_base_view(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     base_name: str,
     view_name: str,
     *,
@@ -1124,16 +1128,19 @@ def evaluate_base_view(
 ) -> list[dict[str, Any]]:
     """Read one Vault and evaluate its canonical view; never mutate the Vault."""
 
-    workspace = Path(root).resolve()
-    blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
+    try:
+        roots = root if isinstance(root, ResolvedPaths) else resolve_paths(root)
+    except RootResolutionError as error:
+        raise BaseContractError(str(error)) from error
+    blueprint = load_yaml_file(roots.control / "blueprint/blueprint.yaml")
     expected = render_base_documents(blueprint)
-    base_path = resolve_vault_relative_path(workspace / "KnowledgeHub", f"{BASE_DIRECTORY}/{base_name}")
+    base_path = resolve_vault_relative_path(roots.vault, f"{BASE_DIRECTORY}/{base_name}")
     if not base_path.is_file() or base_path.is_symlink():
         raise BaseContractError(f"Base file is missing or unsafe: {BASE_DIRECTORY}/{base_name}")
     actual = base_path.read_text(encoding="utf-8")
     if yaml.safe_load(actual) != yaml.safe_load(expected[f"{BASE_DIRECTORY}/{base_name}"]):
         raise BaseContractError(f"Base file differs from canonical C08 compiler: {base_name}")
-    return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(workspace / "KnowledgeHub"), today=today)
+    return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(roots.vault), today=today)
 
 
 def evaluator_report(rows: Iterable[Mapping[str, Any]]) -> str:

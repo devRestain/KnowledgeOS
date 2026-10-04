@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .provider_contract import canonical_json_bytes
 from .recovery import fsync_directory
 
@@ -145,16 +146,25 @@ def _read_json(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
-def _operation_directory(root: str | Path, operation_id: str, *, create: bool = False) -> Path:
+def _operation_directory(
+    root: str | Path | ResolvedPaths,
+    operation_id: str,
+    *,
+    create: bool = False,
+) -> Path:
     _validate_operation_id(operation_id)
-    workspace = Path(root)
-    if workspace.is_symlink() or not workspace.is_dir():
-        raise OperationsError("C43_ROOT_INVALID", "control root must be an existing directory")
-    operations = workspace / "runtime" / "operations"
-    _private_directory(workspace / "runtime", "runtime", create=create)
-    _private_directory(operations, "runtime/operations", create=create)
+    if isinstance(root, ResolvedPaths):
+        runtime = root.state
+    else:
+        try:
+            runtime = resolve_paths(root).state
+        except RootResolutionError as error:
+            raise OperationsError("C43_ROOT_INVALID", str(error)) from error
+    operations = runtime / "operations"
+    _private_directory(runtime, "runtime", create=create)
+    _private_directory(operations, "state/operations", create=create)
     operation = operations / operation_id
-    _private_directory(operation, f"runtime/operations/{operation_id}", create=create)
+    _private_directory(operation, f"state/operations/{operation_id}", create=create)
     return operation
 
 
@@ -293,8 +303,8 @@ def dry_run_operation(
         "before_sha256": before_sha256,
         "target_sha256": target_sha256,
         "would_create": [
-            f"runtime/operations/{operation_id}/intent.json",
-            f"runtime/operations/{operation_id}/receipt.json",
+            f"state/operations/{operation_id}/intent.json",
+            f"state/operations/{operation_id}/receipt.json",
         ],
         "mutation_performed": False,
         "effects": _common_effects(),
@@ -303,7 +313,7 @@ def dry_run_operation(
 
 
 def run_operation(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     operation_id: str,
     component: str,
@@ -372,7 +382,7 @@ def run_operation(
             "operation_id": operation_id,
             "component": component,
             "action": action,
-            "receipt_path": f"runtime/operations/{operation_id}/receipt.json",
+            "receipt_path": f"state/operations/{operation_id}/receipt.json",
             "receipt_sha256": receipt["receipt_sha256"],
             "mutation_performed": False,
             "effects": _common_effects(),
@@ -382,7 +392,7 @@ def run_operation(
     )
 
 
-def recover_operation(root: str | Path, operation_id: str) -> tuple[dict[str, Any], int]:
+def recover_operation(root: str | Path | ResolvedPaths, operation_id: str) -> tuple[dict[str, Any], int]:
     """Recover an interrupted operation by writing one idempotent receipt."""
 
     operation = _operation_directory(root, operation_id, create=False)
@@ -444,7 +454,7 @@ def recover_operation(root: str | Path, operation_id: str) -> tuple[dict[str, An
             "operation": OPERATION,
             "capability": CAPABILITY,
             "operation_id": operation_id,
-            "receipt_path": f"runtime/operations/{operation_id}/receipt.json",
+            "receipt_path": f"state/operations/{operation_id}/receipt.json",
             "receipt_sha256": receipt["receipt_sha256"],
             "prior_profile_unchanged": True,
             "mutation_performed": False,
@@ -454,7 +464,7 @@ def recover_operation(root: str | Path, operation_id: str) -> tuple[dict[str, An
     )
 
 
-def rollback_operation(root: str | Path, operation_id: str) -> tuple[dict[str, Any], int]:
+def rollback_operation(root: str | Path | ResolvedPaths, operation_id: str) -> tuple[dict[str, Any], int]:
     """Write one create-only rollback receipt bound to a completed/recovered receipt."""
 
     operation = _operation_directory(root, operation_id, create=False)
@@ -494,7 +504,7 @@ def rollback_operation(root: str | Path, operation_id: str) -> tuple[dict[str, A
             "operation": OPERATION,
             "capability": CAPABILITY,
             "operation_id": operation_id,
-            "receipt_path": f"runtime/operations/{operation_id}/rollback.json",
+            "receipt_path": f"state/operations/{operation_id}/rollback.json",
             "receipt_sha256": rollback["receipt_sha256"],
             "rollback_of": original["receipt_sha256"],
             "prior_profile_restored": True,
@@ -505,7 +515,7 @@ def rollback_operation(root: str | Path, operation_id: str) -> tuple[dict[str, A
     )
 
 
-def verify_operation(root: str | Path, operation_id: str) -> dict[str, Any]:
+def verify_operation(root: str | Path | ResolvedPaths, operation_id: str) -> dict[str, Any]:
     """Verify exact ownership, receipt digests, and effect boundaries."""
 
     operation = _operation_directory(root, operation_id, create=False)

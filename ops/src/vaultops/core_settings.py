@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .paths import resolve_api_paths
+
 P02_CORE_REGISTRY_SCHEMA_VERSION = 1
 P02_POLICY_CLASSES = ("required", "optional", "explicitly_disabled")
 
@@ -584,7 +586,8 @@ def build_core_setting_registry(
             )
         )
 
-    template_path = root / "KnowledgeHub" / daily_expected["template"]
+    vault_root = resolve_api_paths(root).vault
+    template_path = vault_root / daily_expected["template"]
     template_source_state = "unknown"
     if template_path.is_file() and not template_path.is_symlink():
         try:

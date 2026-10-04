@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from support.control_factory import make_control_root
+from support.control_factory import fixture_path, make_control_root
 
 from vaultops.cli import main
 from vaultops.schema_export import (
@@ -29,6 +29,28 @@ def _control_copy(tmp_path: Path) -> Path:
         tmp_path,
         sorted(inputs),
     )
+    (fixture_path(root, "vault")).rmdir()
+    vault = tmp_path / "KnowledgeHub Ω"
+    vault.mkdir()
+    runtime = tmp_path / "runtime Ω"
+    runtime.mkdir(mode=0o700, exist_ok=True)
+    runtime.chmod(0o700)
+    (root / "ops/vaultops.toml").write_text(
+        "\n".join(
+            (
+                "schema_version = 3",
+                'project_name = "KnowledgeOS"',
+                f"control_root = {json.dumps(str(root), ensure_ascii=False)}",
+                f"vault_root = {json.dumps(str(vault), ensure_ascii=False)}",
+                f"runtime_root = {json.dumps(str(runtime), ensure_ascii=False)}",
+                f'core_root = {json.dumps(str(fixture_path(root, "core")), ensure_ascii=False)}',
+                f'state_root = {json.dumps(str(fixture_path(root, "state")), ensure_ascii=False)}',
+                'timezone = "Asia/Seoul"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
     for spec in OWNED_ARTIFACTS:
         (root / spec.path).unlink(missing_ok=True)
     return root
@@ -46,7 +68,7 @@ def test_schema_export_writes_only_explicit_owned_artifacts(tmp_path: Path) -> N
         for item in result.report["artifacts"][len(OWNED_ARTIFACTS) :]
     )
     assert all(not spec.path.startswith("KnowledgeHub/") for spec in OWNED_ARTIFACTS)
-    assert list((root / "KnowledgeHub").iterdir()) == []
+    assert not (root / "KnowledgeHub").exists()
     assert not (root / "runtime").exists()
     assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"

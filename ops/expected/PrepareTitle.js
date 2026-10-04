@@ -14,4 +14,3 @@ module.exports = async ({ variables = {} } = {}) => {
     .trim()
     .slice(0, 120);
 };
-

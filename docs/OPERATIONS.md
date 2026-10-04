@@ -8,7 +8,7 @@
 - Run `make test` and `make lint` sequentially to avoid disposable cache races.
 - Use `docker compose -f ops/compose.yaml run --rm dev ...` for disposable commands.
 - Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID` from the invoking host account; fail closed on omission.
-- Keep control, `KnowledgeHub/`, and `runtime/` as separate storage and evidence surfaces.
+- Keep control, `../../../Vaults/KnowledgeHub/`, and `runtime/` as separate storage and evidence surfaces.
 - Verify Vault sentinel identity and branch binding before sync or publish gates.
 - Keep runtime payloads durable where classified and never treat ignored as disposable by default.
 - Keep ignored Obsidian baselines separate from disposable app-smoke evidence.

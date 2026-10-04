@@ -31,3 +31,8 @@
 - Report changed indexes, source references, evidence updates, and unresolved mismatches.
 - Refresh `PROJECT_STATE.md` after document verification.
 - Read relevant `README.md` files only at close when a human-readable update is required.
+
+## Apply target definitions
+
+- Distinguish observed legacy paths from adopted Core ownership and future migration responsibilities.
+- Keep maintained indexes and domain authoring plans with KnowledgeOS while placing intermediate review tooling in workspace Tmp.

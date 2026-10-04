@@ -1,27 +1,39 @@
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import subprocess
 import uuid
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.background import (
     EXIT_CONFLICT,
+    EXIT_INPUT_INVALID,
     EXIT_OK,
+    configure_worker_log_streams,
     evaluate_frozen_baseline,
     evaluate_synthetic_wake,
     render_background_artifacts,
     run_worker,
+    scheduled_worker_record,
     worker_once,
     worker_report_schema,
 )
 from vaultops.bridge_contract import canonical_json_bytes, remote_identity_sha256
 from vaultops.cli import main
+from vaultops.paths import resolve_api_paths
 from vaultops.recovery import RecoveryJournal
+from vaultops.runtime import RUNTIME_DIRECTORIES, STATE_DIRECTORIES
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 JOB_ID = "550e8400-e29b-41d4-a716-446655440000"
@@ -41,7 +53,11 @@ def _git(repo: Path, *args: str) -> str:
 def _fresh_control_copy(tmp_path: Path) -> Path:
     root = make_control_root(
         tmp_path,
-        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c24_background"),
+        tuple(
+            item
+            for item in (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c24_background")
+            if item != "ops/vaultops.toml"
+        ),
     )
     (root / "PROJECT_STATE.md").write_text(
         "/goal phase=history id=C36 state=complete\n"
@@ -53,7 +69,7 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     _git(root, "config", "user.email", "test@example.invalid")
     _git(root, "config", "user.name", "KnowledgeOS Test")
 
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     for relative in (
         ".vault-bridge/requests/2026/09",
         ".vault-bridge/responses/2026/09",
@@ -61,8 +77,8 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
         "01_AI_Review/Pending",
     ):
         (vault / relative).mkdir(parents=True)
-    runtime = root / "runtime"
-    runtime.mkdir(mode=0o700)
+    runtime = fixture_path(root, "state")
+    runtime.mkdir(mode=0o700, exist_ok=True)
     for relative in (
         "staging",
         "queue",
@@ -85,6 +101,9 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
         "logs",
     ):
         (runtime / relative).mkdir(mode=0o700)
+
+    for relative in RUNTIME_DIRECTORIES:
+        (fixture_path(root, "runtime") / relative).mkdir(mode=0o700, exist_ok=True)
 
     sentinel = {
         "schema_version": 1,
@@ -109,7 +128,7 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
 
 
 def _commit_request(root: Path) -> Path:
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     source = vault / SOURCE_PATH
     source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
     request = {
@@ -136,7 +155,7 @@ def test_worker_replays_committed_request_without_vault_or_network_mutation(
 ) -> None:
     root = _fresh_control_copy(tmp_path)
     request_path = _commit_request(root)
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     head_before = _git(vault, "rev-parse", "HEAD")
     status_before = _git(vault, "status", "--porcelain")
     vault_before = {
@@ -166,6 +185,9 @@ def test_worker_replays_committed_request_without_vault_or_network_mutation(
         assert report["mutation_performed"] is False
         assert list(Draft202012Validator(worker_report_schema()).iter_errors(report)) == []
 
+    attempt_marker = (fixture_path(root, "state") / "worker/attempt.json")
+    assert json.loads(attempt_marker.read_text(encoding="utf-8"))["status"] == "completed"
+
     assert _git(vault, "rev-parse", "HEAD") == head_before
     assert _git(vault, "status", "--porcelain") == status_before
     assert {
@@ -173,6 +195,88 @@ def test_worker_replays_committed_request_without_vault_or_network_mutation(
         for path in vault.rglob("*")
         if path.is_file()
     } == vault_before
+
+
+def test_worker_refuses_request_count_over_configured_limit_before_ingestion(
+    tmp_path: Path,
+) -> None:
+    root = _fresh_control_copy(tmp_path)
+    vault = fixture_path(root, "vault")
+    request_directory = vault / ".vault-bridge/requests/2026/09"
+    for _ in range(101):
+        request_id = str(uuid.uuid4())
+        (request_directory / f"{request_id}.json").write_text("{}\n", encoding="utf-8")
+    vault_before = {
+        path.relative_to(vault).as_posix(): path.read_bytes()
+        for path in vault.rglob("*")
+        if path.is_file()
+    }
+
+    report, code = worker_once(
+        root,
+        wake_id="request-limit",
+        synthetic=True,
+    )
+
+    assert code == EXIT_INPUT_INVALID
+    assert report["status"] == "FAIL"
+    assert report["requests"] == []
+    assert "worker request limit exceeded: 101 > 100" in report["errors"][0]["message"]
+    assert not any(((fixture_path(root, "state") / "queue")).iterdir())
+    assert {
+        path.relative_to(vault).as_posix(): path.read_bytes()
+        for path in vault.rglob("*")
+        if path.is_file()
+    } == vault_before
+
+
+def test_worker_and_bounded_logs_use_the_selected_vault_and_runtime_roots(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    request_relative = ".vault-bridge/requests/2026/09/550e8400-e29b-41d4-a716-446655440001.json"
+    request_path = roots.vault / request_relative
+    request_path.parent.mkdir(parents=True)
+    request_path.write_text("{}\n", encoding="utf-8")
+    for relative in STATE_DIRECTORIES:
+        directory = roots.state / relative
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.chmod(0o700)
+    for relative in RUNTIME_DIRECTORIES:
+        directory = roots.runtime / relative
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.chmod(0o700)
+
+    report, code = worker_once(
+        roots,
+        wake_id="separate-roots",
+        synthetic=True,
+        dry_run=True,
+    )
+
+    assert code == EXIT_OK
+    assert report["status"] == "PASS"
+    assert [item["path"] for item in report["requests"]] == [request_relative]
+    assert report["requests"][0]["status"] == "NOT_RUN"
+    assert report["runtime_mutation_performed"] is False
+    assert (roots.control / "KnowledgeHub").exists() is False
+
+    observed_logs: list[Path] = []
+
+    def skip_host_stream_binding(_file_descriptor: int, path: Path) -> None:
+        observed_logs.append(path)
+
+    monkeypatch.setattr(
+        "vaultops.background._prepare_bounded_log_fd",
+        skip_host_stream_binding,
+    )
+    configure_worker_log_streams(roots)
+
+    assert observed_logs == [
+        roots.runtime / "logs/worker.stdout.log",
+        roots.runtime / "logs/worker.stderr.log",
+    ]
 
 
 def test_synthetic_wake_evaluation_requires_replay_and_recovery_stability(tmp_path: Path) -> None:
@@ -194,7 +298,7 @@ def test_synthetic_wake_evaluation_requires_replay_and_recovery_stability(tmp_pa
 
 def test_worker_reports_repairable_recovery_without_applying_it(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     source_relative = "00_Inbox/Captures/2026/09/recovery-source.md"
     destination_relative = "90_Archive/Captures/2026/recovery-source.md"
     source = vault / source_relative
@@ -219,7 +323,7 @@ def test_worker_reports_repairable_recovery_without_applying_it(tmp_path: Path) 
     before = (source.read_bytes(), destination.read_bytes())
     report, code = worker_once(root, wake_id="recovery-wake", synthetic=True)
 
-    assert code == EXIT_OK
+    assert code == EXIT_OK, report
     assert report["status"] == "REPAIR_REQUIRED"
     assert report["recovery_status"] == "REPAIR_REQUIRED"
     assert report["recovery"]["summary"] == {
@@ -236,7 +340,7 @@ def test_worker_reports_repairable_recovery_without_applying_it(tmp_path: Path) 
 
 def test_worker_fails_closed_on_recovery_conflict(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     source_relative = "00_Inbox/Captures/2026/09/conflict-source.md"
     destination_relative = "90_Archive/Captures/2026/conflict-source.md"
     source = vault / source_relative
@@ -268,6 +372,186 @@ def test_worker_fails_closed_on_recovery_conflict(tmp_path: Path) -> None:
     assert (source.read_bytes(), destination.read_bytes()) == before
     assert report["provider_called"] is False
     assert report["vault_mutated"] is False
+
+
+def test_stale_worker_attempt_reconciles_before_ingesting_another_request(tmp_path: Path) -> None:
+    root = _fresh_control_copy(tmp_path)
+    request_path = _commit_request(root)
+    worker_directory = (fixture_path(root, "state") / "worker")
+    worker_directory.mkdir(mode=0o700)
+    marker = {
+        "schema_version": 1,
+        "attempt_id": "a" * 32,
+        "owner": "manual",
+        "status": "running",
+        "started_at": "2026-09-28T10:00:00+00:00",
+        "finished_at": None,
+        "result_status": None,
+    }
+    marker_path = worker_directory / "attempt.json"
+    marker_path.write_text(
+        json.dumps(marker, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    marker_path.chmod(0o600)
+    source = (fixture_path(root, "vault") / "00_Inbox/Captures/2026/09/stale-source.md")
+    destination = (fixture_path(root, "vault") / "90_Archive/Captures/2026/stale-source.md")
+    source.parent.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    source_bytes = b"stale source\n"
+    destination_bytes = b"published destination\n"
+    source.write_bytes(source_bytes)
+    destination.write_bytes(destination_bytes)
+    RecoveryJournal(root, job_id=str(uuid.uuid4()), operation="capture_finalize").start(
+        {
+            "schema_version": 1,
+            "source": "00_Inbox/Captures/2026/09/stale-source.md",
+            "destination": "90_Archive/Captures/2026/stale-source.md",
+            "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
+            "destination_sha256": hashlib.sha256(destination_bytes).hexdigest(),
+        }
+    )
+    vault_before = {
+        path.relative_to(fixture_path(root, "vault")).as_posix(): path.read_bytes()
+        for path in (fixture_path(root, "vault")).rglob("*")
+        if path.is_file()
+    }
+
+    report, code = worker_once(root, wake_id="must-not-ingest", synthetic=True)
+
+    assert code == EXIT_OK, report
+    assert report["status"] == "REPAIR_REQUIRED"
+    assert report["requests"] == []
+    assert not list(((fixture_path(root, "state") / "queue")).glob("*.json"))
+    assert json.loads((worker_directory / "attempt.json").read_text(encoding="utf-8"))["status"] == "needs_attention"
+    assert (fixture_path(root, "vault")).is_dir()
+    assert request_path.is_file()
+    assert {
+        path.relative_to(fixture_path(root, "vault")).as_posix(): path.read_bytes()
+        for path in (fixture_path(root, "vault")).rglob("*")
+        if path.is_file()
+    } == vault_before
+
+
+def test_worker_execution_lock_is_nonblocking(tmp_path: Path) -> None:
+    root = _fresh_control_copy(tmp_path)
+    worker_directory = (fixture_path(root, "state") / "worker")
+    worker_directory.mkdir(mode=0o700)
+    lock_path = worker_directory / "worker.lock"
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        report, code = worker_once(root, wake_id="overlap", synthetic=True)
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+    assert code == EXIT_CONFLICT
+    assert report["status"] == "CONFLICT"
+    assert report["errors"][0]["code"] == "WORKER_ALREADY_RUNNING"
+    assert not (worker_directory / "attempt.json").exists()
+
+
+def test_manual_worker_blocks_an_unresolved_scheduled_attempt(tmp_path: Path) -> None:
+    root = _fresh_control_copy(tmp_path)
+    request_path = _commit_request(root)
+    worker_directory = (fixture_path(root, "state") / "worker")
+    worker_directory.mkdir(mode=0o700)
+    marker = {
+        "schema_version": 1,
+        "attempt_id": "c" * 32,
+        "owner": "scheduler",
+        "status": "running",
+        "started_at": "2026-09-28T10:00:00+00:00",
+        "finished_at": None,
+        "result_status": None,
+    }
+    marker_path = worker_directory / "attempt.json"
+    marker_path.write_text(
+        json.dumps(marker, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    marker_path.chmod(0o600)
+
+    report, code = worker_once(root, wake_id="manual-overlap", synthetic=True)
+
+    assert code == EXIT_CONFLICT
+    assert report["status"] == "CONFLICT"
+    assert report["errors"][0]["code"] == "SCHEDULED_ATTEMPT_PENDING"
+    assert request_path.is_file()
+    assert not list(((fixture_path(root, "state") / "queue")).glob("*.json"))
+
+
+def test_scheduled_worker_result_is_compact_and_maps_repair_to_attention() -> None:
+    record = scheduled_worker_record(
+        {
+            "status": "REPAIR_REQUIRED",
+            "operation": "ai worker",
+            "wake": {"id": "private-wake-marker"},
+            "requests": [{"path": ".vault-bridge/private.json"}],
+            "request_count": 1,
+            "recovery_status": "REPAIR_REQUIRED",
+            "recovery": {"summary": {"jobs": 1, "repairable": 1, "private": "secret"}},
+            "errors": [{"message": "private report text"}],
+        },
+        EXIT_OK,
+    )
+    encoded = json.dumps(record, separators=(",", ":"))
+    assert record["outcome"] == "needs_attention"
+    assert record["exit_code"] == EXIT_OK
+    assert record["delivery"] == "local"
+    assert record["agent_reasoning"] is False
+    assert record["recovery_summary"] == {"jobs": 1, "repairable": 1}
+    assert "private" not in encoded
+    assert "secret" not in encoded
+
+
+def test_scheduled_cli_uses_sanitized_stdout_without_launchd_streams(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    root = _fresh_control_copy(tmp_path)
+    monkeypatch.setattr("vaultops.cli.resolve_paths", lambda _root=None: resolve_api_paths(root))
+    scheduler_attempt_id = "b" * 32
+    worker_directory = (fixture_path(root, "state") / "worker")
+    worker_directory.mkdir(mode=0o700)
+    marker = {
+        "schema_version": 1,
+        "attempt_id": scheduler_attempt_id,
+        "owner": "scheduler",
+        "status": "running",
+        "started_at": "2026-09-28T10:00:00+00:00",
+        "finished_at": None,
+        "result_status": None,
+    }
+    marker_path = worker_directory / "attempt.json"
+    marker_path.write_text(
+        json.dumps(marker, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    marker_path.chmod(0o600)
+    monkeypatch.setenv("KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID", scheduler_attempt_id)
+    monkeypatch.setattr(
+        "vaultops.cli.configure_worker_log_streams",
+        lambda _root: (_ for _ in ()).throw(AssertionError("scheduled output must not use launchd fds")),
+    )
+
+    code = main(["ai", "worker", "--scheduled-report"])
+
+    output = capsys.readouterr().out
+    record = json.loads(output)
+    assert code == EXIT_OK
+    assert record["status"] == "PASS"
+    assert record["outcome"] == "completed"
+    assert record["delivery"] == "local"
+    assert record["provider_called"] is False
+    assert "requests" not in record
+
+
+def test_scheduled_cli_rejects_consumer_selected_roots_and_modes(capsys) -> None:
+    assert main(["ai", "worker", "--scheduled-report", "--wake-id", "caller-controlled"]) == 10
+    record = json.loads(capsys.readouterr().out)
+    assert record["status"] == "FAIL"
+    assert record["mutation_performed"] is False
+    assert record["canonical_target_changed"] is False
 
 
 def test_c24_artifacts_and_cli_keep_launchd_inactive(

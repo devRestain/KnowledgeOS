@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from support.control_factory import make_control_root
+from support.control_factory import fixture_path, make_control_root
 
 from vaultops.cli import main
 from vaultops.vault_artifacts import (
@@ -19,14 +19,36 @@ CONTROL_INPUTS = (
 )
 
 
-def _deployed_fixture(tmp_path: Path) -> tuple[Path, dict[str, bytes]]:
+def _deployed_fixture(tmp_path: Path) -> tuple[Path, Path, Path, dict[str, bytes]]:
     root = make_control_root(tmp_path, CONTROL_INPUTS)
+    vault = tmp_path / "KnowledgeHub Ω"
+    (fixture_path(root, "vault")).rename(vault)
+    runtime = tmp_path / "runtime Ω"
+    runtime.mkdir(mode=0o700, exist_ok=True)
+    runtime.chmod(0o700)
+    config = root / "ops/vaultops.toml"
+    config.write_text(
+        "\n".join(
+            (
+                "schema_version = 3",
+                'project_name = "KnowledgeOS"',
+                f"control_root = {json.dumps(str(root), ensure_ascii=False)}",
+                f"vault_root = {json.dumps(str(vault), ensure_ascii=False)}",
+                f"runtime_root = {json.dumps(str(runtime), ensure_ascii=False)}",
+                f'core_root = {json.dumps(str(fixture_path(root, "core")), ensure_ascii=False)}',
+                f'state_root = {json.dumps(str(fixture_path(root, "state")), ensure_ascii=False)}',
+                'timezone = "Asia/Seoul"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
     expected = expected_system_artifacts(root)
     for relative, payload in expected.items():
-        target = root / "KnowledgeHub" / relative
+        target = vault / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
-    return root, expected
+    return root, vault, runtime, expected
 
 
 def _snapshot(root: Path) -> dict[str, bytes]:
@@ -38,33 +60,35 @@ def _snapshot(root: Path) -> dict[str, bytes]:
 
 
 def test_named_system_artifacts_pass_read_only_parity(tmp_path: Path) -> None:
-    root, _expected = _deployed_fixture(tmp_path)
-    before = _snapshot(root)
+    root, vault, runtime, _expected = _deployed_fixture(tmp_path)
+    before = (_snapshot(root), _snapshot(vault), _snapshot(runtime))
 
     result = check_vault_artifacts(root)
 
     assert result.passed, result.report
     assert len(SYSTEM_ARTIFACT_PATHS) == 30
     assert {item["status"] for item in result.report["artifacts"]} == {"PASS"}
-    assert _snapshot(root) == before
+    assert (_snapshot(root), _snapshot(vault), _snapshot(runtime)) == before
+    assert not (root / "KnowledgeHub").exists()
+    assert not (root / "runtime").exists()
 
 
 def test_unlisted_vault_and_profile_bytes_do_not_affect_system_parity(tmp_path: Path) -> None:
-    root, _expected = _deployed_fixture(tmp_path)
-    (root / "KnowledgeHub/Home.md").write_text("# User Home\n", encoding="utf-8")
-    plugin = root / "KnowledgeHub/.obsidian-mac/plugins/unrelated/data.json"
+    root, vault, _runtime, _expected = _deployed_fixture(tmp_path)
+    (vault / "Home.md").write_text("# User Home\n", encoding="utf-8")
+    plugin = vault / ".obsidian-mac/plugins/unrelated/data.json"
     plugin.parent.mkdir(parents=True)
     plugin.write_text('{"anything": true}\n', encoding="utf-8")
-    extra = root / "KnowledgeHub/99_System/User Extension.md"
+    extra = vault / "99_System/User Extension.md"
     extra.write_text("user-owned extension\n", encoding="utf-8")
 
     assert check_vault_artifacts(root).passed
 
 
 def test_one_mismatch_and_one_missing_artifact_are_local(tmp_path: Path) -> None:
-    root, _expected = _deployed_fixture(tmp_path)
-    mismatch = root / "KnowledgeHub/99_System/Bases/Inbox.base"
-    missing = root / "KnowledgeHub/99_System/Templates/T60_Meeting.md"
+    root, vault, _runtime, _expected = _deployed_fixture(tmp_path)
+    mismatch = vault / "99_System/Bases/Inbox.base"
+    missing = vault / "99_System/Templates/T60_Meeting.md"
     mismatch.write_bytes(mismatch.read_bytes() + b"\n")
     missing.unlink()
 
@@ -78,7 +102,7 @@ def test_one_mismatch_and_one_missing_artifact_are_local(tmp_path: Path) -> None
 
 
 def test_checker_rejects_every_path_outside_the_exact_allowlist(tmp_path: Path) -> None:
-    root, _expected = _deployed_fixture(tmp_path)
+    root, _vault, _runtime, _expected = _deployed_fixture(tmp_path)
 
     for forbidden in (
         "Home.md",
@@ -103,10 +127,10 @@ def test_checker_rejects_symlinked_artifact_and_cli_reports_json(
     tmp_path: Path,
     capsys,
 ) -> None:
-    root, _expected = _deployed_fixture(tmp_path)
-    target = root / "KnowledgeHub/99_System/CSS/dashboard.css"
+    root, vault, _runtime, _expected = _deployed_fixture(tmp_path)
+    target = vault / "99_System/CSS/dashboard.css"
     target.unlink()
-    target.symlink_to(root / "KnowledgeHub/Home.md")
+    target.symlink_to(vault / "Home.md")
 
     result = check_vault_artifacts(root)
     assert not result.passed

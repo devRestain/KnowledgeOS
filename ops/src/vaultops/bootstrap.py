@@ -11,7 +11,9 @@ from typing import Any
 from .base_dashboard import dashboard_sources, render_base_documents
 from .blueprint import validate_blueprint
 from .note_engine import UnsafePathError, normalize_vault_relative_path
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .template_engine import TEMPLATE_SPECS, template_source
+from .vault_projection import GUIDE_PATH, guide_source
 from .yaml_safe import load_yaml_file
 
 
@@ -53,14 +55,23 @@ def _atomic_create_bytes(path: Path, payload: bytes) -> None:
     os.replace(temporary, path)
 
 
-def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
+def bootstrap(root: str | Path | ResolvedPaths, *, dry_run: bool = False) -> dict[str, Any]:
     """Plan or apply additive bootstrap without overwriting any file.
 
     The whole target set is preflighted before the first write.  A conflict
     therefore produces no new directory or template file from this operation.
     """
 
-    workspace = Path(root).resolve()
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        return {
+            "status": "FAIL",
+            "operation": "bootstrap",
+            "mode": "dry-run" if dry_run else "apply",
+            "errors": [{"code": "BOOTSTRAP_ROOTS_INVALID", "locator": "/", "message": str(error)}],
+        }
+    workspace = roots.control
     validation = validate_blueprint(workspace)
     if not validation.passed:
         return {
@@ -71,7 +82,7 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         }
     try:
         blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
-        vault_root = workspace / "KnowledgeHub"
+        vault_root = roots.vault
         if vault_root.is_symlink():
             raise BootstrapConflict("Vault root is a symlink")
         directory_relatives = _directory_targets(blueprint)
@@ -89,6 +100,7 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
                 }.items()
             }
         )
+        artifact_sources[GUIDE_PATH] = guide_source().encode("utf-8")
         artifact_checks: list[dict[str, str]] = []
         conflicts: list[str] = []
 
@@ -118,6 +130,13 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
                 "status": "CONFLICT",
                 "operation": "bootstrap",
                 "mode": "dry-run" if dry_run else "apply",
+                "resolved_roots": {
+                    "control": str(roots.control),
+                    "vault": str(roots.vault),
+                    "runtime": str(roots.runtime),
+                    "state": str(roots.state),
+                    "core": str(roots.core),
+                },
                 "directories": [{"path": relative, "status": "CONFLICT" if relative in conflicts else ("EXISTING" if path.exists() else "CREATE")} for relative, path in directory_paths],
                 "artifacts": artifact_checks,
                 "conflicts": sorted(set(conflicts)),
@@ -131,6 +150,13 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
             "status": "PASS",
             "operation": "bootstrap",
             "mode": "dry-run" if dry_run else "apply",
+            "resolved_roots": {
+                "control": str(roots.control),
+                "vault": str(roots.vault),
+                "runtime": str(roots.runtime),
+                "state": str(roots.state),
+                "core": str(roots.core),
+            },
             "directories": directories,
             "artifacts": artifact_checks,
             "created": [],
@@ -170,5 +196,5 @@ def bootstrap(root: str | Path, *, dry_run: bool = False) -> dict[str, Any]:
         }
 
 
-def bootstrap_json(root: str | Path, *, dry_run: bool = False) -> str:
+def bootstrap_json(root: str | Path | ResolvedPaths, *, dry_run: bool = False) -> str:
     return json.dumps(bootstrap(root, dry_run=dry_run), ensure_ascii=False, indent=2, sort_keys=True) + "\n"

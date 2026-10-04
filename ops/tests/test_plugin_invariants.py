@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from support.control_factory import fixture_path
 from support.plugin_factory import make_plugin_profile, write_json
 
 from vaultops.breadcrumbs_settings import build_breadcrumbs_setting_registry
@@ -398,7 +399,7 @@ def test_quickadd_blueprint_target_cannot_escape_the_canonical_vault(tmp_path: P
 def test_templater_rejects_executable_code_in_an_owned_period_template(tmp_path: Path) -> None:
     root, profile = _lane_profile(tmp_path, "templater-obsidian")
     blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
-    weekly = root / "KnowledgeHub/99_System/Templates/T11_Weekly.md"
+    weekly = (fixture_path(root, "vault") / "99_System/Templates/T11_Weekly.md")
     weekly.write_text('<%* tp.system("unsafe") %>\n', encoding="utf-8")
 
     _, errors = build_templater_setting_registry(root=root, profile_root=profile, blueprint=blueprint)
@@ -409,7 +410,7 @@ def test_templater_rejects_executable_code_in_an_owned_period_template(tmp_path:
 def test_tasks_rejects_executable_query_in_owned_99_system_dashboard(tmp_path: Path) -> None:
     root, profile = _lane_profile(tmp_path, "obsidian-tasks-plugin")
     blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
-    tasks_dashboard = root / "KnowledgeHub/99_System/Dashboards/Tasks.md"
+    tasks_dashboard = (fixture_path(root, "vault") / "99_System/Dashboards/Tasks.md")
     tasks_dashboard.write_text(
         "# Tasks\n\n```tasks\nfilter by function task.file.folder === query.file.folder\n```\n",
         encoding="utf-8",
@@ -468,7 +469,7 @@ def test_note_toolbar_rejects_unverified_commands_and_unscoped_write_targets(
 def test_meta_bind_rejects_controls_only_in_owned_99_system_documents(tmp_path: Path) -> None:
     root, profile = _lane_profile(tmp_path, "obsidian-meta-bind-plugin")
     blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
-    template = root / "KnowledgeHub/99_System/Templates/T20_Project.md"
+    template = (fixture_path(root, "vault") / "99_System/Templates/T20_Project.md")
     template.write_text("---\nstatus: planned\n---\nINPUT[text:unsafe]\n", encoding="utf-8")
 
     _, errors = build_meta_bind_setting_registry(root=root, profile_root=profile, blueprint=blueprint)
@@ -479,7 +480,7 @@ def test_meta_bind_rejects_controls_only_in_owned_99_system_documents(tmp_path: 
 def test_meta_bind_ignores_user_owned_review_document_content(tmp_path: Path) -> None:
     root, profile = _lane_profile(tmp_path, "obsidian-meta-bind-plugin")
     blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
-    review_note = root / "KnowledgeHub/01_AI_Review/Pending/User Proposal.md"
+    review_note = (fixture_path(root, "vault") / "01_AI_Review/Pending/User Proposal.md")
     review_note.parent.mkdir(parents=True)
     review_note.write_text("INPUT[text:user_owned_field]\n", encoding="utf-8")
 
@@ -496,7 +497,7 @@ def test_tasks_require_the_owned_query_tag_and_status_subset(tmp_path: Path) -> 
     data["statusSettings"]["coreStatuses"] = []
     data["statusSettings"]["customStatuses"] = []
     write_json(data_path, data)
-    tasks = root / "KnowledgeHub/99_System/Dashboards/Tasks.md"
+    tasks = (fixture_path(root, "vault") / "99_System/Dashboards/Tasks.md")
     tasks.write_text("# Tasks\n\n```tasks\nnot done\n```\n", encoding="utf-8")
 
     _, errors = build_tasks_setting_registry(root=root, profile_root=profile, blueprint=blueprint)

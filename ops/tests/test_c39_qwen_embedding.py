@@ -5,8 +5,13 @@ import math
 from pathlib import Path
 from typing import Any
 
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import (
+    fixture_path,
+    make_portable_fixture_root,
+    make_separate_portable_fixture_roots,
+)
 
+from vaultops.embedding_index import CURRENT_POINTER as C34_CURRENT_POINTER
 from vaultops.embedding_index import DEFAULT_MODEL_DIMENSION, build_embedding_index
 from vaultops.projection import EXIT_OK, generate_projection
 from vaultops.qwen_embedding_index import (
@@ -62,6 +67,14 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
     return make_portable_fixture_root(tmp_path)
 
 
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
 def _build_projection(root: Path) -> None:
     report, code = generate_projection(root, generation_id="c39-qwen-fixture")
     assert code == EXIT_OK, report
@@ -74,7 +87,7 @@ def test_c39_qwen_candidate_is_separate_from_c34_and_immutable(tmp_path: Path) -
 
     c34_report, c34_code = build_embedding_index(root, provider, model_digest="a" * 64)
     assert c34_code == EXIT_OK, c34_report
-    c34_pointer = root / "runtime/index/embeddings/current.json"
+    c34_pointer = (fixture_path(root, "state") / "index/embeddings/current.json")
     c34_before = c34_pointer.read_bytes()
 
     qwen_report, qwen_code = build_qwen_candidate_index(root, provider, model_digest="b" * 64)
@@ -87,13 +100,51 @@ def test_c39_qwen_candidate_is_separate_from_c34_and_immutable(tmp_path: Path) -
     assert qwen_report["canonical_apply_allowed"] is False
     assert c34_pointer.read_bytes() == c34_before
 
-    qwen_pointer = root / "runtime" / QWEN_CURRENT_POINTER
+    qwen_pointer = fixture_path(root, "state") / QWEN_CURRENT_POINTER
     assert qwen_pointer.is_file()
     assert qwen_pointer.stat().st_mode & 0o777 == 0o600
     index = load_qwen_candidate_index(root, model_digest="b" * 64)
     assert index.dimension == QWEN_MODEL_DIMENSION
     assert index.model_tag == QWEN_MODEL_TAG
     assert all(model == QWEN_MODEL_TAG and truncate is False for model, _, truncate in provider.calls if model == QWEN_MODEL_TAG)
+
+
+def test_c39_candidate_and_read_use_the_selected_separate_runtime(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    _build_projection(roots)
+    provider = _DeterministicProvider()
+    vault_before = _file_snapshot(roots.vault)
+
+    c34_report, c34_code = build_embedding_index(roots, provider, model_digest="a" * 64)
+    assert c34_code == EXIT_OK, c34_report
+    c34_pointer = roots.state / C34_CURRENT_POINTER
+    c34_before = c34_pointer.read_bytes()
+
+    qwen_report, qwen_code = build_qwen_candidate_index(roots, provider, model_digest="b" * 64)
+    assert qwen_code == EXIT_OK, qwen_report
+    qwen_pointer = roots.state / QWEN_CURRENT_POINTER
+    assert qwen_pointer.is_file()
+    assert qwen_report["canonical_c34_mutated"] is False
+    assert c34_pointer.read_bytes() == c34_before
+
+    runtime_before_read = _file_snapshot(roots.runtime)
+    result, code = qwen_learned_retrieve(
+        roots,
+        "방명록 괴담 MVP의 플레이 루프를 고정한다",
+        provider,
+        model_digest="b" * 64,
+        scope="project:guestbook-horror",
+        limit=5,
+        hops=1,
+    )
+
+    assert code == EXIT_OK, result
+    assert result["candidate_only"] is True
+    assert result["mutation_performed"] is False
+    assert _file_snapshot(roots.runtime) == runtime_before_read
+    assert _file_snapshot(roots.vault) == vault_before
+    assert not (roots.control / "KnowledgeHub").exists()
+    assert not (roots.control / "runtime").exists()
 
 
 def test_c39_qwen_retrieval_revalidates_and_rejects_identity_drift(tmp_path: Path) -> None:

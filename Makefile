@@ -1,28 +1,34 @@
-.PHONY: verify source-check container-source-check container-verify image-build test test-invariance lint vaultctl blueprint-check schema-export schema-check vault-artifact-check profile-check live-smoke contract-check acceptance
+.PHONY: verify source-check container-source-check container-verify image-build test test-invariance lint vaultctl vaultmcp blueprint-check schema-export schema-check vault-artifact-check vault-readiness-check profile-check live-smoke contract-check acceptance scheduled-worker state-check core-readiness-check
 
 COMPOSE = docker compose -f ops/compose.yaml
-TEST_COMPOSE = docker compose -f ops/compose.yaml -f ops/compose.test.yaml
+TEST_COMPOSE = docker compose -f ops/compose.test.yaml
+VAULT_CHECK_COMPOSE = docker compose -f ops/compose.vault-check.yaml
 # Bind mounts and the disposable cache must be owned by the invoking host user.
 # Do not replace these with a portable-looking 1000:1000 fallback.
 KNOWLEDGEOS_UID ?= $(shell id -u)
 KNOWLEDGEOS_GID ?= $(shell id -g)
+KNOWLEDGEOS_CONTROL_SOURCE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+KNOWLEDGEOS_CONTROL_SOURCE := $(abspath $(KNOWLEDGEOS_CONTROL_SOURCE))
+KNOWLEDGEOS_CORE_SOURCE ?= $(abspath $(KNOWLEDGEOS_CONTROL_SOURCE)/../../Core)
 PYTEST_ARGS ?=
-export KNOWLEDGEOS_UID KNOWLEDGEOS_GID
+export KNOWLEDGEOS_UID KNOWLEDGEOS_GID KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID KNOWLEDGEOS_SCHEDULED_CIDFILE
+export KNOWLEDGEOS_CONTROL_SOURCE KNOWLEDGEOS_VAULT_SOURCE KNOWLEDGEOS_RUNTIME_SOURCE KNOWLEDGEOS_STATE_SOURCE
+export KNOWLEDGEOS_CORE_SOURCE
 
 verify:
-	sh ops/check-foundation.sh
+	$(TEST_COMPOSE) run --rm dev sh check-foundation.sh
 
 source-check:
-	shasum -a 256 -c blueprint/CHECKSUMS.sha256
+	$(TEST_COMPOSE) run --rm dev python -c 'from pathlib import Path; from vaultops.foundation import check_source_manifest; p=check_source_manifest(Path("/workspace/control")); print(p or "Blueprint source digest: PASS"); raise SystemExit(bool(p))'
 
 image-build:
 	$(COMPOSE) build dev
 
 container-source-check:
-	$(COMPOSE) run --rm dev vaultctl foundation source-check --root /workspace/control
+	$(TEST_COMPOSE) run --rm dev vaultctl foundation source-check --root /workspace/control
 
 container-verify:
-	$(COMPOSE) run --rm dev vaultctl foundation check --root /workspace/control
+	$(TEST_COMPOSE) run --rm dev vaultctl foundation check --root /workspace/control
 
 test:
 	$(TEST_COMPOSE) run --rm -e KNOWLEDGEOS_TEST_ENTRYPOINT=make dev uv run --frozen --no-sync pytest $(PYTEST_ARGS)
@@ -36,20 +42,26 @@ lint:
 vaultctl:
 	$(COMPOSE) run --rm dev vaultctl --help
 
+vaultmcp:
+	$(COMPOSE) run --rm -T dev vaultmcp --control-root /workspace/control
+
 blueprint-check:
-	$(COMPOSE) run --rm dev vaultctl blueprint validate --root /workspace/control
+	$(TEST_COMPOSE) run --rm dev vaultctl blueprint validate --root /workspace/control
 
 schema-export:
 	$(COMPOSE) run --rm dev vaultctl schema export --root /workspace/control
 
 schema-check:
-	$(COMPOSE) run --rm dev vaultctl schema export --check --root /workspace/control
+	$(TEST_COMPOSE) run --rm dev vaultctl schema export --check --root /workspace/control
 
 vault-artifact-check:
-	$(COMPOSE) run --rm dev vaultctl vault-artifacts check --root /workspace/control
+	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl vault-artifacts check --root /workspace/control
+
+vault-readiness-check:
+	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl vault-artifacts check --scope readiness --root /workspace/control
 
 profile-check:
-	$(COMPOSE) run --rm dev vaultctl plugins audit --profile mac --root /workspace/control
+	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl plugins audit --profile mac --root /workspace/control
 
 live-smoke:
 	@test -n "$(SMOKE_KIND)"
@@ -59,6 +71,11 @@ live-smoke:
 
 contract-check: blueprint-check schema-check
 
+scheduled-worker:
+	@test -n "$(KNOWLEDGEOS_SCHEDULED_CIDFILE)"
+	@test -n "$(KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID)"
+	@$(COMPOSE) run --rm -T --no-deps --cidfile "$(KNOWLEDGEOS_SCHEDULED_CIDFILE)" dev vaultctl ai worker --once --scheduled-report
+
 acceptance:
 	$(MAKE) source-check
 	$(MAKE) verify
@@ -66,14 +83,17 @@ acceptance:
 	$(MAKE) schema-check
 	$(MAKE) container-source-check
 	$(MAKE) container-verify
-	$(MAKE) test PYTEST_ARGS='tests/test_test_runner_contract.py -q'
-	$(MAKE) test PYTEST_ARGS='tests/test_foundation_contract.py tests/test_vault_artifact_check.py -q'
-	$(MAKE) test PYTEST_ARGS='tests/test_plugin_audit.py tests/test_plugin_invariants.py -q'
-	$(MAKE) test PYTEST_ARGS='tests/test_c08_dashboard.py tests/test_c12_diagnostics.py tests/test_c28_proposal_recovery.py tests/test_d01_configure.py tests/test_note_engine.py -q'
-	$(MAKE) test PYTEST_ARGS='tests/test_smoke_lifecycle.py -q'
+	$(MAKE) core-readiness-check
 	$(MAKE) test-invariance
 	$(MAKE) test
 	$(MAKE) lint
-	/usr/bin/python3 scripts/validate_state.py PROJECT_STATE.md
+	$(MAKE) state-check
 	git diff --check
-	git -C KnowledgeHub diff --check
+	@test -n "$(KNOWLEDGEOS_VAULT_SOURCE)"
+	git -C "$(KNOWLEDGEOS_VAULT_SOURCE)" diff --check
+
+core-readiness-check:
+	$(MAKE) test PYTEST_ARGS='tests/test_core_readiness.py tests/test_paths.py tests/test_portability.py tests/test_mcp_schemas.py tests/test_mcp_protocol.py -q'
+
+state-check:
+	$(TEST_COMPOSE) run --rm dev python /workspace/control/scripts/validate_state.py /workspace/control/PROJECT_STATE.md

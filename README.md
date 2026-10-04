@@ -4,6 +4,40 @@ KnowledgeOS는 생각과 자료를 빠르게 담아 두고, 나중에 판단할 
 
 이 공간의 중심은 “무엇이든 자동으로 정리해 주는 AI”가 아닙니다. 먼저 원본을 안전하게 보존하고, 사람이 검토할 수 있는 형태로 만들고, 확정한 내용만 정식 노트와 프로젝트에 반영합니다. 그래서 짧은 메모는 부담 없이 남길 수 있고, 중요한 판단은 나중에 근거를 확인하면서 내릴 수 있습니다.
 
+사용할 기능과 정확한 진입점은 [사용자 기능 명세서](USER_FEATURE_SPEC.md)를 먼저 확인하세요. Home·문서·템플릿은 준비되어 있고 핵심 백엔드는 격리 환경에서 검증했지만, 실제 사용자 corpus와 새 State의 운영 채택, 현재 Obsidian 프로필·기기 동작은 별도 확인해야 합니다. [2026-10-04 사용 준비도 검증](../../Tmp/knowledgeos-user-readiness-2026-10-04/REPORT.md)은 이번에 실행한 검사와 그 한계를 구분합니다.
+
+## Core 0.16.1과 C12 준비 구조
+
+KnowledgeOS의 실행 코드는 Operation 소유권을 기준으로 재편했다. `domain`은 Blueprint 기반 계산, `application`은 요청·정책·평가·사람의 결정, `adapters`는 파일과 State 접근, `interfaces`는 CLI·MCP 입력과 결과를 맡는다. 공개 요청은 `KnowledgeApplication`을 거치며, 결정과 실행 의도는 하나의 `OwnerJournal`에 기록한다. Core는 정확한 버전과 digest를 고정한 읽기 전용 계약 입력이다.
+
+private config v3은 `core_root`, `control_root`, `vault_root`, `state_root`, `runtime_root`를 독립적으로 선언한다. 승인·receipt·queue·재개 근거와 활성 generation pins는 Operation State에, 재구성 가능한 index 본문·cache·log는 host Runtime에 둔다. v1·v2 설정이나 호환되지 않는 State는 새 경계에서 쓰기 전에 거부하며 자동 변환하지 않는다. 기존 `Runtimes/KnowledgeOS-runtime`의 실제 데이터는 보존한다. 사용된 적 없는 KnowledgeHub 구현 산출물은 별도로 승인된 범위에서 유지 소스와 새 계약에 맞춘다.
+
+선택한 준비 경로는 provider 없이 `retrieve → normalize proposal → review`를 수행한다. proposal은 Pending artifact를 만들고, review는 읽기 전용이며 정본은 바꾸지 않는다. 승인은 source·proposal·policy·schema·semantic digest에 연결된 결정과 pending apply intent를 기록한다. 실제 정본 변경은 별도의 명시적인 `vaultctl ai apply` 단계다. 요청 접수, 실행 완료, 도메인 수락, 사람의 승인, 정본 변경은 각각 표시한다.
+
+`vaultctl`, `vaultmcp`와 MCP의 네 이름은 유지한다. MCP v2는 source·proposal 선택에 Core `ResourceReference`를 사용하며, 실제 경로와 actor 권한은 trusted startup 설정에서 결정한다. MCP에는 승인·적용·provider 활성화 도구가 없다. v3 binding을 선택한 실행 환경에서 `vaultctl operation check`, `status`, `recover`로 계약과 관측을 확인할 수 있다. `recover`는 관찰과 조정을 수행하며 자동 dispatch하지 않는다.
+
+```sh
+make core-readiness-check
+make KNOWLEDGEOS_VAULT_SOURCE=/Users/yuk/AgentFabric/Vaults/KnowledgeHub acceptance
+```
+
+검증은 기존 pinned dependencies가 있는 프로젝트 이미지와 독립적인 임시 roots를 사용한다. acceptance의 실제 Vault 경로는 마지막 읽기 전용 Git diff 확인에 사용한다. [Capsule 책임표](planning/c12-preparation/CAPSULE_RESPONSIBILITIES.md)와 [C12 인계](planning/c12-preparation/C12_HANDOFF.md)에 exact pins, binding 요구사항, 데이터 분류, writer 전환·rollback 절차와 미실행 운영 검증을 정리했다. 실제 데이터 전환과 운영 채택은 다음 `CORE_C12_OPERATION_ADOPTION`에서 선택한다. 아래 GUI·provider 흐름은 기존 도메인 사용 맥락이며, 새 binding에서 운영 채택되었다는 근거는 별도로 갖추어야 한다.
+
+KnowledgeHub의 생성 사본은 [Vault projection](ops/src/vaultops/vault_projection.py)과 [profile 설정](ops/config/vault-profile.json)을 유지 소스로 사용한다. 템플릿·Bases·Home·Mobile·bridge schemas·속성 사전·first-party client와 계약 안내를 함께 맞춘다. `99_System/Schemas/KnowledgeOS_Contract.json`은 정확한 Core pins와 MCP v2를 보여 주는 설명 자료이며 승인이나 actor 권한을 공급하지 않는다. Vault 안의 Review status도 OwnerJournal의 실행·평가·승인 기록을 대신하지 않는다. [Vault 정렬 범위](planning/c12-preparation/KNOWLEDGEHUB_ALIGNMENT.md)에 생성 사본의 책임과 복구 경계를 정리했다.
+
+실제 Vault 검사는 별도 읽기 전용 Compose에서 Core·control·Vault만 읽고, State와 Runtime은 독립적인 임시 경로를 사용한다. 기본 `vault-artifact-check`는 기존 System 생성물 범위이고, `vault-readiness-check`는 선언된 전체 생성 사본·typed note·정적 링크·namespace·profile 경계를 확인한다. 어느 검사도 broker, provider, native Obsidian이나 서비스를 활성화하지 않는다.
+
+```sh
+make KNOWLEDGEOS_VAULT_SOURCE=/Users/yuk/AgentFabric/Vaults/KnowledgeHub vault-readiness-check
+make KNOWLEDGEOS_VAULT_SOURCE=/Users/yuk/AgentFabric/Vaults/KnowledgeHub profile-check
+```
+
+`profile-check`는 기존 Blueprint의 11개 capability 활성화 요구를 관찰하는 진단이다. Git과 broker client를 의도적으로 비활성으로 두는 준비 profile에서는 설정 오류가 없어도 `DEGRADED`와 exit 4를 반환한다. 준비 수락은 `vault-readiness-check`에서 생성 사본과 비활성 경계를 검증하고, 이 진단의 실행·device 상태는 미실행으로 보존한다. 활성화 상태를 맞추기 위해 transport를 켜지 않는다.
+
+## 온톨로지 정의 작성
+
+[온톨로지 작성 공간](Ontology/README.md)에서 도메인 용어·관계·필요한 의미 정렬을 작성한다. 기존 note type·property·relation 정의는 Blueprint의 원본 registry에 유지하고, `TERMS.md`, `RELATIONS.md`, `ALIGNMENTS.md`는 그 원본을 참조한다. 공통 프로토콜 의미는 [Core 온톨로지](../../Core/ontology/README.md)를 사용한다. 정의의 작성·검토와 실제 도메인 package 발행·실행 채택은 각각의 근거를 갖추어 진행한다.
+
 ## KnowledgeOS에서 실제로 일어나는 흐름
 
 정상적인 사용 흐름은 GUI-first입니다. Obsidian이 사람의 작성·검토 화면을 맡고, `vaultctl`은 캡처 검증, 검색, 제안, 승인, 적용과 증적을 담당합니다. AI 출력은 사람이 확인하기 전까지 정본이 아닙니다.
@@ -28,7 +62,7 @@ flowchart TD
     L --> M[AI Review: citation와 diff 확인]
     M --> N{사람의 결정}
     N -->|hold / reject| O[보류·거절·충돌 receipt]
-    N -->|approve| P[C19 digest-bound apply]
+    N -->|approve| P[OwnerJournal 결정 후 명시적 apply]
     P --> Q[Canonical Vault 변경과 receipt]
 ```
 
@@ -50,12 +84,12 @@ flowchart LR
     K --> L[사람의 Review]
     L --> M{결정}
     M -->|hold / reject| N[보류·거절·충돌 receipt]
-    M -->|approve| O[Digest-bound C19 approval]
+    M -->|approve| O[Digest-bound owner decision]
     O --> P[vaultctl ai apply]
     P --> Q[Canonical Vault mutation과 receipt]
 ```
 
-이 경로에서 provider 결과는 Vault에 직접 쓰이지 않습니다. 기존 정본을 바꾸는 유일한 닫힌 경로는 최신 digest를 다시 확인하는 C19 승인·적용 단계입니다.
+이 경로에서 provider 결과는 제안으로 검토합니다. 선택한 정규화 경로의 정본 변경은 owner decision과 최신 target digest를 다시 확인하는 명시적 적용 단계를 거칩니다. 기존 approval 파일은 새 owner 경계의 적용 권한이 되지 않습니다.
 
 ### Local AI 접점의 파이프라인
 
@@ -109,12 +143,12 @@ AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분�
 
 ## 처음 사용하는 방법
 
-현재 KnowledgeOS의 가장 완성된 사용 방식은 MacBook에서 Obsidian을 여는 것입니다.
+현재 준비 상태에서는 먼저 위의 계약·Vault 검사를 실행하고 `Home.md`와 `99_System/Guides/KnowledgeOS.md`에서 화면과 실행 제어의 경계를 확인합니다. 아래 Obsidian 작성 순서는 이후 GUI 사용을 위한 안내이며 이번 준비 검증에는 native app 실행을 포함하지 않습니다.
 
-1. Obsidian에서 `KnowledgeHub/`를 Vault로 엽니다.
+1. Obsidian에서 `../../Vaults/KnowledgeHub/`를 Vault로 엽니다.
 2. 시작 화면으로 `Home.md`를 엽니다.
 3. 오늘의 방향을 Daily에 한 줄로 적습니다.
-4. 생각이 떠오르면 Home의 빠른 캡처를 사용합니다.
+4. 생각이 떠오르면 Mac 프로필의 QuickAdd `CAPTURE_THOUGHT`나 `⌥⌘C`를 사용합니다. Home 본문에는 capture 버튼이 없습니다.
 5. 시간이 날 때 Inbox에서 하나씩 열어 triage hint, 프로젝트, 관련 노트를 정합니다.
 6. 계속할 일이면 프로젝트의 `next_action`을 갱신하고, 보존할 지식이면 해당 Knowledge 노트로 확정합니다.
 
@@ -124,7 +158,7 @@ AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분�
 
 플러그인은 노트와 Properties를 대신 보관하는 시스템이 아니라, 이미 있는 흐름에 더 짧은 진입점을 제공하는 도구입니다. 정식 노트의 내용과 속성은 언제나 Markdown과 YAML Properties에 남고, 플러그인을 끄더라도 기본 화면에서 읽고 이어서 작업할 수 있어야 합니다.
 
-현재 Mac baseline에는 커뮤니티 플러그인 11개가 명시되어 있습니다. 이 목록은 사용자 경험을 줄이는 역할 목록이지, 노트·retrieval·provider·Vault write·Git·canonical apply의 권한 목록이 아닙니다.
+현재 Mac profile의 활성화 목록에는 커뮤니티 플러그인 9개가 명시되어 있습니다. Obsidian Git과 `knowledgeos-thin-client` 파일은 별도로 배치하지만 비활성으로 둡니다. 이 목록은 화면과 작성 도구의 구성이지, 노트·retrieval·provider·Vault write·Git·canonical apply의 권한 목록이 아닙니다. 자동 lint·Git·시작 template, shell과 외부 feature image 다운로드도 비활성으로 유지합니다.
 
 | 플러그인 | 역할 | 경계 |
 | --- | --- | --- |
@@ -132,20 +166,20 @@ AI가 이 과정에 참여하더라도 제안은 제안으로 남습니다. 분�
 | Templater | bounded template field renderer | shell, network, AI, `vaultctl`, 자동 apply 없음 |
 | Tasks | 다음 행동 query | 정본 Properties의 소유자가 아님 |
 | Linter | bounded Markdown hygiene | 사람의 판단을 대신하지 않음 |
-| Obsidian Git | Mac의 수동 Git 확인·작업 | 자동 commit/push 없음 |
+| Obsidian Git | 별도 채택 전 비활성 자료 | 자동 commit/push/pull 없음 |
 | Homepage | `Home.md` 시작 화면 | 시작 시 다른 명령을 자동 실행하지 않음 |
 | Note Toolbar | 현재 맥락의 command surface | 본문을 몰래 수정하지 않음 |
 | Breadcrumbs | typed relation navigation | 새 관계를 자동 생성하지 않음 |
 | Notebook Navigator | bounded note navigation | 일괄 이동·병합·삭제는 명시적 선택 필요 |
 | Meta Bind | low-risk property view/edit | 추적용 id·hash·승인 필드는 이 경로로 변경하지 않음 |
-| `knowledgeos-thin-client` | proposal-only presentation client | retrieval·provider·Vault write·Git·canonical apply 권한 없음 |
+| `knowledgeos-thin-client` | 별도 broker 채택 전 비활성 presentation 자료 | endpoint와 generation·policy pins 미설정; 실행 권한 없음 |
 
 모바일 community-plugin baseline은 비어 있습니다. Mac 플러그인이 꺼져 있거나 unavailable이어도 Home, Markdown, YAML Properties, Core Search, File Explorer, Bases와 Command Palette fallback으로 같은 판단을 이어갈 수 있어야 합니다.
 
 ### 아침에 시작하기
 
 1. Obsidian을 열면 Homepage가 `Home.md`를 보여 줍니다.
-2. Home에서 오늘의 방향, active 또는 blocked 프로젝트, 아직 답하지 않은 질문을 확인합니다.
+2. Home에서 기한이 가까운 Task, Inbox, AI 검토, active 또는 blocked 프로젝트와 결정 질문을 확인합니다.
 3. Note Toolbar의 `Today`, `Tasks`, `Review` 버튼으로 필요한 화면만 엽니다.
 4. Daily에 오늘의 방향을 한 줄로 적고, Meta Bind가 보이는 `today_focus`나 `next_action` 같은 허용된 필드만 조정합니다.
 
@@ -153,7 +187,7 @@ Homepage가 없거나 꺼져 있어도 `Home.md`를 직접 열면 같은 작업�
 
 ### 생각이 떠오를 때
 
-1. Note Toolbar의 `Capture`를 누르거나 기존 QuickAdd 단축키를 사용합니다.
+1. QuickAdd `CAPTURE_THOUGHT`나 Mac 프로필의 `⌥⌘C`를 사용합니다. Note Toolbar는 현재 탐색 진입점을 제공합니다.
 2. 원문만 빠르게 적고, 지금 분류할 수 없다면 capture로 저장합니다.
 3. Templater가 날짜와 기본 형식을 채워도 내용의 의미와 분류는 나중에 결정합니다.
 4. 계속 작업해야 한다면 `NEW_PROJECT`, 답을 찾아야 한다면 `NEW_QUESTION`으로 시작합니다.
@@ -208,36 +242,35 @@ KnowledgeOS는 기기마다 잘 맞는 작업을 다르게 둡니다.
 
 `Home.md`는 모든 파일을 보여주는 파일 브라우저가 아니라, 오늘 결정해야 할 것만 모아 보는 화면입니다.
 
-- **오늘의 방향** — 오늘 Daily와 focus를 엽니다.
-- **Now** — 현재 active 또는 blocked 상태인 프로젝트를 봅니다.
-- **Needs a decision** — 아직 답하지 않은 질문과 결정을 봅니다.
-- **Next actions** — 각 프로젝트에서 다음에 할 일을 봅니다.
-- **Knowledge radar** — 최근 지식과 아이디어를 다시 봅니다.
+- **Task** — 기한·태그 조건에 맞는 미완료 항목을 최대 4개 봅니다.
 - **Inbox** — 아직 처리하지 않은 capture를 봅니다.
-- **AI review** — pending 또는 conflict 상태의 제안을 확인합니다.
-- **빠른 이동** — Tasks, Weekly Review, Ideas, Sources로 바로 갑니다.
+- **AI 검토 대기·충돌** — pending 또는 conflict 제안을 확인합니다.
+- **진행 중인 프로젝트** — active 또는 blocked 프로젝트를 봅니다.
+- **내가 결정할 것** — 열린 질문과 결정을 봅니다.
+- **검토 리듬** — 읽는 중인 자료와 열린 기간 회고를 봅니다.
+- **Compass** — 연결 공백·낮은 신뢰도 등의 신호와 모순 관계를 봅니다.
+
+Daily와 Today Focus는 별도 문서·탐색 진입점으로 엽니다. Home의 빠른 capture·footer·Knowledge radar는 현재 화면 구성에 포함되지 않습니다.
 
 Home에 표시된 목록은 원본을 대신하지 않습니다. 목록에서 노트를 열어 본문과 속성을 확인하면 언제든 전체 맥락으로 돌아갈 수 있습니다.
 
-### Mobile — 현장에서 담고 조회하는 화면
+### Mobile — 현재 기기에 있는 문서를 조회하는 화면
 
 `Mobile.md`는 작은 화면에서 필요한 것만 남긴 단일 열 화면입니다.
 
-- `KO · Capture` — 생각이나 짧은 텍스트를 새 capture로 만듭니다.
-- `KO · Save Source` — URL, 선택한 문장, 짧은 주석을 자료 capture로 저장합니다.
-- `KO · Defer to Mac` — Mac에서 처리할 작업을 요청 대상으로 보냅니다.
-- `KO · Sync` — 동기화 전에 상태를 확인하고 안전한 경우에만 다음 단계로 갑니다.
-- 오늘 Daily, Mobile 프로젝트 목록, Mac 검토 Inbox, AI 결과를 확인합니다.
+- 현재 Daily, Mobile 프로젝트 목록, Mac 검토 Inbox와 AI 결과를 조회합니다.
+- Core 탐색 링크로 프로젝트·Inbox·Review와 MOC를 엽니다.
+- capture·defer·sync·승인·실행 action은 이 화면에 없습니다.
 
-Mobile 화면의 동기화 안내는 마지막으로 확인된 snapshot을 뜻합니다. 화면에 “성공”을 기록해 두는 방식이 아니므로, 실제 상태는 기기의 Git 상태와 마지막 응답을 함께 확인해야 합니다.
+모바일 shortcut과 동기화는 구성되지 않았습니다. 화면의 로컬 문서를 최신 동기화나 원격 실행 결과로 간주하지 않습니다.
 
 ## 생각을 빠르게 담는 방법
 
-Mac의 Home에는 QuickAdd를 이용한 다섯 가지 빠른 진입점이 있습니다.
+Mac 프로필은 QuickAdd의 다섯 가지 빠른 진입점을 선언합니다. Home 본문에서 숨기고 단축키와 QuickAdd를 통해 사용합니다.
 
 | 단축키 | 진입점 | 만들어지는 맥락 |
 | --- | --- | --- |
-| `⌥⌘I` | `CAPTURE_THOUGHT` | 아직 판단하지 않은 생각을 `00_Inbox/Captures/`에 보관 |
+| `⌥⌘C` | `CAPTURE_THOUGHT` | 아직 판단하지 않은 생각을 `00_Inbox/Captures/`에 보관 |
 | `⌥⌘J` | `NEW_IDEA` | 발전시킬 아이디어를 `40_Knowledge/Ideas/`에 생성 |
 | `⌥⌘P` | `NEW_PROJECT` | 결과와 다음 행동을 가진 프로젝트 묶음을 생성 |
 | `⌥⌘Q` | `NEW_QUESTION` | 답이 필요한 질문이나 결정을 `40_Knowledge/Questions/`에 생성 |
@@ -305,7 +338,7 @@ Capture의 원문은 먼저 보존하고, 정식 노트로 옮길 때도 원본 
 프로젝트를 만들 때는 다음 세 가지를 먼저 적습니다.
 
 - **Outcome** — 끝났을 때 무엇이 달라져 있어야 하는가
-- **Status** — planned, active, blocked, completed 중 현재 상태
+- **Status** — planned, active, blocked, done, cancelled 중 현재 상태
 - **Next action** — 다음에 실제로 할 수 있는 한 가지 행동
 
 프로젝트를 만들면 다음 구조가 함께 생깁니다.
@@ -324,11 +357,13 @@ Capture의 원문은 먼저 보존하고, 정식 노트로 옮길 때도 원본 
 
 프로젝트가 막히면 상태를 `blocked`로 바꾸고, 막힌 이유나 기다리는 결정을 next action 주변에 남깁니다. 그러면 Home의 Now와 Blocked 목록에서 다시 발견할 수 있습니다.
 
+`active`·`blocked` 프로젝트는 `focus_rank`와 `next_action`이 모두 필요합니다. CLI 생성에서는 `--focus-rank`와 `--next-action`을 함께 제공합니다.
+
 ## 자료, 첨부파일, 출처
 
 자료를 저장할 때는 URL만 복사하는 것보다 “왜 저장했는지”를 함께 남기는 것이 좋습니다.
 
-1. `KO · Save Source`로 URL과 선택한 문장을 저장합니다.
+1. Mac의 capture 또는 채택된 CLI `vaultctl capture url`로 URL을 저장하고, 선택한 문장과 이유를 함께 기록합니다. 현재 Mobile에 `KO · Save Source` action은 없습니다.
 2. 짧은 주석에 “이 자료가 왜 필요한가”를 적습니다.
 3. 나중에 `Source` 노트에서 작성자, 날짜, citation key, 관련 프로젝트를 보완합니다.
 4. 주장이나 결정으로 발전하면 `derived_from` 또는 적절한 relation으로 원자료와 연결합니다.
@@ -411,10 +446,10 @@ vaultctl ai worker --once
 
 ### 로컬 Ollama와 Gemma를 사용할 때
 
-KnowledgeOS의 local AI에는 서로 다른 두 운영 경로가 있습니다. 둘 다 물리 컴퓨터의 loopback Ollama를 사용할 수 있지만, Thin Client와 E03 worker는 Ollama를 직접 호출하지 않습니다.
+E02·E05의 local AI 검증은 과거 구현 이력입니다. 새 Core binding의 provider 운영 채택과 host 서비스 상태는 이번 작업에서 검사하지 않았습니다. 아래 두 경로는 당시의 역할과 증거를 설명하며 현재 활성화 상태를 뜻하지 않습니다. Thin Client와 E03 worker는 Ollama를 직접 호출하지 않습니다.
 
 - **E02 host verification** — 내부 SSD, `127.0.0.1`, cloud-off 조건에서 모델 identity, digest, generation·embedding resource/latency를 측정한 host-native one-shot evidence입니다. 이 측정 결과만으로 provider를 자동 활성화하거나 정본을 수정하지 않습니다.
-- **E05 explicit local route** — 운영자가 기존 C31 job과 명시적 authorization으로 `vaultctl ai ollama`를 실행합니다. 현재 허용된 generation identity는 `gemma4:12b`이며, live exercise는 `127.0.0.1:11434`와 600초 bound를 사용했습니다. 결과는 C35 schema·provenance 검증을 거친 proposal-only output입니다.
+- **E05 explicit local route** — 운영자가 기존 C31 job과 명시적 authorization으로 `vaultctl ai ollama`를 실행한 이력입니다. 당시 generation identity는 `gemma4:12b`이며, live exercise는 `127.0.0.1:11434`와 600초 bound를 사용했습니다. 결과는 C35 schema·provenance 검증을 거친 proposal-only output입니다.
 
 로컬 provider 결과는 신뢰하지 않은 입력으로 취급합니다. model identity, cloud-off·loopback 정책, source/policy/index provenance와 output digest를 다시 확인한 뒤에만 답변 또는 Review 제안으로 공개합니다. 모델 다운로드, alias 자동 변환, 자동 fallback, 지속적인 provider daemon은 이 경로에 포함되지 않습니다.
 
@@ -519,11 +554,11 @@ KnowledgeOS에는 한 번에 한 명의 writer만 정본 Vault를 변경한다�
 
 ### “방금 떠오른 생각을 잊고 싶지 않다”
 
-Home에서 `⌥⌘I`를 누르고 원문만 적습니다. 지금 분류하지 않아도 됩니다. 나중에 Inbox에서 idea, question, project 중 하나를 고릅니다.
+Mac 프로필에서 `⌥⌘C`를 누르고 원문만 적습니다. 지금 분류하지 않아도 됩니다. 나중에 Inbox에서 idea, question, project 중 하나를 고릅니다.
 
 ### “읽은 글을 나중에 프로젝트에 쓰고 싶다”
 
-`KO · Save Source`로 URL, 중요한 문장, 저장 이유를 함께 남깁니다. Source 노트를 프로젝트와 연결하면, 나중에 project summary나 cited answer에서 근거로 다시 찾을 수 있습니다.
+Mac capture나 채택된 CLI `capture url`로 URL을 보관하고, 중요한 문장과 저장 이유를 함께 남깁니다. Source 노트를 프로젝트와 연결하면 나중에 원문 검색과 허용된 근거 답변에서 다시 찾을 수 있습니다.
 
 ### “아이디어를 실제 결과로 만들고 싶다”
 
@@ -558,29 +593,35 @@ AI Review에서 제안의 source, target, 변경 diff를 먼저 봅니다. 원�
 
 ## 현재 사용 범위
 
-현재 가장 안정적인 사용 범위는 MacBook 중심의 Obsidian workflow입니다.
+현재 Core 준비의 수락 범위는 provider-free 조회·정규화 제안·읽기 전용 검토와 생성된 KnowledgeHub 계약 정렬입니다. 실제 host binding, 기존 persistent State 전환과 운영 writer는 다음 C12에서 선택합니다.
 
-- Home, Mobile, Bases, Dashboard, Templates를 사용할 수 있습니다.
-- Mac baseline에는 QuickAdd, Templater, Tasks, Linter, Obsidian Git, Homepage, Note Toolbar, Breadcrumbs, Notebook Navigator, Meta Bind, `knowledgeos-thin-client`가 포함됩니다. 모바일 community-plugin baseline은 비어 있습니다.
-- capture, typed note, Daily/Weekly/Monthly, project bundle, asset provenance, archive를 사용할 수 있습니다.
+- Home, Mobile, Bases, Dashboard, Templates의 실제 파일·설정은 준비되어 있습니다. 현재 앱의 표시·생성·기존 내용 보존은 해당 Mac 프로필에서 별도 확인합니다.
+- Mac profile에는 QuickAdd, Templater, Tasks, Linter, Homepage, Note Toolbar, Breadcrumbs, Notebook Navigator, Meta Bind를 선언합니다. Obsidian Git과 `knowledgeos-thin-client`는 비활성 자료로 유지하고 모바일 community-plugin baseline은 비워 둡니다.
+- capture, typed note, project bundle의 CLI 기본 흐름은 격리 실행으로 확인했고 asset·archive transaction은 회귀 테스트 범위입니다. 실제 사용자 자료의 쓰기는 운영 바인딩 채택 이후 수행합니다. Daily/Weekly/Monthly는 GUI 경로에서 생성합니다.
 - AI 제안은 preview·review·approval을 거치는 구조입니다.
-- lexical search, typed-link retrieval, 근거가 붙은 cited answer를 사용할 수 있습니다.
+- lexical search, typed-link retrieval, provider-free 발췌 답변은 실제 생성 seed와 격리 실행으로 확인했습니다. 사용자 corpus의 답변 품질과 일상 운영은 별도 수락이 필요합니다.
 - vector/RRF는 기본 검색을 바꾸지 않는 선택 기능입니다.
 - action별 AI 제안과 schema 검사는 원본·정책·citation에 묶여 있으며, provider 결과가 곧바로 정본을 바꾸지 않습니다.
-- background worker는 필요할 때 명시적으로 실행하거나, E03에서 설치된 LaunchAgent를 통해 provider-free 방식으로 깨울 수 있습니다. 현재 E03 label은 `gui/501/com.knowledgeos.vaultops`에 로드되어 있으며 `ai worker --once`를 300초 간격으로 호출하지만, provider queue를 소비하거나 Ollama/Gemma를 호출하지 않고 remote/unattended lane도 활성화하지 않습니다.
+- background worker와 E03 LaunchAgent는 기존 구현 기능입니다. 이번 준비에서는 실행·활성화하거나 host 상태를 조회하지 않았습니다. 새 v3 binding에서 사용하려면 별도의 운영 채택과 정확한 실행 범위를 정해야 합니다.
 - private provider queue는 `vaultctl ai queue`로 한 번만 명시적으로 처리할 수 있으며, bounded local/synthetic 작업을 claim하고 lease를 회수하며, 결과를 재검증한 뒤 응답 또는 Review 제안으로만 공개합니다. 이 명령은 live provider, LaunchAgent, 자동 실행 또는 정본 apply를 활성화하지 않습니다.
-- E02 host-native Ollama verification은 내부 SSD·loopback·cloud-off 조건에서 generation과 embedding profile을 확인하는 별도 one-shot 경로로 완료되었습니다. 모델 identity와 resource evidence는 기록되지만, 모델 다운로드·자동 fallback·지속적인 provider daemon은 기본 사용 범위에 포함되지 않습니다.
-- E05의 explicit local `gemma4:12b` route는 bounded one-shot evidence와 proposal 경계 안에서만 사용할 수 있습니다. Thin Client의 일상적인 경로로 provider를 승격하거나 remote/unattended lane을 활성화하는 결정은 별도로 deferred 상태입니다. E03 LaunchAgent의 상태는 프로젝트 루트에서 `vaultctl launchd status`로 확인하고, rollback은 E03가 소유한 동일 bytes를 검증한 뒤 `vaultctl launchd rollback --apply`로 수행합니다. 기본 경험은 계속 명시적 실행, Review, 사람의 승인으로 닫힙니다.
+- E02 host-native Ollama와 E05 `gemma4:12b` one-shot 검증은 과거 증거로 보존합니다. 새 Core binding의 provider 실행, Thin Client broker 채택과 remote/unattended lane은 미실행 상태입니다.
 
-모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결은 이 기본 사용 범위와 별도의 배치·승인 단계입니다. 그 경계를 넘기 전에는 Mac 중심의 안전한 흐름과 E03의 provider-free worker 경계를 그대로 사용하면 됩니다.
+모바일의 실제 Working Copy 동기화, live mobile bridge round trip, remote provider 연결과 native Obsidian 검증은 별도의 배치·승인 단계입니다. 준비 결과는 해당 운영·device 검증의 완료 근거가 되지 않습니다.
 
 ## 관련 화면
 
-- [`KnowledgeHub/Home.md`](KnowledgeHub/Home.md) — Mac에서 매일 사용하는 시작 화면
-- [`KnowledgeHub/Mobile.md`](KnowledgeHub/Mobile.md) — 모바일에서 capture·조회·보류에 사용하는 화면
-- [`KnowledgeHub/99_System/Bases/Inbox.base`](KnowledgeHub/99_System/Bases/Inbox.base) — 처리하지 않은 capture와 mobile review
-- [`KnowledgeHub/99_System/Bases/Projects.base`](KnowledgeHub/99_System/Bases/Projects.base) — 프로젝트, Now, Next Actions
-- [`KnowledgeHub/99_System/Bases/Review.base`](KnowledgeHub/99_System/Bases/Review.base) — pending·conflict 제안
-- [`KnowledgeHub/99_System/Dashboards/Weekly_Review.md`](KnowledgeHub/99_System/Dashboards/Weekly_Review.md) — 주간 회고 화면
+- [Home](../../Vaults/KnowledgeHub/Home.md) — 시작 화면
+- [Mobile](../../Vaults/KnowledgeHub/Mobile.md) — 모바일 조회·보류 화면
+- [KnowledgeHub 계약 안내](../../Vaults/KnowledgeHub/99_System/Guides/KnowledgeOS.md) — 화면과 owner control의 경계
+- [Inbox Base](../../Vaults/KnowledgeHub/99_System/Bases/Inbox.base) — 처리하지 않은 capture와 mobile review
+- [Projects Base](../../Vaults/KnowledgeHub/99_System/Bases/Projects.base) — 프로젝트, Now, Next Actions
+- [Review Base](../../Vaults/KnowledgeHub/99_System/Bases/Review.base) — pending·conflict 제안
+- [Weekly Review](../../Vaults/KnowledgeHub/99_System/Dashboards/Weekly_Review.md) — 주간 회고 화면
 
 KnowledgeOS를 처음 사용할 때는 이 README를 모두 외우기보다 `Home.md`를 열고, 생각 하나를 capture한 뒤 Inbox에서 그 생각의 다음 맥락을 정하는 것부터 시작하면 됩니다.
+
+## AgentFabric 소유권과 작성 자료
+
+기존 durable runtime record는 원래 위치에 보존한다. 새 구현은 canonical state·durable control·outbox·재개 기록을 Operation State로, 재구성 가능한 Runtime과 공용 서비스 실행을 host 책임으로 구분한다. KnowledgeHub는 독립 Vault로 유지하고 사용된 적 없는 생성 산출물을 현재 유지 소스와 맞춘다. 기존 persistent 데이터의 변환·writer 전환은 C12의 별도 수락 범위다.
+
+유지 소스·정식 테스트·설정·작성 계획은 Git에서 수정 중이거나 untracked여도 KnowledgeOS에 둔다. Operation 작성과 무관한 초안·실험·중간 검증 알고리즘과 결과는 workspace Tmp에서 자유롭게 작업한다. README는 한국어 사람용 안내이고 AGENTS와 PROJECT_STATE는 영어 지침·machine-state 기록이다. Bootstrap은 실제 다른 host가 필요해질 때 구현하는 낮은 우선순위 추상 기능이다.

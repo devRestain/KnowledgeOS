@@ -15,6 +15,7 @@ from typing import Any
 
 from .gemma_routes import GemmaRouteError, validate_gemma_output
 from .ollama import OllamaClient, OllamaProviderAdapter
+from .paths import ResolvedPaths
 from .provider_broker import (
     EXIT_CONFLICT,
     EXIT_INPUT_INVALID,
@@ -64,7 +65,7 @@ def _report(
 
 
 def _validate_route_output(
-    workspace: Path,
+    workspace: ResolvedPaths,
     context: Mapping[str, Any],
     output: Mapping[str, Any],
     pipeline: str,
@@ -90,7 +91,7 @@ def _with_c40_identity(report: Mapping[str, Any], *, pipeline: str) -> dict[str,
 
 
 def run_local_route(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     job_id: str,
     client: OllamaClient | None,

@@ -21,6 +21,7 @@ from .frozen_evidence import (
     inspect_frozen_triage_proposal,
 )
 from .note_engine import NoteContractError, NoteEngine, resolve_vault_relative_path, write_note_file
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import fsync_directory
 from .template_engine import TemplateRenderError, render_note_template
 
@@ -31,11 +32,13 @@ _MAX_PROPOSAL_BYTES = 256 * 1024
 _MAX_TITLE_BYTES = 200
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise ValueError("control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise FrozenEvidenceError("E05_ROOT_INVALID", str(error)) from error
 
 
 def _sha256(value: bytes) -> str:
@@ -146,7 +149,7 @@ def _target_markdown(evidence: FrozenTriageEvidence) -> str:
 
 
 def promote_frozen_triage_proposal(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     job_id: str,
     candidate_id: str,
@@ -158,12 +161,17 @@ def promote_frozen_triage_proposal(
         workspace = _workspace(root)
         source_bindings = []
         for relative in (
-            f"runtime/runs/{job_id}/context.json",
-            f"runtime/runs/{job_id}/response.json",
-            f"runtime/runs/{job_id}/receipts/provider-receipt.json",
+            f"state/runs/{job_id}/context.json",
+            f"state/runs/{job_id}/response.json",
+            f"state/runs/{job_id}/receipts/provider-receipt.json",
         ):
-            path = workspace / relative
-            if path.is_symlink() or not path.is_file():
+            path = workspace.state / relative.removeprefix("state/")
+            cursor = workspace.state
+            escaped = cursor.is_symlink()
+            for part in Path(relative).parts[1:]:
+                cursor = cursor / part
+                escaped = escaped or cursor.is_symlink()
+            if escaped or not path.is_file():
                 raise FrozenEvidenceError("E05_RUNTIME_FILE_INVALID", f"required runtime evidence is missing: {relative}")
             source_bindings.append(f"{relative}|sha256:{_sha256(path.read_bytes())}")
         evidence = inspect_frozen_triage_proposal(
@@ -173,7 +181,7 @@ def promote_frozen_triage_proposal(
         )
         if evidence.job_id != job_id:
             raise FrozenEvidenceError("E05_RUNTIME_JOB_DRIFT", "requested job id differs from frozen runtime evidence")
-        target = workspace / "KnowledgeHub" / evidence.target_path
+        target = workspace.vault / evidence.target_path
         if target.is_symlink() or target.exists():
             raise FrozenEvidenceError("E05_TARGET_EXISTS", "derived canonical target already exists")
         if not target.parent.is_dir() or target.parent.is_symlink():
@@ -202,7 +210,7 @@ def promote_frozen_triage_proposal(
         )
         proposal_title = f"E05 Frozen Triage {evidence.proposal['proposal_id'][:12]}"
         proposal_relative = f"01_AI_Review/Pending/{proposal_title}.md"
-        proposal_absolute = resolve_vault_relative_path(workspace / "KnowledgeHub", proposal_relative)
+        proposal_absolute = resolve_vault_relative_path(workspace.vault, proposal_relative)
         body = _proposal_body(evidence, manifest=manifest, target_markdown=target_markdown)
         rendered = render_note_template(
             "T01_AI_Proposal.md",

@@ -9,8 +9,14 @@ from threading import Thread
 from typing import Any
 
 import pytest
+from support.control_factory import (
+    bind_existing_control,
+    fixture_path,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import _read_broker_token, build_parser
+from vaultops.paths import ResolvedPaths, resolve_paths
 from vaultops.provider_contract import canonical_json_bytes
 from vaultops.thin_client import ThinClientError, build_thin_client_request
 from vaultops.thin_client_http import (
@@ -31,11 +37,12 @@ def _sha256(value: bytes) -> str:
 
 def _fixture_root(tmp_path: Path) -> tuple[Path, bytes, str, str]:
     root = tmp_path / "control"
-    vault_note = root / "KnowledgeHub" / NOTE_PATH
+    bind_existing_control(root)
+    vault_note = fixture_path(root, "vault") / NOTE_PATH
     vault_note.parent.mkdir(parents=True)
     content = b"---\nschema_version: 1\ntype: knowledge\ntitle: Broker fixture\n---\n\nThe broker remains proposal-only.\n"
     vault_note.write_bytes(content)
-    (root / "ops" / "policies").mkdir(parents=True)
+    (root / "ops" / "policies").mkdir(parents=True, exist_ok=True)
     retrieval = root / "ops" / "policies" / "retrieval.yaml"
     privacy = root / "ops" / "policies" / "privacy.yaml"
     retrieval.write_text("retrieval: fixture\n", encoding="utf-8")
@@ -159,6 +166,67 @@ def test_e05_loopback_broker_rechecks_bindings_and_returns_exact_c41_result(tmp_
         server.server_close()
 
 
+def test_e05_broker_reads_selected_vault_and_passes_all_roots_to_answer(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    content = b"---\ntype: knowledge\ntitle: Selected root\n---\nSelected Vault content.\n"
+    note_path = roots.vault / NOTE_PATH
+    note_path.parent.mkdir(parents=True, exist_ok=True)
+    note_path.write_bytes(content)
+    decoy_path = roots.control / "KnowledgeHub" / NOTE_PATH
+    decoy_path.parent.mkdir(parents=True)
+    decoy_path.write_bytes(b"decoy control child content\n")
+    retrieval = roots.control / "ops/policies/retrieval.yaml"
+    privacy = roots.control / "ops/policies/privacy.yaml"
+    policy_sha256 = _sha256(retrieval.read_bytes())
+    privacy_sha256 = _sha256(privacy.read_bytes())
+    calls: list[tuple[ResolvedPaths, str, dict[str, Any]]] = []
+
+    def fake_ask(
+        root_arg: ResolvedPaths,
+        query: str,
+        **kwargs: Any,
+    ) -> tuple[dict[str, Any], int]:
+        calls.append((root_arg, query, kwargs))
+        return {
+            "status": "PASS",
+            "provider_called": False,
+            "mutation_performed": False,
+            "answer_plaintext": "selected-root answer",
+            "citations": [],
+        }, 0
+
+    monkeypatch.setattr("vaultops.thin_client_http.ask", fake_ask)
+    broker = VaultThinClientBroker(
+        roots.control,
+        index_generation_reader=lambda: "fixture-generation-1",
+    )
+    request = _request(
+        roots.control,
+        "http://127.0.0.1:17900/broker",
+        content,
+        policy_sha256,
+        privacy_sha256,
+    )
+
+    response = broker.dispatch(request)
+
+    assert response["status"] == "completed"
+    assert response["result"]["summary"] == "selected-root answer"
+    assert calls == [
+        (
+            roots,
+            request["question"]["text"],
+            {
+                "path_prefix": NOTE_PATH,
+                "expected_generation_id": "fixture-generation-1",
+            },
+        )
+    ]
+
+
 def test_e05_loopback_broker_rejects_wrong_bearer_and_content_drift(tmp_path: Path) -> None:
     root, content, policy_sha256, privacy_sha256 = _fixture_root(tmp_path)
     broker = VaultThinClientBroker(
@@ -179,7 +247,7 @@ def test_e05_loopback_broker_rejects_wrong_bearer_and_content_drift(tmp_path: Pa
 
         assert auth_status == 401
         assert auth_payload["errors"][0]["code"] == "C41_AUTH_INVALID"
-        (root / "KnowledgeHub" / NOTE_PATH).write_bytes(content + b"drift\n")
+        (fixture_path(root, "vault") / NOTE_PATH).write_bytes(content + b"drift\n")
 
         drift_status, drift_payload = _post(endpoint, request)
 
@@ -239,7 +307,7 @@ def test_e05_provider_free_broker_calls_the_existing_vaultctl_answer_seam(tmp_pa
 
     assert calls == [
         (
-            root.resolve(),
+            resolve_paths(root),
             request["question"]["text"],
             {
                 "path_prefix": NOTE_PATH,

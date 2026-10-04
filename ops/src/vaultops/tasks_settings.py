@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .paths import resolve_api_paths
+
 P05_TASKS_REGISTRY_SCHEMA_VERSION = 1
 P05_PLUGIN_ID = "obsidian-tasks-plugin"
 P05_GLOBAL_FILTER = "#task"
@@ -206,11 +208,12 @@ def _query_record(
 def _query_records(
     *,
     root: Path,
+    vault_root: Path,
     errors: list[dict[str, str]],
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for relative in P05_QUERY_SOURCES:
-        path = root / "KnowledgeHub" / relative
+        path = vault_root / relative
         source = _relative(root, path)
         if path.is_symlink() or not path.is_file():
             records.append(
@@ -324,6 +327,7 @@ def build_tasks_setting_registry(
     """Build the P05 registry from the installed Tasks profile and Markdown queries."""
 
     del blueprint  # P05 uses the shared #task and note-template contract directly.
+    vault_root = resolve_api_paths(root).vault
     errors: list[dict[str, str]] = []
     manifest_path = profile_root / "plugins/obsidian-tasks-plugin/manifest.json"
     data_path = profile_root / "plugins/obsidian-tasks-plugin/data.json"
@@ -409,7 +413,7 @@ def build_tasks_setting_registry(
         "runtime_evidence": "not_run",
     }
 
-    query_sources = _query_records(root=root, errors=errors)
+    query_sources = _query_records(root=root, vault_root=vault_root, errors=errors)
     status_registry = _status_registry(data if isinstance(data, dict) else None, errors, root, data_path)
     registry = {
         "schema_version": P05_TASKS_REGISTRY_SCHEMA_VERSION,

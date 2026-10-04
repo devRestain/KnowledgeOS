@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 import stat
 import subprocess
+import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+
+from vaultops.paths import ResolvedPaths, resolve_paths
 
 CONTROL_ROOT = Path(__file__).resolve().parents[3]
 _FORBIDDEN_INPUT_ROOTS = frozenset({".git", "KnowledgeHub", "runtime"})
@@ -234,9 +238,9 @@ def make_control_root(
         else:
             _copy_cached_source_file(source, target)
 
+    vault = tmp_path / "vault"
+    vault.mkdir()
     if with_vault:
-        vault = root / "KnowledgeHub"
-        vault.mkdir()
         for relative_value, payload in (vault_files or {}).items():
             relative = _validated_vault_relative(relative_value)
             target = vault.joinpath(*relative.parts)
@@ -244,8 +248,21 @@ def make_control_root(
             target.write_bytes(payload.encode("utf-8") if isinstance(payload, str) else payload)
     elif vault_files:
         raise ValueError("vault_files require with_vault=True")
-    if with_runtime:
-        (root / "runtime").mkdir()
+    core = tmp_path / "core"
+    _copy_cached_tree(Path("/workspace/Core"), core)
+    for relative in ("ops/config/core-adoption.json", "ops/policies/owner-control.json"):
+        _copy_cached_source_file(CONTROL_ROOT / relative, root / relative)
+    state = tmp_path / "state"
+    runtime = tmp_path / "runtime"
+    state.mkdir(mode=0o700)
+    runtime.mkdir(mode=0o700)
+    write_fixture_config(root, core=core, vault=vault, state=state, runtime=runtime)
+    from vaultops.adapters.core import load_json
+    from vaultops.adapters.owner_journal import OwnerJournal, utc_now
+
+    journal = OwnerJournal(resolve_paths(root), load_json(root / "ops/config/core-adoption.json"))
+    with journal.writer() as session:
+        session.commit(utc_now())
     return root
 
 
@@ -263,7 +280,7 @@ def populate_vault_from_fixture(root: Path, fixture_relative: str) -> None:
     if relative.parts[:3] != ("ops", "tests", "fixtures"):
         raise ValueError(f"Vault fixture must live below ops/tests/fixtures: {fixture_relative}")
     source = CONTROL_ROOT.joinpath(*relative.parts)
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     if source.is_symlink() or not source.is_dir():
         raise ValueError(f"declared Vault fixture is missing or unsafe: {fixture_relative}")
     _copy_cached_tree(source, vault, dirs_exist_ok=True, preserve_times=True)
@@ -277,7 +294,10 @@ def make_portable_fixture_root(
 ) -> Path:
     """Build the shared C09-derived app fixture with only declared inputs."""
 
-    root = make_control_root(tmp_path, (*PORTABLE_CONTROL_INPUTS, *extra_inputs))
+    inputs = tuple(
+        item for item in (*PORTABLE_CONTROL_INPUTS, *extra_inputs) if item != "ops/vaultops.toml"
+    )
+    root = make_control_root(tmp_path, inputs)
     populate_vault_from_fixture(
         root, "ops/tests/fixtures/c09_portable_vault/guestbook-horror/input"
     )
@@ -287,8 +307,42 @@ def make_portable_fixture_root(
             "01_AI_Review/Resolved",
             "01_AI_Review/Rejected",
         ):
-            (root / "KnowledgeHub" / relative).mkdir(parents=True, exist_ok=True)
+            (fixture_path(root, "vault") / relative).mkdir(parents=True, exist_ok=True)
     return root
+
+
+def write_fixture_config(root: Path, *, core: Path, vault: Path, state: Path, runtime: Path) -> None:
+    config = root / "ops/vaultops.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    values = {"core": core, "control": root, "vault": vault, "state": state, "runtime": runtime}
+    config.write_text('schema_version = 3\nproject_name = "KnowledgeOS"\n' + "".join(f"{kind}_root = {json.dumps(str(path), ensure_ascii=False)}\n" for kind, path in values.items()) + 'timezone = "Asia/Seoul"\n', encoding="utf-8")
+
+
+def fixture_path(root: Path, kind: str) -> Path:
+    """Read a disposable fixture locator, even while testing invalid bindings."""
+    config = tomllib.loads((root / "ops/vaultops.toml").read_text())
+    return Path(config[f"{kind}_root"])
+
+
+def make_separate_portable_fixture_roots(
+    tmp_path: Path, *, extra_inputs: Iterable[str] = (), review_queues: bool = False,
+    schema_version: int = 3,
+) -> ResolvedPaths:
+    if schema_version != 3:
+        raise ValueError("fixtures require config v3; legacy versions are rejection cases")
+    root = make_portable_fixture_root(tmp_path, extra_inputs=extra_inputs, review_queues=review_queues)
+    roots = {kind: fixture_path(root, kind) for kind in ("core", "vault", "state", "runtime")}
+    for kind, old in list(roots.items()):
+        destination = tmp_path / (kind + " Ω")
+        if old.exists():
+            old.rename(destination)
+        elif kind in {"state", "runtime"}:
+            destination.mkdir(mode=0o700)
+        roots[kind] = destination
+    destination = tmp_path / "control Ω"
+    root.rename(destination)
+    write_fixture_config(destination, **roots)
+    return resolve_paths(destination)
 
 
 def _git(root: Path, *arguments: str) -> None:
@@ -311,17 +365,22 @@ def _initialize_git_repository(root: Path) -> None:
 def make_diagnostic_root(tmp_path: Path) -> Path:
     """Build a complete disposable doctor input without reading mutable roots."""
 
-    from vaultops.runtime import RUNTIME_DIRECTORIES
+    from vaultops.runtime import RUNTIME_DIRECTORIES, STATE_DIRECTORIES
 
-    root = make_control_root(tmp_path, DIAGNOSTIC_CONTROL_INPUTS)
+    inputs = tuple(item for item in DIAGNOSTIC_CONTROL_INPUTS if item != "ops/vaultops.toml")
+    root = make_control_root(tmp_path, inputs)
     (root / ".gitignore").write_text("/KnowledgeHub/\n/runtime/\n", encoding="utf-8")
-    runtime = root / "runtime"
-    runtime.mkdir(mode=0o700)
+    runtime = fixture_path(root, "runtime")
+    runtime.mkdir(mode=0o700, exist_ok=True)
     for relative in RUNTIME_DIRECTORIES:
         (runtime / relative).mkdir(mode=0o700)
+    state = fixture_path(root, "state")
+    state.mkdir(mode=0o700, exist_ok=True)
+    for relative in STATE_DIRECTORIES:
+        (state / relative).mkdir(mode=0o700)
     _initialize_git_repository(root)
 
-    vault = root / "KnowledgeHub"
+    vault = fixture_path(root, "vault")
     (vault / ".fixture-anchor").write_text("temporary test repository\n", encoding="utf-8")
     _initialize_git_repository(vault)
     return root
@@ -351,8 +410,40 @@ def make_identity_root(tmp_path: Path) -> Path:
     (root / ".gitignore").write_text(
         "/KnowledgeHub/\n/runtime/\n", encoding="utf-8"
     )
-    (root / "runtime").chmod(0o700)
-    (root / "KnowledgeHub/99_System").mkdir()
+    (fixture_path(root, "runtime")).chmod(0o700)
+    (fixture_path(root, "vault") / "99_System").mkdir()
     _initialize_git_repository(root)
-    _initialize_git_repository(root / "KnowledgeHub")
+    _initialize_git_repository(fixture_path(root, "vault"))
     return root
+
+
+def bind_existing_control(root: Path) -> None:
+    """Bind a manually synthesized control fixture to independent empty roots."""
+    root.mkdir(parents=True, exist_ok=True)
+    base = root.parent
+    core = base / "core"
+    if not core.exists():
+        _copy_cached_tree(Path("/workspace/Core"), core)
+    vault = base / "vault"
+    state = base / "state"
+    runtime = base / "runtime"
+    vault.mkdir(exist_ok=True)
+    state.mkdir(mode=0o700, exist_ok=True)
+    runtime.mkdir(mode=0o700, exist_ok=True)
+    for relative in ("ops/config/core-adoption.json", "ops/policies/owner-control.json"):
+        _copy_cached_source_file(CONTROL_ROOT / relative, root / relative)
+    write_fixture_config(root, core=core, vault=vault, state=state, runtime=runtime)
+    from vaultops.adapters.core import load_json
+    from vaultops.adapters.owner_journal import OwnerJournal, utc_now
+    journal = OwnerJournal(resolve_paths(root), load_json(root / "ops/config/core-adoption.json"))
+    if not journal.path.exists():
+        with journal.writer() as session:
+            session.commit(utc_now())
+
+
+def fixture_artifact(root: Path, locator: str) -> Path:
+    """Resolve an explicit test report locator by its declared ownership."""
+    for kind in ("state", "runtime"):
+        if locator.startswith(kind + "/"):
+            return fixture_path(root, kind) / locator.split("/", 1)[1]
+    return root / locator

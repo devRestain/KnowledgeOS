@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from support.control_factory import make_control_root
+from support.control_factory import fixture_path, make_control_root
 
 from vaultops.bootstrap import bootstrap
 from vaultops.note_engine import NoteEngine
@@ -189,7 +189,7 @@ def test_bootstrap_dry_run_apply_and_second_apply_are_additive(tmp_path: Path) -
     planned = bootstrap(root, dry_run=True)
     assert planned["status"] == "PASS"
     assert planned["would_create"]
-    assert not list((root / "KnowledgeHub/99_System/Templates").glob("*.md"))
+    assert not list(((fixture_path(root, "vault") / "99_System/Templates")).glob("*.md"))
 
     applied = bootstrap(root)
     assert applied["status"] == "PASS"
@@ -199,30 +199,30 @@ def test_bootstrap_dry_run_apply_and_second_apply_are_additive(tmp_path: Path) -
     assert second["created"] == []
     second_preview = bootstrap(root, dry_run=True)
     assert second_preview["would_create"] == []
-    assert all((root / "KnowledgeHub" / relative).exists() for relative in template_paths())
+    assert all((fixture_path(root, "vault") / relative).exists() for relative in template_paths())
 
 
 def test_bootstrap_conflict_is_preflighted_without_creating_other_templates(tmp_path: Path) -> None:
     root = _minimal_control(tmp_path)
-    conflict = root / "KnowledgeHub/99_System/Templates/T00_Capture.md"
+    conflict = (fixture_path(root, "vault") / "99_System/Templates/T00_Capture.md")
     conflict.parent.mkdir(parents=True)
     conflict.write_text("user-owned\n", encoding="utf-8")
     result = bootstrap(root)
     assert result["status"] == "CONFLICT"
     assert result["conflicts"] == ["99_System/Templates/T00_Capture.md"]
-    assert not (root / "KnowledgeHub/99_System/Templates/T20_Project.md").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Templates/T20_Project.md").exists()
     assert conflict.read_text(encoding="utf-8") == "user-owned\n"
 
 
 def test_bootstrap_treats_a_directory_at_a_template_target_as_conflict(tmp_path: Path) -> None:
     root = _minimal_control(tmp_path)
-    conflict = root / "KnowledgeHub/99_System/Templates/T00_Capture.md"
+    conflict = (fixture_path(root, "vault") / "99_System/Templates/T00_Capture.md")
     conflict.parent.mkdir(parents=True)
     conflict.mkdir()
     result = bootstrap(root)
     assert result["status"] == "CONFLICT"
     assert result["conflicts"] == ["99_System/Templates/T00_Capture.md"]
-    assert not (root / "KnowledgeHub/99_System/Templates/T20_Project.md").exists()
+    assert not (fixture_path(root, "vault") / "99_System/Templates/T20_Project.md").exists()
 
 
 def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_path: Path) -> None:
@@ -248,9 +248,9 @@ def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_pat
         created_at="2026-09-09T09:00:00+09:00",
     )
     assert applied["status"] == "PASS", applied
-    assert (root / "KnowledgeHub/20_Projects/Demo Project/Demo Project.md").is_file()
-    assert (root / "KnowledgeHub/20_Projects/Demo Project/Working").is_dir()
-    assert (root / "KnowledgeHub/20_Projects/Demo Project/Artifacts").is_dir()
+    assert (fixture_path(root, "vault") / "20_Projects/Demo Project/Demo Project.md").is_file()
+    assert (fixture_path(root, "vault") / "20_Projects/Demo Project/Working").is_dir()
+    assert (fixture_path(root, "vault") / "20_Projects/Demo Project/Artifacts").is_dir()
     second = create_project_bundle(root, title="Demo Project", created_at="2026-09-09T09:00:00+09:00")
     assert second["status"] == "CONFLICT"
     assert second["created"] == []
@@ -258,7 +258,7 @@ def test_project_bundle_is_atomic_create_only_and_noop_on_second_attempt(tmp_pat
 
 def test_project_bundle_refuses_an_existing_project_root(tmp_path: Path) -> None:
     root = _minimal_control(tmp_path)
-    project_dir = root / "KnowledgeHub/20_Projects/Existing Project"
+    project_dir = (fixture_path(root, "vault") / "20_Projects/Existing Project")
     project_dir.mkdir(parents=True)
     result = create_project_bundle(root, title="Existing Project")
     assert result["status"] == "CONFLICT"

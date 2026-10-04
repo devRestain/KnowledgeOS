@@ -19,7 +19,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-RECOVERY_SCHEMA_VERSION = 1
+from .adapters.owner_journal import CURRENT_OWNER_INTENT
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
+
+RECOVERY_SCHEMA_VERSION = 2
 RECOVERY_STATES = frozenset({"intent", "applying", "published", "moved", "completed", "conflict"})
 _UUID_V4_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -36,6 +39,7 @@ _RECORD_KEYS = frozenset(
         "payload",
         "previous_record_sha256",
         "record_sha256",
+        "owner_intent_id",
     }
 )
 
@@ -154,16 +158,21 @@ def _parse_event_at(value: Any) -> None:
 class RecoveryJournal:
     """One immutable-intent, append-only journal under ``runtime/runs``."""
 
-    def __init__(self, root: str | Path, *, job_id: str, operation: str):
-        candidate = Path(root).expanduser()
-        if candidate.is_symlink() or not candidate.is_dir():
-            raise RecoveryError("control root must be an existing non-symlink directory")
+    def __init__(self, root: str | Path | ResolvedPaths, *, job_id: str, operation: str):
+        if isinstance(root, ResolvedPaths):
+            roots = root
+        else:
+            try:
+                roots = resolve_paths(root)
+            except RootResolutionError as error:
+                raise RecoveryError(str(error)) from error
         if not isinstance(operation, str) or not _OPERATION_RE.fullmatch(operation):
             raise RecoveryError("recovery operation name is invalid")
-        self.workspace = candidate.resolve()
+        self.paths = roots
+        self.workspace = roots.control
         self.job_id = validate_job_id(job_id)
         self.operation = operation
-        self.runtime = self.workspace / "runtime"
+        self.runtime = roots.state
         self.runs = self.runtime / "runs"
         self.job_dir = self.runs / self.job_id
         self.path = self.job_dir / "journal.jsonl"
@@ -171,6 +180,10 @@ class RecoveryJournal:
     @property
     def receipt_path(self) -> Path:
         return self.runtime / "receipts" / f"{self.job_id}-{self.operation}.json"
+
+    def runtime_relative(self, path: str | Path) -> str:
+        relative = Path(path).relative_to(self.runtime).as_posix()
+        return f"state/{relative}"
 
     @property
     def exists(self) -> bool:
@@ -205,6 +218,7 @@ class RecoveryJournal:
             "event_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "payload": dict(payload),
             "previous_record_sha256": previous_record_sha256,
+            "owner_intent_id": CURRENT_OWNER_INTENT.get(),
         }
         body["record_sha256"] = sha256_bytes(canonical_json_bytes(body))
         return canonical_json_bytes(body) + b"\n"
@@ -382,4 +396,4 @@ class RecoveryJournal:
         fsync_directory(transaction_root)
         fsync_directory(quarantine_root)
         fsync_directory(self.runtime)
-        return destination.relative_to(self.workspace).as_posix()
+        return self.runtime_relative(destination)

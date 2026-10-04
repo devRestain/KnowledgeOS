@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from .bridge_contract import validate_root_sentinel
+from .paths import resolve_api_paths
 from .yaml_safe import load_yaml_file
 
 EXIT_OK = 0
@@ -92,14 +93,10 @@ def _strict_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _resolve_roots(root: str | Path) -> tuple[Path, Path]:
-    control = Path(root).expanduser()
-    if control.is_symlink() or not control.is_dir():
-        raise ValueError("--root must be an existing, non-symlink control directory")
-    control = control.resolve()
-    vault = control / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise ValueError("KnowledgeHub must be an existing, non-symlink directory")
-    return control, vault.resolve()
+    roots = resolve_api_paths(root)
+    if roots.vault.is_symlink() or not roots.vault.is_dir():
+        raise ValueError("selected Vault root must be an existing, non-symlink directory")
+    return roots.control, roots.vault
 
 
 def _validate_vault_identity(control: Path, vault: Path) -> dict[str, Any]:
@@ -130,14 +127,6 @@ def _validate_vault_identity(control: Path, vault: Path) -> dict[str, Any]:
             "issues": [issue.as_dict() for issue in validation.issues],
         }
     canonical_name = document.get("canonical_vault_name")
-    if canonical_name != vault.name:
-        return {
-            "state": "mismatch",
-            "reason": "Vault root name does not match the validated canonical Vault identity",
-            "expected": vault.name,
-            "observed": canonical_name,
-            "source": "KnowledgeHub/.knowledgeos-root.json",
-        }
     return {
         "state": "validated",
         "canonical_vault_name": canonical_name,

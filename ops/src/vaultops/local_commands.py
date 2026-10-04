@@ -22,6 +22,7 @@ from .note_engine import (
     resolve_vault_relative_path,
     write_note_file,
 )
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .template_engine import TemplateRenderError, render_note_template
 from .workflows import validate_title
 
@@ -78,19 +79,18 @@ def _fail(
     }, exit_code
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise LocalCommandInputError("control root must be an existing non-symlink directory")
-    return candidate.resolve()
+def _resolved_paths(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise LocalCommandInputError(str(error)) from error
 
 
-def _vault_root(root: str | Path) -> tuple[Path, Path]:
-    workspace = _workspace(root)
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise LocalCommandInputError("Vault root is missing or is a symlink")
-    return workspace, vault.resolve()
+def _vault_root(root: str | Path | ResolvedPaths) -> tuple[Path, Path]:
+    roots = _resolved_paths(root)
+    return roots.control, roots.vault
 
 
 def _normalize_text(raw: bytes | str, *, label: str, max_bytes: int = CONTENT_MAX_BYTES) -> str:
@@ -265,7 +265,7 @@ def _create_rendered_note(
 
 
 def capture_text(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     stdin: bool,
     device: str,
@@ -322,7 +322,7 @@ def _validate_url(value: str) -> str:
 
 
 def capture_url(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     url_stdin: bool,
     url_file: str | Path | None,
@@ -395,7 +395,7 @@ def _project_context(vault: Path, engine: NoteEngine, project: str) -> tuple[str
 
 
 def create_note(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     note_type: str,
     title: str,
@@ -533,7 +533,7 @@ def _format_candidates(vault: Path, engine: NoteEngine, relative: str | None) ->
 
 
 def format_notes(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     check: bool,
     relative: str | None = None,

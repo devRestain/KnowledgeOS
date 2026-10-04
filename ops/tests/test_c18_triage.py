@@ -3,7 +3,11 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from support.control_factory import make_portable_fixture_root
+from support.control_factory import (
+    fixture_path,
+    make_portable_fixture_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import main
 from vaultops.triage import deterministic_triage
@@ -27,7 +31,7 @@ def _files(root: Path) -> dict[str, bytes]:
 
 def test_triage_is_deterministic_typed_and_read_only(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    source = root / "KnowledgeHub" / SOURCE
+    source = fixture_path(root, "vault") / SOURCE
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     before = _files(root)
 
@@ -46,13 +50,13 @@ def test_triage_is_deterministic_typed_and_read_only(tmp_path: Path) -> None:
 
 def test_triage_rejects_drift_denied_source_and_unbound_daily(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
-    source = root / "KnowledgeHub" / SOURCE
+    source = fixture_path(root, "vault") / SOURCE
 
     drift, drift_code = deterministic_triage(root, source_path=SOURCE, expected_sha256="0" * 64)
     assert drift_code == 30
     assert drift["errors"][0]["code"] == "TRIAGE_SOURCE_DRIFT"
 
-    daily = root / "KnowledgeHub" / DAILY
+    daily = fixture_path(root, "vault") / DAILY
     daily_digest = hashlib.sha256(daily.read_bytes()).hexdigest()
     missing, missing_code = deterministic_triage(root, source_path=DAILY, expected_sha256=daily_digest)
     assert missing_code == 30
@@ -67,10 +71,40 @@ def test_triage_rejects_drift_denied_source_and_unbound_daily(tmp_path: Path) ->
 
 def test_triage_cli_is_proposal_only(tmp_path: Path, capsys) -> None:
     root = _fresh_control_copy(tmp_path)
-    source = root / "KnowledgeHub" / SOURCE
+    source = fixture_path(root, "vault") / SOURCE
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
 
     assert main(["ai", "triage", "--source", SOURCE, "--expected-sha256", digest, "--root", str(root)]) == 0
     output = capsys.readouterr().out
     assert '"provider_called": false' in output
     assert '"mutation_performed": false' in output
+
+
+def test_triage_uses_selected_separate_roots_from_unrelated_cwd(tmp_path: Path, monkeypatch, capsys) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    unrelated = tmp_path / "unrelated cwd"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    source = roots.vault / SOURCE
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    before = {
+        "control": _files(roots.control),
+        "vault": _files(roots.vault),
+        "runtime": _files(roots.runtime),
+    }
+
+    report, code = deterministic_triage(roots, source_path=SOURCE, expected_sha256=digest)
+    assert code == 0, report
+    assert report["status"] == "PROPOSED"
+    assert report["provider_called"] is False
+    assert report["mutation_performed"] is False
+    assert _files(roots.control) == before["control"]
+    assert _files(roots.vault) == before["vault"]
+    assert _files(roots.runtime) == before["runtime"]
+
+    assert main(["ai", "triage", "--source", SOURCE, "--expected-sha256", digest, "--root", str(roots.control)]) == 0
+    cli_report = capsys.readouterr().out
+    assert '"status": "PROPOSED"' in cli_report
+    assert _files(roots.control) == before["control"]
+    assert _files(roots.vault) == before["vault"]
+    assert _files(roots.runtime) == before["runtime"]

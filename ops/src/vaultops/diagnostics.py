@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -31,9 +29,10 @@ from .meta_bind_settings import build_meta_bind_setting_registry
 from .note_toolbar_settings import build_note_toolbar_setting_registry
 from .notebook_navigator_settings import build_notebook_navigator_setting_registry
 from .obsidian_git_settings import build_obsidian_git_setting_registry
+from .paths import ResolvedPaths, RootResolutionError, load_config_file, resolve_paths
 from .projection import load_current_projection
 from .quickadd_settings import build_quickadd_setting_registry
-from .runtime import RuntimeLayout
+from .runtime import RuntimeLayout, StateLayout
 from .schema_export import export_schema_artifacts
 from .tasks_settings import build_tasks_setting_registry
 from .templater_settings import build_templater_setting_registry
@@ -48,18 +47,6 @@ EXIT_INPUT_INVALID = 10
 EXIT_CONFIG_INVALID = 11
 EXIT_GIT_INVALID = 12
 EXIT_VALIDATION_FAILED = 13
-
-_CONFIG_KEYS = frozenset(
-    {"schema_version", "project_name", "control_root", "vault_root", "runtime_root", "timezone"}
-)
-_CONFIG_EXPECTED = {
-    "schema_version": 1,
-    "project_name": "KnowledgeOS",
-    "control_root": "/workspace/control",
-    "vault_root": "/workspace/KnowledgeHub",
-    "runtime_root": "/workspace/runtime",
-    "timezone": "Asia/Seoul",
-}
 
 _CORE_PLUGIN_IDS = {
     "Properties": "properties",
@@ -286,13 +273,7 @@ class DiagnosticError(ValueError):
         self.exit_code = exit_code
 
 
-@dataclass(frozen=True)
-class ProjectRoots:
-    """Resolved roots discovered from one mounted control workspace."""
-
-    control: Path
-    vault: Path
-    runtime: Path
+ProjectRoots = ResolvedPaths
 
 
 def _issue(code: str, locator: str, message: str, *, severity: str = "error") -> dict[str, str]:
@@ -378,63 +359,27 @@ def _read_community_plugin_ids(path: Path) -> list[str]:
     return sorted(value)
 
 
-def discover_project_roots(root: str | Path) -> ProjectRoots:
-    """Resolve and validate the control/Vault/runtime root relationship."""
+def discover_project_roots(root: str | Path | ProjectRoots) -> ProjectRoots:
+    """Resolve and validate all root identities through the shared resolver."""
 
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise DiagnosticError(
-            "ROOT_INVALID",
-            "--root must be an existing, non-symlink control directory",
-            exit_code=EXIT_INPUT_INVALID,
-        )
-    control = candidate.resolve()
-    required = {
-        "blueprint/blueprint.yaml": control / "blueprint/blueprint.yaml",
-        "ops/vaultops.toml": control / "ops/vaultops.toml",
-        "KnowledgeHub": control / "KnowledgeHub",
-        "runtime": control / "runtime",
-    }
-    for relative, path in required.items():
-        if path.is_symlink() or not (path.is_file() if path.suffix else path.is_dir()):
-            raise DiagnosticError(
-                "ROOT_LAYOUT_INVALID",
-                f"control root is missing a real {relative}",
-                exit_code=EXIT_INPUT_INVALID,
-            )
-    return ProjectRoots(control=control, vault=(control / "KnowledgeHub").resolve(), runtime=(control / "runtime").resolve())
-
-
-def load_strict_config(root: str | Path) -> dict[str, Any]:
-    """Load the small deployment config and reject drift or unknown keys."""
-
-    path = Path(root).resolve() / "ops/vaultops.toml"
+    if isinstance(root, ResolvedPaths):
+        return root
     try:
-        with path.open("rb") as handle:
-            config = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError) as error:
-        raise DiagnosticError(
-            "CONFIG_INVALID",
-            f"cannot parse ops/vaultops.toml: {error}",
-            exit_code=EXIT_CONFIG_INVALID,
-        ) from error
-    if set(config) != _CONFIG_KEYS:
-        missing = sorted(_CONFIG_KEYS - set(config))
-        extra = sorted(set(config) - _CONFIG_KEYS)
-        details = []
-        if missing:
-            details.append(f"missing={','.join(missing)}")
-        if extra:
-            details.append(f"unexpected={','.join(extra)}")
-        raise DiagnosticError("CONFIG_SCHEMA_INVALID", "config key set drift: " + "; ".join(details), exit_code=EXIT_CONFIG_INVALID)
-    for key, expected in _CONFIG_EXPECTED.items():
-        if config.get(key) != expected:
-            raise DiagnosticError(
-                "CONFIG_DRIFT",
-                f"config value drift at {key}: expected the project contract value",
-                exit_code=EXIT_CONFIG_INVALID,
-            )
-    return config
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise DiagnosticError(error.code, str(error), exit_code=error.exit_code) from error
+
+
+def load_strict_config(root: str | Path | ProjectRoots) -> dict[str, Any]:
+    """Load strict config data while keeping path policy in ``paths.py``."""
+
+    if isinstance(root, ResolvedPaths):
+        return dict(root.config)
+    path = Path(root).expanduser().resolve() / "ops/vaultops.toml"
+    try:
+        return load_config_file(path)
+    except RootResolutionError as error:
+        raise DiagnosticError(error.code, str(error), exit_code=error.exit_code) from error
 
 
 def _run_git(repo: Path, *args: str) -> tuple[int, str, str]:
@@ -518,7 +463,7 @@ def _git_repository_report(name: str, repo: Path) -> tuple[dict[str, Any], list[
     return report, errors
 
 
-def git_status_report(root: str | Path, repo: str = "both") -> tuple[dict[str, Any], int]:
+def git_status_report(root: str | Path | ProjectRoots, repo: str = "both") -> tuple[dict[str, Any], int]:
     """Return clean/dirty Git state without touching either repository."""
 
     try:
@@ -1089,10 +1034,10 @@ def _plugin_audit(roots: ProjectRoots, profile: str = "mac") -> tuple[dict[str, 
     return result, errors
 
 
-def plugins_audit_report(root: str | Path, profile: str = "mac") -> tuple[dict[str, Any], int]:
+def plugins_audit_report(root: str | Path | ProjectRoots, profile: str = "mac") -> tuple[dict[str, Any], int]:
     try:
         roots = discover_project_roots(root)
-        load_strict_config(roots.control)
+        load_strict_config(roots)
         report, errors = _plugin_audit(roots, profile)
     except DiagnosticError as error:
         return {"operation": "plugins audit", "mode": "read-only", "status": "FAIL", "errors": [_issue(error.code, "/root", str(error))]}, error.exit_code
@@ -1348,12 +1293,12 @@ def _overlay_report(
     return overlays, errors
 
 
-def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
+def doctor_report(root: str | Path | ProjectRoots) -> tuple[dict[str, Any], int]:
     """Run the complete provider-free C30 diagnostic report."""
 
     try:
         roots = discover_project_roots(root)
-        config = load_strict_config(roots.control)
+        config = load_strict_config(roots)
     except DiagnosticError as error:
         return {"operation": "doctor", "mode": "read-only", "status": "FAIL", "errors": [_issue(error.code, "/root", str(error))]}, error.exit_code
 
@@ -1366,6 +1311,8 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
     if not schema.passed:
         errors.append(_issue("SCHEMA_ZERO_DIFF_FAILED", "/validation/schema", "owned generated artifacts are not zero-diff"))
     runtime_problems = RuntimeLayout(roots.runtime).check()
+    state_problems = StateLayout(roots.state).check()
+    errors.extend(_issue("STATE_LAYOUT_INVALID", "/state", problem) for problem in state_problems)
     errors.extend(_issue("RUNTIME_LAYOUT_INVALID", "/runtime", problem) for problem in runtime_problems)
     control_git, control_errors = _git_repository_report("control", roots.control)
     vault_git, vault_errors = _git_repository_report("vault", roots.vault)
@@ -1406,7 +1353,7 @@ def doctor_report(root: str | Path) -> tuple[dict[str, Any], int]:
         "operation": "doctor",
         "mode": "read-only",
         "status": "PASS" if not errors else "FAIL",
-        "roots": {"control": str(roots.control), "vault": str(roots.vault), "runtime": str(roots.runtime)},
+        "roots": {"core": str(roots.core), "control": str(roots.control), "vault": str(roots.vault), "state": str(roots.state), "runtime": str(roots.runtime)},
         "config": {key: config[key] for key in sorted(config)},
         "capability": {
             "current_profile": "portable_core",

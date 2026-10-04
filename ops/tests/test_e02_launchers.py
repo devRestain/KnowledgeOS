@@ -13,6 +13,7 @@ if str(CONTROL_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(CONTROL_ROOT / "scripts"))
 
 from e02_runner_support import job_directory
+from support.control_factory import make_separate_portable_fixture_roots
 
 from vaultops.ollama import OllamaClient, OllamaProfile
 
@@ -22,10 +23,24 @@ def test_e02_host_launcher_accepts_only_the_project_job_spool(tmp_path: Path) ->
     job_id = "123e4567-e89b-42d3-a456-426614174000"
     expected = CONTROL_ROOT / "runtime" / "runs" / job_id
 
-    with pytest.raises(ValueError, match="exactly runtime/runs"):
+    with pytest.raises(ValueError, match="explicit State root"):
         job_directory("/tmp/other/runtime/runs/" + job_id)
-    with pytest.raises(ValueError, match="existing private directory"):
+    with pytest.raises(ValueError, match="explicit State root"):
         job_directory(str(expected))
+
+
+def test_e02_runner_helper_resolves_one_job_below_a_selected_state(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    runs = roots.state / "runs"
+    runs.mkdir(mode=0o700)
+    job_id = "123e4567-e89b-42d3-a456-426614174000"
+    expected = runs / job_id
+    expected.mkdir(mode=0o700)
+
+    assert job_directory(f"runs/{job_id}", state_root=roots.state) == expected
+
+    with pytest.raises(ValueError, match="state-root"):
+        job_directory(f"other/{job_id}", state_root=roots.state)
 
 
 def test_e02_fallback_is_profile_gated_and_keeps_the_canonical_service_networkless() -> None:

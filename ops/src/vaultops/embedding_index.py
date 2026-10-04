@@ -32,6 +32,7 @@ from typing import Any, Protocol
 from jsonschema import Draft202012Validator
 from yaml import YAMLError
 
+from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .projection import (
     EXIT_CONFLICT,
     EXIT_OK,
@@ -605,24 +606,29 @@ def learned_retrieval_evaluation_schema() -> dict[str, Any]:
     }
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
-        raise EmbeddingIndexValidationError("control root must be an existing non-symlink directory")
-    workspace = candidate.resolve()
-    vault = workspace / "KnowledgeHub"
-    if vault.is_symlink() or not vault.is_dir():
-        raise EmbeddingIndexValidationError("KnowledgeHub must be an existing non-symlink directory")
-    return workspace
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    if isinstance(root, ResolvedPaths):
+        return root
+    try:
+        return resolve_paths(root)
+    except RootResolutionError as error:
+        raise EmbeddingIndexValidationError(str(error)) from error
 
 
-def _runtime_path(workspace: Path, relative: str) -> Path:
+def _runtime_path(workspace: ResolvedPaths, relative: str) -> Path:
     if not isinstance(relative, str) or relative.startswith("/") or "\\" in relative:
         raise EmbeddingIndexConflict("runtime path is not relative POSIX text")
     candidate = PurePosixPath(relative)
     if not candidate.parts or any(part in {"", ".", ".."} for part in candidate.parts):
         raise EmbeddingIndexConflict("runtime path contains an unsafe component")
-    runtime = workspace / "runtime"
+    runtime = workspace.state if relative.endswith('/current.json') else workspace.runtime
+    if relative.endswith('/current.json'):
+        from .embedding_index import _ensure_private_directory as ensure_private
+        ensure_private(runtime)
+        parent = runtime
+        for component in Path(relative).parts[:-1]:
+            parent /= component
+            ensure_private(parent)
     if runtime.is_symlink():
         raise EmbeddingIndexConflict("runtime root is a symlink")
     current = runtime
@@ -832,7 +838,7 @@ def _build_records(
 
 
 def _publish_index(
-    workspace: Path,
+    workspace: ResolvedPaths,
     *,
     index_id: str,
     manifest_bytes: bytes,
@@ -860,7 +866,7 @@ def _publish_index(
 
 
 def build_embedding_index_projection(
-    workspace: str | Path,
+    workspace: str | Path | ResolvedPaths,
     projection: ProjectionRead,
     *,
     retrieval: Mapping[str, Any],
@@ -936,7 +942,7 @@ def build_embedding_index_projection(
     return report, EXIT_OK
 
 
-def _load_index_from_pointer(workspace: Path) -> EmbeddingIndex:
+def _load_index_from_pointer(workspace: ResolvedPaths) -> EmbeddingIndex:
     pointer_path = _runtime_path(workspace, CURRENT_POINTER)
     pointer = _json_object(_regular_private_file(pointer_path, "embedding current pointer"), "embedding current pointer")
     expected_pointer_keys = {
@@ -1013,7 +1019,7 @@ def _load_index_from_pointer(workspace: Path) -> EmbeddingIndex:
 
 
 def load_embedding_index(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     *,
     projection: ProjectionRead | None = None,
     retrieval_config_sha256: str | None = None,
@@ -1444,7 +1450,7 @@ def _learned_projection(
     return {**learned_result, "candidates": candidates}
 
 
-def _load_contract(workspace: Path) -> tuple[Mapping[str, Any], Mapping[str, Any], str]:
+def _load_contract(workspace: ResolvedPaths) -> tuple[Mapping[str, Any], Mapping[str, Any], str]:
     from .retrieval import _load_contract as load_retrieval_contract
 
     policy, retrieval, digest = load_retrieval_contract(workspace)
@@ -1465,7 +1471,7 @@ def _failure(operation: str, code: str, message: str, *, provider_called: bool =
 
 
 def build_embedding_index(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     provider: EmbeddingProvider,
     *,
     model_tag: str = DEFAULT_MODEL_TAG,
@@ -1503,7 +1509,7 @@ def build_embedding_index(
 
 def _run_learned(
     operation: str,
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,
@@ -1573,7 +1579,7 @@ def _run_learned(
 
 
 def learned_search(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,
@@ -1608,7 +1614,7 @@ def learned_search(
 
 
 def learned_retrieve(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     query: str,
     provider: EmbeddingProvider,
     *,
@@ -1815,7 +1821,7 @@ def _evaluate_case(
 
 
 def evaluate_c34_baseline(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     provider: EmbeddingProvider,
     *,
     baseline_path: str | Path | None = None,
@@ -1831,7 +1837,7 @@ def evaluate_c34_baseline(
     operation = "vector learned-evaluate"
     try:
         workspace = _workspace(root)
-        baseline, baseline_sha256 = _load_baseline(workspace, baseline_path)
+        baseline, baseline_sha256 = _load_baseline(workspace.control, baseline_path)
         projection = load_current_projection(workspace, verify_sources=True)
         if expected_generation_id is not None and projection.manifest.get("generation_id") != expected_generation_id:
             raise EmbeddingIndexConflict("current projection generation does not match expected_generation_id")

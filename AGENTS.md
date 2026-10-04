@@ -3,9 +3,10 @@
 ## Project Scope
 
 - Treat this checkout as the KnowledgeOS control boundary.
-- Treat `KnowledgeHub/` as an independent Vault Git root.
-- Keep `runtime/` outside Git and sync roots.
-- Use Compose project `ops` and service `dev` for canonical container work.
+- Bind the independent Vault Git root through trusted private config v3.
+- Resolve Core, control, Vault, State and Runtime separately without aliases or nested-layout fallback.
+- Keep Operation State and host Runtime outside Git and sync roots.
+- Use service `dev` in `ops/compose.test.yaml` for canonical offline fixture verification and use `ops/compose.yaml` only for separately selected private bindings and effects.
 - Do not directly operate Obsidian, its plugins, profiles, UI, app connectors, GUI automation, or device controls.
 - Keep any other Obsidian-related external action separately authorized; never infer it from Vault paths, project plans, or filesystem permissions.
 
@@ -14,6 +15,7 @@
 - Read `PROJECT_STATE.md` as the sole machine-state source; ignore external memory, `MEMORY.md`, rollout summaries, and chats for state.
 - Resolve design conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md`.
 - Keep executable contracts in manifests, schemas, source, tests, and commands.
+- Use `Ontology/` for domain term relation and alignment authoring while preserving the existing Blueprint registries as authoritative inputs.
 - Treat `docs/*.md` as compact agent contract indexes, not authoritative state.
 - Keep machine state only in `PROJECT_STATE.md`; update `README.md` only at close and exclude it from startup/in-task reads.
 
@@ -44,3 +46,14 @@
 - Keep exactly one current goal and at most one next goal; preserve action-constraining decisions in `PROJECT_STATE.md`.
 - Compare `PROJECT_STATE.md` and indexes with live paths, manifests, tests, and runtime evidence; reconcile mismatches as incomplete or blocked.
 - Refresh `PROJECT_STATE.md` after verification; read relevant `README.md` files only at close; confirm requested changes.
+
+## AgentFabric target ownership
+
+- Treat the Core 0.16.1 graphless preparation as source and local fixture evidence; keep real C12 adoption separately selected.
+- Distinguish existing durable runtime records from host-owned reconstructable Runtime in the target architecture.
+- Keep Operation canonical state, persistent control, routing policy, and effects owner-controlled.
+- Retain maintained source, tests, configuration, and authoring plans here regardless of Git dirty status.
+- Use workspace Tmp freely for unrelated drafts and intermediate verification algorithms.
+- Keep README documents in Korean and directory guidance and machine state in English.
+- Keep selected CLI and MCP control in KnowledgeApplication and finalize decisions in OwnerJournal.
+- Read planning/c12-preparation/C12_HANDOFF.md before selecting real data conversion, writer cutover or activation.

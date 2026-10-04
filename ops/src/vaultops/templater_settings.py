@@ -13,6 +13,8 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .paths import resolve_api_paths
+
 P04_TEMPLATER_REGISTRY_SCHEMA_VERSION = 1
 P04_PLUGIN_ID = "templater-obsidian"
 P04_CANONICAL_TEMPLATE_FOLDER = "99_System/Templates"
@@ -167,6 +169,7 @@ def _ownership(template_name: str, note_type: str, syntax: str) -> dict[str, str
 def _template_records(
     *,
     root: Path,
+    vault_root: Path,
     template_folder: str,
     required: list[str],
     note_types: dict[str, Any],
@@ -180,8 +183,8 @@ def _template_records(
         if isinstance(contract, dict) and isinstance(contract.get("template"), str):
             note_type_by_template[contract["template"]] = note_type
 
-    folder_path = root / "KnowledgeHub" / template_folder
-    vault_present = (root / "KnowledgeHub").is_dir()
+    folder_path = vault_root / template_folder
+    vault_present = vault_root.is_dir()
     for template_name in required:
         path = folder_path / template_name
         note_type = note_type_by_template.get(template_name, "unknown")
@@ -205,7 +208,7 @@ def _template_records(
             or template_name in {".", ".."}
             or any(
                 candidate.is_symlink()
-                for candidate in (root / "KnowledgeHub", root / "KnowledgeHub/99_System", folder_path, path)
+                for candidate in (vault_root, vault_root / "99_System", folder_path, path)
             )
             or not path.is_file()
         ):
@@ -346,6 +349,7 @@ def build_templater_setting_registry(
     """Build the P04 registry from Blueprint, plugin data, and template bytes."""
 
     errors: list[dict[str, str]] = []
+    vault_root = resolve_api_paths(root).vault
     manifest_path = profile_root / "plugins/templater-obsidian/manifest.json"
     data_path = profile_root / "plugins/templater-obsidian/data.json"
     manifest, manifest_error = _read_json(manifest_path)
@@ -387,6 +391,7 @@ def build_templater_setting_registry(
             errors.append(_error("P04_BLUEPRINT_PERIOD_TEMPLATE_MISSING", "blueprint/blueprint.yaml#/templates/required", f"required period template {period_template} is missing"))
     template_records = _template_records(
         root=root,
+        vault_root=vault_root,
         template_folder=str(expected_folder or ""),
         required=period_templates,
         note_types=note_types,

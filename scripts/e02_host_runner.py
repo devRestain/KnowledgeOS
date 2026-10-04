@@ -8,7 +8,12 @@ import json
 import sys
 from typing import Any
 
-from e02_runner_support import PROJECT_ROOT, RUNTIME_ROOT, clear_proxy_environment, job_directory
+from e02_runner_support import (
+    PROJECT_ROOT,
+    clear_proxy_environment,
+    job_directory,
+    selected_state_root,
+)
 
 OPS_SOURCE = PROJECT_ROOT / "ops" / "src"
 if str(OPS_SOURCE) not in sys.path:
@@ -36,6 +41,10 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="authorize one live loopback inspection/inference call for this invocation",
     )
+    parser.add_argument(
+        "--state-root",
+        help="existing selected private State directory (required explicitly or through KNOWLEDGEOS_STATE_ROOT)",
+    )
     return parser
 
 
@@ -46,7 +55,8 @@ def _print_report(report: dict[str, Any]) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        job_dir = job_directory(args.job_dir)
+        selected_state = selected_state_root(args.state_root)
+        job_dir = job_directory(args.job_dir, state_root=selected_state)
     except ValueError as error:
         print(f"E02 job rejected: {error}", file=sys.stderr)
         return 10
@@ -63,12 +73,18 @@ def main(argv: list[str] | None = None) -> int:
         report, exit_code = run_e02_host_job(
             job_dir,
             client,
-            storage_root=RUNTIME_ROOT,
+            storage_root=selected_state,
+            state_root=selected_state,
             authorized=args.authorize_live_service,
             base_url=DEFAULT_BASE_URL,
         )
         if report["status"] != "DEFERRED":
-            write_e02_report(job_dir, report, storage_root=RUNTIME_ROOT)
+            write_e02_report(
+                job_dir,
+                report,
+                storage_root=selected_state,
+                state_root=selected_state,
+            )
         _print_report(report)
         return exit_code
     except (E02Error, OSError, TypeError, ValueError) as error:

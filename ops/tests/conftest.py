@@ -4,19 +4,39 @@ from __future__ import annotations
 
 import os
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
 
 _MAKE_ENTRYPOINT = "KNOWLEDGEOS_TEST_ENTRYPOINT"
 _HERMETIC_ENTRYPOINT = "KNOWLEDGEOS_TEST_HERMETIC"
-_MASKED_PATHS = (
-    Path("/workspace/control/KnowledgeHub"),
-    Path("/workspace/KnowledgeHub"),
-    Path("/workspace/control/runtime"),
-    Path("/workspace/runtime"),
-)
 _TEST_ROOT = Path(__file__).resolve().parent
+_CONFIG_FILE = _TEST_ROOT.parent / "vaultops.toml"
+_CONFIG = tomllib.loads(_CONFIG_FILE.read_text(encoding="utf-8"))
+_STATE_CONFIG_KEY = "state_root"
+
+
+def _configured_root(value: str) -> Path:
+    path = Path(value)
+    if not path.is_absolute():
+        path = _CONFIG_FILE.parent / path
+    return path.resolve(strict=False)
+
+
+_CONTROL_ROOT = _configured_root(_CONFIG["control_root"])
+_MASKED_PATHS = tuple(
+    sorted(
+        {
+            _CONTROL_ROOT / "KnowledgeHub",
+            _configured_root(_CONFIG["vault_root"]),
+            _CONTROL_ROOT / "runtime",
+            Path("/workspace/runtime"),
+            _configured_root(_CONFIG[_STATE_CONFIG_KEY]),
+        },
+        key=lambda path: path.as_posix(),
+    )
+)
 _BOUNDARY_PATTERNS = (
     re.compile(r"CONTROL_ROOT\s*/\s*[\"']KnowledgeHub"),
     re.compile(r"CONTROL_ROOT\.joinpath\(\s*[\"']KnowledgeHub(?:/|[\"'])"),

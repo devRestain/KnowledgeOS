@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from support.control_factory import (
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.provider_contract import (
     LIMITS,
@@ -123,13 +128,14 @@ def test_c31_executable_schemas_are_strict(kind: str) -> None:
 
 
 def test_c31_context_is_private_immutable_and_replay_safe(tmp_path: Path) -> None:
+    tmp_path = make_control_root(tmp_path, ())
     context = _context()
 
     report, exit_code = write_context_envelope(tmp_path, context)
 
     assert exit_code == 0
     assert report["write"] == "CREATED"
-    context_path = tmp_path / "runtime/runs" / JOB_ID / "context.json"
+    context_path = fixture_path(tmp_path, "state") / "runs" / JOB_ID / "context.json"
     assert stat.S_IMODE(context_path.stat().st_mode) == 0o600
     assert stat.S_IMODE(context_path.parent.stat().st_mode) == 0o700
     assert stat.S_IMODE(context_path.parent.parent.stat().st_mode) == 0o700
@@ -146,7 +152,25 @@ def test_c31_context_is_private_immutable_and_replay_safe(tmp_path: Path) -> Non
     assert context_path.read_bytes() == canonical_json_bytes(context)
 
 
+def test_c31_context_and_request_use_the_selected_runtime_root(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    context = _context()
+
+    context_report, context_code = write_context_envelope(roots, context)
+    request = build_provider_request(context, created_at=CREATED_AT)
+    request_report, request_code = write_provider_request(roots, request)
+
+    assert context_code == request_code == 0
+    assert context_report["path"] == f"state/runs/{JOB_ID}/context.json"
+    assert request_report["path"] == f"state/runs/{JOB_ID}/request.json"
+    assert (roots.state / "runs" / JOB_ID / "context.json").is_file()
+    assert (roots.state / "runs" / JOB_ID / "request.json").is_file()
+    assert not (roots.control / "runtime").exists()
+    assert read_context_envelope(roots, job_id=JOB_ID) == context
+
+
 def test_c31_request_response_receipt_and_failure_keep_raw_payload_private(tmp_path: Path) -> None:
+    tmp_path = make_control_root(tmp_path, ())
     context = _context()
     context_report, context_exit_code = write_context_envelope(tmp_path, context)
     assert context_exit_code == 0, context_report

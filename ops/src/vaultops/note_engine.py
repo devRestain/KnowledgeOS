@@ -28,6 +28,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
+from .paths import ResolvedPaths
 from .yaml_safe import load_yaml_text
 
 
@@ -586,10 +587,11 @@ class NoteEngine:
         self.schema = build_note_json_schema(blueprint)
 
     @classmethod
-    def from_root(cls, root: str | Path) -> NoteEngine:
+    def from_root(cls, root: str | Path | ResolvedPaths) -> NoteEngine:
         from .yaml_safe import load_yaml_file
 
-        return cls(load_yaml_file(Path(root) / "blueprint/blueprint.yaml"))
+        control = root.control if isinstance(root, ResolvedPaths) else Path(root)
+        return cls(load_yaml_file(control / "blueprint/blueprint.yaml"))
 
     def note_type_for_path(self, relative_path: str) -> str | None:
         normalized = normalize_vault_relative_path(relative_path)

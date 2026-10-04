@@ -25,6 +25,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .generation_identity import generation_inference_options
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .recovery import fsync_directory
 
 SCHEMA_VERSION = 1
@@ -479,7 +480,7 @@ def provider_request_schema() -> dict[str, Any]:
         "created_at": _datetime_schema(),
         "context_path": {
             "type": "string",
-            "pattern": r"^runtime/runs/[0-9a-f-]{36}/context\.json$",
+            "pattern": r"^state/runs/[0-9a-f-]{36}/context\.json$",
         },
         "context_sha256": _hash_schema(),
         "context_byte_length": {
@@ -1115,14 +1116,20 @@ def validate_context_envelope(context: Mapping[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _workspace(root: str | Path) -> Path:
-    candidate = Path(root).expanduser()
-    if candidate.is_symlink() or not candidate.is_dir():
+def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
+    try:
+        roots = resolve_api_paths(root)
+    except (RootResolutionError, OSError, TypeError, ValueError) as error:
+        raise ProviderContractError(
+            "C31_ROOT_INVALID",
+            "control root must be an existing non-symlink directory",
+        ) from error
+    if roots.control.is_symlink() or not roots.control.is_dir():
         raise ProviderContractError(
             "C31_ROOT_INVALID",
             "control root must be an existing non-symlink directory",
         )
-    return candidate.resolve()
+    return roots
 
 
 def _runtime_directory(path: Path) -> None:
@@ -1184,9 +1191,9 @@ def _exclusive_private_write(path: Path, payload: bytes) -> str:
     return "CREATED"
 
 
-def _job_path(workspace: Path, job_id: str, filename: str) -> Path:
+def _job_path(workspace: ResolvedPaths, job_id: str, filename: str) -> Path:
     _validate_uuid(job_id, "job_id")
-    runtime = workspace / "runtime"
+    runtime = workspace.state
     runs = runtime / "runs"
     job = runs / job_id
     _runtime_directory(runtime)
@@ -1196,7 +1203,7 @@ def _job_path(workspace: Path, job_id: str, filename: str) -> Path:
 
 
 def _write_report(
-    workspace: Path,
+    workspace: ResolvedPaths,
     path: Path,
     status: str,
     *,
@@ -1208,7 +1215,7 @@ def _write_report(
         "status": "PASS" if status in {"CREATED", "NO_OP"} else status,
         "operation": "provider context envelope",
         "capability": "C31",
-        "path": path.relative_to(workspace).as_posix(),
+        "path": f"state/{path.relative_to(workspace.state).as_posix()}",
         "write": status,
         "sha256": digest,
         "byte_length": byte_length,
@@ -1314,10 +1321,10 @@ def build_frozen_context(
 
 
 def write_context_envelope(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     context: Mapping[str, Any],
 ) -> tuple[dict[str, Any], int]:
-    """Create one immutable mode-0600 context file under runtime/runs."""
+    """Create one immutable mode-0600 context file under state/runs."""
 
     try:
         workspace = _workspace(root)
@@ -1385,7 +1392,7 @@ def build_provider_request(
     request_uuid = request_id or str(uuid.uuid4())
     if request_id is not None:
         _validate_uuid(request_uuid, "request_id")
-    path = context_path or f"runtime/runs/{frozen['job_id']}/{RUNTIME_CONTEXT_FILENAME}"
+    path = context_path or f"state/runs/{frozen['job_id']}/{RUNTIME_CONTEXT_FILENAME}"
     bindings = _context_bindings(frozen)
     request: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -1419,7 +1426,7 @@ def build_provider_request(
 
 
 def write_provider_request(
-    root: str | Path,
+    root: str | Path | ResolvedPaths,
     request: Mapping[str, Any],
 ) -> tuple[dict[str, Any], int]:
     """Persist an immutable request reference beside its context envelope."""
@@ -1740,7 +1747,7 @@ def build_remote_authorization(
     return authorization
 
 
-def read_context_envelope(root: str | Path, *, job_id: str) -> dict[str, Any]:
+def read_context_envelope(root: str | Path | ResolvedPaths, *, job_id: str) -> dict[str, Any]:
     """Read one private context file and fail closed on mode, bytes, or digest drift."""
 
     workspace = _workspace(root)

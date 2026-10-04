@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .paths import resolve_api_paths
+
 EXPECTED_DAILY = {
     "folder": "10_Journal/Daily",
     "template": "99_System/Templates/T10_Daily.md",
@@ -65,21 +67,37 @@ def _read_json(path: Path) -> tuple[Any | None, str | None]:
         return None, str(error)
 
 
-def _relative(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
+def _relative(path: Path, root: Path, vault_root: Path | None = None) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        if vault_root is not None:
+            try:
+                return f"KnowledgeHub/{path.relative_to(vault_root).as_posix()}"
+            except ValueError:
+                pass
+        return path.name
 
 
-def _periodic_contract(profile_root: Path, control: Path) -> dict[str, Any]:
+def _periodic_contract(
+    profile_root: Path,
+    control: Path,
+    vault_root: Path,
+) -> dict[str, Any]:
     path = profile_root / "plugins/notebook-navigator/data.json"
     document, error = _read_json(path)
     if error:
         return {
             "state": "not_configured" if error == "missing" else "invalid",
-            "source": _relative(path, control),
+            "source": _relative(path, control, vault_root),
             "error": None if error == "missing" else error,
         }
     if not isinstance(document, dict):
-        return {"state": "invalid", "source": _relative(path, control), "error": "JSON root must be an object"}
+        return {
+            "state": "invalid",
+            "source": _relative(path, control, vault_root),
+            "error": "JSON root must be an object",
+        }
 
     profiles = document.get("vaultProfiles")
     active_profile = profiles[-1] if isinstance(profiles, list) and profiles else {}
@@ -110,7 +128,7 @@ def _periodic_contract(profile_root: Path, control: Path) -> dict[str, Any]:
     paths_pass = all(item["state"] == "pass" for item in checks.values())
     return {
         "state": "pass" if paths_pass else "blocked",
-        "source": _relative(path, control),
+        "source": _relative(path, control, vault_root),
         "checks": checks,
         "reason": None
         if paths_pass
@@ -119,21 +137,29 @@ def _periodic_contract(profile_root: Path, control: Path) -> dict[str, Any]:
     }
 
 
-def _daily_contract(profile_root: Path, control: Path) -> dict[str, Any]:
+def _daily_contract(
+    profile_root: Path,
+    control: Path,
+    vault_root: Path,
+) -> dict[str, Any]:
     path = profile_root / "daily-notes.json"
     document, error = _read_json(path)
     if error:
         return {
             "state": "not_configured" if error == "missing" else "invalid",
-            "source": _relative(path, control),
+            "source": _relative(path, control, vault_root),
             "error": None if error == "missing" else error,
         }
     if not isinstance(document, dict):
-        return {"state": "invalid", "source": _relative(path, control), "error": "JSON root must be an object"}
+        return {
+            "state": "invalid",
+            "source": _relative(path, control, vault_root),
+            "error": "JSON root must be an object",
+        }
     observed = {key: document.get(key) for key in EXPECTED_DAILY}
     return {
         "state": "pass" if observed == EXPECTED_DAILY else "blocked",
-        "source": _relative(path, control),
+        "source": _relative(path, control, vault_root),
         "expected": EXPECTED_DAILY,
         "observed": observed,
         "owner": "Obsidian Core Daily Notes",
@@ -141,9 +167,8 @@ def _daily_contract(profile_root: Path, control: Path) -> dict[str, Any]:
 
 
 def _has_existing_period_file(
-    file_links: set[str], pattern: re.Pattern[str], control: Path
+    file_links: set[str], pattern: re.Pattern[str], vault_root: Path
 ) -> bool:
-    vault_root = control / "KnowledgeHub"
     return any(
         pattern.fullmatch(link) is not None
         and (vault_root / link).is_file()
@@ -151,17 +176,25 @@ def _has_existing_period_file(
     )
 
 
-def _toolbar_contract(profile_root: Path, control: Path) -> dict[str, Any]:
+def _toolbar_contract(
+    profile_root: Path,
+    control: Path,
+    vault_root: Path,
+) -> dict[str, Any]:
     path = profile_root / "plugins/note-toolbar/data.json"
     document, error = _read_json(path)
     if error:
         return {
             "state": "not_configured" if error == "missing" else "invalid",
-            "source": _relative(path, control),
+            "source": _relative(path, control, vault_root),
             "error": None if error == "missing" else error,
         }
     if not isinstance(document, dict):
-        return {"state": "invalid", "source": _relative(path, control), "error": "JSON root must be an object"}
+        return {
+            "state": "invalid",
+            "source": _relative(path, control, vault_root),
+            "error": "JSON root must be an object",
+        }
 
     violations: list[str] = []
     command_ids: set[str] = set()
@@ -206,16 +239,17 @@ def _toolbar_contract(profile_root: Path, control: Path) -> dict[str, Any]:
         "home": "configured" if "Home.md" in file_links or "homepage:open-homepage" in command_ids else "not_configured",
         "daily": "configured" if "daily-notes" in command_ids else "not_configured",
         "weekly": "configured"
-        if _has_existing_period_file(file_links, _EXPECTED_WEEKLY_FILE, control)
+        if _has_existing_period_file(file_links, _EXPECTED_WEEKLY_FILE, vault_root)
         else "not_configured",
         "monthly": "configured"
-        if _has_existing_period_file(file_links, _EXPECTED_MONTHLY_FILE, control)
+        if _has_existing_period_file(file_links, _EXPECTED_MONTHLY_FILE, vault_root)
         else "not_configured",
+        "period_reviews": "configured" if "99_System/Bases/Journal.base#Open Reviews" in file_links else "not_configured",
         "weekly_review": "configured" if "99_System/Dashboards/Weekly_Review.md" in file_links else "not_configured",
     }
     return {
         "state": "pass" if not violations else "blocked",
-        "source": _relative(path, control),
+        "source": _relative(path, control, vault_root),
         "scripting_enabled": document.get("scriptingEnabled"),
         "command_ids": sorted(command_ids),
         "file_links": sorted(file_links),
@@ -229,10 +263,11 @@ def _toolbar_contract(profile_root: Path, control: Path) -> dict[str, Any]:
 def inspect_gui_contract(root: str | Path, profile: str = "mac") -> dict[str, Any]:
     """Inspect F03/F04 serialized settings without operating Obsidian."""
 
-    control = Path(root).expanduser().resolve()
     if profile != "mac":
         return {"state": "not_applicable", "profile": profile, "evidence_class": "static"}
-    profile_root = control / "KnowledgeHub/.obsidian-mac"
+    roots = resolve_api_paths(root)
+    control, vault_root = roots.control, roots.vault
+    profile_root = vault_root / ".obsidian-mac"
     if profile_root.is_symlink() or not profile_root.is_dir():
         return {
             "state": "not_configured",
@@ -240,9 +275,9 @@ def inspect_gui_contract(root: str | Path, profile: str = "mac") -> dict[str, An
             "evidence_class": "static",
             "source": "KnowledgeHub/.obsidian-mac",
         }
-    daily = _daily_contract(profile_root, control)
-    periodic = _periodic_contract(profile_root, control)
-    toolbar = _toolbar_contract(profile_root, control)
+    daily = _daily_contract(profile_root, control, vault_root)
+    periodic = _periodic_contract(profile_root, control, vault_root)
+    toolbar = _toolbar_contract(profile_root, control, vault_root)
     return {
         "state": "pass"
         if daily["state"] == "pass" and periodic["state"] == "pass" and toolbar["state"] == "pass"

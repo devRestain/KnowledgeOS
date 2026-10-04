@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support.control_factory import APPLICATION_CONTROL_INPUTS, make_control_root
+from support.control_factory import (
+    APPLICATION_CONTROL_INPUTS,
+    fixture_artifact,
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.cli import main
 from vaultops.gemma_routes import GEMMA_MODEL_TAG, run_gemma_job
@@ -30,7 +36,8 @@ def _digest(value: bytes) -> str:
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
-    return make_control_root(tmp_path, APPLICATION_CONTROL_INPUTS, with_vault=False)
+    inputs = tuple(item for item in APPLICATION_CONTROL_INPUTS if item != "ops/vaultops.toml")
+    return make_control_root(tmp_path, inputs, with_vault=False)
 
 
 def _job(root: Path, action: str) -> tuple[str, dict[str, Any]]:
@@ -145,8 +152,8 @@ def test_c35_routes_validate_recorded_outputs_and_replay_without_provider_or_vau
     assert report["mutation_performed"] is False
     assert report["vault_mutation_performed"] is False
     assert report["canonical_apply_allowed"] is False
-    response_path = root / report["response_path"]
-    receipt_path = root / report["receipt_path"]
+    response_path = fixture_artifact(root, report["response_path"])
+    receipt_path = fixture_artifact(root, report["receipt_path"])
     assert stat.S_IMODE(response_path.stat().st_mode) == 0o600
     assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
     assert not (root / "KnowledgeHub").exists()
@@ -159,10 +166,35 @@ def test_c35_routes_validate_recorded_outputs_and_replay_without_provider_or_vau
     assert replay["provider_called"] is False
 
 
+def test_c35_reads_recorded_evidence_and_writes_responses_under_selected_runtime(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    job_id, context = _job(roots.control, "answer")
+    recorded_path = roots.state / "runs" / job_id / "recorded-response.json"
+    recorded_path.write_text(
+        json.dumps(_recorded(MappingLike(_output(roots.control, context, "answer"))), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    recorded_path.chmod(0o600)
+
+    report, exit_code = run_gemma_job(
+        roots,
+        job_id=job_id,
+        recorded_response_path=f"state/runs/{job_id}/recorded-response.json",
+    )
+
+    assert exit_code == 0, report
+    assert report["status"] == "PASS"
+    assert report["provider_called"] is False
+    assert report["response_path"] == f"state/runs/{job_id}/c35-response.json"
+    assert (roots.state / "runs" / job_id / "c35-response.json").is_file()
+    assert not (roots.control / "runtime").exists()
+
+
 def test_c35_cli_reads_a_recorded_response_file_inside_the_control_root(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     root = _fresh_control_copy(tmp_path)
     job_id, context = _job(root, "answer")
-    fixture = root / "runtime/recorded-answer.json"
+    (fixture_path(root, "vault")).mkdir(exist_ok=True)
+    fixture = (fixture_path(root, "state") / "recorded-answer.json")
     fixture.write_text(json.dumps(_recorded(MappingLike(_output(root, context, "answer"))), ensure_ascii=False), encoding="utf-8")
 
     exit_code = main(
@@ -172,7 +204,7 @@ def test_c35_cli_reads_a_recorded_response_file_inside_the_control_root(tmp_path
             "--job-id",
             job_id,
             "--recorded-response",
-            "runtime/recorded-answer.json",
+            "state/recorded-answer.json",
             "--root",
             str(root),
         ]
@@ -226,7 +258,7 @@ def test_c35_rejects_tools_reasoning_and_schema_invalid_content_before_persisten
     assert exit_code == 10, report
     assert report["status"] == "FAIL"
     assert report["errors"][0]["code"] == code
-    assert not (root / "runtime/runs" / job_id / "c35-response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id / "c35-response.json").exists()
 
 
 def test_c35_rejects_stale_citation_and_prompt_injection_without_retaining_model_payload(tmp_path: Path) -> None:
@@ -239,7 +271,7 @@ def test_c35_rejects_stale_citation_and_prompt_injection_without_retaining_model
     assert stale_code == 30, stale
     assert stale["status"] == "CONFLICT"
     assert stale["errors"][0]["code"] == "C35_CITATION_DRIFT"
-    assert not (root / "runtime/runs" / job_id / "c35-response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id / "c35-response.json").exists()
 
     injection_job, injection_context = _job(root, "answer")
     injected = _answer_output(injection_context, summary=False)
@@ -254,7 +286,7 @@ def test_c35_rejects_stale_citation_and_prompt_injection_without_retaining_model
     assert rejected_code == 10, rejected
     assert rejected["status"] == "FAIL"
     assert rejected["errors"][0]["code"] == "C35_PROMPT_INJECTION"
-    assert not (root / "runtime/runs" / injection_job / "c35-response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / injection_job / "c35-response.json").exists()
 
 
 def test_c35_rejects_recorded_model_identity_drift(tmp_path: Path) -> None:
@@ -268,4 +300,4 @@ def test_c35_rejects_recorded_model_identity_drift(tmp_path: Path) -> None:
     assert exit_code == 30, report
     assert report["status"] == "CONFLICT"
     assert report["errors"][0]["code"] == "C35_MODEL_DRIFT"
-    assert not (root / "runtime/runs" / job_id / "c35-response.json").exists()
+    assert not ((fixture_path(root, "state") / "runs") / job_id / "c35-response.json").exists()

@@ -64,7 +64,7 @@ The QuickAdd and hotkey contracts continue to exist in their own configuration s
 
 The redesign must account for these verified repository facts:
 
-1. `KnowledgeHub/Home.md` is emitted as literal source by `ops/src/vaultops/base_dashboard.py` and is protected by exactness tests. A manual Vault-only edit is incorrect.
+1. `../../../../../Vaults/KnowledgeHub/Home.md` is emitted as literal source by `ops/src/vaultops/base_dashboard.py` and is protected by exactness tests. A manual Vault-only edit is incorrect.
 2. The Blueprint YAML, `semantic.py`, Homepage inspection, QuickAdd inspection, and Note Toolbar inspection all hardcode the current Home sections or command inventory.
 3. `Projects.base#Now` already shows `next_action`; the current separate `Next Actions` panel spends space on substantially duplicated data.
 4. `Decisions.base#Open` currently requires a nonempty `decision`, which can hide the exact undecided open questions that Home should surface.
@@ -470,15 +470,15 @@ This redesign must be implemented as one coherent acceptance slice. The implemen
 
 9. `ops/config/generated-artifacts.yaml`
    - Register Home, Base, dashboard CSS, and Mac snippet ownership or explicitly document why they use another ownership mechanism.
-10. `KnowledgeHub/Home.md`
+10. `../../../../../Vaults/KnowledgeHub/Home.md`
     - Regenerate from accepted source; do not hand-edit independently.
-11. `KnowledgeHub/99_System/Bases/*.base`
+11. `../../../../../Vaults/KnowledgeHub/99_System/Bases/*.base`
     - Regenerate affected Base views, including the new `Compass.base` projection.
-12. `KnowledgeHub/99_System/CSS/dashboard.css`
+12. `../../../../../Vaults/KnowledgeHub/99_System/CSS/dashboard.css`
     - Regenerate the portable stylesheet.
-13. `KnowledgeHub/.obsidian-mac/snippets/knowledgeos-home.css`
+13. `../../../../../Vaults/KnowledgeHub/.obsidian-mac/snippets/knowledgeos-home.css`
     - Create only in the later authorized implementation/profile slice.
-14. `KnowledgeHub/.obsidian-mac/appearance.json`
+14. `../../../../../Vaults/KnowledgeHub/.obsidian-mac/appearance.json`
     - Preserve the user's current dirty change and merge only an explicitly authorized snippet activation.
 
 ### 10.4 Task hygiene

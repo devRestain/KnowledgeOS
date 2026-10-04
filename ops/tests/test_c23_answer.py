@@ -8,7 +8,9 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from support.control_factory import (
     APPLICATION_CONTROL_INPUTS,
+    fixture_path,
     make_control_root,
+    make_separate_portable_fixture_roots,
     populate_vault_from_fixture,
 )
 
@@ -20,7 +22,11 @@ from vaultops.projection import EXIT_CONFLICT, EXIT_OK, answer_schema, generate_
 def _fresh_control_copy(tmp_path: Path) -> Path:
     root = make_control_root(
         tmp_path,
-        (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c23_answers"),
+        tuple(
+            item
+            for item in (*APPLICATION_CONTROL_INPUTS, "ops/tests/fixtures/c23_answers")
+            if item != "ops/vaultops.toml"
+        ),
     )
     populate_vault_from_fixture(
         root,
@@ -113,7 +119,7 @@ def test_c23_hash_bound_capture_answers_without_vault_or_runtime_mutation(tmp_pa
     root = _fresh_control_copy(tmp_path)
     _build(root)
     relative = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
-    source = root / "KnowledgeHub" / relative
+    source = fixture_path(root, "vault") / relative
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     before = _file_snapshot(root)
 
@@ -128,11 +134,72 @@ def test_c23_hash_bound_capture_answers_without_vault_or_runtime_mutation(tmp_pa
     assert _file_snapshot(root) == before
 
 
+def test_c23_answer_and_cli_use_separate_roots_from_unrelated_cwd(tmp_path: Path, monkeypatch, capsys) -> None:
+    roots = make_separate_portable_fixture_roots(
+        tmp_path,
+        extra_inputs=("ops/tests/fixtures/c23_answers",),
+    )
+    _build(roots, generation_id="c23-portable")
+    unrelated = tmp_path / "unrelated cwd"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    snapshots = {
+        "control": _file_snapshot(roots.control),
+        "vault": _file_snapshot(roots.vault),
+        "runtime": _file_snapshot(roots.runtime),
+    }
+
+    api_report, api_code = answer(
+        roots,
+        "플레이어가 텍스트 공포 게임에 다시 돌아올 이유",
+        scope="project:guestbook-horror",
+    )
+    assert api_code == EXIT_OK, api_report
+    assert api_report["status"] == "PASS"
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("플레이 루프\n"))
+    assert main(
+        ["ask", "--question-stdin", "--scope", "project:guestbook-horror", "--root", str(roots.control)]
+    ) == EXIT_OK
+    cli_report = json.loads(capsys.readouterr().out)
+    assert cli_report["status"] == "PASS"
+    assert cli_report["citations"][0]["path"] == "20_Projects/guestbook-horror/Working/플레이 루프 후보.md"
+
+    relative = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
+    source = roots.vault / relative
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    capture_report, capture_code = answer_from_capture(
+        roots,
+        source_path=relative,
+        expected_sha256=digest,
+    )
+    assert capture_code == EXIT_OK, capture_report
+    assert capture_report["source_verified"] is True
+    assert main(
+        [
+            "ask",
+            "--source",
+            relative,
+            "--expected-sha256",
+            digest,
+            "--scope",
+            "project:guestbook-horror",
+            "--root",
+            str(roots.control),
+        ]
+    ) == EXIT_OK
+    capture_cli_report = json.loads(capsys.readouterr().out)
+    assert capture_cli_report["source_reference"] == {"path": relative, "sha256": digest}
+    assert _file_snapshot(roots.control) == snapshots["control"]
+    assert _file_snapshot(roots.vault) == snapshots["vault"]
+    assert _file_snapshot(roots.runtime) == snapshots["runtime"]
+
+
 def test_c23_cli_accepts_hash_bound_capture_reference(tmp_path: Path, capsys) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root, generation_id="c23-source-cli")
     relative = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
-    source = root / "KnowledgeHub" / relative
+    source = fixture_path(root, "vault") / relative
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
 
     assert (
@@ -161,7 +228,7 @@ def test_c23_stale_capture_digest_fails_closed(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root)
     relative = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
-    source = root / "KnowledgeHub" / relative
+    source = fixture_path(root, "vault") / relative
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     source.write_bytes(source.read_bytes() + b"\n")
 

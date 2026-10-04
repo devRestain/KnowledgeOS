@@ -1,7 +1,7 @@
 # Agent Decision Index
 
 - Read `PROJECT_STATE.md` for decision lifecycle, current scope, blockers, and handoff; this file is a compact static reference.
-- Keep control, `KnowledgeHub/`, and `runtime/` physically distinct and keep control and `KnowledgeHub/` as independent Git repositories.
+- Keep control, `../../../Vaults/KnowledgeHub/`, and `runtime/` physically distinct and keep control and `../../../Vaults/KnowledgeHub/` as independent Git repositories.
 - Resolve Blueprint conflicts in Markdown, YAML, Whitepaper order and keep executable contracts in structured sources.
 - Keep canonical evidence container-first and separate static, semantic, runtime, artifact, deployment, external-service, and device claims.
 - Keep Vault writes create-only and hash-bound; keep provider output schema-constrained, proposal-only, and subject to human approval before canonical apply.

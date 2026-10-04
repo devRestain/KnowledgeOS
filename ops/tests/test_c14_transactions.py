@@ -3,7 +3,11 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from support.control_factory import make_control_root
+from support.control_factory import (
+    fixture_path,
+    make_control_root,
+    make_separate_portable_fixture_roots,
+)
 
 from vaultops.local_commands import create_note
 from vaultops.transactions import archive_project, finalize_capture, import_asset
@@ -24,7 +28,7 @@ def _fresh_control_copy(tmp_path: Path) -> Path:
         "90_Archive/Captures",
         "90_Archive/Projects",
     ):
-        (root / "KnowledgeHub" / relative).mkdir(parents=True)
+        (fixture_path(root, "vault") / relative).mkdir(parents=True)
     return root
 
 
@@ -48,7 +52,7 @@ def test_asset_import_is_safe_hash_bound_and_create_only(tmp_path: Path) -> None
     assert exit_code == 0
     assert report["status"] == "PASS"
     assert report["asset"] == "[[80_Assets/Documents/source.pdf]]"
-    target = root / "KnowledgeHub/80_Assets/Documents/source.pdf"
+    target = (fixture_path(root, "vault") / "80_Assets/Documents/source.pdf")
     assert target.read_bytes() == source.read_bytes()
     assert report["provenance"]["source_sha256"] == digest
 
@@ -98,7 +102,7 @@ def test_capture_finalize_preserves_identity_body_and_related_link(tmp_path: Pat
     )
     assert capture_code == 0
     capture_path = str(capture["path"])
-    source = root / "KnowledgeHub" / capture_path
+    source = fixture_path(root, "vault") / capture_path
     before = source.read_bytes()
     document_id = capture["note"]["id"]
 
@@ -114,7 +118,7 @@ def test_capture_finalize_preserves_identity_body_and_related_link(tmp_path: Pat
     assert exit_code == 0
     assert report["status"] == "PASS"
     assert report["note_id"] == document_id
-    destination = root / "KnowledgeHub" / str(report["destination"])
+    destination = fixture_path(root, "vault") / str(report["destination"])
     assert not source.exists()
     assert destination.is_file()
     assert "Finalize Capture" in destination.read_text(encoding="utf-8")
@@ -135,7 +139,7 @@ def test_capture_finalize_rejects_digest_drift_without_mutation(tmp_path: Path) 
     )
     assert exit_code == 0
     capture_path = str(capture["path"])
-    source = root / "KnowledgeHub" / capture_path
+    source = fixture_path(root, "vault") / capture_path
     before = source.read_bytes()
 
     report, finalize_code = finalize_capture(
@@ -148,7 +152,7 @@ def test_capture_finalize_rejects_digest_drift_without_mutation(tmp_path: Path) 
     assert finalize_code == 30
     assert report["status"] == "CONFLICT"
     assert source.read_bytes() == before
-    assert not list((root / "KnowledgeHub/90_Archive/Captures").rglob("*.md"))
+    assert not list(((fixture_path(root, "vault") / "90_Archive/Captures")).rglob("*.md"))
 
 
 def test_project_archive_requires_exact_hashes_and_preserves_bundle_bytes(tmp_path: Path) -> None:
@@ -168,9 +172,9 @@ def test_project_archive_requires_exact_hashes_and_preserves_bundle_bytes(tmp_pa
     )
     assert child_code == 0
     assert child["status"] == "PASS"
-    project_dir = root / "KnowledgeHub/20_Projects/Archive Project"
+    project_dir = (fixture_path(root, "vault") / "20_Projects/Archive Project")
     before = {
-        path.relative_to(root / "KnowledgeHub").as_posix(): path.read_bytes()
+        path.relative_to(fixture_path(root, "vault")).as_posix(): path.read_bytes()
         for path in project_dir.rglob("*")
         if path.is_file()
     }
@@ -187,7 +191,7 @@ def test_project_archive_requires_exact_hashes_and_preserves_bundle_bytes(tmp_pa
     assert report["identity_preserved"] is True
     assert report["links_preserved"] is True
     assert not project_dir.exists()
-    destination_dir = root / "KnowledgeHub/90_Archive/Projects/2026/Archive Project"
+    destination_dir = (fixture_path(root, "vault") / "90_Archive/Projects/2026/Archive Project")
     for relative, content in before.items():
         suffix = Path(relative).relative_to("20_Projects/Archive Project")
         assert (destination_dir / suffix).read_bytes() == content
@@ -201,9 +205,9 @@ def test_project_archive_hash_mismatch_does_not_move_bundle(tmp_path: Path) -> N
         created_at="2026-09-13T09:00:00+09:00",
     )
     assert project["status"] == "PASS"
-    project_dir = root / "KnowledgeHub/20_Projects/Blocked Archive"
+    project_dir = (fixture_path(root, "vault") / "20_Projects/Blocked Archive")
     hashes = {
-        path.relative_to(root / "KnowledgeHub").as_posix(): "f" * 64
+        path.relative_to(fixture_path(root, "vault")).as_posix(): "f" * 64
         for path in project_dir.rglob("*")
         if path.is_file()
     }
@@ -217,4 +221,33 @@ def test_project_archive_hash_mismatch_does_not_move_bundle(tmp_path: Path) -> N
     assert archive_code == 30
     assert report["status"] == "CONFLICT"
     assert project_dir.is_dir()
-    assert not (root / "KnowledgeHub/90_Archive/Projects/2026/Blocked Archive").exists()
+    assert not (fixture_path(root, "vault") / "90_Archive/Projects/2026/Blocked Archive").exists()
+
+
+def test_asset_transaction_uses_selected_vault_and_rejects_a_stale_digest(tmp_path: Path) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    source = tmp_path / "portable-source.pdf"
+    source.write_bytes(b"portable transaction fixture")
+
+    stale, stale_code = import_asset(
+        roots,
+        source_path=source,
+        target_directory="Documents",
+        expected_sha256="0" * 64,
+    )
+    assert stale_code == 30
+    assert stale["status"] == "CONFLICT"
+    assert not (roots.vault / "80_Assets/Documents/portable-source.pdf").exists()
+
+    digest = _sha256(source)
+    created, created_code = import_asset(
+        roots,
+        source_path=source,
+        target_directory="Documents",
+        expected_sha256=digest,
+    )
+
+    assert created_code == 0, created
+    assert created["status"] == "PASS"
+    assert (roots.vault / "80_Assets/Documents/portable-source.pdf").read_bytes() == source.read_bytes()
+    assert not (roots.control / "KnowledgeHub").exists()

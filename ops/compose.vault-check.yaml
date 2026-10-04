@@ -1,0 +1,44 @@
+name: knowledgeos-vault-check
+services:
+  dev:
+    image: sha256:e13a0e3a27ce50fbc622a80b5d69ee9e6ff9f1ab244d1c29aef6765260b8ab8b
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID through Make}:${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID through Make}"
+    working_dir: /workspace/control/ops
+    read_only: true
+    network_mode: none
+    environment:
+      HOME: /tmp
+      PYTHONPATH: /workspace/control/ops/src
+      PYTHONDONTWRITEBYTECODE: "1"
+      KNOWLEDGEOS_CORE_ROOT: /workspace/Core
+      KNOWLEDGEOS_CONTROL_ROOT: /workspace/control
+      KNOWLEDGEOS_VAULT_ROOT: /workspace/KnowledgeHub
+      KNOWLEDGEOS_STATE_ROOT: /tmp/knowledgeos-state
+      KNOWLEDGEOS_RUNTIME_ROOT: /tmp/knowledgeos-runtime
+    volumes:
+      - type: bind
+        source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Set KNOWLEDGEOS_CONTROL_SOURCE through Make}
+        target: /workspace/control
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_CORE_SOURCE:?Set KNOWLEDGEOS_CORE_SOURCE through Make}
+        target: /workspace/Core
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_VAULT_SOURCE:?Select the exact Vault for the read-only check}
+        target: /workspace/KnowledgeHub
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    labels:
+      org.knowledgeos.owner: knowledgeos
+      org.knowledgeos.purpose: read-only-vault-contract-check
