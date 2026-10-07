@@ -17,7 +17,6 @@ from vaultops.action_proposals import (
     generate_normalize_proposal,
     proposal_schema,
 )
-from vaultops.cli import main
 from vaultops.fragments import daily_fragment_bytes
 from vaultops.paths import ResolvedPaths
 from vaultops.proposals import approve_proposal, review_proposals
@@ -231,34 +230,6 @@ def test_normalize_proposal_is_hash_bound_and_does_not_write_target(tmp_path: Pa
     assert report["proposal"]["requested_mutations"][0]["operation"] == "update_note"
     assert report["proposal"]["target"]["expected_sha256"] == source_hash
     assert source_file.read_bytes() == before
-
-
-def test_c27_cli_writes_only_pending_proposal(tmp_path: Path, capsys) -> None:
-    root = _fresh_control_copy(tmp_path)
-    source_hash = _digest(root, SOURCE)
-
-    code = main(
-        [
-            "ai",
-            "propose",
-            "--action",
-            "draft_note",
-            "--source",
-            SOURCE,
-            "--expected-sha256",
-            source_hash,
-            "--title",
-            "C27 CLI Idea",
-            "--root",
-            str(root),
-        ]
-    )
-    report = json.loads(capsys.readouterr().out)
-
-    assert code == 0, report
-    assert report["status"] == "PASS"
-    assert report["mutation_performed"] is False
-    assert report["proposal_path"].startswith("01_AI_Review/Pending/")
 
 
 def test_generated_proposal_enters_c19_review_without_applying_target(tmp_path: Path) -> None:

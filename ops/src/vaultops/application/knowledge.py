@@ -1,11 +1,10 @@
-"""Graphless owner control shared by trusted CLI and constrained MCP ingress."""
+"""Offline owner control shared by trusted CLI and constrained MCP ingress."""
 
 from __future__ import annotations
 
 import base64
 import copy
 import hashlib
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -15,7 +14,6 @@ from .. import proposals, retrieval
 from ..adapters.artifacts import create_artifact
 from ..adapters.core import PINS, AdmissionError, CoreContracts, canonical, digest, load_json
 from ..adapters.owner_journal import (
-    CURRENT_OWNER_INTENT,
     OwnerJournal,
     read_regular,
     replace_exact,
@@ -31,6 +29,7 @@ class LocalIdentity:
     actor_id: str
     ingress: str
     owner_operation_id: str = "knowledgeos"
+    local_execution: bool = False
 
 
 @dataclass(frozen=True)
@@ -91,9 +90,11 @@ class KnowledgeApplication:
         core.manifest()
         principal = identity or LocalIdentity("local.operator", "operator")
         policy = load_json(resolve_beneath(roots.control, "ops/policies/owner-control.json"))
-        expected = {"schema_version", "operation_id", "operator_actions", "mcp_actions", "gateway_actions", "external_transport"}
+        expected = {"schema_version", "operation_id", "operator_actions", "mcp_actions", "mcp_document_policy", "gateway_actions", "external_transport"}
         if set(policy) != expected or policy["schema_version"] != 1 or policy["operation_id"] != "knowledgeos":
             raise AdmissionError("POLICY_INVALID", "owner policy identity or schema is invalid")
+        if policy["mcp_document_policy"] != {"ask": "allow_configured_local_mcp", "deny": "exclude", "confidential": "exclude", "local_only": "trusted_local_execution_only"}:
+            raise AdmissionError("POLICY_INVALID", "configured MCP document policy is invalid")
         journal = OwnerJournal(roots, binding)
         journal.read()
         result = cls(roots, core, principal, policy, journal, handlers or DomainHandlers(), evaluator, clock, fault_hook)
@@ -112,6 +113,9 @@ class KnowledgeApplication:
         if action not in self.policy[f"{self.identity.ingress}_actions"]:
             raise AdmissionError("ACTION_DENIED", "owner policy denies this action for the trusted ingress")
         self.journal.read()
+        transition = resolve_beneath(self.roots.state, "storage-transition.json")
+        if transition.exists() and load_json(transition).get("phase") != "complete" and action not in {"inspect", "storage", "search", "retrieve"}:
+            raise AdmissionError("STORAGE_TRANSITION_PENDING", "finish exact storage preservation before another writer")
 
     def reference(self, relative: str, *, proposal: bool = False) -> dict[str, Any]:
         path = resolve_beneath(self.roots.vault, relative)
@@ -154,10 +158,31 @@ class KnowledgeApplication:
         elif any(part.startswith(".") for part in relative.split("/")) or relative.startswith(("99_System/", "01_AI_Review/")):
             raise AdmissionError("SCOPE_DENIED", "source is outside the owner domain export policy")
 
+    def _mcp_source_policy(self, relative: str) -> None:
+        from ..note_engine import parse_frontmatter
+
+        raw = read_regular(resolve_beneath(self.roots.vault, relative))
+        if raw is None:
+            raise AdmissionError("RESOURCE_UNAVAILABLE", "Selected source is unavailable")
+        properties = parse_frontmatter(raw.decode("utf-8")).properties
+        if properties.get("sensitivity") == "confidential" or properties.get("ai_policy") == "deny":
+            raise AdmissionError("SCOPE_DENIED", "Source privacy policy denies MCP processing")
+        if properties.get("ai_policy") == "ask" and self.policy["mcp_document_policy"]["ask"] != "allow_configured_local_mcp":
+            raise AdmissionError("SCOPE_DENIED", "Configured MCP does not allow ask documents")
+        if properties.get("ai_policy") == "local_only" and not self.identity.local_execution:
+            raise AdmissionError("SCOPE_DENIED", "Local-only source needs a trusted local execution binding")
+
     def _read(self, action: str, query: str, **kwargs: Any) -> tuple[dict[str, Any], int]:
         try:
             self.guard(action)
+            mcp_allowed_path = kwargs.pop("mcp_allowed_path", None)
             report, code = getattr(self.handlers, action)(self.roots, query, **kwargs)
+            if code == 0 and self.identity.ingress == "mcp":
+                from .read_tools import KnowledgeReadTools
+
+                _, allowed = KnowledgeReadTools(self, allowed_path=mcp_allowed_path)._eligible()
+                report["candidates"] = [item for item in report.get("candidates", [])
+                                        if item.get("path") in allowed]
             for candidate in report.get("candidates", []):
                 candidate["resource_reference"] = self.reference(candidate["path"])
             report["execution_outcome"] = "completed" if code == 0 else "failed"
@@ -192,6 +217,7 @@ class KnowledgeApplication:
 
     def _target_digest(self, source: str, proposal: str) -> str:
         bundle: dict[str, Any] = {"pins": PINS, "source": self.reference(source), "proposal": self.reference(proposal, proposal=True)}
+        bundle["owner_policy"] = digest(canonical(self.policy))
         for root_name in ("ops/policies", "ops/actions", "ops/prompts", "ops/schemas", "blueprint"):
             directory = resolve_beneath(self.roots.control, root_name)
             bundle[root_name] = {path.relative_to(directory).as_posix(): digest(read_regular(resolve_beneath(directory, path.relative_to(directory).as_posix())) or b"") for path in sorted(directory.rglob("*")) if path.is_file()}
@@ -219,7 +245,7 @@ class KnowledgeApplication:
             "impact": "Approval records a pending canonical apply intent; a separate explicit apply is required.",
             "allowed_actions": ["approve", "reject", "inspect"],
             "target_digest": self._target_digest(intent["source_path"], intent["artifact_path"]),
-            "semantic_version": "0.6.0", "semantic_digest": PINS["semantic_digest"],
+            "semantic_version": PINS["semantic_version"], "semantic_digest": PINS["semantic_digest"],
             "evidence_reference_ids": [self.reference(intent["artifact_path"], proposal=True)["logical_id"]],
             "expires_at": stamp(now + timedelta(hours=12)), "lifecycle": "pending",
         }
@@ -236,12 +262,16 @@ class KnowledgeApplication:
 
     def create_normalize_proposal(
         self, *, source_path: str | None = None, expected_sha256: str | None = None,
-        source_reference: dict[str, Any] | None = None, **options: Any,
+        source_reference: dict[str, Any] | None = None,
+        work_binding: dict[str, Any] | None = None, action: str = "normalize",
+        **options: Any,
     ) -> tuple[dict[str, Any], int]:
         dispatched = False
         try:
             self.guard("propose")
-            if any(value is not None for value in options.values()):
+            if action not in {"normalize", "draft_note"}:
+                raise AdmissionError("ACTION_DENIED", "Unsupported canonical proposal action")
+            if action == "normalize" and any(value is not None for value in options.values()):
                 raise AdmissionError("ACTION_DENIED", "normalization accepts one complete typed source")
             if source_reference is not None:
                 if source_path is not None or expected_sha256 is not None:
@@ -251,15 +281,63 @@ class KnowledgeApplication:
             if source_path is None or expected_sha256 is None:
                 raise AdmissionError("INPUT_INVALID", "source selection and digest are required")
             self._source_policy(source_path)
+            if self.identity.ingress == "mcp":
+                self._mcp_source_policy(source_path)
             with self.journal.writer() as session:
                 self.guard("propose")
-                prepared = self.handlers.prepare(self.roots, source_path, expected_sha256)
+                if action == "draft_note":
+                    from ..action_proposals import generate_action_proposal
+
+                    prepared, prepared_code = generate_action_proposal(
+                        self.roots, action=action, source_path=source_path,
+                        expected_sha256=expected_sha256, prepare_only=True, **options)
+                    if prepared_code != 0:
+                        raise AdmissionError(prepared.get("errors", [{}])[0].get("code", "PROPOSAL_INVALID"),
+                                             "Draft proposal preparation failed")
+                else:
+                    prepared = self.handlers.prepare(self.roots, source_path, expected_sha256)
+                if work_binding is not None:
+                    if source_reference is None or set(work_binding) != {
+                        "work_run_id", "work_spec_digest", "graph_run_id", "executor_id",
+                        "source_reference",
+                    }:
+                        raise AdmissionError("SCOPE_DENIED", "Officer effect context is incomplete")
+                    record = session.value["intents"].get(
+                        "exops.work." + work_binding["work_run_id"])
+                    if not isinstance(record, dict) or record.get("application_state") != "started":
+                        raise AdmissionError("STALE_REVISION", "Officer Work is not active")
+                    spec, run = record["spec"], record["run"]
+                    segment_key = "admitted_method_segments" if spec["target_kind"] == "team" else "admitted_officer_segments"
+                    admitted = record.get(segment_key, {}).get(work_binding["graph_run_id"])
+                    common_valid = (spec["spec_digest"] == work_binding["work_spec_digest"]
+                            and run.get("active_graph_run_id") == work_binding["graph_run_id"]
+                            and run["state"] == "running"
+                            and not run["pending_action_ids"] and not run["unresolved_effect_ids"]
+                            and work_binding["source_reference"] == source_reference)
+                    if spec["target_kind"] == "team":
+                        assigned = (admitted or {}).get("assignments", [])
+                        if (not common_valid or not isinstance(admitted, dict)
+                                or admitted.get("source_reference") != source_reference
+                                or record.get("method_source_reference") != source_reference
+                                or not any(item["executor_id"] == work_binding["executor_id"]
+                                           for item in assigned)):
+                            raise AdmissionError("SCOPE_DENIED", "Team effect differs from admitted Work and Graph")
+                    elif (spec["target_kind"] != "officer"
+                            or not common_valid
+                            or spec["officer_executor_id"] != work_binding["executor_id"]
+                            or not isinstance(admitted, dict)
+                            or admitted["assignment"]["executor_id"] != work_binding["executor_id"]
+                            or admitted["source_reference"] != source_reference
+                            or record["officer_source_reference"] != source_reference):
+                        raise AdmissionError("SCOPE_DENIED", "Officer effect differs from admitted Work and Graph")
                 if prepared["status"] == "NO_CHANGE":
                     return {**prepared, "source": source_path, "source_reference": self.reference(source_path), "provider_called": False, "mutation_performed": False, "canonical_target_changed": False, "execution_outcome": "completed", "acceptance_state": "not_applicable"}, 0
                 content = prepared.pop("artifact_bytes")
-                effect_id = "normalize." + prepared["proposal"]["proposal_id"]
+                effect_id = action + "." + prepared["proposal"]["proposal_id"]
                 prior = session.value["intents"].get(effect_id)
                 if prior is not None:
+                    if work_binding is not None and prior.get("work_binding") != work_binding:
+                        raise AdmissionError("IDEMPOTENCY_CONFLICT", "Proposal belongs to another Work effect")
                     if prior["state"] != "completed":
                         raise AdmissionError("OUTCOME_UNKNOWN", "owner must reconcile the existing intent before another dispatch")
                     if read_regular(resolve_beneath(self.roots.vault, prior["artifact_path"])) != content:
@@ -277,6 +355,8 @@ class KnowledgeApplication:
                           "source_digest": "sha256:" + expected_sha256, "artifact_path": prepared["proposal_path"],
                           "frozen_artifact": base64.b64encode(content).decode(), "human_request_id": "human." + prepared["proposal"]["proposal_id"],
                           "acceptance_state": "not_evaluated"}
+                if work_binding is not None:
+                    intent["work_binding"] = copy.deepcopy(work_binding)
                 session.value["intents"][effect_id] = intent
                 session.commit(now)
                 self.fault_hook("intent_committed")
@@ -378,6 +458,7 @@ class KnowledgeApplication:
         try:
             self.guard("recover")
             observations: list[dict[str, Any]] = []
+            recovered_effects: list[str] = []
             with self.journal.writer() as session:
                 now = self.clock()
                 for effect_id, intent in session.value["intents"].items():
@@ -385,6 +466,7 @@ class KnowledgeApplication:
                         observed = read_regular(resolve_beneath(self.roots.vault, intent["canonical_path"]))
                         if observed is not None and digest(observed) == intent["after_digest"]:
                             intent["state"] = "completed"
+                            recovered_effects.append(effect_id)
                             session.value["decisions"][intent["human_request_id"]]["pending_apply"] = False
                             session.value["receipts"][effect_id] = {"recorded_at": stamp(now), "execution": self._receipt(intent, now, "succeeded", digest(observed))}
                         else:
@@ -410,10 +492,18 @@ class KnowledgeApplication:
                         intent["state"] = "unknown"
                         session.value["receipts"][effect_id] = {"recorded_at": stamp(now), "unresolved": True, "execution": self._receipt(intent, now, "outcome_unknown")}
                     observations.append({"effect_id": effect_id, "state": intent["state"]})
-                    self._experience(session.value, intent, now)
                 if observations:
                     session.value["history"].append({"event": "recovery_observed", "sequence": session.value["revision"] + 1})
                     session.commit(now)
+            if recovered_effects:
+                from .experience import KnowledgeExperience
+
+                experience = KnowledgeExperience(self.journal, self.core, self.clock)
+                for effect_id in recovered_effects:
+                    event_id = "event." + hashlib.sha256(effect_id.encode()).hexdigest()[:24]
+                    experience.observe(event_id=event_id, category="crash_recovery",
+                                       outcome_state="recovered", evaluation_state="not_evaluated")
+                experience.scan()
             return {"status": "PASS", "observations": observations, "dispatch_performed": False, "canonical_target_changed": False}, 0
         except (ValueError, OSError) as error:
             return failure("recover", error)
@@ -461,37 +551,10 @@ class KnowledgeApplication:
         except (ValueError, OSError, StopIteration, KeyError) as error:
             return failure("apply", error)
 
-    def _experience(self, value: dict[str, Any], intent: dict[str, Any], now: datetime) -> None:
-        fingerprint = digest(canonical({"effect_id": intent["effect_id"], "state": intent["state"], "generation": intent["generation"]}))
-        if any(item["candidate_fingerprint"] == fingerprint for item in value["experience"]):
-            return
-        candidate = {
-            "candidate_id": "experience." + fingerprint[7:39], "candidate_fingerprint": fingerprint,
-            "idempotency_key": fingerprint, "owner_operation_id": "knowledgeos", "source_instance_id": self.core.binding["instance_id"],
-            "source_event_id": intent["effect_id"], "source_revision": f"revision.r{value['revision']}",
-            "occurred_at": stamp(now), "category": "crash_recovery", "classification": "internal",
-            "observation_summary": "Owner reconciled a provider-free Pending artifact against frozen evidence.",
-            "evidence_reference_ids": [], "outcome_state": "recovered" if intent["state"] == "completed" else "unknown",
-            "evaluation_state": intent.get("acceptance_state", "unknown"), "core_version": "0.16.1", "core_digest": PINS["core_digest"],
-            "semantic_version": "0.6.0", "semantic_digest": PINS["semantic_digest"],
-            "semantic_term_ids": ["agentfabric.core.experience_candidate"], "extractor_version": "1.0.0", "redaction_policy_version": "knowledgeos.local",
-        }
-        self.core.validate("ExperienceCandidate", candidate)
-        if len(canonical(candidate)) > 4096:
-            raise AdmissionError("EXPERIENCE_CAPACITY", "experience candidate exceeds the Core limit")
-        value["experience"].append(candidate)
-        value["experience"] = value["experience"][-100:]
-        if len(value["outbox"]) < 4 and sum(len(canonical(item)) for item in value["outbox"]) + len(canonical(candidate)) < 4096:
-            entry = {"outbox_id": "outbox." + fingerprint[7:39], "candidate_id": candidate["candidate_id"], "owner_operation_id": "knowledgeos", "recipient_operation_id": "hermestrace", "payload_digest": digest(canonical(candidate)), "idempotency_key": fingerprint, "delivery_state": "pending", "attempt_count": 0, "priority": 1, "created_at": stamp(now), "expires_at": stamp(now + timedelta(hours=12)), "retention_until": stamp(now + timedelta(hours=12)), "next_attempt_at": stamp(now)}
-            self.core.validate("ExperienceOutboxEntry", entry)
-            queued = {"candidate": candidate, "entry": entry, "transport_state": "unconfigured"}
-            if sum(len(canonical(item)) for item in value["outbox"]) + len(canonical(queued)) <= 4096:
-                value["outbox"].append(queued)
-
     def check(self) -> tuple[dict[str, Any], int]:
         try:
             self.guard("inspect")
-            return {"status": "PASS", "manifest": self.core.manifest(), "pins": PINS, "graph_profile": "graphless", "runtime_adoption": "unconfigured", "state_version": 3}, 0
+            return {"status": "PASS", "manifest": self.core.manifest(), "pins": PINS, "graph_profile": "graphless", "runtime_adoption": "offline", "native_execution": "unconfigured", "contract_adoption": "verified", "local_storage": {"state_present": self.journal.path.is_file(), "runtime_present": self.roots.runtime.is_dir()}, "state_version": 4}, 0
         except (ValueError, OSError) as error:
             return failure("operation check", error)
 
@@ -518,31 +581,6 @@ class KnowledgeApplication:
             apply_states = {item["state"] for item in value["intents"].values() if "canonical_path" in item}
             canonical_apply = "unknown" if "unknown" in apply_states else "completed" if apply_states == {"completed"} else "not_started" if not apply_states else "partial"
             human_approval = "unknown" if not chosen else "approved" if chosen == {"approve"} else "rejected" if chosen == {"reject"} else "mixed"
-            return {"status": "PASS", "health": health, "snapshot": snapshot, "human_approval": human_approval, "canonical_apply": canonical_apply, "external_transport": "unconfigured"}, 0
+            return {"status": "PASS", "health": health, "snapshot": snapshot, "human_approval": human_approval, "canonical_apply": canonical_apply, "contract_adoption": "verified", "local_storage": {"state_present": self.journal.path.is_file(), "runtime_present": self.roots.runtime.is_dir()}, "native_execution": "unconfigured", "external_transport": "unconfigured"}, 0
         except (ValueError, OSError) as error:
             return failure("operation status", error)
-
-    def run_legacy(self, operation: Callable[[], int], *, request: dict[str, Any]) -> int:
-        """Admit other maintained workflows under the same writer fence."""
-        self.guard("legacy")
-        with self.journal.writer() as session:
-            session.fence()
-            self.guard("legacy")
-            if any(item["state"] == "unknown" for item in session.value["intents"].values()):
-                raise AdmissionError("OUTCOME_UNKNOWN", "unresolved owner intent blocks another writer")
-            now = self.clock()
-            effect_id = "legacy." + uuid.uuid4().hex
-            effect = {"effect_id": effect_id, "owner_operation_id": "knowledgeos", "content_digest": digest(canonical(request)), "generation": session.generation, "fencing_token": f"generation.g{session.generation}", "issued_at": stamp(now), "expires_at": stamp(now + timedelta(hours=12))}
-            self.core.validate("ExecutionIntent", effect)
-            session.value["intents"][effect_id] = {**effect, "state": "unknown", "recorded_at": stamp(now)}
-            session.commit(now)
-            token = CURRENT_OWNER_INTENT.set(effect_id)
-            try:
-                result = operation()
-            finally:
-                CURRENT_OWNER_INTENT.reset(token)
-            session.fence()
-            session.value["intents"][effect_id]["state"] = "completed" if result == 0 else "failed"
-            session.value["receipts"][effect_id] = {"recorded_at": stamp(now), "execution": self._receipt(effect, now, "succeeded" if result == 0 else "failed")}
-            session.commit(now)
-            return result

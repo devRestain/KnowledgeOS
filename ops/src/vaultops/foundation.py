@@ -10,7 +10,7 @@ from pathlib import Path
 from .paths import ResolvedPaths
 from .yaml_safe import load_yaml_file
 
-MANIFEST_SHA256 = "8766e8f920c8861119bd39d16f0ffa47f668e7503d06a2ababb55d44994167ce"
+MANIFEST_SHA256 = "72d4b183aeae2d5c788b0e1c53185bda46a2050e55f2e16f9f78abfbb48a4498"
 
 REQUIRED_FILES = (
     ".gitignore",
@@ -49,7 +49,6 @@ REQUIRED_DIRECTORIES = (
     "ops/policies",
     "ops/expected",
     "ops/src/vaultops",
-    "ops/launchd",
     "ops/tests",
     "ops/tests/fixtures",
     "ops/tests/support",
@@ -59,7 +58,7 @@ REQUIRED_DIRECTORIES = (
 # project-specific (rather than generic ``.gitkeep`` fillers) and are allowed
 # only in currently empty canonical Vault namespaces.  They are hidden from
 # the normal Obsidian note surface and must never appear in device/profile,
-# bridge transport, or runtime directories.
+# runtime directories.
 STRUCTURAL_MARKER_NAME = ".knowledgeos-directory"
 STRUCTURAL_MARKER_TEXT = "KnowledgeOS canonical directory marker; Git has no empty-directory entries.\n"
 STRUCTURAL_MARKER_DIRECTORIES = frozenset(
@@ -177,7 +176,7 @@ def check_foundation(root: str | Path) -> list[str]:
     try:
         blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
         schema = json.loads((workspace / "blueprint/blueprint.schema.json").read_text(encoding="utf-8"))
-        if blueprint.get("contract_id") != "knowledgeos-blueprint-v2":
+        if blueprint.get("contract_id") != "knowledgeos-blueprint-v3":
             problems.append("unexpected contract_id")
         if not isinstance(schema, dict):
             problems.append("blueprint schema root must be an object")

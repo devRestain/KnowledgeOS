@@ -1100,6 +1100,7 @@ def _make_draft(
     title: str | None,
     selected_candidate_id: str | None,
     selected_candidate_sha256: str | None,
+    draft_body: str | None,
 ) -> tuple[dict[str, Any], str, str]:
     candidate = _draft_candidate(
         workspace,
@@ -1123,9 +1124,16 @@ def _make_draft(
     )
     target_id = _uuid4_from_seed(f"knowledgeos:c27:{source_path}:{source_hash}:{normalized_target}:{candidate['candidate_sha256']}")
     source_link = f"[[{source_path}{fragment.locator if fragment else ''}]]"
+    if draft_body is not None and (not isinstance(draft_body, str)
+                                   or not draft_body.strip()
+                                   or len(draft_body.encode("utf-8")) > 16 * 1024):
+        raise ActionProposalError("C27_TARGET_CONTENT_INVALID", "Draft body must be bounded nonempty Markdown")
+    proposed_content = draft_body.strip() if draft_body is not None else _source_excerpt(text, fragment)
     body = (
         f"# {selected_title}\n\n"
         "## 제안된 내용\n\n"
+        f"{proposed_content}\n\n"
+        "## 원문 발췌\n\n"
         f"{_source_excerpt(text, fragment)}\n\n"
         "## 출처\n\n"
         f"- {source_link}\n"
@@ -1361,16 +1369,20 @@ def generate_action_proposal(
     target_path: str | None = None,
     target_type: str | None = None,
     title: str | None = None,
+    draft_body: str | None = None,
     selected_candidate_id: str | None = None,
     selected_candidate_sha256: str | None = None,
     candidate_set_file: str | Path | None = None,
     retrieval_profile_id: str | None = None,
+    prepare_only: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """Generate one create-only C27 Pending proposal."""
 
     operation = f"ai propose {action}"
     if action not in ACTION_TYPES:
         return _failure(operation, "C27_ACTION_INVALID", "action must be draft_note, link_suggestions, or normalize")
+    if action != "draft_note" and draft_body is not None:
+        return _failure(operation, "C27_ACTION_INVALID", "draft_body belongs only to draft_note")
     try:
         workspace = _workspace(root)
         normalized, _, raw, text, typed, engine, vault = _load_source(workspace, source_path, expected_sha256)
@@ -1398,6 +1410,7 @@ def generate_action_proposal(
                 title=title,
                 selected_candidate_id=selected_candidate_id,
                 selected_candidate_sha256=selected_candidate_sha256,
+                draft_body=draft_body,
             )
             return _write_pending_artifact(
                 workspace,
@@ -1408,6 +1421,7 @@ def generate_action_proposal(
                 payload=payload,
                 target_markdown=target_markdown,
                 diff=diff,
+                prepare_only=prepare_only,
             )
         if action == "link_suggestions":
             payload, target_markdown, diff, _ = _make_link_suggestions(
@@ -1433,6 +1447,7 @@ def generate_action_proposal(
                 payload=payload,
                 target_markdown=target_markdown,
                 diff=diff,
+                prepare_only=prepare_only,
             )
         if target_path is not None or target_type is not None or title is not None:
             raise ActionProposalError("C27_NORMALIZE_INPUT_INVALID", "normalize does not accept draft target or title arguments")
@@ -1467,6 +1482,7 @@ def generate_action_proposal(
             payload=payload,
             target_markdown=target_markdown,
             diff=diff,
+            prepare_only=prepare_only,
         )
     except ActionProposalError as error:
         return _failure(operation, error.code, str(error))

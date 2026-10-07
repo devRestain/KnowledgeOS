@@ -20,7 +20,8 @@
     "note-toolbar",
     "breadcrumbs",
     "notebook-navigator",
-    "obsidian-meta-bind-plugin"
+    "obsidian-meta-bind-plugin",
+    "obsidian-git"
   ],
   ".obsidian-mac/core-plugins.json": {
     "audio-recorder": false,
@@ -475,10 +476,8 @@
     "version": 3
   },
   ".obsidian-mac/plugins/knowledgeos-thin-client/data.json": {
-    "brokerEndpoint": "",
-    "indexGenerationId": "",
-    "policySha256": "",
-    "privacyPolicySha256": ""
+    "ownerEndpoint": "http://127.0.0.1:17900/owner",
+    "lastWorkRunId": ""
   },
   ".obsidian-mac/plugins/note-toolbar/data.json": {
     "debugEnabled": false,
@@ -3100,7 +3099,7 @@
         "fileExistsMode": "Increment the file name",
         "fileNameFormat": {
           "enabled": true,
-          "format": "{{MACRO:KOS_HELPERS::prepareInputs}} {{MACRO:KOS_HELPERS::ensureProjectDirectories}}"
+          "format": "{{MACRO:KOS_HELPERS::prepareInputs}}{{MACRO:KOS_HELPERS::ensureProjectDirectories}}"
         },
         "fileOpening": {
           "direction": "vertical",

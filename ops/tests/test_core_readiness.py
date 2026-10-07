@@ -5,9 +5,6 @@ from __future__ import annotations
 import copy
 import json
 import shutil
-import subprocess
-import sys
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -238,7 +235,7 @@ def test_not_run_domain_criteria_remain_partial_and_cannot_be_approved(tmp_path)
     assert code == 0 and observed["snapshot"]["acceptance_state"] == "partial", observed
 
 
-@pytest.mark.parametrize("version", [1, 2, 4])
+@pytest.mark.parametrize("version", [1, 2, 5])
 def test_unknown_state_version_is_refused_before_even_a_lock_write(tmp_path, version):
     roots, app = fixture(tmp_path)
     value = app.journal.read()
@@ -280,7 +277,8 @@ def test_interrupted_dispatch_reconciles_observed_bytes_without_retry(tmp_path, 
     assert result["observations"][0]["state"] == ("cancelled" if phase == "intent_committed" else "completed")
     assert len(list((roots.vault / "01_AI_Review/Pending").glob("*.md"))) == (0 if phase == "intent_committed" else 1)
     assert (roots.vault / SOURCE).read_bytes() == before
-    assert restarted.journal.read()["outbox"][0]["transport_state"] == "unconfigured"
+    assert restarted.journal.read()["outbox"] == []
+    assert restarted.journal.read()["experience_events"] == []
 
 
 def test_runtime_loss_preserves_approval_receipt_and_unknown_marker(tmp_path):
@@ -313,7 +311,7 @@ def test_stale_writer_cannot_commit_after_generation_or_previous_bytes_change(tm
 
 def envelope():
     payload = {"query": "bounded status query"}
-    value = {"contract_version": "2.0.0", "core_version": "0.16.1", "core_digest": PINS["core_digest"], "schema_version": "0.16.1", "semantic_version": "0.6.0", "semantic_digest": PINS["semantic_digest"], "action": "read", "classification": "internal", "hop_count": 0, "idempotency_key": "request.fixture", "issued_at": NOW.isoformat(), "message_id": "message.fixture", "message_kind": "information_request", "payload_digest": digest(canonical(payload)), "payload_reference_id": "payload.fixture", "payload_size_bytes": len(canonical(payload)), "payload_type": "information.query", "purpose": "status", "recipient_operation_id": "knowledgeos", "request_id": "request.fixture", "resource_id": "operation.knowledgeos", "resource_kind": "operation", "resource_owner_operation_id": "knowledgeos", "revision": 1, "scope": "status", "semantic_term_ids": [], "sender_operation_id": "hermestrace", "sender_principal_id": "hermestrace.local", "ttl_seconds": 43200}
+    value = {"contract_version": "2.0.0", "core_version": PINS["core_version"], "core_digest": PINS["core_digest"], "schema_version": PINS["schema_version_pin"], "semantic_version": PINS["semantic_version"], "semantic_digest": PINS["semantic_digest"], "action": "read", "classification": "internal", "hop_count": 1, "idempotency_key": "request.fixture", "issued_at": NOW.isoformat(), "message_id": "message.fixture", "message_kind": "information_request", "payload_digest": digest(canonical(payload)), "payload_reference_id": "payload.fixture", "payload_size_bytes": len(canonical(payload)), "payload_type": "information.query", "purpose": "status", "recipient_operation_id": "knowledgeos", "request_id": "request.fixture", "resource_id": "operation.knowledgeos", "resource_kind": "operation", "resource_owner_operation_id": "knowledgeos", "revision": 1, "scope": "status", "semantic_term_ids": [], "sender_operation_id": "hermestrace", "sender_principal_id": "hermestrace.local", "ttl_seconds": 43200}
     return value, payload
 
 
@@ -356,12 +354,12 @@ def test_gateway_revalidates_the_full_prior_correlation_before_admission(tmp_pat
     elif change == "semantic":
         prior["semantic_term_ids"] = ["foreign.unknown"]
     with app.journal.writer() as session:
-        session.value["correlations"]["correlation.fixture"] = record
+        session.value["correlations"][prior["request_id"]] = record
         session.commit(NOW)
     payload = {"resources": []}
-    incoming = {**request, "message_kind": "correlated_response", "action": "export",
+    incoming = {**request, "message_kind": "correlated_response", "action": "export", "hop_count": 0,
                 "payload_type": "information.result", "payload_digest": digest(canonical(payload)),
-                "payload_size_bytes": len(canonical(payload)), "correlation_id": "correlation.fixture"}
+                "payload_size_bytes": len(canonical(payload)), "correlation_id": prior["request_id"]}
     gateway = KnowledgeGateway(app)
     caller = GatewayIdentity("hermestrace", "hermestrace.local", ("export",))
     before = snapshot(app.roots.state)
@@ -372,21 +370,6 @@ def test_gateway_revalidates_the_full_prior_correlation_before_admission(tmp_pat
         with pytest.raises(AdmissionError):
             gateway.admit(incoming, payload, caller)
         assert snapshot(app.roots.state) == before
-
-
-def test_two_process_cli_and_mcp_ingress_share_one_artifact_and_receipt(tmp_path):
-    roots, app = fixture(tmp_path)
-    source_digest = app.reference(SOURCE)["content_digest"][7:]
-    script = "from vaultops.cli import main; import sys; raise SystemExit(main(sys.argv[1:]))"
-    cli = [sys.executable, "-c", script, "ai", "normalize", "--root", str(roots.control), "--source", SOURCE, "--expected-sha256", source_digest]
-    mcp_script = "from pathlib import Path; from vaultops.mcp_server import _load_context; import json,sys; c=_load_context(Path(sys.argv[1])); r,n=c.services.create_normalize_proposal(source_reference=c.services.reference(sys.argv[2])); print(json.dumps(r)); raise SystemExit(n)"
-    mcp = [sys.executable, "-c", mcp_script, str(roots.control), SOURCE]
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(lambda command: subprocess.run(command, capture_output=True, text=True, check=False, cwd=tmp_path), (cli, mcp)))
-    for result in results:
-        assert result.returncode == 0, result.stdout + result.stderr
-    assert len(list((roots.vault / "01_AI_Review/Pending").glob("*.md"))) == 1
-    assert len(app.journal.read()["receipts"]) == 1
 
 
 def test_core_retention_keeps_dedupe_and_unresolved_after_detail_eviction(tmp_path):

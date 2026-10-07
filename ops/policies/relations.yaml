@@ -1,5 +1,5 @@
 schema_version: 1
-contract_id: knowledgeos-blueprint-v2
+contract_id: knowledgeos-blueprint-v3
 capability_profile: portable_core
 artifact_kind: relation_policy
 authoritative_inputs:
@@ -7,7 +7,7 @@ authoritative_inputs:
   selectors:
   - /property_registry
   - /relation_registry
-  sha256: b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b
+  sha256: 88e014582b7e18803ee6474e522f47aea46928c147647c71d8d5105af31e8c94
 relations:
   property_registry:
     supports:

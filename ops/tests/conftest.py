@@ -28,7 +28,6 @@ _CONTROL_ROOT = _configured_root(_CONFIG["control_root"])
 _MASKED_PATHS = tuple(
     sorted(
         {
-            _CONTROL_ROOT / "KnowledgeHub",
             _configured_root(_CONFIG["vault_root"]),
             _CONTROL_ROOT / "runtime",
             Path("/workspace/runtime"),
@@ -96,6 +95,16 @@ def _validate_masked_paths() -> None:
             errors.append(f"masked path is not empty: {path}")
     if errors:
         raise pytest.UsageError("invalid KnowledgeOS hermetic boundary: " + "; ".join(errors))
+    _validate_control_vault_boundary(mounts)
+
+
+def _validate_control_vault_boundary(mounts: dict[Path, frozenset[str]]) -> None:
+    """Protect the removed legacy alias through its read-only control parent."""
+
+    if "ro" not in mounts.get(_CONTROL_ROOT, frozenset()):
+        raise pytest.UsageError("KnowledgeOS control root must be explicitly read-only")
+    if (_CONTROL_ROOT / "KnowledgeHub").exists():
+        raise pytest.UsageError("unexpected legacy Vault under the KnowledgeOS control root")
 
 
 def _source_has_boundary_violation(path: Path) -> bool:

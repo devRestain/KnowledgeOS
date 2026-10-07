@@ -25,7 +25,7 @@ from .yaml_safe import load_yaml_file
 DEFAULT_BLUEPRINT_PATH = "blueprint/blueprint.yaml"
 DEFAULT_SCHEMA_PATH = "blueprint/blueprint.schema.json"
 DEFAULT_MANIFEST_PATH = "blueprint/CHECKSUMS.sha256"
-DEFAULT_CONTRACT_ID = "knowledgeos-blueprint-v2"
+DEFAULT_CONTRACT_ID = "knowledgeos-blueprint-v3"
 JSON_SCHEMA_DRAFT = "2020-12"
 
 _REASON_CODES = {

@@ -15,7 +15,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .bridge_publish import apply_bridge_recovery, reconcile_bridge_publish
 from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import (
     RecoveryCorruption,
@@ -40,7 +39,7 @@ from .transactions import (
 
 RECONCILE_SCHEMA_VERSION = 1
 PLAN_KIND = "knowledgeos.transaction-repair-plan"
-LOCAL_OPERATIONS = frozenset({"bridge_publish", "capture_finalize", "project_archive"})
+LOCAL_OPERATIONS = frozenset({"capture_finalize", "project_archive"})
 _SHA256_LENGTH = 64
 
 
@@ -450,9 +449,7 @@ def _inspect_job(roots: ResolvedPaths, vault: Path, job_dir: Path) -> dict[str, 
             result["issues"] = [_issue("RECOVERY_TRANSACTION_CONFLICT", "/journal", result["reason"])]
             return result
         intent = journal.intent()
-        if operation == "bridge_publish":
-            assessment, observation = reconcile_bridge_publish(roots.control, vault, journal)
-        elif operation == "capture_finalize":
+        if operation == "capture_finalize":
             assessment, observation = _capture_observation(intent, roots, vault)
         else:
             assessment, observation = _archive_observation(intent, vault)
@@ -652,11 +649,6 @@ def apply_repair_plan(
             if action == "write_completion_receipt":
                 receipt = journal.completion_receipt()
                 results.append({"job_id": job["job_id"], "operation": job["operation"], "status": "PASS", "action": action, "completion_receipt": receipt})
-            elif job["operation"] == "bridge_publish":
-                result, code = apply_bridge_recovery(workspace.control, vault, journal)
-                if code != EXIT_OK:
-                    return {"status": "CONFLICT", "operation": "repair apply", "results": [*results, result], "created": []}, code
-                results.append({**result, "action": action})
             elif job["operation"] == "capture_finalize":
                 result, code = _apply_capture_recovery(journal, workspace, vault)
                 if code != EXIT_OK:

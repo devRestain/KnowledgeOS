@@ -80,6 +80,13 @@
         },
         "resource_reference": {
           "$ref": "resource_reference.schema.json"
+        },
+        "excerpt": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "excerpt_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     }

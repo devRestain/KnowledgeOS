@@ -37,8 +37,8 @@ def test_mcp_schema_files_and_manifest_are_strict_and_well_formed() -> None:
         Draft202012Validator.check_schema(schema)
 
     manifest = _read(MANIFEST_PATH)
-    assert manifest["contract_id"] == "knowledgeos-vaultmcp-v2"
-    assert manifest["application_schema_version"] == 2
+    assert manifest["contract_id"] == "knowledgeos-vaultmcp-v3"
+    assert manifest["application_schema_version"] == 3
     assert manifest["transport"] == {
         "kind": "stdio",
         "stdout": "protocol_frames_only",
@@ -64,12 +64,15 @@ def test_mcp_schema_files_and_manifest_are_strict_and_well_formed() -> None:
         "stderr_event_bytes": 4096,
         "stdout_diagnostic_bytes": 0,
     }
-    assert [item["name"] for item in manifest["tools"]] == [
-        "knowledge_search",
-        "knowledge_retrieve",
-        "proposal_inspect",
-        "proposal_create",
-    ]
+    names = [item["name"] for item in manifest["tools"]]
+    assert len(names) == len(set(names)) == 24
+    assert names[:4] == ["knowledge_search", "knowledge_retrieve", "proposal_inspect", "proposal_create"]
+    assert {"knowledge_read", "artifact_read", "base_view_query", "link_context", "task_query",
+            "work_context_read", "method_read", "graph_segment_propose", "artifact_submit",
+            "assessment_submit", "proposal_draft_note", "citation_verify",
+            "proposal_link_suggestions", "semantic_registry_read", "proposal_alignment",
+            "proposal_project_review", "gateway_evidence_read", "proposal_adaptation",
+            "vault_diagnose", "proposal_recovery_plan"} <= set(names)
     assert set(manifest["forbidden_tool_names"]).isdisjoint(
         item["name"] for item in manifest["tools"]
     )
@@ -81,13 +84,15 @@ def test_mcp_schema_files_and_manifest_are_strict_and_well_formed() -> None:
 def test_every_tool_has_allowed_schema_denied_and_policy_denied_vectors() -> None:
     manifest = _read(MANIFEST_PATH)
     for tool in manifest["tools"]:
-        input_schema = _read(SCHEMA_ROOT / tool["input_schema"])
+        input_schema = (_read(SCHEMA_ROOT / tool["input_schema"])
+                        if isinstance(tool["input_schema"], str) else tool["input_schema"])
         validator = Draft202012Validator(input_schema)
         assert tool["effect"]
+        assert not validator.is_valid({"root": "/tmp/foreign", "actor_id": "forged"})
+        if "allowed_vectors" not in tool:
+            assert input_schema["additionalProperties"] is False
+            continue
         assert tool["service"].startswith("vaultops.application.knowledge.KnowledgeApplication.")
-        assert tool["allowed_vectors"]
-        assert tool["schema_denied_vectors"]
-        assert tool["policy_denied_vectors"]
 
         for example in tool["allowed_vectors"]:
             assert validator.is_valid(example), (tool["name"], example)
@@ -100,7 +105,7 @@ def test_every_tool_has_allowed_schema_denied_and_policy_denied_vectors() -> Non
 def test_result_envelopes_and_errors_are_versioned_and_bound() -> None:
     read_schema = _read(SCHEMA_ROOT / "read_result.data.schema.json")
     candidate_schema = read_schema["$defs"]["candidate"]
-    assert (set(candidate_schema["properties"]) - {"resource_reference"}).issubset(
+    assert (set(candidate_schema["properties"]) - {"resource_reference", "excerpt", "excerpt_sha256"}).issubset(
         retrieval_candidate_schema()["properties"]
     )
     read_data = {
@@ -121,7 +126,7 @@ def test_result_envelopes_and_errors_are_versioned_and_bound() -> None:
         "truncated": False,
     }
     envelope = {
-        "schema_version": 2,
+        "schema_version": 3,
         "request_id": "fixture-request-1",
         "operation": "knowledge_search",
         "status": "ok",

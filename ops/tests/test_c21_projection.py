@@ -96,7 +96,7 @@ def test_c21_cli_uses_configured_separate_vault_and_runtime_roots(tmp_path: Path
     assert not (roots.state / CURRENT_POINTER).exists()
 
     assert main(
-        ["export", "jsonl", "--generation-id", "c21-separated-cli", "--root", str(roots.control)]
+        ["index", "export", "--generation-id", "c21-separated-cli", "--root", str(roots.control)]
     ) == EXIT_OK
     exported = json.loads(capsys.readouterr().out)
     assert exported["provider_called"] is False
@@ -143,7 +143,7 @@ def test_c21_cli_exposes_export_build_and_verify_without_provider_or_vault_mutat
     root = _fresh_control_copy(tmp_path)
     before = _file_snapshot(fixture_path(root, "vault"))
 
-    assert main(["export", "jsonl", "--generation-id", "c21-cli", "--root", str(root)]) == EXIT_OK
+    assert main(["index", "export", "--generation-id", "c21-cli", "--root", str(root)]) == EXIT_OK
     exported = json.loads(capsys.readouterr().out)
     assert exported["status"] == "PASS"
     assert exported["operation"] == "index build"

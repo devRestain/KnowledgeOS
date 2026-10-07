@@ -159,7 +159,7 @@ def _minimal_plugin_settings(
     if "obsidian-tasks-plugin" in selected:
         task_query = (
             "> [!tip] Core-only fallback: inspect the source Markdown task line\n\n"
-            "```tasks\ntags include #task\nnot done\n```\n"
+            "```tasks\nnot done\n```\n"
         )
         for relative in ("99_System/Dashboards/Tasks.md", "99_System/Dashboards/Weekly_Review.md"):
             path = fixture_path(root, "vault") / relative

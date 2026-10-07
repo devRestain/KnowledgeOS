@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -28,7 +29,13 @@ class KnowledgeGateway:
         app.core.validate("InterOpsEnvelope", envelope)
         if envelope["recipient_operation_id"] != "knowledgeos" or envelope["sender_operation_id"] != caller.operation_id or envelope["sender_principal_id"] != caller.principal_id:
             raise AdmissionError("OWNER_DENIED", "authenticated sender or recipient does not match envelope")
-        if envelope["core_digest"] != PINS["core_digest"] or envelope["semantic_digest"] != PINS["semantic_digest"]:
+        if any(envelope[field] != PINS[pin] for field, pin in (
+            ("core_version", "core_version"), ("core_digest", "core_digest"),
+            ("schema_version", "schema_version_pin"),
+            ("semantic_version", "semantic_version"),
+            ("semantic_digest", "semantic_digest"),
+            ("contract_version", "capsule_version"),
+        )):
             raise AdmissionError("PIN_MISMATCH", "Gateway requires exact adopted release pins")
         if envelope["resource_owner_operation_id"] != "knowledgeos" or envelope["resource_kind"] not in {"operation", "vault", "artifact", "exchange"}:
             raise AdmissionError("OWNER_DENIED", "Gateway resource is not owned by this Operation")
@@ -48,6 +55,15 @@ class KnowledgeGateway:
             raise AdmissionError("PAYLOAD_DENIED", "purpose does not admit this payload type")
         if kind in policy["foundation_request_kinds"] and caller.operation_id not in policy["foundation_operation_ids"]:
             raise AdmissionError("REQUESTER_DENIED", "ordinary Operations cannot initiate cross-Operation requests")
+        if kind == "standard_submission" and (
+            envelope["resource_kind"] != "exchange" or envelope["hop_count"] != 0 or
+            envelope["purpose"] not in policy["standard_submission_purposes"]
+        ):
+            raise AdmissionError("PAYLOAD_DENIED", "standard submission has invalid route or purpose")
+        if kind in policy["foundation_request_kinds"] and envelope["hop_count"] != 1:
+            raise AdmissionError("HOP_LIMIT", "cross-Operation request requires one hop")
+        if kind == "correlated_response" and not envelope.get("correlation_id"):
+            raise AdmissionError("CORRELATION_UNKNOWN", "response requires an admitted prior request")
         known_terms = {item["id"] for item in catalog["semantic_bundle"]["terms"]}
         if not set(envelope["semantic_term_ids"]).issubset(known_terms):
             raise AdmissionError("SEMANTIC_PROFILE_UNKNOWN", "Gateway semantic terms are not in the adopted bundle")
@@ -71,10 +87,10 @@ class KnowledgeGateway:
                 raise AdmissionError("CORRELATION_UNKNOWN", "response requires a full trusted owner request record")
             prior = correlation["envelope"]
             owner = correlation["caller"]
-            if not isinstance(owner, dict) or set(owner) != {"operation_id", "principal_id", "allowed_actions"} or owner["operation_id"] != "knowledgeos" or owner["principal_id"] != app.identity.actor_id:
+            if not isinstance(owner, dict) or set(owner) != {"operation_id", "principal_id", "allowed_actions"} or owner["operation_id"] != "knowledgeos":
                 raise AdmissionError("CORRELATION_UNKNOWN", "prior request lacks the trusted owner identity")
             app.core.validate("InterOpsEnvelope", prior)
-            if prior["sender_operation_id"] != "knowledgeos" or prior["recipient_operation_id"] != caller.operation_id or prior["resource_owner_operation_id"] != caller.operation_id or prior["request_id"] != envelope["request_id"] or prior["purpose"] != envelope["purpose"]:
+            if prior["sender_operation_id"] != "knowledgeos" or prior["recipient_operation_id"] != caller.operation_id or prior["resource_owner_operation_id"] != caller.operation_id or prior["request_id"] != envelope["correlation_id"] or prior["request_id"] != envelope["request_id"] or prior["purpose"] != envelope["purpose"]:
                 raise AdmissionError("CORRELATION_UNKNOWN", "response does not match the admitted request")
             if prior["sender_principal_id"] != owner["principal_id"] or prior["action"] not in owner["allowed_actions"] or prior["action"] not in app.policy["gateway_actions"] or prior["message_kind"] != "information_request" or prior["payload_type"] != "information.query":
                 raise AdmissionError("CORRELATION_UNKNOWN", "prior request eligibility or policy differs")
@@ -115,3 +131,94 @@ class KnowledgeGateway:
             session.value["history"].append({"event": "gateway_admitted", "receipt_id": receipt["receipt_id"], "sequence": session.value["revision"] + 1})
             session.commit(now)
             return receipt
+
+    def status(self) -> dict[str, Any]:
+        """Read-only owner view; admission is never reported as execution."""
+        self.application.guard("inspect")
+        state = self.application.journal.read()
+        counts = {name: 0 for name in ("pending", "in_flight", "admitted", "rejected",
+                                       "expired", "quarantined")}
+        for row in state["outbox"]:
+            counts[row["entry"]["delivery_state"]] += 1
+        return {"status": "PASS", "owner_operation_id": "knowledgeos",
+                "core_version": PINS["core_version"],
+                "source_event_count": len(state["experience_events"]),
+                "candidate_count": len(state["experience"]),
+                "delivery_counts": counts,
+                "inbound_admission_count": len(state["gateway"]),
+                "outbound_receipt_count": len(state["interops_outbound"]),
+                "delivery_transport": "explicit_local_binding_required"}
+
+    def dispatch_experience(self, transport: Any) -> dict[str, Any] | None:
+        """Dispatch only the owner-committed Experience queue through this Gateway."""
+        app = self.application
+        app.guard("storage")
+        if app.identity.ingress != "operator" or app.identity.owner_operation_id != "knowledgeos":
+            raise AdmissionError("OWNER_DENIED", "Experience dispatch requires the owner operator")
+        from .experience import KnowledgeExperience
+
+        return KnowledgeExperience(app.journal, app.core, app.clock).dispatch_one(transport)
+
+    def register_outbound_request(
+        self, envelope: dict[str, Any], payload: dict[str, Any],
+        caller: GatewayIdentity, *, recipient_available: Callable[[str], bool],
+    ) -> dict[str, Any]:
+        """Persist full owner correlation before a separately selected transport sends it."""
+        app = self.application
+        app.guard("inspect")
+        if (caller.operation_id != "knowledgeos" or
+            caller.principal_id != "knowledgeos.local" or
+            envelope.get("sender_operation_id") != caller.operation_id or
+            envelope.get("sender_principal_id") != caller.principal_id):
+            raise AdmissionError("OWNER_DENIED", "outbound requester is not KnowledgeOS")
+        app.core.validate("InterOpsEnvelope", envelope)
+        catalog = app.core.verify()
+        profile = catalog["interop_policy"]["payload_profiles"]["information_request"]
+        known_terms = {item["id"] for item in catalog["semantic_bundle"]["terms"]}
+        if (envelope["purpose"] not in profile["purposes"] or
+            envelope["payload_type"] not in profile["payload_types"] or
+            envelope["action"] not in profile["actions"] or
+            envelope["payload_type"] not in catalog["interop_policy"]["purpose_payload_types"]["information_request"].get(envelope["purpose"], []) or
+            not set(envelope["semantic_term_ids"]).issubset(known_terms)):
+            raise AdmissionError("PAYLOAD_DENIED", "outbound request profile or semantics differ")
+        if (envelope["message_kind"] != "information_request" or
+            envelope["payload_type"] != "information.query" or
+            envelope["action"] not in caller.allowed_actions or
+            envelope["action"] not in app.policy["gateway_actions"] or
+            envelope["hop_count"] != 1 or
+            envelope["recipient_operation_id"] == "knowledgeos" or
+            envelope["resource_owner_operation_id"] != envelope["recipient_operation_id"] or
+            not recipient_available(envelope["recipient_operation_id"])):
+            raise AdmissionError("UNAVAILABLE", "recipient route or request profile is unavailable")
+        if any(envelope[field] != PINS[pin] for field, pin in (
+            ("core_version", "core_version"), ("core_digest", "core_digest"),
+            ("schema_version", "schema_version_pin"),
+            ("semantic_version", "semantic_version"),
+            ("semantic_digest", "semantic_digest"),
+            ("contract_version", "capsule_version"),
+        )):
+            raise AdmissionError("PIN_MISMATCH", "outbound request pins differ")
+        issued = datetime.fromisoformat(envelope["issued_at"])
+        now = app.clock()
+        if issued > now or now >= issued + timedelta(seconds=envelope["ttl_seconds"]):
+            raise AdmissionError("MESSAGE_EXPIRED", "outbound request is expired")
+        if (set(payload) != {"query"} or not isinstance(payload["query"], str) or
+            not 1 <= len(payload["query"]) <= 4096 or
+            envelope["payload_size_bytes"] != len(canonical(payload)) or
+            envelope["payload_digest"] != digest(canonical(payload))):
+            raise AdmissionError("PAYLOAD_INVALID", "outbound information query differs")
+        record = {"envelope": envelope, "payload": payload,
+                  "caller": {"operation_id": caller.operation_id,
+                             "principal_id": caller.principal_id,
+                             "allowed_actions": list(caller.allowed_actions)}}
+        with app.journal.writer() as session:
+            previous = session.value["correlations"].get(envelope["request_id"])
+            if previous is not None:
+                if previous != record:
+                    raise AdmissionError("REQUEST_CONFLICT", "outbound request ID changed content")
+                return {"status": "recorded", "replayed": True,
+                        "request_id": envelope["request_id"]}
+            session.value["correlations"][envelope["request_id"]] = record
+            session.commit(now)
+        return {"status": "recorded", "replayed": False,
+                "request_id": envelope["request_id"], "dispatch_performed": False}

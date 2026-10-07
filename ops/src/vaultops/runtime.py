@@ -60,6 +60,8 @@ class RuntimeLayout:
             elif directory.stat().st_mode & 0o777 != 0o700:
                 problems.append(f"private tool directory mode must be 0700: {directory}")
         for payload in self.root.rglob("*"):
+            if isinstance(self, StateLayout) and (self.root / "archives") in payload.parents:
+                continue
             if any(payload == directory or directory in payload.parents for directory in private_tools):
                 continue
             if payload.is_file() and payload.stat().st_mode & 0o777 != 0o600:

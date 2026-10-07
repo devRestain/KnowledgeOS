@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "owner_operation_id": "knowledgeos",
+  "methods": [
+    {
+      "method_id": "knowledgeos.capture_normalization_team",
+      "method_version": "1.0.0",
+      "purpose": "Read one admitted Capture before creating a digest-bound Pending normalization proposal",
+      "target_kind": "team",
+      "team_id": "knowledge-curation",
+      "input_kind": "capture_reference",
+      "result_kind": "pending_proposal",
+      "required_stages": [
+        {
+          "stage_id": "capture_evidence",
+          "role_id": "knowledgeos.triage",
+          "tools": [],
+          "effect_class": "read_only"
+        },
+        {
+          "stage_id": "normalization_proposal",
+          "role_id": "knowledgeos.normalizer",
+          "tools": ["proposal_create"],
+          "effect_class": "proposal_only"
+        }
+      ],
+      "required_evidence": ["source_digest", "proposal_digest"],
+      "human_gate": "Pending proposal review and canonical apply remain separate owner decisions",
+      "guidance": "The Manager may add explanatory context but cannot skip or reorder required stages."
+    },
+    {
+      "method_id": "knowledgeos.cited_draft_team",
+      "method_version": "1.0.0",
+      "purpose": "Read one admitted source and submit an agent-authored cited note draft",
+      "target_kind": "team",
+      "team_id": "knowledge-curation",
+      "input_kind": "source_reference",
+      "result_kind": "pending_proposal",
+      "required_stages": [
+        {"stage_id":"source_evidence","role_id":"knowledgeos.source_extractor","tools":["knowledge_read"],"effect_class":"read_only"},
+        {"stage_id":"cited_draft","role_id":"knowledgeos.draft_writer","tools":["proposal_draft_note"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "draft_body", "proposal_digest"],
+      "human_gate": "Human review and separate canonical apply are required",
+      "guidance": "Keep authored draft text separate from the exact source excerpt and digest."
+    },
+    {
+      "method_id": "knowledgeos.cited_research_team",
+      "method_version": "1.0.0",
+      "purpose": "Retrieve admitted evidence and submit one cited noncanonical answer",
+      "target_kind": "team",
+      "team_id": "evidence-research",
+      "input_kind": "question",
+      "result_kind": "cited_answer",
+      "required_stages": [
+        {"stage_id":"retrieve_evidence","role_id":"knowledgeos.retriever","tools":["knowledge_search","knowledge_retrieve","knowledge_read","citation_verify"],"effect_class":"read_only"},
+        {"stage_id":"answer_artifact","role_id":"knowledgeos.synthesizer","tools":["artifact_submit"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["citation_hashes", "artifact_digest"],
+      "human_gate": "A human reviews the cited answer in the Work console",
+      "guidance": "Submit an answer with explicit uncertainty and cited evidence."
+    },
+    {
+      "method_id": "knowledgeos.relation_ontology_team",
+      "method_version": "1.0.0",
+      "purpose": "Read selected links and propose ontology alignment",
+      "target_kind": "team",
+      "team_id": "relation-ontology",
+      "input_kind": "source_reference",
+      "result_kind": "relation_proposal",
+      "required_stages": [
+        {"stage_id":"relation_evidence","role_id":"knowledgeos.relation_analyst","tools":["knowledge_read","link_context"],"effect_class":"read_only"},
+        {"stage_id":"ontology_alignment","role_id":"knowledgeos.ontology_curator","tools":["semantic_registry_read","proposal_link_suggestions","proposal_alignment"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "registry_digest", "proposal_digest"],
+      "human_gate": "Relation truth and alignment require owner review",
+      "guidance": "Unlinked mentions are candidates, not asserted relations."
+    },
+    {
+      "method_id": "knowledgeos.project_review_team",
+      "method_version": "1.0.0",
+      "purpose": "Inspect selected project evidence and prepare a review",
+      "target_kind": "team",
+      "team_id": "project-review",
+      "input_kind": "project_reference",
+      "result_kind": "review_proposal",
+      "required_stages": [
+        {"stage_id":"project_evidence","role_id":"knowledgeos.project_reader","tools":["knowledge_retrieve","base_view_query","task_query"],"effect_class":"read_only"},
+        {"stage_id":"review_proposal","role_id":"knowledgeos.review_writer","tools":["proposal_project_review"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "task_locations", "proposal_digest"],
+      "human_gate": "Project review remains Pending until a human decision",
+      "guidance": "Separate observations, interpretation, and next actions."
+    },
+    {
+      "method_id": "knowledgeos.knowledge_exchange_team",
+      "method_version": "1.0.0",
+      "purpose": "Read accepted Gateway evidence and propose local adaptation",
+      "target_kind": "team",
+      "team_id": "knowledge-exchange",
+      "input_kind": "exchange_reference",
+      "result_kind": "exchange_proposal",
+      "required_stages": [
+        {"stage_id":"gateway_evidence","role_id":"knowledgeos.gateway_reader","tools":["gateway_evidence_read"],"effect_class":"read_only"},
+        {"stage_id":"adaptation","role_id":"knowledgeos.knowledge_adapter","tools":["proposal_adaptation"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["gateway_receipt", "disclosure_scope", "proposal_digest"],
+      "human_gate": "Adaptation requires owner review and separate apply",
+      "guidance": "Only Gateway accepted references may be read."
+    },
+    {
+      "method_id": "knowledgeos.vault_maintenance_team",
+      "method_version": "1.0.0",
+      "purpose": "Diagnose selected Vault evidence and propose recovery only",
+      "target_kind": "team",
+      "team_id": "vault-maintenance",
+      "input_kind": "diagnostic_scope",
+      "result_kind": "diagnostic_report",
+      "required_stages": [
+        {"stage_id":"schema_diagnosis","role_id":"knowledgeos.schema_auditor","tools":["vault_diagnose"],"effect_class":"read_only"},
+        {"stage_id":"recovery_plan","role_id":"knowledgeos.recovery_inspector","tools":["proposal_recovery_plan"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "preimage_digest", "unresolved_effects"],
+      "human_gate": "Actual recovery remains an operator action",
+      "guidance": "A plan must identify the exact preimage and unresolved effects."
+    }
+  ]
+}

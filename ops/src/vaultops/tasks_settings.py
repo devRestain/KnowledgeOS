@@ -154,12 +154,14 @@ def _query_record(
         for line in lines
         if (match := _TAGS_INCLUDE.match(line)) is not None
     )
-    if "#task" not in {tag.lower() for tag in tags}:
+    # The plugin filters the cache by #task, then excludes that global marker
+    # from task.tags. Repeating it in a tag query silently hides every result.
+    if "#task" in {tag.lower() for tag in tags}:
         errors.append(
             _error(
-                "P05_TASK_TAG_MISSING",
+                "P05_GLOBAL_FILTER_QUERY_REDUNDANT",
                 f"{source}#tasks[{ordinal}]",
-                "every canonical Tasks query must retain the #task tag convention",
+                "#task is enforced by globalFilter and must not be repeated in tags include",
             )
         )
     sort_fields = [

@@ -2,8 +2,8 @@
 
 ## Definition and contents
 
-- Use this directory for maintained system and action prompt bodies.
-- Keep prompt inputs connected to declared actions and schemas.
+- Use this directory for the bounded proposal prompts still referenced by owner action inputs.
+- Keep prompt inputs connected to owner methods, action schemas and cited evidence.
 
 ## Ownership
 

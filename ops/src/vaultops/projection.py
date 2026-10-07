@@ -956,24 +956,13 @@ def _runtime_relative_path(relative: str) -> PurePosixPath:
 
 
 def _runtime_path(workspace: ResolvedPaths, relative: str) -> Path:
-    candidate = _runtime_relative_path(relative)
-    runtime = workspace.state if relative.endswith('/current.json') else workspace.runtime
-    if relative.endswith('/current.json'):
-        from .embedding_index import _ensure_private_directory as ensure_private
-        ensure_private(runtime)
-        parent = runtime
-        for component in Path(relative).parts[:-1]:
-            parent /= component
-            ensure_private(parent)
-    if runtime.is_symlink():
-        raise ProjectionConflict(f"runtime root is a symlink: {runtime}")
-    path = runtime.joinpath(*candidate.parts)
-    current = runtime
-    for part in candidate.parts:
-        current = current / part
-        if current.is_symlink():
-            raise ProjectionConflict(f"runtime path traverses a symlink: {relative}")
-    return path
+    from .adapters.storage import runtime_path
+    return runtime_path(workspace, relative)
+
+
+def _state_path(workspace: ResolvedPaths, relative: str) -> Path:
+    from .adapters.storage import state_path
+    return state_path(workspace, relative)
 
 
 def _generation_paths(workspace: ResolvedPaths, generation_id: str) -> tuple[Path, Path, Path, Path]:
@@ -1041,7 +1030,7 @@ def _publish_generation(workspace: ResolvedPaths, build: ProjectionBuild) -> tup
         "source_snapshot_sha256": build.source_snapshot_sha256,
     }
     pointer_bytes = canonical_json_bytes(pointer)
-    pointer_path = _runtime_path(workspace, CURRENT_POINTER)
+    pointer_path = _state_path(workspace, CURRENT_POINTER)
     if pointer_path.is_symlink():
         raise ProjectionConflict("current projection pointer is a symlink")
     if pointer_path.exists() and not pointer_path.is_file():
@@ -1291,7 +1280,7 @@ def read_current_projection(
     operation = "index verify"
     try:
         workspace = _workspace(root)
-        pointer_path = _runtime_path(workspace, CURRENT_POINTER)
+        pointer_path = _state_path(workspace, CURRENT_POINTER)
         pointer = _read_json(pointer_path, "current projection pointer")
         if pointer.get("schema_version") != SCHEMA_VERSION or pointer.get("generator") != GENERATOR_ID:
             raise ProjectionValidationError("current projection pointer identity is invalid")

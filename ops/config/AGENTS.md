@@ -2,13 +2,13 @@
 
 ## Definition and contents
 
-- Use this directory for declared model, scheduler, background, artifact, and traceability configuration.
+- Use this directory for Core selection, owner Team and method catalogs, Vault profile, plugin settings, and generated-artifact ownership.
 - Keep generated-artifact mappings connected to their declared owners.
 
 ## Ownership
 
 - Keep portable policy/configuration with KnowledgeOS.
-- Resolve local endpoints and secrets through private host bindings.
+- Keep execution endpoints and secrets outside static Operation configuration.
 
 ## Use and maintenance
 

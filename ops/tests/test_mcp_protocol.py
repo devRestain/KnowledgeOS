@@ -19,7 +19,7 @@ from vaultops.projection import generate_projection
 SOURCE = "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
 
 
-def test_stdio_four_tools_logical_refs_readonly_review_and_create_replay(tmp_path):
+def test_stdio_v3_tools_logical_refs_readonly_review_and_create_replay(tmp_path):
     roots = make_separate_portable_fixture_roots(tmp_path, review_queues=True)
     source = roots.vault / SOURCE
     doc = parse_frontmatter(source.read_text())
@@ -33,7 +33,10 @@ def test_stdio_four_tools_logical_refs_readonly_review_and_create_replay(tmp_pat
     async def exercise():
         async with Client(params, mode="legacy") as client:
             listing = await client.list_tools()
-            assert [item.name for item in listing.tools] == ["knowledge_search", "knowledge_retrieve", "proposal_inspect", "proposal_create"]
+            names = [item.name for item in listing.tools]
+            assert len(names) == 24 and len(set(names)) == 24
+            assert {"knowledge_read", "base_view_query", "link_context", "task_query",
+                    "work_context_read", "assessment_submit", "proposal_draft_note"} <= set(names)
             with pytest.raises(MCPError):
                 await client.call_tool("proposal_approve", {})
             denied = await client.call_tool("proposal_create", {"source_reference": app.reference(SOURCE), "actor_id": "owner"})
@@ -44,6 +47,14 @@ def test_stdio_four_tools_logical_refs_readonly_review_and_create_replay(tmp_pat
             assert data["data"]["candidates"]
             for item in data["data"]["candidates"]:
                 assert "path" not in item and item["resource_reference"]["owner_operation_id"] == "knowledgeos"
+            evidence = data["data"]["candidates"][0]
+            read = await client.call_tool("knowledge_read", {
+                "resource_reference": evidence["resource_reference"],
+                "chunk_locator": evidence["chunk_locator"],
+            })
+            assert not read.is_error and read.structured_content["data"]["chunk_hash"] == evidence["chunk_hash"]
+            denied_work = await client.call_tool("work_context_read", {})
+            assert denied_work.is_error and denied_work.structured_content["error"]["code"] == "SCOPE_DENIED"
             first = await client.call_tool("proposal_create", {"source_reference": app.reference(SOURCE)})
             assert not first.is_error, first.structured_content
             created = first.structured_content

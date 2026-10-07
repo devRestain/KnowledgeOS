@@ -1,7 +1,7 @@
 {
-  "contract_id": "knowledgeos-vaultmcp-v2",
-  "application_schema_version": 2,
-  "status": "frozen_contract",
+  "contract_id": "knowledgeos-vaultmcp-v3",
+  "application_schema_version": 3,
+  "status": "source_refactor",
   "transport": {
     "kind": "stdio",
     "stdout": "protocol_frames_only",
@@ -79,7 +79,27 @@
     "proposal_create_action": "normalize",
     "operator_approval_or_apply": false,
     "provider_or_index_build": false,
-    "scheduler_or_worker_control": false
+    "scheduler_or_worker_control": false,
+    "knowledge_read": "read_only",
+    "artifact_read": "read_only",
+    "base_view_query": "read_only",
+    "link_context": "read_only",
+    "task_query": "read_only",
+    "work_context_read": "read_only",
+    "method_read": "read_only",
+    "graph_segment_propose": "read_only",
+    "artifact_submit": "read_only",
+    "assessment_submit": "read_only",
+    "proposal_draft_note": "proposal_created",
+    "citation_verify": "read_only",
+    "proposal_link_suggestions": "proposal_created",
+    "semantic_registry_read": "read_only",
+    "proposal_alignment": "proposal_created",
+    "proposal_project_review": "proposal_created",
+    "gateway_evidence_read": "read_only",
+    "proposal_adaptation": "proposal_created",
+    "vault_diagnose": "read_only",
+    "proposal_recovery_plan": "proposal_created"
   },
   "errors": {
     "codes": [
@@ -343,6 +363,2310 @@
           }
         }
       ]
+    },
+    {
+      "name": "knowledge_read",
+      "description": "Read one exact permitted note chunk",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/knowledge_read.input.schema.json",
+        "title": "knowledge_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resource_reference",
+          "chunk_locator"
+        ],
+        "properties": {
+          "resource_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "chunk_locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 262144
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "artifact_read",
+      "description": "Read one exact owner artifact excerpt",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/artifact_read.input.schema.json",
+        "title": "artifact_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_reference"
+        ],
+        "properties": {
+          "artifact_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 262144
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "base_view_query",
+      "description": "Query one registered Base view",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/base_view_query.input.schema.json",
+        "title": "base_view_query input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "base",
+          "view"
+        ],
+        "properties": {
+          "base": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "view": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "filters": {
+            "type": "object",
+            "maxProperties": 4,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "link_context",
+      "description": "Read links backlinks and unlinked mention candidates",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/link_context.input.schema.json",
+        "title": "link_context input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resource_reference"
+        ],
+        "properties": {
+          "resource_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "task_query",
+      "description": "Read bounded Markdown tasks",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/task_query.input.schema.json",
+        "title": "task_query input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "path_prefix": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "work_context_read",
+      "description": "Read the admitted Work context",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/work_context_read.input.schema.json",
+        "title": "work_context_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "method_read",
+      "description": "Read the admitted owner method",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/method_read.input.schema.json",
+        "title": "method_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "graph_segment_propose",
+      "description": "Submit a Manager Graph segment for owner validation",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/graph_segment_propose.input.schema.json",
+        "title": "graph_segment_propose input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bundle",
+          "artifacts"
+        ],
+        "properties": {
+          "bundle": {
+            "type": "object",
+            "maxProperties": 100
+          },
+          "artifacts": {
+            "type": "object",
+            "maxProperties": 100
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "artifact_submit",
+      "description": "Submit a noncanonical Work artifact",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/artifact_submit.input.schema.json",
+        "title": "artifact_submit input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_kind",
+          "content",
+          "idempotency_key"
+        ],
+        "properties": {
+          "artifact_kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "assessment_submit",
+      "description": "Submit an independent assessment",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/assessment_submit.input.schema.json",
+        "title": "assessment_submit input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assessment",
+          "evaluations",
+          "artifacts",
+          "checkpoints",
+          "idempotency_key"
+        ],
+        "properties": {
+          "assessment": {
+            "type": "object",
+            "maxProperties": 100
+          },
+          "evaluations": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            }
+          },
+          "artifacts": {
+            "type": "object",
+            "maxProperties": 100
+          },
+          "checkpoints": {
+            "type": "object",
+            "maxProperties": 100
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "proposal_draft_note",
+      "description": "Create a source-bound draft note proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_draft_note.input.schema.json",
+        "title": "proposal_draft_note input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "target_path",
+          "target_type",
+          "title",
+          "draft_body"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "target_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "target_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "draft_body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "citation_verify",
+      "description": "Verify citation locators and hashes",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/citation_verify.input.schema.json",
+        "title": "citation_verify input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "citations"
+        ],
+        "properties": {
+          "citations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": [
+                "resource_reference",
+                "chunk_locator",
+                "chunk_hash"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "resource_reference": {
+                  "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "additionalProperties": false,
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "availability": {
+                            "const": "available_by_owner_export"
+                          }
+                        },
+                        "required": [
+                          "availability"
+                        ]
+                      },
+                      "then": {
+                        "required": [
+                          "source_revision",
+                          "content_digest"
+                        ]
+                      },
+                      "x-agentfabric-error": "INVALID_PAYLOAD"
+                    }
+                  ],
+                  "description": "Owner-scoped logical identifier; it is not a path or access grant",
+                  "properties": {
+                    "availability": {
+                      "enum": [
+                        "available_by_owner_export",
+                        "unavailable",
+                        "expired",
+                        "revoked",
+                        "unknown"
+                      ],
+                      "maxLength": 25,
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "required",
+                        "semantic_term": "agentfabric.core.evidence_availability"
+                      }
+                    },
+                    "classification": {
+                      "enum": [
+                        "public",
+                        "internal",
+                        "confidential",
+                        "restricted"
+                      ],
+                      "maxLength": 12,
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "required",
+                        "semantic_term": "agentfabric.core.evidence_availability"
+                      }
+                    },
+                    "content_digest": {
+                      "maxLength": 71,
+                      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "optional",
+                        "semantic_term": "agentfabric.core.logical_resource"
+                      }
+                    },
+                    "logical_id": {
+                      "maxLength": 96,
+                      "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "required",
+                        "semantic_term": "agentfabric.core.logical_resource"
+                      }
+                    },
+                    "owner_operation_id": {
+                      "maxLength": 96,
+                      "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "required",
+                        "semantic_term": "agentfabric.core.operation_identity"
+                      }
+                    },
+                    "resource_kind": {
+                      "enum": [
+                        "operation",
+                        "runtime",
+                        "state",
+                        "work",
+                        "artifact",
+                        "secret",
+                        "exchange",
+                        "vault"
+                      ],
+                      "maxLength": 9,
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Core",
+                        "privacy": "internal",
+                        "requiredness": "required",
+                        "semantic_term": "agentfabric.core.logical_resource"
+                      }
+                    },
+                    "source_revision": {
+                      "maxLength": 96,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                      "type": "string",
+                      "x-agentfabric-field": {
+                        "owner": "Operation",
+                        "privacy": "internal",
+                        "requiredness": "optional",
+                        "semantic_term": "agentfabric.core.logical_resource"
+                      }
+                    }
+                  },
+                  "required": [
+                    "availability",
+                    "classification",
+                    "logical_id",
+                    "owner_operation_id",
+                    "resource_kind"
+                  ],
+                  "title": "ResourceReference",
+                  "type": "object",
+                  "x-agentfabric-contract": {
+                    "catalog_id": "agentfabric.core.contract-catalog",
+                    "catalog_version": "0.18.1",
+                    "owner": "Operation",
+                    "release_version": "0.18.1",
+                    "source_of_truth": "contracts/catalog.json",
+                    "unknown_field_policy": "reject"
+                  }
+                },
+                "chunk_locator": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "chunk_hash": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "proposal_link_suggestions",
+      "description": "Create a source-bound link proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_link_suggestions.input.schema.json",
+        "title": "proposal_link_suggestions input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "candidate_references"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "candidate_references": {
+            "type": "array",
+            "items": {
+              "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "availability": {
+                        "const": "available_by_owner_export"
+                      }
+                    },
+                    "required": [
+                      "availability"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "source_revision",
+                      "content_digest"
+                    ]
+                  },
+                  "x-agentfabric-error": "INVALID_PAYLOAD"
+                }
+              ],
+              "description": "Owner-scoped logical identifier; it is not a path or access grant",
+              "properties": {
+                "availability": {
+                  "enum": [
+                    "available_by_owner_export",
+                    "unavailable",
+                    "expired",
+                    "revoked",
+                    "unknown"
+                  ],
+                  "maxLength": 25,
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "required",
+                    "semantic_term": "agentfabric.core.evidence_availability"
+                  }
+                },
+                "classification": {
+                  "enum": [
+                    "public",
+                    "internal",
+                    "confidential",
+                    "restricted"
+                  ],
+                  "maxLength": 12,
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "required",
+                    "semantic_term": "agentfabric.core.evidence_availability"
+                  }
+                },
+                "content_digest": {
+                  "maxLength": 71,
+                  "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "optional",
+                    "semantic_term": "agentfabric.core.logical_resource"
+                  }
+                },
+                "logical_id": {
+                  "maxLength": 96,
+                  "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "required",
+                    "semantic_term": "agentfabric.core.logical_resource"
+                  }
+                },
+                "owner_operation_id": {
+                  "maxLength": 96,
+                  "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "required",
+                    "semantic_term": "agentfabric.core.operation_identity"
+                  }
+                },
+                "resource_kind": {
+                  "enum": [
+                    "operation",
+                    "runtime",
+                    "state",
+                    "work",
+                    "artifact",
+                    "secret",
+                    "exchange",
+                    "vault"
+                  ],
+                  "maxLength": 9,
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Core",
+                    "privacy": "internal",
+                    "requiredness": "required",
+                    "semantic_term": "agentfabric.core.logical_resource"
+                  }
+                },
+                "source_revision": {
+                  "maxLength": 96,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                  "type": "string",
+                  "x-agentfabric-field": {
+                    "owner": "Operation",
+                    "privacy": "internal",
+                    "requiredness": "optional",
+                    "semantic_term": "agentfabric.core.logical_resource"
+                  }
+                }
+              },
+              "required": [
+                "availability",
+                "classification",
+                "logical_id",
+                "owner_operation_id",
+                "resource_kind"
+              ],
+              "title": "ResourceReference",
+              "type": "object",
+              "x-agentfabric-contract": {
+                "catalog_id": "agentfabric.core.contract-catalog",
+                "catalog_version": "0.18.1",
+                "owner": "Operation",
+                "release_version": "0.18.1",
+                "source_of_truth": "contracts/catalog.json",
+                "unknown_field_policy": "reject"
+              }
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "semantic_registry_read",
+      "description": "Read authoritative type or relation definitions",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/semantic_registry_read.input.schema.json",
+        "title": "semantic_registry_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "proposal_alignment",
+      "description": "Create an ontology alignment proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_alignment.input.schema.json",
+        "title": "proposal_alignment input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "content",
+          "idempotency_key"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "proposal_project_review",
+      "description": "Create a project review proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_project_review.input.schema.json",
+        "title": "proposal_project_review input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "content",
+          "idempotency_key"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "gateway_evidence_read",
+      "description": "Read an admitted Gateway receipt",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/gateway_evidence_read.input.schema.json",
+        "title": "gateway_evidence_read input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "receipt_id"
+        ],
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "proposal_adaptation",
+      "description": "Create a bounded KnowledgeOS adaptation proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_adaptation.input.schema.json",
+        "title": "proposal_adaptation input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "content",
+          "idempotency_key"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
+    },
+    {
+      "name": "vault_diagnose",
+      "description": "Diagnose one permitted note",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/vault_diagnose.input.schema.json",
+        "title": "vault_diagnose input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resource_reference"
+        ],
+        "properties": {
+          "resource_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
+    },
+    {
+      "name": "proposal_recovery_plan",
+      "description": "Create a recovery plan proposal",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/proposal_recovery_plan.input.schema.json",
+        "title": "proposal_recovery_plan input",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_reference",
+          "content",
+          "idempotency_key"
+        ],
+        "properties": {
+          "source_reference": {
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "availability": {
+                      "const": "available_by_owner_export"
+                    }
+                  },
+                  "required": [
+                    "availability"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "source_revision",
+                    "content_digest"
+                  ]
+                },
+                "x-agentfabric-error": "INVALID_PAYLOAD"
+              }
+            ],
+            "description": "Owner-scoped logical identifier; it is not a path or access grant",
+            "properties": {
+              "availability": {
+                "enum": [
+                  "available_by_owner_export",
+                  "unavailable",
+                  "expired",
+                  "revoked",
+                  "unknown"
+                ],
+                "maxLength": 25,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "classification": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ],
+                "maxLength": 12,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.evidence_availability"
+                }
+              },
+              "content_digest": {
+                "maxLength": 71,
+                "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "logical_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "owner_operation_id": {
+                "maxLength": 96,
+                "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.operation_identity"
+                }
+              },
+              "resource_kind": {
+                "enum": [
+                  "operation",
+                  "runtime",
+                  "state",
+                  "work",
+                  "artifact",
+                  "secret",
+                  "exchange",
+                  "vault"
+                ],
+                "maxLength": 9,
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Core",
+                  "privacy": "internal",
+                  "requiredness": "required",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              },
+              "source_revision": {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}(?![\\s\\S])",
+                "type": "string",
+                "x-agentfabric-field": {
+                  "owner": "Operation",
+                  "privacy": "internal",
+                  "requiredness": "optional",
+                  "semantic_term": "agentfabric.core.logical_resource"
+                }
+              }
+            },
+            "required": [
+              "availability",
+              "classification",
+              "logical_id",
+              "owner_operation_id",
+              "resource_kind"
+            ],
+            "title": "ResourceReference",
+            "type": "object",
+            "x-agentfabric-contract": {
+              "catalog_id": "agentfabric.core.contract-catalog",
+              "catalog_version": "0.18.1",
+              "owner": "Operation",
+              "release_version": "0.18.1",
+              "source_of_truth": "contracts/catalog.json",
+              "unknown_field_policy": "reject"
+            }
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "proposal_only"
     }
   ],
   "forbidden_tool_names": [
@@ -363,11 +2687,11 @@
     "operation_id": "knowledgeos",
     "fabric_id": "agentfabric",
     "instance_id": "knowledgeos.local",
-    "core_version": "0.16.1",
-    "core_digest": "sha256:c6c2c9b7d48c365bbd1807f6657bbaa1fc1a51d4c984c9189072d421cce29a28",
-    "schema_version_pin": "0.16.1",
-    "semantic_version": "0.6.0",
-    "semantic_digest": "sha256:d219c2ef53abf0462e86b6facb7c4623a6087843649613e15d6dcfd73460cfce",
+    "core_version": "0.18.1",
+    "core_digest": "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676",
+    "schema_version_pin": "0.18.1",
+    "semantic_version": "0.7.0",
+    "semantic_digest": "sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
     "capsule_version": "2.0.0",
     "resource_binding_api": "0.3.0",
     "host_binding_api": "0.3.0"

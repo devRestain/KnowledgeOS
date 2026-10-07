@@ -1,9 +1,9 @@
-# KnowledgeOS Adapters
+# KnowledgeOS 어댑터
 
-이 패키지는 trusted root binding, 정적 Core 입력, owner persistence와 filesystem effect를 구현한다. `paths.py`는 config v3의 다섯 roots를 독립적으로 해석하고, `core.py`는 frozen release와 semantic digest를 확인한다. `owner_journal.py`는 State의 기록·writer 조정·generation fence를, `artifacts.py`는 admitted Pending artifact 생성을 맡는다.
+이 패키지는 Core 계약 확인, 독립 root 해석, owner State 저널, 정본 파일 효과와 제한된 Gateway 전송을 담당합니다. [Core 선택](../../../config/core-adoption.json)은 버전과 digest를 고정하고, `paths.py`는 Core·control·KnowledgeHub·State·Runtime을 별도로 바인딩합니다.
 
-물리 경로는 private startup 설정에서만 정한다. public ResourceReference는 owner·kind·논리 ID·revision·digest로 자원을 가리킨다. 이전 config나 호환되지 않는 State를 자동 변환하지 않는다.
+`owner_journal.py`는 intent, receipt, 재호출과 불확실한 효과의 조정을 맡습니다. 정본 변경은 정확한 preimage와 owner 결정을 확인한 뒤 별도 적용 단계에서 수행합니다. 일반 MCP 호출의 도구 노출이나 반환된 제안은 적용 권한이 아닙니다.
 
-writer는 정확한 이전 bytes 비교, atomic replacement와 fsync를 사용한다. State의 의도·승인·receipt·unresolved 기록과 Runtime의 재구성 가능한 index·cache·log를 분리한다. 실제 State 이동은 별도 C12 범위다.
+`storage.py`, `legacy_archive.py`, `core_cutover.py`는 정확한 State 전환을 위한 유지보수 코드입니다. 개발 단계 archive를 지우려면 현재 journal·transition·pointer·복구 참조를 먼저 제거할 수 있는 계약과 격리 fixture를 검증해야 합니다. 현재 소스 개정은 private State payload를 변경하지 않습니다.
 
-adapter 변경은 프로젝트 이미지의 hermetic Make 검증으로 확인한다. 실제 host binding, 데이터 전환이나 외부 연결은 `planning/c12-preparation/C12_HANDOFF.md`에서 정확한 대상과 효과를 선택한 뒤 진행한다.
+`interops_socket.py`는 owner가 수락한 로컬 Gateway 프레임만 전달합니다. 외부 Operation의 Vault나 State를 직접 읽지 않습니다. 네이티브 Runner 및 외부 Gateway 연결은 별도 채택 증거가 필요합니다.

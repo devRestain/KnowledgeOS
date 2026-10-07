@@ -22,11 +22,6 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .blueprint import validate_blueprint
-from .frozen_evidence import (
-    FrozenEvidenceError,
-    runtime_source_bindings,
-    validate_runtime_proposal_sources,
-)
 from .note_engine import (
     FrontmatterError,
     NoteContractError,
@@ -385,28 +380,6 @@ def _parse_sources(workspace: ResolvedPaths, document: ProposalDocument) -> tupl
     values = document.typed.properties.get("source_hashes")
     if not isinstance(values, list) or not values:
         return _problem("proposal", "PROPOSAL_SOURCES_INVALID", "source_hashes must be a non-empty list")
-    if runtime_source_bindings(values):
-        manifest = _manifest(document)
-        if isinstance(manifest, tuple):
-            return manifest
-        frozen = manifest.get("frozen_evidence")
-        candidate_id = frozen.get("candidate_id") if isinstance(frozen, Mapping) else None
-        if not isinstance(candidate_id, str):
-            return _problem(
-                "proposal",
-                "PROPOSAL_RUNTIME_BINDING_INVALID",
-                "runtime source bindings require a frozen_evidence candidate_id",
-            )
-        try:
-            sources, _evidence = validate_runtime_proposal_sources(
-                workspace,
-                source_bindings=values,
-                candidate_id=candidate_id,
-                manifest=manifest,
-            )
-        except FrozenEvidenceError as error:
-            return _problem("proposal", error.code, str(error))
-        return sources
     if any(
         isinstance(item, str) and item.startswith("state/")
         for item in values
@@ -414,7 +387,7 @@ def _parse_sources(workspace: ResolvedPaths, document: ProposalDocument) -> tupl
         return _problem(
             "proposal",
             "PROPOSAL_SOURCE_BINDING_INVALID",
-            "Vault source bindings and frozen runtime bindings cannot be mixed",
+            "proposal sources must be Vault note bindings",
         )
     vault = _vault(workspace)
     result: list[dict[str, str]] = []

@@ -22,7 +22,11 @@ from mcp.server.stdio import stdio_server
 from mcp.shared.exceptions import MCPError
 from referencing import Registry, Resource
 
+from ..adapters.core import AdmissionError
 from ..application.knowledge import KnowledgeApplication, LocalIdentity
+from ..application.mcp_effects import submit_pending
+from ..application.read_tools import KnowledgeReadTools
+from ..application.work_tools import EvalToolSession, OfficerToolSession, TeamToolSession
 from ..paths import ResolvedPaths, RootResolutionError, resolve_paths
 
 KnowledgeServices = KnowledgeApplication
@@ -32,6 +36,26 @@ _TOOL_NAMES = (
     "knowledge_retrieve",
     "proposal_inspect",
     "proposal_create",
+    "knowledge_read",
+    "artifact_read",
+    "base_view_query",
+    "link_context",
+    "task_query",
+    "work_context_read",
+    "method_read",
+    "graph_segment_propose",
+    "artifact_submit",
+    "assessment_submit",
+    "proposal_draft_note",
+    "citation_verify",
+    "proposal_link_suggestions",
+    "semantic_registry_read",
+    "proposal_alignment",
+    "proposal_project_review",
+    "gateway_evidence_read",
+    "proposal_adaptation",
+    "vault_diagnose",
+    "proposal_recovery_plan",
 )
 _TOOL_DESCRIPTIONS = {
     "knowledge_search": "Search the configured KnowledgeHub using bounded read-only filters.",
@@ -44,7 +68,15 @@ _OUTPUT_BRANCHES = {
     "knowledge_retrieve": "retrieve",
     "proposal_inspect": "inspect",
     "proposal_create": "create",
+    **{name: "extended" for name in _TOOL_NAMES[4:]},
 }
+_WORK_ONLY = frozenset({"work_context_read", "method_read", "graph_segment_propose",
+                        "artifact_submit", "assessment_submit"})
+_PROPOSAL_WRITES = frozenset({"proposal_create", "proposal_draft_note",
+                              "proposal_link_suggestions", "proposal_alignment",
+                              "proposal_project_review", "proposal_adaptation",
+                              "proposal_recovery_plan", "graph_segment_propose",
+                              "artifact_submit", "assessment_submit"})
 _ALLOWED_TYPES = frozenset(
     {"knowledge", "source", "project", "project_note", "artifact", "idea", "question"}
 )
@@ -61,13 +93,15 @@ class ServerContext:
     input_validators: Mapping[str, Draft202012Validator]
     result_validator: Draft202012Validator
     limits: Mapping[str, int]
+    session: TeamToolSession | OfficerToolSession | EvalToolSession | None = None
 
 
 def _schema_root() -> Path:
     return Path(__file__).resolve().parents[3] / "schemas" / "mcp"
 
 
-def _load_context(control_root: Path) -> ServerContext:
+def _load_context(control_root: Path, *, work_run_id: str | None = None,
+                  executor_id: str | None = None, graph_run_id: str | None = None) -> ServerContext:
     if not control_root.is_absolute():
         raise ValueError("control root must be absolute")
     roots = resolve_paths(control_root, environment={})
@@ -93,9 +127,9 @@ def _load_context(control_root: Path) -> ServerContext:
     result_schema_path = schema_root / "tool_result.schema.json"
     result_schema = json.loads(result_schema_path.read_text(encoding="utf-8"))
     for definition in definitions:
-        input_schema = json.loads(
-            (schema_root / definition["input_schema"]).read_text(encoding="utf-8")
-        )
+        input_schema = (json.loads((schema_root / definition["input_schema"]).read_text(encoding="utf-8"))
+                        if isinstance(definition["input_schema"], str) else definition["input_schema"])
+        Draft202012Validator.check_schema(input_schema)
         input_validators[definition["name"]] = Draft202012Validator(input_schema)
         output_schema = _inline_schema(
             result_schema["$defs"][_OUTPUT_BRANCHES[definition["name"]]],
@@ -108,14 +142,34 @@ def _load_context(control_root: Path) -> ServerContext:
         tools.append(
             types.Tool(
                 name=definition["name"],
-                description=_TOOL_DESCRIPTIONS[definition["name"]],
+                description=definition.get("description", _TOOL_DESCRIPTIONS.get(definition["name"], definition["name"])),
                 inputSchema=input_schema,
                 outputSchema=output_schema,
             )
         )
+    services = KnowledgeApplication.from_roots(
+        roots, identity=LocalIdentity("local.mcp", "mcp", local_execution=work_run_id is not None))
+    if (work_run_id is None) != (executor_id is None):
+        raise ValueError("Work and executor startup identities must be supplied together")
+    session: TeamToolSession | OfficerToolSession | EvalToolSession | None = None
+    if work_run_id is not None and executor_id is not None:
+        record = services.journal.read()["intents"].get("exops.work." + work_run_id)
+        if not isinstance(record, dict):
+            raise ValueError("Owner WorkRun startup binding is unavailable")
+        if executor_id == record["spec"]["eval_officer_executor_id"]:
+            if graph_run_id is not None:
+                raise ValueError("EvalOfficer startup cannot select a GraphRun")
+            session = EvalToolSession(services, work_run_id, executor_id)
+        elif record["spec"]["target_kind"] == "officer":
+            if graph_run_id is None:
+                raise ValueError("Officer startup requires an active GraphRun")
+            session = OfficerToolSession(services, work_run_id, executor_id, graph_run_id)
+        else:
+            session = TeamToolSession(services, work_run_id, executor_id, graph_run_id)
+        session.tools()
     return ServerContext(
         roots=roots,
-        services=KnowledgeApplication.from_roots(roots, identity=LocalIdentity("local.mcp", "mcp")),
+        services=services,
         tools=tuple(tools),
         input_validators=input_validators,
         result_validator=Draft202012Validator(
@@ -123,6 +177,7 @@ def _load_context(control_root: Path) -> ServerContext:
             registry=registry,
         ),
         limits=manifest["limits"],
+        session=session,
     )
 
 
@@ -186,9 +241,20 @@ def _create_server(context: ServerContext) -> Server[ServerContext]:
         input_error = _validate_input(context, params.name, arguments)
         if input_error is not None:
             return _mcp_result(context, input_error, is_error=True)
+        if context.session is None and params.name in _WORK_ONLY:
+            return _mcp_result(context, _error_envelope(
+                params.name, "SCOPE_DENIED", "An admitted Work binding is required.",
+                status="denied", effect="none"), is_error=True)
+        if context.session is not None:
+            try:
+                context.session.authorize(params.name, arguments)
+            except AdmissionError:
+                return _mcp_result(context, _error_envelope(
+                    params.name, "SCOPE_DENIED", "Owner scope denied this call.",
+                    status="denied", effect="none"), is_error=True)
 
-        operation = _operation(context.services, params.name, arguments)
-        is_proposal_write = params.name == "proposal_create"
+        operation = _operation(context.services, params.name, arguments, session=context.session)
+        is_proposal_write = params.name in _PROPOSAL_WRITES
         try:
             report = await _run_bounded(
                 operation,
@@ -373,36 +439,120 @@ def _operation(
     services: KnowledgeServices,
     name: str,
     arguments: dict[str, Any],
+    *,
+    session: TeamToolSession | OfficerToolSession | EvalToolSession | None = None,
 ) -> Callable[[], tuple[dict[str, Any], int]]:
+    work_source_path = None
+    if isinstance(session, (TeamToolSession, OfficerToolSession)) and session.graph_run_id is not None:
+        work_source_path = services.resolve_reference(session.admitted_source())
     if name == "knowledge_search":
         return lambda: services.search(
             arguments["query"],
-            scope=arguments.get("scope"),
-            path_prefix=arguments.get("path_prefix"),
+            scope=arguments.get("scope") if work_source_path is None else None,
+            path_prefix=work_source_path or arguments.get("path_prefix"),
             include_types=arguments.get("include_types"),
             include_review=False,
             limit=min(arguments.get("limit", 10) + 1, 21),
             hops=0,
             expected_generation_id=arguments.get("expected_generation_id"),
             use_vector=False,
+            mcp_allowed_path=work_source_path,
         )
     if name == "knowledge_retrieve":
         return lambda: services.retrieve(
             arguments["query"],
-            scope=arguments.get("scope"),
-            path_prefix=arguments.get("path_prefix"),
+            scope=arguments.get("scope") if work_source_path is None else None,
+            path_prefix=work_source_path or arguments.get("path_prefix"),
             include_types=arguments.get("include_types"),
             include_review=False,
             limit=min(arguments.get("limit", 10) + 1, 21),
             hops=arguments.get("hops", 1),
             expected_generation_id=arguments.get("expected_generation_id"),
             use_vector=False,
+            mcp_allowed_path=work_source_path,
         )
     if name == "proposal_inspect":
         return lambda: services.inspect_proposal(arguments["proposal_reference"])
-    return lambda: services.create_normalize_proposal(
-        source_reference=arguments["source_reference"],
-    )
+    if name == "proposal_create":
+        if isinstance(session, OfficerToolSession):
+            return lambda: session.create_proposal(arguments)
+        if isinstance(session, TeamToolSession):
+            return lambda: services.create_normalize_proposal(
+                source_reference=arguments["source_reference"],
+                work_binding=session.proposal_binding(arguments["source_reference"]))
+        return lambda: services.create_normalize_proposal(
+            source_reference=arguments["source_reference"],
+        )
+
+    def run_extended() -> tuple[dict[str, Any], int]:
+        reader = KnowledgeReadTools(services, allowed_path=work_source_path)
+        try:
+            if name == "knowledge_read":
+                data = reader.knowledge_read(arguments["resource_reference"], arguments["chunk_locator"],
+                                             offset=arguments.get("offset", 0),
+                                             max_chars=arguments.get("max_chars", 4096))
+            elif name == "artifact_read":
+                data = reader.artifact_read(arguments["artifact_reference"],
+                                            offset=arguments.get("offset", 0),
+                                            max_chars=arguments.get("max_chars", 4096))
+            elif name == "base_view_query":
+                data = reader.base_view_query(arguments["base"], arguments["view"],
+                                              filters=arguments.get("filters"),
+                                              limit=arguments.get("limit", 20))
+            elif name == "link_context":
+                data = reader.link_context(arguments["resource_reference"],
+                                           limit=arguments.get("limit", 20))
+            elif name == "task_query":
+                data = reader.task_query(path_prefix=arguments.get("path_prefix"),
+                                         limit=arguments.get("limit", 20))
+            elif name == "citation_verify":
+                data = reader.citation_verify(arguments["citations"])
+            elif name == "semantic_registry_read":
+                data = reader.semantic_registry_read(category=arguments["category"])
+            elif name == "gateway_evidence_read":
+                data = reader.gateway_evidence_read(arguments["receipt_id"])
+            elif name == "vault_diagnose":
+                data = reader.vault_diagnose(arguments["resource_reference"])
+            elif name == "method_read" and isinstance(session, TeamToolSession):
+                data = session.method_view()
+            elif name == "work_context_read" and session is not None:
+                data = session.work_view()
+            elif name == "graph_segment_propose" and isinstance(session, TeamToolSession):
+                return session.propose_graph(arguments)
+            elif name == "assessment_submit" and isinstance(session, EvalToolSession):
+                return session.submit_assessment(arguments)
+            elif name == "proposal_draft_note":
+                work_binding = None
+                if isinstance(session, TeamToolSession):
+                    work_binding = session.proposal_binding(arguments["source_reference"])
+                report, code = services.create_normalize_proposal(
+                    source_reference=arguments["source_reference"], action="draft_note",
+                    target_path=arguments["target_path"], target_type=arguments["target_type"],
+                    title=arguments["title"], draft_body=arguments["draft_body"],
+                    work_binding=work_binding)
+                if code != 0:
+                    return report, code
+                data = {"proposal_id": report["proposal"]["proposal_id"],
+                        "proposal_reference": report["resource_reference"],
+                        "source_reference": report["source_reference"],
+                        "replayed": bool(report.get("replayed")), "apply_allowed": True}
+                return {"status": report["status"], "data": data,
+                        "execution_outcome": report.get("execution_outcome", "completed"),
+                        "acceptance_state": report.get("acceptance_state", "not_evaluated")}, 0
+            elif name in {"proposal_link_suggestions", "proposal_alignment",
+                          "proposal_project_review", "proposal_adaptation",
+                          "proposal_recovery_plan", "artifact_submit"}:
+                return submit_pending(services, name, arguments, session=session)
+            else:
+                raise AdmissionError("ACTION_DENIED", "Owner has no admitted handler for this tool")
+            return {"status": "PASS", "data": data, "execution_outcome": "completed",
+                    "acceptance_state": "not_evaluated"}, 0
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            return {"status": "FAIL", "errors": [{"code": getattr(error, "code", "INVALID_ARGUMENT"),
+                                                    "message": "Owner rejected the selected evidence or effect."}],
+                    "execution_outcome": "not_started"}, 10
+
+    return run_extended
 
 
 def _error_envelope(
@@ -415,7 +565,7 @@ def _error_envelope(
     retryable: bool = False,
 ) -> dict[str, Any]:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "request_id": uuid.uuid4().hex,
         "operation": name,
         "status": status,
@@ -431,7 +581,7 @@ def _error_envelope(
 
 def _success_envelope(name: str, data: dict[str, Any], *, status: str, effect: str, report: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "request_id": uuid.uuid4().hex,
         "operation": name,
         "status": status,
@@ -508,6 +658,17 @@ def _convert_report(
             report,
             create_effect_uncertain=report.get("execution_outcome") == "unknown",
         ), True
+    if name not in {"knowledge_search", "knowledge_retrieve", "proposal_inspect", "proposal_create"}:
+        data = report.get("data")
+        if not isinstance(data, dict):
+            return _error_envelope(name, "INTERNAL_ERROR", "Owner returned an invalid result.",
+                                   status="error", effect="none"), True
+        is_write = name in _PROPOSAL_WRITES
+        replayed = report["status"] == "NO_OP" or bool(data.get("replayed"))
+        return _success_envelope(name, data,
+                                 status="replayed" if replayed else "created" if is_write else "ok",
+                                 effect=("proposal_replayed" if replayed else "proposal_created") if is_write else "read_only",
+                                 report=report), False
     if name in {"knowledge_search", "knowledge_retrieve"}:
         candidates = report.get("candidates")
         if not isinstance(candidates, list):
@@ -520,19 +681,22 @@ def _convert_report(
             ), True
         requested_limit = arguments.get("limit", 10)
         truncated = len(candidates) > requested_limit
-        bounded = [
-            {
-                key: candidate[key]
-                for key in (
-                    "note_id",
-                    "resource_reference",
-                    "chunk_id",
-                    "chunk_hash",
-                    "chunk_locator",
-                )
-            }
-            for candidate in candidates[:requested_limit]
-        ]
+        bounded = []
+        reader = KnowledgeReadTools(context.services)
+        try:
+            for candidate in candidates[:requested_limit]:
+                excerpt = reader.knowledge_read(candidate["resource_reference"],
+                                                candidate["chunk_locator"], max_chars=300)
+                if excerpt["chunk_hash"] != candidate["chunk_hash"]:
+                    raise AdmissionError("RESOURCE_STALE", "Cited chunk changed")
+                bounded.append({
+                    **{key: candidate[key] for key in (
+                        "note_id", "resource_reference", "chunk_id", "chunk_hash", "chunk_locator")},
+                    "excerpt": excerpt["text"], "excerpt_sha256": excerpt["excerpt_sha256"],
+                })
+        except (ValueError, OSError, KeyError):
+            return _error_envelope(name, "CONFLICT", "Current evidence changed during read.",
+                                   status="conflict", effect="none"), True
         data = {
             "query_sha256": report["query_sha256"],
             "policy_decision_sha256": report["policy_decision_sha256"],
@@ -667,13 +831,17 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="trusted KnowledgeOS control root selected by the operator",
     )
+    parser.add_argument("--work-run-id", help="owner launcher-selected WorkRun")
+    parser.add_argument("--executor-id", help="owner launcher-selected executor")
+    parser.add_argument("--graph-run-id", help="owner launcher-selected active GraphRun")
     return parser
 
 
 def main() -> int:
     args = _parser().parse_args()
     try:
-        context = _load_context(args.control_root)
+        context = _load_context(args.control_root, work_run_id=args.work_run_id,
+                                executor_id=args.executor_id, graph_run_id=args.graph_run_id)
         asyncio.run(_serve(context))
     except (OSError, RootResolutionError, ValueError) as error:
         del error

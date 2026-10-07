@@ -10,14 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from .blueprint import validate_blueprint
-from .bridge_contract import (
+from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
+from .vault_identity import (
     BRANCH_PATTERN,
     canonical_json_bytes,
     canonicalize_github_remote,
     remote_identity_sha256,
     validate_root_sentinel,
 )
-from .paths import ResolvedPaths, RootResolutionError, resolve_api_paths
 from .yaml_safe import load_yaml_file
 
 SENTINEL_RELATIVE_PATH = ".knowledgeos-root.json"
@@ -108,7 +108,7 @@ def configure(
         blueprint = load_yaml_file(workspace / "blueprint/blueprint.yaml")
         if not isinstance(blueprint, dict):
             return _failure(mode, [_issue("CONFIGURE_BLUEPRINT_INVALID", "Blueprint root must be an object")])
-        contract = blueprint["mobile_install_gate"]["root_sentinel_contract"]
+        contract = blueprint["vault_identity"]
         expected_name = str(contract["canonical_vault_name"])
         remote = _prompt(remote, "notes repository remote URL") if interactive else remote
         branch = _prompt(branch, "expected branch") if interactive else branch

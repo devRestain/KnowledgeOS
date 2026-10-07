@@ -17,8 +17,7 @@ from vaultops.projection import (
     generate_projection,
     load_current_projection,
 )
-from vaultops.retrieval import RetrievalConflict, _load_contract, revalidate_candidates
-from vaultops.vector import vector_retrieve
+from vaultops.retrieval import RetrievalConflict, _load_contract, retrieve, revalidate_candidates
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
@@ -92,12 +91,12 @@ def test_c26_citation_binds_frontmatter_chunk_and_displayed_excerpt(tmp_path: Pa
     assert citation["chunk_id"].startswith(f"{note['id']}:")
 
 
-def test_c26_rrf_keeps_channel_chunks_and_rejects_channel_or_generation_drift(tmp_path: Path) -> None:
+def test_c26_lexical_candidate_rejects_chunk_or_generation_drift(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _write_frontmatter_fixture(root)
     _build(root)
 
-    report, code = vector_retrieve(
+    report, code = retrieve(
         root,
         "c26 frontmatter marker",
         include_types=["knowledge"],
@@ -108,13 +107,9 @@ def test_c26_rrf_keeps_channel_chunks_and_rejects_channel_or_generation_drift(tm
     assert code == EXIT_OK, report
     candidate = report["candidates"][0]
     lexical = candidate["lexical_score_and_rank"]
-    vector = candidate["vector_score_and_rank"]
     assert lexical["provenance"]["note_id"] == candidate["note_id"]
-    assert vector["provenance"]["note_id"] == candidate["note_id"]
     assert lexical["provenance"]["index_generation_id"] == "c26-fixture"
-    assert vector["provenance"]["index_generation_id"] == "c26-fixture"
     assert lexical["provenance"]["chunk_id"]
-    assert vector["provenance"]["chunk_id"]
 
     projection = load_current_projection(root)
     _, policy, _ = _load_contract(root)
@@ -128,7 +123,7 @@ def test_c26_rrf_keeps_channel_chunks_and_rejects_channel_or_generation_drift(tm
     )
 
     channel_drift = copy.deepcopy(candidate)
-    channel_drift["vector_score_and_rank"]["provenance"]["chunk_locator"] = "#not-the-selected-chunk"
+    channel_drift["lexical_score_and_rank"]["provenance"]["chunk_locator"] = "#not-the-selected-chunk"
     with pytest.raises(RetrievalConflict):
         revalidate_candidates(
             projection,

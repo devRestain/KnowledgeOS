@@ -45,6 +45,7 @@ from .projection import (
     _runtime_path,
     _sha256_bytes,
     _sha256_schema,
+    _state_path,
     build_projection,
     canonical_json_bytes,
 )
@@ -598,7 +599,7 @@ def _publish_generation(workspace: ResolvedPaths, build: AIProjectionBuild) -> b
         "source_snapshot_sha256": build.source_snapshot_sha256,
     }
     pointer_bytes = canonical_json_bytes(pointer)
-    pointer_path = _runtime_path(workspace, _current_pointer_path(build.profile))
+    pointer_path = _state_path(workspace, _current_pointer_path(build.profile))
     if pointer_path.is_symlink() or (pointer_path.exists() and not pointer_path.is_file()):
         raise AIProjectionConflict("AI projection current pointer is not a regular file")
     if pointer_path.is_file() and stat.S_IMODE(pointer_path.stat().st_mode) != 0o600:
@@ -790,7 +791,7 @@ def read_current_ai_projection(
     try:
         workspace = _workspace(root)
         normalized = _normalize_profile(profile)
-        pointer_path = _runtime_path(workspace, _current_pointer_path(normalized))
+        pointer_path = _state_path(workspace, _current_pointer_path(normalized))
         pointer = _read_json(pointer_path, "AI projection current pointer")
         if (
             pointer.get("schema_version") != SCHEMA_VERSION

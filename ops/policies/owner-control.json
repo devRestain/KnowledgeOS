@@ -1,8 +1,36 @@
 {
   "schema_version": 1,
   "operation_id": "knowledgeos",
-  "operator_actions": ["search", "retrieve", "inspect", "propose", "approve", "reject", "apply", "recover", "legacy"],
-  "mcp_actions": ["search", "retrieve", "inspect", "propose"],
-  "gateway_actions": ["read", "export", "submit"],
+  "operator_actions": [
+    "apply",
+    "approve",
+    "configure",
+    "index",
+    "inspect",
+    "propose",
+    "recover",
+    "reject",
+    "repair",
+    "retrieve",
+    "search",
+    "storage"
+  ],
+  "mcp_actions": [
+    "search",
+    "retrieve",
+    "inspect",
+    "propose"
+  ],
+  "mcp_document_policy": {
+    "ask": "allow_configured_local_mcp",
+    "deny": "exclude",
+    "confidential": "exclude",
+    "local_only": "trusted_local_execution_only"
+  },
+  "gateway_actions": [
+    "read",
+    "export",
+    "submit"
+  ],
   "external_transport": "unconfigured"
 }

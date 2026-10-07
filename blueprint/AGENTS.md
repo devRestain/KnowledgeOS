@@ -17,7 +17,7 @@
 - Resolve design conflicts in root Blueprint Markdown, YAML, then Whitepaper order.
 - Validate schema before semantic rules and stop on structural failure.
 - Update checksums only for intentional source changes.
-- Keep path, type, template, action, command, bridge, projection, and transaction keys exact.
+- Keep path, type, template, relation, Base, maintenance command, projection, owner policy, and MCP references exact.
 
 ## Verification
 
@@ -31,4 +31,4 @@
 
 - Report changed contract keys, schema effects, checksum updates, and generated outputs.
 - Record unresolved contract ambiguity in `PROJECT_STATE.md` as a blocker or pending decision.
-- Preserve the root Blueprint precedence and do not promote future phases as implemented.
+- Preserve the root Blueprint precedence and keep current source contracts separate from unrun native adoption.

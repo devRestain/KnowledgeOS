@@ -85,15 +85,11 @@ def dashboard_sources() -> dict[str, str]:
             ---
             # Home
 
-            > [!info] KnowledgeOS 계약
-            > [[99_System/Guides/KnowledgeOS|조회·제안·승인 사용 경계]]를 확인한다. Review의 문서 status는 실행 완료나 human approval의 근거를 대신하지 않는다.
-
             > [!ko-home-grid]
             > > [!ko-home-tasks] Task
             > > ```tasks
             > > not done
             > > due before tomorrow
-            > > tags include #task
             > > description regex matches /\S/
             > > sort by due
             > > sort by priority
@@ -108,7 +104,7 @@ def dashboard_sources() -> dict[str, str]:
             >
             > > [!ko-home-inbox] Inbox
             > > ![[99_System/Bases/Inbox.base#Unprocessed]]
-            > >
+            >
             > > [!ko-home-ai-review] AI 검토 대기·충돌
             > > ![[99_System/Bases/Review.base#PendingOrConflict]]
             >
@@ -152,9 +148,6 @@ def dashboard_sources() -> dict[str, str]:
             ai_status: idle
             ---
             # Mobile
-
-            > [!info] 조회 화면
-            > 이 화면은 현재 기기에 있는 문서의 조회 화면이다. 동기화, mobile shortcut과 원격 실행은 구성되지 않았다. 최신 실행·수락·승인은 KnowledgeOS owner status에서 확인한다.
 
             ## 빠른 입력
 
@@ -215,7 +208,6 @@ def dashboard_sources() -> dict[str, str]:
             ```tasks
             not done
             due before today
-            tags include #task
             limit 100
             sort by due
             ```
@@ -227,7 +219,6 @@ def dashboard_sources() -> dict[str, str]:
             ```tasks
             not done
             due today
-            tags include #task
             limit 100
             sort by priority
             ```
@@ -238,7 +229,6 @@ def dashboard_sources() -> dict[str, str]:
 
             ```tasks
             not done
-            tags include #task
             tags include #waiting
             limit 100
             ```
@@ -306,7 +296,6 @@ def dashboard_sources() -> dict[str, str]:
 
             ```tasks
             not done
-            tags include #task
             sort by due
             ```
 

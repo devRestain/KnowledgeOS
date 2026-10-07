@@ -6,6 +6,7 @@ import json
 
 import pytest
 from support.control_factory import make_control_root
+from support.vault_example import EXAMPLE_PATH, example_source
 
 from vaultops.application.knowledge import KnowledgeApplication
 from vaultops.bootstrap import _directory_targets
@@ -15,8 +16,6 @@ from vaultops.paths import resolve_paths
 from vaultops.projection import generate_projection
 from vaultops.vault_projection import (
     CONTRACT_PATH,
-    EXAMPLE_PATH,
-    RETIRED_FIXTURES,
     expected_projection,
 )
 from vaultops.vault_readiness import check_vault_readiness
@@ -28,7 +27,7 @@ def snapshot(root):
     return {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file() and not path.is_symlink()}
 
 
-def fixture(tmp_path):
+def fixture(tmp_path, *, seeded=False):
     control = make_control_root(tmp_path, INPUTS)
     roots = resolve_paths(control)
     for relative, payload in expected_projection(control).items():
@@ -41,6 +40,8 @@ def fixture(tmp_path):
         if not relative.startswith("99_System/"):
             (directory / ".knowledgeos-directory").write_bytes(b"")
     (roots.vault / ".knowledgeos-root.json").write_text(json.dumps({"schema_version": 1, "contract_id": "knowledgeos-vault-root-v1", "canonical_vault_name": "KnowledgeHub", "vault_uuid": "411602c1-5278-4a8b-8b96-9183fb6ef8c2", "expected_branch": "main", "remote_identity_sha256": "a" * 64}))
+    if seeded:
+        (roots.vault / EXAMPLE_PATH).write_text(example_source())
     return roots
 
 
@@ -49,13 +50,37 @@ def test_generated_vault_readiness_and_cli_are_read_only(tmp_path, capsys):
     before = tuple(snapshot(root) for root in (roots.control, roots.vault, roots.state, roots.runtime))
     result = check_vault_readiness(roots)
     assert result.passed, result.report
-    assert result.report["typed_notes"] == 7
+    assert result.report["typed_notes"] == 6
+    assert not (roots.vault / EXAMPLE_PATH).exists()
     assert result.report["static_links"] > 20
     assert result.report["core_manifest"]["graph_profile"] == "graphless"
     assert result.report["operational_adoption"] == "not_run"
-    assert main(["vault-artifacts", "check", "--scope", "readiness", "--root", str(roots.control)]) == 0
+    assert main(["vault-artifacts", "check", "--root", str(roots.control)]) == 0
     assert json.loads(capsys.readouterr().out)["mode"] == "read_only"
     assert tuple(snapshot(root) for root in (roots.control, roots.vault, roots.state, roots.runtime)) == before
+
+
+def test_native_profile_json_reserialization_preserves_meaning_and_effect_guards(tmp_path):
+    roots = fixture(tmp_path)
+    for relative in expected_projection(roots.control):
+        if relative.startswith((".obsidian-mac/", ".obsidian/")) and relative.endswith(".json"):
+            path = roots.vault / relative
+            path.write_text(json.dumps(json.loads(path.read_bytes()), ensure_ascii=False))
+    before = snapshot(roots.vault)
+    assert check_vault_readiness(roots).passed
+    assert snapshot(roots.vault) == before
+    default_profile = roots.vault / ".obsidian/core-plugins.json"
+    settings = json.loads(default_profile.read_bytes())
+    settings["editor-status"] = True
+    default_profile.write_text(json.dumps(settings))
+    assert check_vault_readiness(roots).passed
+    path = roots.vault / ".obsidian-mac/plugins/obsidian-git/data.json"
+    settings = json.loads(path.read_bytes())
+    settings["autoPullOnBoot"] = True
+    path.write_text(json.dumps(settings))
+    result = check_vault_readiness(roots)
+    assert not result.passed
+    assert "VAULT_PROFILE_EFFECT_ENABLED" in {error["code"] for error in result.report["errors"]}
 
 
 @pytest.mark.parametrize("field,value", [("authority", "operator"), ("purpose", "owner_journal")])
@@ -72,9 +97,9 @@ def test_vault_contract_cannot_grant_control_authority(tmp_path, field, value):
     assert snapshot(roots.state) == before
 
 
-@pytest.mark.parametrize("change", ["pin", "link", "marker", "retired", "symlink", "malformed", "duplicate"])
-def test_pin_link_marker_retired_fixture_and_symlink_drift_is_refused(tmp_path, change):
-    roots = fixture(tmp_path)
+@pytest.mark.parametrize("change", ["pin", "link", "marker", "symlink", "malformed", "duplicate"])
+def test_pin_link_marker_and_symlink_drift_is_refused(tmp_path, change):
+    roots = fixture(tmp_path, seeded=change in {"link", "duplicate"})
     if change == "pin":
         path = roots.vault / CONTRACT_PATH
         document = json.loads(path.read_bytes())
@@ -85,10 +110,6 @@ def test_pin_link_marker_retired_fixture_and_symlink_drift_is_refused(tmp_path, 
         path.write_text(path.read_text() + "\n[[Missing note]]\n")
     elif change == "marker":
         (roots.vault / "20_Projects/.knowledgeos-directory").unlink()
-    elif change == "retired":
-        path = roots.vault / RETIRED_FIXTURES[0]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("historical fixture\n")
     elif change == "malformed":
         (roots.vault / "40_Knowledge/Ideas/Broken.md").write_text("# Broken\n")
     elif change == "duplicate":
@@ -142,7 +163,7 @@ def test_bad_core_binding_fails_before_vault_projection_read(tmp_path, monkeypat
 
 
 def test_seeded_domain_retrieve_proposal_review_preserves_canonical_bytes(tmp_path):
-    roots = fixture(tmp_path)
+    roots = fixture(tmp_path, seeded=True)
     before = (roots.vault / EXAMPLE_PATH).read_bytes()
     projection, code = generate_projection(roots)
     assert code == 0, projection

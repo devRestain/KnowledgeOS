@@ -103,8 +103,8 @@ def test_cardinality_mutation_has_stable_reason_and_locator(tmp_path: Path) -> N
 
     codes, locators = _error_codes_and_locators(_mutation_root(tmp_path, remove_command))
 
-    assert "JSON_SCHEMA_MIN_ITEMS" in codes
-    assert "/commands" in locators
+    assert "SEMANTIC_COMMAND_REGISTRY_EXACT_SET" in codes
+    assert "/commands/vaultctl storage core-cutover" in locators
 
 
 def test_type_mutation_has_stable_reason_and_locator(tmp_path: Path) -> None:
@@ -162,53 +162,17 @@ def test_relation_reverse_is_a_semantic_error(tmp_path: Path) -> None:
     assert "/relation_registry/canonical_predicates/supports/allowed_object_types" in locators
 
 
-def test_action_output_schema_mismatch_is_a_semantic_error(tmp_path: Path) -> None:
-    def change_output_schema(blueprint: dict[str, Any]) -> None:
-        contracts = blueprint["bridge"]["action_contracts"]
-        assert isinstance(contracts, dict)
-        contracts["triage"]["output_schema"] = "ops/schemas/answer.schema.json"
-
-    codes, locators = _semantic_error_codes_and_locators(_mutation_root(tmp_path, change_output_schema))
-
-    assert "SEMANTIC_ACTION_OUTPUT_SCHEMA" in codes
-    assert "/bridge/action_contracts/triage/output_schema" in locators
-
-
 def test_command_registry_mutation_is_a_semantic_error(tmp_path: Path) -> None:
     def rename_command(blueprint: dict[str, Any]) -> None:
         commands = blueprint["commands"]
         assert isinstance(commands, list)
-        index = commands.index("vaultctl ui")
+        index = commands.index("vaultctl operation status")
         commands[index] = "vaultctl unknown"
 
     codes, locators = _semantic_error_codes_and_locators(_mutation_root(tmp_path, rename_command))
 
     assert "SEMANTIC_COMMAND_REGISTRY_EXACT_SET" in codes
     assert "/commands/vaultctl unknown" in locators
-
-
-def test_bridge_transition_reverse_is_a_semantic_error(tmp_path: Path) -> None:
-    def reverse_transition(blueprint: dict[str, Any]) -> None:
-        transitions = blueprint["bridge"]["allowed_transitions"]
-        assert isinstance(transitions, dict)
-        transitions["proposal_ready"] = ["running"]
-
-    codes, locators = _semantic_error_codes_and_locators(_mutation_root(tmp_path, reverse_transition))
-
-    assert "SEMANTIC_BRIDGE_TRANSITION" in codes
-    assert "/bridge/allowed_transitions/proposal_ready" in locators
-
-
-def test_bridge_runtime_mapping_drift_is_a_semantic_error(tmp_path: Path) -> None:
-    def change_runtime(blueprint: dict[str, Any]) -> None:
-        mapping = blueprint["bridge"]["state_mapping"]
-        assert isinstance(mapping, dict)
-        mapping["queued"]["runtime"] = "running"
-
-    codes, locators = _semantic_error_codes_and_locators(_mutation_root(tmp_path, change_runtime))
-
-    assert "SEMANTIC_BRIDGE_STATE_RUNTIME_MAPPING" in codes
-    assert "/bridge/state_mapping/queued" in locators
 
 
 def test_base_limit_mutation_is_a_semantic_error(tmp_path: Path) -> None:
@@ -301,17 +265,13 @@ def test_project_bundle_cardinality_mutation_is_a_semantic_error(tmp_path: Path)
     assert "/note_types/project_note/field_constraints/projects" in locators
 
 
-def test_capture_finalize_transaction_reorder_is_a_semantic_error(tmp_path: Path) -> None:
-    def reorder_transaction(blueprint: dict[str, Any]) -> None:
-        transaction = blueprint["llm"]["triage"]["capture_finalize"]["transaction"]
-        transaction[4], transaction[5] = transaction[5], transaction[4]
-
-    codes, locators = _semantic_error_codes_and_locators(
-        _mutation_root(tmp_path, reorder_transaction)
+def test_withdrawn_mobile_bridge_contract_is_rejected(tmp_path: Path) -> None:
+    codes, locators = _error_codes_and_locators(
+        _mutation_root(tmp_path, lambda blueprint: blueprint.update({"bridge": {}}))
     )
 
-    assert "SEMANTIC_CAPTURE_FINALIZE_TRANSACTION" in codes
-    assert "/llm/triage/capture_finalize/transaction" in locators
+    assert "JSON_SCHEMA_ADDITIONAL_PROPERTY" in codes
+    assert "/bridge" in locators
 
 
 def test_diagnostic_serialization_is_byte_deterministic(tmp_path: Path) -> None:

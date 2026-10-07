@@ -11,7 +11,6 @@ from support.control_factory import (
     make_separate_portable_fixture_roots,
 )
 
-from vaultops.cli import main
 from vaultops.note_engine import render_frontmatter
 from vaultops.paths import ResolvedPaths
 from vaultops.proposals import (
@@ -207,7 +206,7 @@ def test_stale_approval_and_privacy_denial_fail_without_target_mutation(tmp_path
     assert malformed["errors"][0]["code"] == "PROPOSAL_MANIFEST_REQUIRED"
 
 
-def test_reject_closes_proposal_and_cli_review_is_read_only(tmp_path: Path, capsys) -> None:
+def test_reject_closes_proposal_without_apply(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     proposal_path, proposal_hash, _ = _proposal(
         root,
@@ -227,26 +226,6 @@ def test_reject_closes_proposal_and_cli_review_is_read_only(tmp_path: Path, caps
         fixture_path(root, "vault") / "01_AI_Review/Rejected/C19 Reject Proposal.md"
     ).is_file()
     assert not (fixture_path(root, "vault") / "40_Knowledge/Ideas/C19 Rejected Idea.md").exists()
-
-    proposal_path, proposal_hash, _ = _proposal(
-        root,
-        filename="C19 CLI Review Proposal",
-        target_path="40_Knowledge/Ideas/C19 CLI Review Idea.md",
-        target_markdown=_target_markdown("C19 CLI Review Idea"),
-    )
-    assert main(["ai", "review", "--proposal", proposal_path, "--root", str(root)]) == 0
-    # A detached legacy artifact is reviewable, but cannot mint owner authority.
-    before = (fixture_path(root, "state") / "owner-control.json").read_bytes()
-    assert main([
-        "ai", "approve", "--proposal", proposal_path,
-        "--expected-sha256", proposal_hash, "--root", str(root),
-    ]) == 10
-    output = capsys.readouterr().out
-    assert '"status": "PASS"' in output
-    assert '"code": "OWNER_INVALID"' in output
-    assert (fixture_path(root, "state") / "owner-control.json").read_bytes() == before
-    assert not (fixture_path(root, "vault") / "40_Knowledge/Ideas/C19 CLI Review Idea.md").exists()
-
 
 def test_proposal_approval_apply_and_replay_use_selected_roots(tmp_path: Path, monkeypatch) -> None:
     roots = make_separate_portable_fixture_roots(tmp_path, review_queues=True)

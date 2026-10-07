@@ -1,4 +1,4 @@
-.PHONY: verify source-check container-source-check container-verify image-build test test-invariance lint vaultctl vaultmcp blueprint-check schema-export schema-check vault-artifact-check vault-readiness-check profile-check live-smoke contract-check acceptance scheduled-worker state-check core-readiness-check
+.PHONY: verify source-check container-source-check container-verify image-build test test-invariance lint vaultctl vaultmcp blueprint-check schema-export schema-check vault-artifact-check vault-readiness-check profile-check contract-check acceptance state-check core-readiness-check
 
 COMPOSE = docker compose -f ops/compose.yaml
 TEST_COMPOSE = docker compose -f ops/compose.test.yaml
@@ -25,7 +25,7 @@ image-build:
 	$(COMPOSE) build dev
 
 container-source-check:
-	$(TEST_COMPOSE) run --rm dev vaultctl foundation source-check --root /workspace/control
+	$(TEST_COMPOSE) run --rm dev vaultctl foundation source --root /workspace/control
 
 container-verify:
 	$(TEST_COMPOSE) run --rm dev vaultctl foundation check --root /workspace/control
@@ -37,7 +37,7 @@ test-invariance:
 	$(MAKE) test PYTEST_ARGS='tests/test_hermetic_invariance.py -q'
 
 lint:
-	$(TEST_COMPOSE) run --rm dev uv run --frozen --no-sync ruff check src tests ../scripts
+	$(TEST_COMPOSE) run --rm dev uv run --frozen --no-sync ruff check src tests ../scripts temporal_pilot.py
 
 vaultctl:
 	$(COMPOSE) run --rm dev vaultctl --help
@@ -58,23 +58,12 @@ vault-artifact-check:
 	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl vault-artifacts check --root /workspace/control
 
 vault-readiness-check:
-	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl vault-artifacts check --scope readiness --root /workspace/control
+	$(VAULT_CHECK_COMPOSE) run --rm dev python -c 'from vaultops.vault_readiness import check_vault_readiness; result=check_vault_readiness("/workspace/control"); print(result.as_json()); raise SystemExit(result.exit_code)'
 
 profile-check:
 	$(VAULT_CHECK_COMPOSE) run --rm dev vaultctl plugins audit --profile mac --root /workspace/control
 
-live-smoke:
-	@test -n "$(SMOKE_KIND)"
-	@test -n "$(SMOKE_ADAPTER)"
-	@test -n "$(SMOKE_TIMEOUT_SECONDS)"
-	$(COMPOSE) run --rm dev vaultctl smoke run --kind "$(SMOKE_KIND)" --adapter "$(SMOKE_ADAPTER)" --authorize-live-smoke --timeout-seconds "$(SMOKE_TIMEOUT_SECONDS)" --root /workspace/control
-
 contract-check: blueprint-check schema-check
-
-scheduled-worker:
-	@test -n "$(KNOWLEDGEOS_SCHEDULED_CIDFILE)"
-	@test -n "$(KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID)"
-	@$(COMPOSE) run --rm -T --no-deps --cidfile "$(KNOWLEDGEOS_SCHEDULED_CIDFILE)" dev vaultctl ai worker --once --scheduled-report
 
 acceptance:
 	$(MAKE) source-check

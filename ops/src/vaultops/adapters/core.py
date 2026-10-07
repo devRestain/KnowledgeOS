@@ -12,15 +12,6 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from .paths import resolve_beneath
 
-CORE_DIGEST = "sha256:c6c2c9b7d48c365bbd1807f6657bbaa1fc1a51d4c984c9189072d421cce29a28"
-SEMANTIC_DIGEST = "sha256:d219c2ef53abf0462e86b6facb7c4623a6087843649613e15d6dcfd73460cfce"
-PINS = {
-    "core_version": "0.16.1", "core_digest": CORE_DIGEST,
-    "schema_version_pin": "0.16.1", "semantic_version": "0.6.0",
-    "semantic_digest": SEMANTIC_DIGEST, "capsule_version": "2.0.0",
-    "resource_binding_api": "0.3.0", "host_binding_api": "0.3.0",
-}
-
 
 class AdmissionError(ValueError):
     def __init__(self, code: str, message: str) -> None:
@@ -45,6 +36,22 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+PIN_KEYS = ("core_version", "core_digest", "schema_version_pin", "semantic_version", "semantic_digest", "capsule_version", "resource_binding_api", "host_binding_api")
+
+
+def adoption_pins(control: Path) -> dict[str, str]:
+    """Read the single maintained adoption selection without changing storage."""
+    binding = load_json(resolve_beneath(control, "ops/config/core-adoption.json"))
+    return {key: binding[key] for key in PIN_KEYS}
+
+
+# Compatibility exports derive from the same maintained selection, never a
+# second version table. Per-instance verification also rechecks this binding.
+PINS = adoption_pins(Path(__file__).resolve().parents[3].parent)
+CORE_DIGEST = PINS["core_digest"]
+SEMANTIC_DIGEST = PINS["semantic_digest"]
+
+
 @dataclass(frozen=True)
 class CoreContracts:
     root: Path
@@ -66,8 +73,11 @@ class CoreContracts:
             if not path.is_file() or digest(path.read_bytes()) != "sha256:" + entry["sha256"]:
                 raise AdmissionError("CORE_DIGEST_MISMATCH", "Core input bytes differ from the frozen manifest")
         catalog = load_json(resolve_beneath(self.root, "contracts/catalog.json"))
-        if catalog["core_release_version"] != "0.16.1" or catalog["schema_bundle_version"] != "0.16.1":
+        if catalog["core_release_version"] != self.binding["core_version"] or catalog["schema_bundle_version"] != self.binding["schema_version_pin"]:
             raise AdmissionError("PIN_MISMATCH", "Core catalog versions differ from adoption")
+        combination = {"core_release": self.binding["core_version"], "capsule_contract": self.binding["capsule_version"], "schema_bundle": self.binding["schema_version_pin"], "semantic_bundle": self.binding["semantic_version"], "python_binding": catalog["python_binding_version"], "resource_binding_api": self.binding["resource_binding_api"], "host_binding_api": self.binding["host_binding_api"]}
+        if combination not in catalog["supported_combinations"]:
+            raise AdmissionError("PIN_MISMATCH", "selected contract combination is unsupported")
         semantic = dict(catalog["semantic_bundle"])
         semantic.pop("digest", None)
         if digest(canonical(semantic)) != SEMANTIC_DIGEST:
@@ -83,11 +93,11 @@ class CoreContracts:
     def manifest(self) -> dict[str, Any]:
         result = {
             "fabric_id": self.binding["fabric_id"], "operation_id": "knowledgeos",
-            "instance_id": self.binding["instance_id"], "contract_version": "2.0.0",
-            "core_version": "0.16.1", "core_digest": CORE_DIGEST,
-            "schema_version": "0.16.1", "semantic_version": "0.6.0",
+            "instance_id": self.binding["instance_id"], "contract_version": self.binding["capsule_version"],
+            "core_version": self.binding["core_version"], "core_digest": self.binding["core_digest"],
+            "schema_version": self.binding["schema_version_pin"], "semantic_version": self.binding["semantic_version"],
             "semantic_digest": SEMANTIC_DIGEST, "revision": 1,
-            "operation_version": "0.1.0", "accepted_contract_versions": ["2.0.0"],
+            "operation_version": "0.1.0", "accepted_contract_versions": [self.binding["capsule_version"]],
             "capabilities": ["knowledge_search", "knowledge_retrieve", "proposal_create", "proposal_inspect"],
             "logical_resource_kinds": ["vault", "artifact", "state"],
             "health_contract": "HealthReport", "graph_profile": "graphless",

@@ -11,13 +11,13 @@ from support.control_factory import (
 )
 
 from vaultops.bootstrap import bootstrap
-from vaultops.bridge_contract import (
+from vaultops.configure import configure
+from vaultops.paths import resolve_paths
+from vaultops.vault_identity import (
     canonical_json_bytes,
     remote_identity_sha256,
     validate_root_sentinel,
 )
-from vaultops.configure import configure
-from vaultops.paths import resolve_paths
 from vaultops.yaml_safe import load_yaml_file
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]

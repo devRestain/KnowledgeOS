@@ -1,42 +1,31 @@
 {
-  "schema_version": 1,
-  "capability": "C41",
-  "surface": "removable_desktop_obsidian_presentation",
-  "commands": [
-    "open-review",
-    "ask-current-note"
-  ],
-  "scope_kinds": [
-    "current_note",
-    "selection"
-  ],
-  "broker": {
+  "schema_version": 3,
+  "capability": "knowledgeos_owner_work_review",
+  "surface": "removable_desktop_obsidian_owner_client",
+  "commands": ["open-work-review"],
+  "scope_kinds": ["current_note_digest"],
+  "owner": {
     "transport": "authenticated_http_loopback",
     "host": "127.0.0.1",
-    "path": "/broker",
-    "control_adapter": "vaultops.thin_client_http",
-    "answer_route": "vaultctl ai ask",
-    "server_entrypoint": "vaultctl ai client --serve",
-    "token_sources": [
-      "--token-file",
-      "--token-stdin"
-    ],
+    "path": "/owner",
+    "control_adapter": "vaultops.interfaces.exops_web",
+    "routes": ["work/intake", "work/read", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
     "endpoint_is_configurable": true,
-    "token_persistence": "none"
+    "csrf_token_persistence": "none",
+    "work_id_persistence": "last_selected_only"
   },
   "effects": {
     "direct_provider_called": false,
-    "plugin_mutation_performed": false,
-    "vault_mutation_performed": false,
-    "canonical_apply_allowed": false,
+    "plugin_vault_mutation_performed": false,
+    "owner_canonical_apply_requires_separate_click": true,
     "git_effects": false,
     "network_scope": "127.0.0.1_only"
   },
   "evidence_boundary": {
-    "artifact": "implemented",
+    "source": "implemented",
     "installation": "not_run",
     "device": "not_run",
-    "broker_deployment": "not_run",
-    "provider_activation": "not_run"
+    "owner_web_listener": "not_run",
+    "hermes_runner": "not_run"
   }
 }

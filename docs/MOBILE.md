@@ -1,15 +1,7 @@
-# Agent Mobile Contract
+# Mobile Obsidian boundary
 
-- Keep iPhone capture, iPad reading or light clarification, and Mac final classification or application roles separate.
-- Keep mobile capture and bridge requests create-only and non-overwriting.
-- Keep mobile actions limited to capture, consult, clarify, defer, and proposal review.
-- Exclude bulk move, rename, delete, graph repair, plugin configuration, conflict resolution, live LLM overwrite, and streaming from mobile core flows.
-- Keep device-local recovery outboxes separate from control `runtime/`.
-- Verify Vault name, UUID, branch, and identity digest before device gates.
-- Bind outbox input and append-only events to strict payload hashes and deterministic targets.
-- Treat same ID and digest as idempotent; quarantine same ID with a different digest.
-- Retain recovery items until an observed remote or local transfer receipt and retention threshold exist.
-- Keep Working Copy, Shortcuts, device credentials, profiles, sync topology, and mobile round trips behind user-approved device gates.
-- Keep bridge protocol fixtures and production events on separate evidence surfaces.
-- Keep D08 device/profile and Working Copy transport verification and D09 live mobile bridge round trip separately gated after the MacBook baseline through D07.
-- Preserve plain Markdown, wikilink, and plugin-free fallbacks when app capability is absent.
+KnowledgeHub mobile use is ordinary Obsidian document work. The user can read notes, search, follow links, edit a short note, and create a capture with the installed Obsidian profile. `Mobile.md` is a navigation page over local Vault content; it does not imply a synced or remotely executable service.
+
+KnowledgeOS does not currently own a mobile bridge, Shortcuts transport, Working Copy transaction, device credential, or automatic mobile AI route. The owner accepts agent work through its Work admission boundary, and an authorized Runner uses the single `vaultmcp` entry point. A mobile Obsidian installation, synchronization route, and native device round trip require their own observed adoption evidence.
+
+Pending proposals remain owner records. A GUI may present their source, preimage and diff; human decision and canonical apply are separate owner actions. A mobile view must never treat a displayed status as an apply receipt.

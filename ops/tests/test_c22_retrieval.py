@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 
@@ -9,12 +8,10 @@ from jsonschema import Draft202012Validator
 from support.control_factory import (
     fixture_path,
     make_portable_fixture_root,
-    make_separate_portable_fixture_roots,
 )
 
 from vaultops.answer import answer
 from vaultops.blueprint import validate_blueprint
-from vaultops.cli import main
 from vaultops.note_engine import render_frontmatter
 from vaultops.projection import EXIT_CONFLICT, EXIT_OK, generate_projection
 from vaultops.retrieval import (
@@ -23,7 +20,6 @@ from vaultops.retrieval import (
     retrieve,
     search,
 )
-from vaultops.vector import vector_retrieve, vector_search
 
 
 def _fresh_control_copy(tmp_path: Path) -> Path:
@@ -119,58 +115,6 @@ def test_c22_search_is_lexical_deterministic_and_schema_valid(tmp_path: Path) ->
     assert _runtime_snapshot(root) == before
 
 
-def test_c22_cli_reads_separate_roots_without_mutating_runtime_or_vault(
-    tmp_path: Path,
-    monkeypatch,
-    capsys,
-) -> None:
-    roots = make_separate_portable_fixture_roots(
-        tmp_path,
-        extra_inputs=("ops/tests/fixtures/c22_retrieval",),
-    )
-    missing, missing_code = search(roots, "확정되지 않은 정보")
-    assert missing_code == EXIT_CONFLICT
-    assert missing["errors"][0]["code"] == "RETRIEVAL_INDEX_UNAVAILABLE"
-    assert not [path for path in roots.runtime.rglob("*") if path.is_file()]
-
-    _build(roots)
-    runtime_before = {
-        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
-        for path in roots.runtime.rglob("*")
-        if path.is_file()
-    }
-    vault_before = _file_snapshot(roots.vault)
-    lexical, code = search(roots, "확정되지 않은 정보")
-
-    assert code == EXIT_OK, lexical
-    assert lexical["provider_called"] is False
-    assert lexical["candidates"][0]["path"] == "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("synthetic source\n"))
-    assert main(["search", "--query-stdin", "--root", str(roots.control)]) == EXIT_OK
-    cli_report = json.loads(capsys.readouterr().out)
-    assert cli_report["candidates"][0]["path"] == "40_Knowledge/Sources/Guestbook Horror Design Note.md"
-    assert _file_snapshot(roots.vault) == vault_before
-    assert {
-        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
-        for path in roots.runtime.rglob("*")
-        if path.is_file()
-    } == runtime_before
-    assert not (roots.control / "KnowledgeHub").exists()
-    assert not (roots.control / "runtime").exists()
-
-    source = roots.vault / "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
-    source.write_bytes(source.read_bytes() + b"\nsynthetic source drift\n")
-    stale, stale_code = search(roots, "확정되지 않은 정보")
-    assert stale_code == EXIT_CONFLICT
-    assert stale["errors"][0]["code"] == "RETRIEVAL_INDEX_STALE"
-    assert {
-        path.relative_to(roots.runtime).as_posix(): path.read_bytes()
-        for path in roots.runtime.rglob("*")
-        if path.is_file()
-    } == runtime_before
-
-
 def test_c22_retrieve_expands_one_hop_typed_links_without_excluded_targets(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root)
@@ -207,7 +151,7 @@ def test_c22_default_corpus_filters_journal_capture_and_moc(tmp_path: Path) -> N
     assert "type_not_in_scope" in excluded_reasons
 
 
-def test_c25_review_policy_is_reapplied_across_lexical_vector_rrf_graph_and_answer(tmp_path: Path) -> None:
+def test_c25_review_policy_is_reapplied_across_lexical_graph_and_answer(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     confidential_path = _write_review_note(
         root,
@@ -257,14 +201,10 @@ def test_c25_review_policy_is_reapplied_across_lexical_vector_rrf_graph_and_answ
         "hops": 1,
     }
     lexical, lexical_code = retrieve(root, "C25 review signal", **kwargs)
-    vector_only, vector_only_code = vector_search(root, "C25 review signal", **kwargs)
-    fused, fused_code = vector_retrieve(root, "C25 review signal", **kwargs)
     answered, answer_code = answer(root, "C25 review signal", **kwargs)
 
     for report, code in (
         (lexical, lexical_code),
-        (vector_only, vector_only_code),
-        (fused, fused_code),
         (answered, answer_code),
     ):
         assert code == EXIT_OK, report
@@ -286,9 +226,7 @@ def test_c25_review_policy_is_reapplied_across_lexical_vector_rrf_graph_and_answ
     assert excluded[denied_path] == "ai_policy_denied_or_invalid"
     assert excluded[wrong_scope_path] == "scope_mismatch"
     assert excluded[wrong_path] == "review_path_not_allowlisted"
-    fused_excluded = {item["path"]: item["reason"] for item in fused["filters"]["excluded"]}
-    assert fused_excluded[confidential_path] == "confidential_corpus_excluded"
-    assert fused["candidates"][0]["graph_path"] == []
+    assert lexical["candidates"][0]["graph_path"] == []
 
     wrong_type, wrong_type_code = retrieve(
         root,
@@ -377,36 +315,6 @@ def test_c22_retrieval_blueprint_bounds_are_semantically_checked(tmp_path: Path)
         and error["locator"] == "/retrieval/graph_expansion"
         for error in result.report["semantic_errors"]
     )
-
-
-def test_c22_cli_requires_stdin_or_file_and_exposes_evaluation(tmp_path: Path, monkeypatch, capsys) -> None:
-    root = _fresh_control_copy(tmp_path)
-    _build(root)
-    monkeypatch.setattr("sys.stdin", io.StringIO("synthetic source\n"))
-
-    assert main(["search", "--query-stdin", "--root", str(root)]) == EXIT_OK
-    search_report = json.loads(capsys.readouterr().out)
-    assert search_report["operation"] == "search"
-    assert search_report["candidates"][0]["path"] == "40_Knowledge/Sources/Guestbook Horror Design Note.md"
-
-    assert (
-        main(
-            [
-                "retrieve",
-                "--evaluation-file",
-                "ops/tests/fixtures/c22_retrieval/evaluation.yaml",
-                "--root",
-                str(root),
-            ]
-        )
-        == EXIT_OK
-    )
-    evaluation_report = json.loads(capsys.readouterr().out)
-    assert evaluation_report["operation"] == "retrieval evaluate"
-    assert evaluation_report["metrics"]["all_cases_passed"] is True
-
-    with pytest.raises(SystemExit):
-        main(["search", "--query", "synthetic source", "--root", str(root)])
 
 
 def test_c22_frozen_baseline_pins_one_generation(tmp_path: Path) -> None:

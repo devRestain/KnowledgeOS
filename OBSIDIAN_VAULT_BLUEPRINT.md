@@ -1,116 +1,54 @@
-# KnowledgeOS Blueprint — agent contract index
+# KnowledgeOS Blueprint
 
-> Role: compact normative index for implementation agents. This file is not live status and not the human guide.
-> Live status: `PROJECT_STATE.md`. Human explanation: `README.md`.
+> KnowledgeOS is development software in AgentFabric. This document defines the current product boundary, not deployment or historical acceptance. Current progress is in `PROJECT_STATE.md`; exact machine contracts are in `blueprint/blueprint.yaml`, owner policies, MCP schemas, and live source.
 
-## Authority
+## Ownership
 
-- Contract id: `knowledgeos-blueprint-v2`.
-- Precedence: this Markdown contract → `blueprint/blueprint.yaml` → `OBSIDIAN_VAULT_WHITEPAPER.md`.
-- Machine validation: `blueprint/blueprint.schema.json`, `make blueprint-check`.
-- Source/code contract: `docs/SOURCE_CONTRACT.md`; architecture/runtime/operations/mobile/decisions indexes live under `docs/`.
-- Do not infer current implementation from this design index; compare `PROJECT_STATE.md`, live files, tests, and receipts.
+- AgentFabric Core supplies versioned static contracts. `ops/config/core-adoption.json` selects Core 0.18.1 and the current semantic bundle.
+- `Operations/KnowledgeOS/` owns code, policy, methods, tests, and this Blueprint.
+- `Vaults/KnowledgeHub/` is the independent Obsidian Vault and Git root. It owns canonical Markdown, Properties, attachments, and Pending review material.
+- `States/Operations/knowledgeos/` owns the journal, Work and Graph bindings, human decisions, receipts, and unresolved effects.
+- `Runtimes/KnowledgeOS-runtime/` holds reconstructable indexes, caches, logs, and host process artifacts.
+- Private config v3 binds these five roots. A path, tool name, document, or plugin does not grant authority.
 
-## Scope and repositories
+## Human and agent flows
 
-- Control root: `.`; track policies, schemas, source, tests, and agent docs in the control Git root.
-- Vault root: `../../Vaults/KnowledgeHub/`; independent Git root opened by Obsidian and Working Copy.
-- Runtime root: `runtime/`; Git-untracked local queue, locks, receipts, journals, indexes, caches, and logs.
-- Keep control, Vault, and runtime responsibilities separate; a receipt records both Git heads.
-- Keep secrets, restricted data, provider state, and device credentials outside the Vault corpus.
-
-## Contract defaults
-
-- Workspace `KnowledgeOS`; vault `KnowledgeHub`; language `ko`; timezone `Asia/Seoul`.
-- Mac is the canonical decider, writer, bridge worker, and Git conflict resolver.
-- iPhone captures and consults; iPad reads, annotates, and performs light clarification; neither applies structural changes.
-- Core Obsidian plus Markdown/YAML is canonical; plugins are replaceable adapters.
-- Private notes may use remote sync only after explicit opt-in; unattended remote work is disabled by default.
-- Mobile immediate API, always-on workers, vector retrieval, and parallel sync are disabled by default.
-
-## Canonical Vault shape
-
-- `Home.md` and `Mobile.md` are `type: home`; keep navigation and action views deterministic.
-- Desktop `Home.md` is the generated KnowledgeHub command center: full-width Task, Inbox, and combined AI pending/conflict rows lead to paired active Projects and Decisions, followed by equal Review Pulse and Compass signal cards. Compass embeds `Compass.base#Signals` and the higher-priority `Compass.base#Tensions` view; Home omits research-question duplication and full-view links so the screen remains a compact read-only projection while source notes remain the write surface.
-- Home capture choices and hotkeys remain profile-owned and hidden from the page. Home must not advertise provider, runtime, sync, Git, command-runner, or stale-success status; Note Toolbar at the Mac desktop bottom is the navigation surface that replaces the removed Home footer.
-- Today Focus is a separate `99_System/Dashboards/Today_Focus.md` system document that can be opened from the sidebar; it is intentionally not a Home component.
-- Keep document Properties hidden in the note body and use the Mac Properties sidebar for independent inspection and editing; this is a profile/UI contract, not a Home body projection.
-- The Home layout is scoped by the Home-only `cssclasses: [knowledgeos-home]` field and the generated C08 chain (`blueprint/blueprint.yaml` → `ops/src/vaultops/base_dashboard.py` → `../../Vaults/KnowledgeHub/Home.md`, canonical Bases, and `../../Vaults/KnowledgeHub/99_System/CSS/dashboard.css`).
-- `00_Inbox/Captures/YYYY/MM/` stores immutable captures; do not recreate the removed `Imports` namespace.
-- `01_AI_Review/{Pending,Resolved}/YYYY/MM/` stores review artifacts, not canonical notes.
-- `20_Projects/`, `30_Areas/`, `40_Knowledge/`, `50_Maps/`, `60_Meetings/`, `80_Assets/`, `90_Archive/`, `99_System/` retain PARA-lite responsibilities.
-- A project is a bundle (`20_Projects/<slug>/<slug>.md` plus managed companion files).
-- `99_System/Bases/` has eight canonical Bases, including the cross-type `Compass.base`; Ideas remains a view in `Knowledge.base`, not a separate Base.
-- Device profile roots are created on demand; do not add empty `.obsidian-*` scaffolds.
-- Fixed files, marker files, and directory visibility rules are authoritative in YAML `fixed_paths` and `path_namespaces`.
-
-## Note and relation contract
-
-- Information models stay separate: PARA-lite assigns lifecycle folders; Evergreen/Zettelkasten preserves durable claims; RDF-lite expresses typed relations; Hybrid RAG retrieves cited evidence.
-- Use flat YAML Properties and Markdown body; preserve stable ids, `type`, lifecycle, sensitivity, source, relation, and timestamp fields from the YAML registry.
-- Use the declared 16 templates and the YAML-defined note types, mobile capture fields, assets, relation registry, Bases, dashboards, and required control files.
-- Wikilinks and typed relation properties express graph meaning; folder location expresses lifecycle/ownership only.
-- Search, embeddings, graph indexes, and dashboards are regenerable projections; never treat them as source.
-
-## End-to-end workflow
-
-```text
-capture → durable outbox → validate/triage proposal → human review/approval
-→ canonical Markdown/YAML note → exact-path commit/receipt → deterministic projection
-→ lexical/typed-link retrieval → cited answer or next action
+```mermaid
+flowchart LR
+    U[User in Obsidian] --> V[Canonical KnowledgeHub notes]
+    U --> W[Thin Client Work intake and review]
+    W --> O[KnowledgeOS owner]
+    A[Bound agent] --> M[Single vaultmcp v3]
+    M --> O
+    O --> S[Owner State and receipts]
+    O --> V
 ```
 
-- Capture accepts text, voice, URL, selected text, and asset metadata; the capture remains immutable.
-- Review may classify, link, summarize, or request clarification; it must not silently mutate a canonical note.
-- Finalize applies only an approved, hash-bound proposal and writes through the one-writer gate.
-- Project archive and asset import are explicit transactions; no implicit migration or deletion.
+- Users create, edit, search, link, and manage tasks in Obsidian. Core Search, Bases, Backlinks, Daily Notes, Templates, and the configured QuickAdd flow retain those interface jobs.
+- The Thin Client submits a bounded Work request for Director admission and displays status, cited evidence, Pending content, and diff. It records an explicit human approval or rejection through the owner. Canonical apply is a separate human action through the owner; the plugin does not directly write canonical notes.
+- Agents read and submit through one owner-gated `vaultmcp` v3. Work tools require an owner-issued session bound to Team or Officer, Profile, method, Graph, source, and effect scope. General tool listing is not authorization.
+- `vaultctl` is the maintenance interface: operation checks and recovery, index build/verify/export, note validation, diagnostics, receipts, exact repair, contract checks, and exact storage transitions. It has no general note creation, search/answer, AI decision, model, provider, queue, worker, or embedding command.
 
-## Pipelines and lanes
+## Vault contract
 
-- `l0`: local/mobile capture and outbox persistence.
-- `l1 Mac`: interactive triage, finalize, asset import, archive, and Git apply.
-- `l1 mobile async`: deferred request/response relay; immediate mobile API is off unless gated.
-- `l2 retrieval`: native Obsidian → lexical → typed-link/graph expansion → optional local vector → RRF; stale indexes fail closed.
-- Action registry, QuickAdd choices, shortcut contracts, automation lanes, bridge schemas, and command content transport are YAML-owned.
-- Bridge transport is immutable and schema-trusted; requests contain no executable content and do not imply Git network access.
+- Markdown body and flat YAML Properties are canonical. Keep note id, type, title, lifecycle, sensitivity, `ai_policy`, source references, timestamps, and typed relations internally consistent.
+- The registered note types, templates, Base views, dashboards, relation predicates, property names, and generated artifacts are defined in the machine Blueprint and their owner sources. A generated view is a projection, never a second source of truth.
+- `Home.md` and `Mobile.md` are navigation surfaces. The canonical Bases and Compass views provide filters and relationship orientation. Search results, backlinks, and unlinked mentions are evidence candidates; they do not create relations automatically.
+- Obsidian manages user note creation. Agent suggestions become owner-journaled Pending proposals with exact source references and preimages. Approval alone does not apply a proposal.
 
-## Device and mobile gate
+## Retrieval and privacy
 
-- Require Working Copy Pro, an external worktree, root sentinel identity/fingerprint/branch/worktree fields, and round-trip evidence before mobile Git use.
-- Do not combine iCloud, Obsidian Sync, Dropbox, or OneDrive with the canonical mobile path.
-- Mobile may capture, read, annotate, and defer; Mac performs canonical apply, conflict resolution, plugin changes, and structural moves.
-- Device/profile settings and plugin activation are opt-in, profile-specific, and reversible.
+- Current agent retrieval is bounded, citation-bearing lexical and typed-link evidence. Read tools recheck owner reference, current digest, scope, sensitivity, and `ai_policy` before returning source bytes.
+- Configured local MCP may read `ai_policy: ask` documents under the explicit owner policy. `deny` and confidential content remain excluded. `local_only` body text requires a trusted local execution binding.
+- Embeddings, vector search, remote retrieval, and KOS-managed model execution are outside the current source contract.
 
-## LLM, projection, and retrieval invariants
+## Work and review
 
-- LLM mode is proposal-only: no provider fallback, no secret persistence, no live Vault write, and no unapproved prompt result becomes canonical.
-- Triage/finalize/answer schemas, approval hashes, source references, and action bindings are selected from YAML and validated before apply.
-- Projection generation is deterministic, ordered, hash-bound, and pointer-swapped; it never edits Vault source files.
-- Retrieval answers cite source notes and expose staleness/coverage; vector and remote retrieval remain opt-in.
+- Six Teams each have a dedicated Manager. A bounded one-Profile task may use an Officer without a Team or Manager. WorkSpec admission, user pins, Manager Graph segments, independent EvalOfficer assessment, human decision, and canonical apply remain distinct.
+- Curation, Research, Ontology, Project Review, Exchange, and Vault Maintenance methods are versioned in `ops/config/work-methods.json`. Agent proposals use action-specific schemas and the common owner intent/receipt/replay rules.
+- Gateway evidence is limited to accepted exchange references. A foreign Operation's Vault or State is never a direct KnowledgeOS read target.
+- The source has a synthetic stdio MCP and owner Web adapter. Native Hermes Runner identity, actual Web listener, profile installation, six Team execution, external Gateway exchange, and device use require separate adoption evidence.
 
-## Privacy and Git invariants
+## Validation
 
-- Default sensitivity is personal/ask; people and meeting content is deny-by-default for AI; confidential/restricted data stays in a separate Vault.
-- One writer per file; use create-only or hash-checked atomic replace/move with journal and receipt.
-- Never force-push, reset, stash, rebase, or implicitly pull/push; use exact paths and explicit credential/network gates.
-- Preserve `../../Vaults/KnowledgeHub/.obsidian/{app.json,appearance.json,core-plugins.json,workspace.json}` and separate device/bridge namespaces.
-
-## Implementation and acceptance map
-
-- Follow `implementation_phases` and `acceptance_scenarios` in `blueprint/blueprint.yaml`; do not promote a design phase from this file.
-- Foundation: paths, sentinel, schema, semantic validation, generated-artifact ownership, and fixture evidence.
-- Portable core: strict notes/templates/Bases/dashboard; local commands and diagnostics remain provider-free.
-- Later opt-ins: asset/capture/archive transactions, recovery, bridge/Git publish, Mac plugins, mobile round-trip, and remote/vector lanes.
-- Keep static, semantic, artifact, runtime, container, deployment, device, and external-service evidence separate.
-- For current phase, blockers, dirty sets, and performed gates, read `PROJECT_STATE.md` only.
-
-## Required checks
-
-```text
-make source-check
-make verify
-make blueprint-check
-git diff --check
-```
-
-Run container, schema-artifact, tests, lint, runtime, deployment, and device checks only when the active slice requires them; report each result independently.
+Run `make source-check`, `make verify`, `make blueprint-check`, `make schema-check`, `make test`, `make lint`, and `make state-check` in the project-owned container as applicable. Keep source, semantic, artifact, synthetic runtime, deployment, and device results distinct. `PROJECT_STATE.md` records only the current acceptance slice and its observed limits.

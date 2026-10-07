@@ -489,7 +489,7 @@ def test_meta_bind_ignores_user_owned_review_document_content(tmp_path: Path) ->
     assert errors == []
 
 
-def test_tasks_require_the_owned_query_tag_and_status_subset(tmp_path: Path) -> None:
+def test_tasks_reject_redundant_global_tag_and_missing_status_subset(tmp_path: Path) -> None:
     root, profile = _lane_profile(tmp_path, "obsidian-tasks-plugin")
     blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
     data_path = profile / "plugins/obsidian-tasks-plugin/data.json"
@@ -498,13 +498,28 @@ def test_tasks_require_the_owned_query_tag_and_status_subset(tmp_path: Path) -> 
     data["statusSettings"]["customStatuses"] = []
     write_json(data_path, data)
     tasks = (fixture_path(root, "vault") / "99_System/Dashboards/Tasks.md")
-    tasks.write_text("# Tasks\n\n```tasks\nnot done\n```\n", encoding="utf-8")
+    tasks.write_text("# Tasks\n\n```tasks\nnot done\ntags include #task\n```\n", encoding="utf-8")
 
     _, errors = build_tasks_setting_registry(root=root, profile_root=profile, blueprint=blueprint)
 
     codes = {item["code"] for item in errors}
     assert "P05_STATUS_MAPPING_MISSING" in codes
-    assert "P05_TASK_TAG_MISSING" in codes
+    assert "P05_GLOBAL_FILTER_QUERY_REDUNDANT" in codes
+
+
+def test_tasks_global_filter_bounds_queries_without_repeating_its_hidden_tag(tmp_path: Path) -> None:
+    root, profile = _lane_profile(tmp_path, "obsidian-tasks-plugin")
+    blueprint = load_yaml_file(root / "blueprint/blueprint.yaml")
+    registry, errors = build_tasks_setting_registry(root=root, profile_root=profile, blueprint=blueprint)
+    assert errors == []
+    assert registry["global_filter"]["observed"] == "#task"
+
+    data_path = profile / "plugins/obsidian-tasks-plugin/data.json"
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    data["globalFilter"] = ""
+    write_json(data_path, data)
+    _, errors = build_tasks_setting_registry(root=root, profile_root=profile, blueprint=blueprint)
+    assert "P05_GLOBAL_FILTER_DRIFT" in {item["code"] for item in errors}
 
 
 def test_homepage_allows_an_unconfigured_optional_entry_but_rejects_unsafe_target(

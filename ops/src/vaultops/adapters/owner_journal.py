@@ -127,11 +127,12 @@ class OwnerJournal:
 
     def empty(self) -> dict[str, Any]:
         return {
-            "state_version": 3, "owner_operation_id": "knowledgeos", "pins": dict(PINS),
+            "state_version": 4, "owner_operation_id": "knowledgeos", "pins": dict(PINS),
             "fabric_id": self.identity["fabric_id"], "instance_id": self.identity["instance_id"],
             "generation": 1, "revision": 0, "observed_at": None,
             "intents": {}, "receipts": {}, "human_requests": {}, "decisions": {},
             "gateway": {}, "correlations": {}, "history": [], "experience": [], "outbox": [],
+            "experience_events": [], "experience_cursor": 0, "interops_outbound": {},
         }
 
     def read(self) -> dict[str, Any]:
@@ -156,12 +157,14 @@ class OwnerJournal:
             raise AdmissionError("STATE_PIN_MISMATCH", "State identity or pins differ; explicit cutover is required")
         if type(value["generation"]) is not int or not 1 <= value["generation"] <= 2147483647 or type(value["revision"]) is not int or value["revision"] < 0:
             raise AdmissionError("STATE_INVALID", "invalid owner generation or revision")
-        for key in ("intents", "receipts", "human_requests", "decisions", "gateway", "correlations"):
+        for key in ("intents", "receipts", "human_requests", "decisions", "gateway", "correlations", "interops_outbound"):
             if not isinstance(value[key], dict):
                 raise AdmissionError("STATE_INVALID", "invalid owner record collection")
-        for key in ("history", "experience", "outbox"):
+        for key in ("history", "experience", "outbox", "experience_events"):
             if not isinstance(value[key], list):
                 raise AdmissionError("STATE_INVALID", "invalid owner history collection")
+        if type(value["experience_cursor"]) is not int or value["experience_cursor"] < 0:
+            raise AdmissionError("STATE_INVALID", "invalid Experience source cursor")
         return value
 
     @contextmanager
@@ -189,11 +192,17 @@ class OwnerJournal:
                 item.pop("envelope", None)
         for records in (value["gateway"], value["receipts"]):
             for key, item in list(records.items()):
+                if key.startswith("exops.work."):
+                    continue
                 if item.get("unresolved") or key in value["intents"] and value["intents"][key]["state"] in {"pending", "unknown", "approved"}:
                     continue
                 if (now - datetime.fromisoformat(item["recorded_at"])).total_seconds() >= 43200:
                     del records[key]
-        for intent in value["intents"].values():
+        for key, intent in value["intents"].items():
+            if key.startswith("exops.work."):
+                # A WorkRun and its dispatch uncertainty remain durable owner
+                # state until an explicit reconciliation or retention decision.
+                continue
             if intent["state"] == "pending" and (now - datetime.fromisoformat(intent["recorded_at"])).total_seconds() >= 43200:
                 intent["state"] = "expired"
         for request in value["human_requests"].values():

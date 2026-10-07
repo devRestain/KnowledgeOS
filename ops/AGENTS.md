@@ -20,9 +20,9 @@
 - Use declared Make targets for disposable checks with read-only control/Core and isolated mutable fixtures.
 - Pass numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID` and fail closed on omission.
 - Run `make test` and `make lint` sequentially to avoid disposable cache races.
-- Use `vaultctl` actions with declared schemas and stdin or file content transport.
-- Keep arbitrary shell text outside command and LLM action inputs.
-- Keep LLM actions proposal-only and require digest-bound approval before Vault or Git mutation.
+- Use `vaultctl` only for declared maintenance operations; route agent knowledge work through owner-gated `vaultmcp`.
+- Keep arbitrary shell text outside maintenance and proposal inputs.
+- Keep agent proposals Pending and require digest-bound owner decision plus separate canonical apply.
 - Admit selected CLI/MCP workflows through KnowledgeApplication and keep owner decisions in one State journal.
 - Keep generation selection pins and frozen restart evidence in State while keeping reconstructable generation bodies in Runtime.
 
@@ -32,7 +32,7 @@
 - Run `make verify` for foundation paths and Git-boundary evidence.
 - Run `make container-source-check` and `make container-verify` for container evidence.
 - Run `make blueprint-check` for JSON Schema and semantic evidence.
-- Run `make core-readiness-check` for the graphless provider-free Capsule preparation boundary.
+- Run `make core-readiness-check` for the selected Core and current owner boundary.
 - Use `make KNOWLEDGEOS_VAULT_SOURCE=<exact Vault> vault-readiness-check` for the explicitly authorized read-only generated Vault projection; keep ordinary regression hermetic.
 - Treat `make schema-check` as portable-core evidence; use compiler and evaluator checks for Base and dashboard claims.
 - Pass Git safe-directory settings per invocation; never mutate global Git configuration.

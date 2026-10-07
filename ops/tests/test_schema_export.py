@@ -73,8 +73,8 @@ def test_schema_export_writes_only_explicit_owned_artifacts(tmp_path: Path) -> N
     assert (root / "ops/expected/Property_Dictionary.md").read_text(encoding="utf-8").startswith(
         "<!-- GENERATED: BEGIN knowledgeos-property-dictionary -->"
     )
-    assert (root / "ops/schemas/bridge-request.schema.json").is_file()
-    assert (root / "ops/schemas/bridge-response.schema.json").is_file()
+    assert (root / "ops/schemas/blueprint.schema.json").is_file()
+    assert (root / "ops/policies/retrieval.yaml").is_file()
 
 
 def test_schema_export_check_is_deterministic_and_reports_future_profiles(tmp_path: Path) -> None:

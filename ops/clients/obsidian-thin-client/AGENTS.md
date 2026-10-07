@@ -3,11 +3,11 @@
 ## Definition and contents
 
 - Use manifest.json, contract.json, main.js, and styles.css as the declared presentation package.
-- Keep the authenticated local broker as the domain request boundary.
+- Keep authenticated local owner Work and review routes as the domain request boundary.
 
 ## Ownership
 
-- Keep note rendering separate from provider, index, Git, and canonical apply authority.
+- Keep note rendering separate from provider, index, Git, and canonical apply authority. Send a separate owner apply request only after human review.
 - Preserve exact digest-bound request and policy checks.
 
 ## Use and maintenance

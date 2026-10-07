@@ -1,20 +1,10 @@
-"""Cross-document semantic checks for the KnowledgeOS Blueprint.
-
-C03 and C04 validate declarations that are present in the Blueprint itself.
-They do not require generated action, prompt, schema, Vault, or bridge files to
-exist; those files belong to later ownership/generation sessions. Keeping the
-expected registries and consumer contracts here makes a rename, deletion,
-addition, or cross-document drift fail even when the permissive portions of the
-JSON Schema still accept the document.
-"""
+"""Cross-document semantic checks for the current KnowledgeOS Blueprint."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
-
-from .runtime import STATE_DIRECTORIES
 
 EXPECTED_PROPERTY_KEYS = (
     "applies_to",
@@ -210,206 +200,33 @@ EXPECTED_CONTEXT_RELATIONS = {
     "topics": ("moc",),
 }
 
-EXPECTED_PIPELINES = {
-    "triage": "triage.json",
-    "draft_note": "draft-note.json",
-    "summarize": "summarize.json",
-    "link_suggestions": "link-suggestions.json",
-    "normalize": "normalize.json",
-    "answer": "answer.json",
-}
-
-EXPECTED_ROUTES = {
-    "organize": ("triage", "normalize"),
-    "summarize": ("summarize",),
-    "relate": ("link_suggestions",),
-    "extract": ("draft_note",),
-    "inbox": ("triage",),
-    "project-summary": ("summarize",),
-}
-
-EXPECTED_BRIDGE_ACTIONS = {
-    "triage": "ops/schemas/triage-result.schema.json",
-    "draft_note": "ops/schemas/proposal.schema.json",
-    "summarize": "ops/schemas/answer.schema.json#summary",
-    "link_suggestions": "ops/schemas/proposal.schema.json",
-    "answer": "ops/schemas/answer.schema.json#answer",
-}
-
 EXPECTED_COMMANDS = (
-    "vaultctl doctor",
+    "vaultctl version",
     "vaultctl bootstrap",
     "vaultctl configure",
-    "vaultctl blueprint validate",
-    "vaultctl schema export",
-    "vaultctl capture text",
-    "vaultctl capture url",
-    "vaultctl capture finalize",
-    "vaultctl note create",
-    "vaultctl note validate",
-    "vaultctl asset import",
-    "vaultctl project archive",
-    "vaultctl fmt",
-    "vaultctl ai queue",
-    "vaultctl ai organize",
-    "vaultctl ai summarize",
-    "vaultctl ai relate",
-    "vaultctl ai extract",
-    "vaultctl ai inbox",
-    "vaultctl ai project-summary",
-    "vaultctl ai worker",
-    "vaultctl ai review",
-    "vaultctl ai approve",
-    "vaultctl ai authorize-remote",
-    "vaultctl ai reject",
-    "vaultctl ai apply",
-    "vaultctl bridge ingest",
-    "vaultctl bridge status",
-    "vaultctl bridge publish",
-    "vaultctl export jsonl",
-    "vaultctl graph validate",
-    "vaultctl index build",
-    "vaultctl index verify",
-    "vaultctl search",
-    "vaultctl retrieve",
-    "vaultctl ask",
+    "vaultctl doctor",
     "vaultctl reconcile",
     "vaultctl git status",
-    "vaultctl commit",
-    "vaultctl receipts verify",
     "vaultctl plugins audit",
-    "vaultctl launchd install",
+    "vaultctl foundation source",
+    "vaultctl foundation check",
+    "vaultctl blueprint validate",
+    "vaultctl schema export",
+    "vaultctl vault-artifacts check",
+    "vaultctl index build",
+    "vaultctl index verify",
+    "vaultctl index export",
+    "vaultctl note validate",
     "vaultctl repair plan",
     "vaultctl repair apply",
-    "vaultctl obsidian status",
-    "vaultctl ui",
+    "vaultctl receipts verify",
+    "vaultctl operation check",
+    "vaultctl operation status",
+    "vaultctl operation recover",
+    "vaultctl work validate",
+    "vaultctl storage archive",
+    "vaultctl storage core-cutover",
 )
-
-EXPECTED_PHASES = (
-    "inventory_and_migration_plan",
-    "portable_vault",
-    "git_and_mobile_baseline",
-    "mac_plugin_profile",
-    "vaultctl_without_llm",
-    "readonly_llm_proposal",
-    "retrieval",
-    "background_and_optional_remote",
-    "optional_thin_chat_client",
-)
-
-EXPECTED_ACCEPTANCE_SCENARIOS = (
-    "fresh_bootstrap",
-    "existing_vault_additive_migration",
-    "home_cockpit_limits",
-    "mobile_core_only",
-    "working_copy_pro_and_linked_external_worktree_gate",
-    "single_sync_transport_and_default_obsidian_ignored",
-    "root_sentinel_remote_branch_roundtrip",
-    "root_sentinel_schema_and_remote_fingerprint_canonicalization",
-    "portable_vault_name_uri_on_iphone_and_ipad",
-    "iphone_unique_capture",
-    "mobile_offline_auth_push_failure_preserves_outbox",
-    "mobile_unexpected_staged_path_fails_closed",
-    "mobile_shortcut_cancel_and_reboot_recovery",
-    "mobile_remote_observed_ack_and_seven_day_cleanup",
-    "mobile_existing_edit_privacy_before_index_and_push",
-    "mobile_defer_rejects_dirty_or_unreadable_committed_blob",
-    "repository_scoped_credential_and_lost_device_revoke_drill",
-    "mobile_stale_snapshot_disclosure",
-    "mobile_asset_budget_refusal",
-    "heic_conversion_or_refusal_core_render",
-    "ipad_non_destructive_triage_hint",
-    "ipad_exact_file_edit_commit",
-    "external_worktree_relink_without_data_loss",
-    "working_copy_conflict_fail_closed",
-    "bridge_request_hash_binding",
-    "bridge_replay_noop",
-    "bridge_same_id_different_digest_quarantine",
-    "bridge_remote_authorization_wait",
-    "bridge_exact_response_commit",
-    "bridge_all_terminal_outcomes_visible_after_sync",
-    "bridge_publish_crash_resume_or_quarantine",
-    "prompt_injection_is_data",
-    "immutable_job_separate_remote_authorization_receipt",
-    "approval_digest_binding",
-    "historical_receipt_survives_later_note_update",
-    "deterministic_jsonl_projection",
-    "generation_pointer_prevents_mixed_jsonl",
-    "retrieval_policy_before_embedding_and_context",
-    "stale_index_fails_closed",
-    "lexical_typed_link_answer_with_citations",
-    "optional_vector_rrf_improves_baseline",
-    "thin_chat_plugin_removal_preserves_cli",
-    "plugin_free_readability",
-    "sleep_wake_reconciliation",
-    "guestbook_horror_fixture_exact_bytes_and_frozen_mtime",
-    "guestbook_horror_end_to_end",
-    "capture_finalize_transaction_recovery",
-    "source_capture_asset_provenance_roundtrip",
-    "project_local_link_cardinality_and_final_artifact_locator",
-    "blueprint_cross_validator_negative_fixtures",
-)
-
-EXPECTED_BRIDGE_STATES = (
-    "committed_request",
-    "ingested",
-    "awaiting_remote_authorization",
-    "queued",
-    "rejected",
-    "running",
-    "proposal_ready",
-    "answer_ready",
-    "no_change",
-    "insufficient_input",
-    "refused",
-    "failed",
-    "conflict",
-    "expired",
-    "published_local",
-    "human_push",
-    "mobile_visible",
-)
-
-EXPECTED_BRIDGE_TRANSITIONS = {
-    "committed_request": ("ingested",),
-    "ingested": ("awaiting_remote_authorization", "queued", "rejected", "conflict"),
-    "awaiting_remote_authorization": ("queued", "rejected", "expired"),
-    "queued": ("running", "rejected", "conflict"),
-    "running": (
-        "proposal_ready",
-        "answer_ready",
-        "no_change",
-        "insufficient_input",
-        "refused",
-        "failed",
-        "conflict",
-    ),
-    "proposal_ready": ("published_local", "rejected", "expired", "conflict"),
-    "answer_ready": ("published_local", "expired", "conflict"),
-    "no_change": ("published_local",),
-    "insufficient_input": ("published_local",),
-    "refused": ("published_local",),
-    "failed": ("published_local",),
-    "conflict": ("published_local",),
-    "rejected": ("published_local",),
-    "expired": ("published_local",),
-    "published_local": ("human_push",),
-    "human_push": ("mobile_visible",),
-}
-
-EXPECTED_STATE_MAPPING = {
-    "awaiting_remote_authorization": ("awaiting_remote_authorization", "awaiting_remote_authorization"),
-    "queued": ("queued", "queue"),
-    "rejected": ("rejected", "rejected"),
-    "proposal_ready": ("needs_review", "review"),
-    "answer_ready": ("answer_ready", "review"),
-    "no_change": ("no_change", "done"),
-    "insufficient_input": ("insufficient_input", "done"),
-    "refused": ("refused", "done"),
-    "failed": ("failed", "failed"),
-    "conflict": ("conflict", "conflict"),
-    "expired": ("expired", "expired"),
-}
 
 EXPECTED_BASE_DIRECTORY = "99_System/Bases"
 
@@ -841,28 +658,15 @@ EXPECTED_PUBLISH_PROTOCOL = [
     "fsync_parent_directory",
 ]
 
-EXPECTED_CAPTURE_FINALIZE_TRANSACTION = [
-    "verify_source_hash_and_capture_schema",
-    "validate_outcome_triaged_or_discarded",
-    "resolve_optional_related_target",
-    "journal_status_and_related_update_intent",
-    "publish_frontmatter_update",
-    "link_aware_move_to_90_Archive/Captures/YYYY",
-    "verify_destination_schema_and_links",
-    "append_completion_receipt",
-]
-
 EXPECTED_RETRIEVAL_PHASES = [
     "native_exact_and_links",
     "lexical_fts",
-    "local_vectors",
-    "reciprocal_rank_fusion",
     "bounded_typed_graph_expansion",
 ]
 
 EXPECTED_RETRIEVAL_GRAPH = {
     "default_hops": 1,
-    "maximum_hops": 2,
+    "maximum_hops": 1,
     "per_hop_node_cap": 20,
     "total_edge_cap": 60,
     "total_candidate_cap": 50,
@@ -884,28 +688,6 @@ EXPECTED_RETRIEVAL_GRAPH = {
         ],
         "directions": ["outgoing", "incoming"],
     },
-    "two_hop_sequence_allowlist": [
-        [
-            {"direction": "incoming", "predicate": "applies_to"},
-            {"direction": "incoming", "predicate": "supports"},
-        ],
-        [
-            {"direction": "incoming", "predicate": "applies_to"},
-            {"direction": "incoming", "predicate": "contradicts"},
-        ],
-        [
-            {"direction": "outgoing", "predicate": "implements"},
-            {"direction": "outgoing", "predicate": "derived_from"},
-        ],
-        [
-            {"direction": "outgoing", "predicate": "raises"},
-            {"direction": "incoming", "predicate": "explains"},
-        ],
-        [
-            {"direction": "incoming", "predicate": "projects"},
-            {"direction": "outgoing", "predicate": "sources"},
-        ],
-    ],
     "unknown_sequence_policy": "reject",
 }
 
@@ -921,19 +703,12 @@ EXPECTED_RETRIEVAL_CORPUS = {
     ],
     "journal_requires_explicit_scope": True,
     "exclude_paths": [
-        ".vault-bridge/**",
         ".obsidian-*/**",
         "99_System/**",
         "01_AI_Review/Rejected/**",
         "01_AI_Review/Expired/**",
     ],
     "review_corpus_separate": ["01_AI_Review/Pending/**", "01_AI_Review/Conflict/**"],
-}
-
-EXPECTED_RETRIEVAL_REMOTE_EMBEDDING = {
-    "allowed_ai_policy": ["remote_ok"],
-    "ask_requires_digest_bound_interactive_authorization": True,
-    "local_only_and_deny_forbidden": True,
 }
 
 EXPECTED_RETRIEVAL_STALENESS = {
@@ -1184,109 +959,6 @@ def _check_relations(blueprint: Mapping[str, Any], errors: list[dict[str, Any]])
                     "context relation property must be a list",
                 )
             )
-
-
-def _check_actions(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
-    actions = _as_mapping(blueprint.get("actions"))
-    pipeline_registry = _as_mapping(actions.get("pipeline_registry"))
-    pipelines = _as_mapping(pipeline_registry.get("filenames"))
-    _check_exact_set(
-        errors,
-        pipelines,
-        EXPECTED_PIPELINES,
-        locator="/actions/pipeline_registry/filenames",
-        code="SEMANTIC_PIPELINE_REGISTRY_EXACT_SET",
-    )
-    for pipeline, filename in EXPECTED_PIPELINES.items():
-        if pipelines.get(pipeline) != filename:
-            errors.append(
-                _error(
-                    "SEMANTIC_PIPELINE_FILENAME",
-                    _path("actions", "pipeline_registry", "filenames", pipeline),
-                    "pipeline registry filename does not match the canonical contract",
-                    details={"expected": filename, "actual": pipelines.get(pipeline)},
-                )
-            )
-
-    routes = _as_mapping(actions.get("user_action_routes"))
-    _check_exact_set(
-        errors,
-        routes,
-        EXPECTED_ROUTES,
-        locator="/actions/user_action_routes",
-        code="SEMANTIC_USER_ACTION_ROUTE_EXACT_SET",
-    )
-    command_set = set(EXPECTED_COMMANDS)
-    for route, expected_pipelines in EXPECTED_ROUTES.items():
-        actual_route = _as_mapping(routes.get(route))
-        actual_pipelines = tuple(actual_route.get("pipelines", ()))
-        if len(actual_pipelines) != len(set(actual_pipelines)):
-            errors.append(
-                _error(
-                    "SEMANTIC_ACTION_PIPELINE_MAPPING",
-                    _path("actions", "user_action_routes", route, "pipelines"),
-                    "user action contains a duplicate pipeline mapping",
-                    details={"actual": actual_pipelines},
-                )
-            )
-        if set(actual_pipelines) != set(expected_pipelines):
-            errors.append(
-                _error(
-                    "SEMANTIC_ACTION_PIPELINE_MAPPING",
-                    _path("actions", "user_action_routes", route, "pipelines"),
-                    "user action pipeline mapping does not match the canonical contract",
-                    details={"expected": expected_pipelines, "actual": actual_pipelines},
-                )
-            )
-        expected_command = f"vaultctl ai {route}"
-        if expected_command not in command_set:
-            errors.append(
-                _error(
-                    "SEMANTIC_ACTION_COMMAND_BINDING",
-                    _path("commands", expected_command),
-                    "user action has no canonical command declaration",
-                    details={"action": route, "command": expected_command},
-                )
-            )
-        for pipeline in actual_pipelines:
-            if pipeline not in EXPECTED_PIPELINES:
-                errors.append(
-                    _error(
-                        "SEMANTIC_ACTION_PIPELINE_MAPPING",
-                        _path("actions", "user_action_routes", route, "pipelines", pipeline),
-                        "user action references an unknown pipeline",
-                        details={"pipeline": pipeline},
-                    )
-                )
-
-    bridge = _as_mapping(blueprint.get("bridge"))
-    bridge_actions = _as_mapping(bridge.get("action_contracts"))
-    _check_exact_set(
-        errors,
-        bridge_actions,
-        EXPECTED_BRIDGE_ACTIONS,
-        locator="/bridge/action_contracts",
-        code="SEMANTIC_BRIDGE_ACTION_SUBSET",
-    )
-    for action, expected_schema in EXPECTED_BRIDGE_ACTIONS.items():
-        actual = _as_mapping(bridge_actions.get(action))
-        if actual.get("output_schema") != expected_schema:
-            errors.append(
-                _error(
-                    "SEMANTIC_ACTION_OUTPUT_SCHEMA",
-                    _path("bridge", "action_contracts", action, "output_schema"),
-                    "bridge action output schema declaration does not match the canonical contract",
-                    details={"expected": expected_schema, "actual": actual.get("output_schema")},
-                )
-            )
-    if "normalize" in bridge_actions:
-        errors.append(
-            _error(
-                "SEMANTIC_BRIDGE_ACTION_SUBSET",
-                "/bridge/action_contracts/normalize",
-                "normalize is a local route pipeline and must not be exposed as a bridge action",
-            )
-        )
 
 
 def _check_bases(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
@@ -1691,32 +1363,18 @@ def _check_retrieval(blueprint: Mapping[str, Any], errors: list[dict[str, Any]])
         errors,
         retrieval.get("policy_gate_points"),
         [
-            "before_remote_embedding_or_indexing",
-            "during_candidate_fusion_and_graph_expansion",
-            "immediately_before_model_context",
+            "before_candidate_selection",
+            "during_link_expansion",
+            "immediately_before_context_return",
         ],
         locator="/retrieval/policy_gate_points",
         code="SEMANTIC_RETRIEVAL_POLICY_GATES",
     )
     _check_mapping_value(
         errors,
-        dict(_as_mapping(retrieval.get("remote_embedding"))),
-        EXPECTED_RETRIEVAL_REMOTE_EMBEDDING,
-        locator="/retrieval/remote_embedding",
-        code="SEMANTIC_RETRIEVAL_PRIVACY_POLICY",
-    )
-    _check_mapping_value(
-        errors,
-        dict(_as_mapping(retrieval.get("local_embedding"))),
-        {"deny_forbidden": True},
-        locator="/retrieval/local_embedding",
-        code="SEMANTIC_RETRIEVAL_PRIVACY_POLICY",
-    )
-    _check_mapping_value(
-        errors,
-        retrieval.get("filter_before_model"),
+        retrieval.get("filter_before_context"),
         ["scope", "path", "type", "sensitivity", "ai_policy"],
-        locator="/retrieval/filter_before_model",
+        locator="/retrieval/filter_before_context",
         code="SEMANTIC_RETRIEVAL_FILTER_ORDER",
     )
     _check_mapping_value(
@@ -1734,11 +1392,8 @@ def _check_retrieval(blueprint: Mapping[str, Any], errors: list[dict[str, Any]])
             "chunk_locator",
             "retrieval_reason",
             "lexical_score_and_rank",
-            "vector_score_and_rank",
-            "rrf_parameter_and_rank",
             "graph_path",
             "parser_and_chunker_version",
-            "embedding_provider_model_dimension_and_artifact_digest",
             "indexer_version",
             "retrieval_config_sha256",
         ],
@@ -1758,13 +1413,6 @@ def _check_retrieval(blueprint: Mapping[str, Any], errors: list[dict[str, Any]])
         ["note_id", "path", "locator", "evidence_hash", "uncertainty"],
         locator="/retrieval/answer_requires",
         code="SEMANTIC_RETRIEVAL_ANSWER_CONTRACT",
-    )
-    _check_mapping_value(
-        errors,
-        retrieval.get("graphrag_default"),
-        "deferred",
-        locator="/retrieval/graphrag_default",
-        code="SEMANTIC_RETRIEVAL_GRAPH_BOUNDS",
     )
 
 
@@ -1800,133 +1448,11 @@ def _check_transactions(blueprint: Mapping[str, Any], errors: list[dict[str, Any
             code="SEMANTIC_PROJECT_BUNDLE_CARDINALITY",
         )
 
-    llm = _as_mapping(blueprint.get("llm"))
-    draft_note = _as_mapping(llm.get("draft_note"))
-    _check_mapping_value(
-        errors,
-        draft_note.get("project_target_creates_deterministic_bundle_directories"),
-        True,
-        locator="/llm/draft_note/project_target_creates_deterministic_bundle_directories",
-        code="SEMANTIC_PROJECT_BUNDLE_CARDINALITY",
-    )
-    capture_finalize = _as_mapping(_as_mapping(llm.get("triage")).get("capture_finalize"))
-    _check_mapping_value(
-        errors,
-        capture_finalize.get("transaction"),
-        EXPECTED_CAPTURE_FINALIZE_TRANSACTION,
-        locator="/llm/triage/capture_finalize/transaction",
-        code="SEMANTIC_CAPTURE_FINALIZE_TRANSACTION",
-    )
 
 
 def _check_exact_registries(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
-    for field, expected, code in (
-        ("commands", EXPECTED_COMMANDS, "SEMANTIC_COMMAND_REGISTRY_EXACT_SET"),
-        ("implementation_phases", EXPECTED_PHASES, "SEMANTIC_PHASE_REGISTRY_EXACT_SET"),
-        ("acceptance_scenarios", EXPECTED_ACCEPTANCE_SCENARIOS, "SEMANTIC_ACCEPTANCE_REGISTRY_EXACT_SET"),
-    ):
-        _check_exact_set(errors, blueprint.get(field), expected, locator=f"/{field}", code=code)
-
-
-def _check_bridge(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]) -> None:
-    bridge = _as_mapping(blueprint.get("bridge"))
-    states = bridge.get("states")
-    _check_exact_set(
-        errors,
-        states,
-        EXPECTED_BRIDGE_STATES,
-        locator="/bridge/states",
-        code="SEMANTIC_BRIDGE_STATE_EXACT_SET",
-    )
-    state_set = set(EXPECTED_BRIDGE_STATES)
-    transitions = _as_mapping(bridge.get("allowed_transitions"))
-    _check_exact_set(
-        errors,
-        transitions,
-        EXPECTED_BRIDGE_TRANSITIONS,
-        locator="/bridge/allowed_transitions",
-        code="SEMANTIC_BRIDGE_TRANSITION_EXACT_SET",
-    )
-    for source, expected_targets in EXPECTED_BRIDGE_TRANSITIONS.items():
-        actual_targets = tuple(_as_mapping(transitions).get(source, ()))
-        if set(actual_targets) != set(expected_targets):
-            errors.append(
-                _error(
-                    "SEMANTIC_BRIDGE_TRANSITION",
-                    _path("bridge", "allowed_transitions", source),
-                    "bridge transition targets do not match the canonical state machine",
-                    details={"expected": expected_targets, "actual": actual_targets},
-                )
-            )
-        for target in actual_targets:
-            if target not in state_set:
-                errors.append(
-                    _error(
-                        "SEMANTIC_BRIDGE_TRANSITION_CLOSURE",
-                        _path("bridge", "allowed_transitions", source, target),
-                        "bridge transition target is not a declared state",
-                        details={"target": target},
-                    )
-                )
-        if source in actual_targets:
-            errors.append(
-                _error(
-                    "SEMANTIC_BRIDGE_TRANSITION_CLOSURE",
-                    _path("bridge", "allowed_transitions", source),
-                    "bridge state machine must not contain a self-transition",
-                )
-            )
-
-    mapping = _as_mapping(bridge.get("state_mapping"))
-    _check_exact_set(
-        errors,
-        mapping,
-        EXPECTED_STATE_MAPPING,
-        locator="/bridge/state_mapping",
-        code="SEMANTIC_BRIDGE_STATE_MAPPING_EXACT_SET",
-    )
-    for state, (public_status, runtime_path) in EXPECTED_STATE_MAPPING.items():
-        actual = _as_mapping(mapping.get(state))
-        expected = {"public_status": public_status, "runtime": runtime_path}
-        actual_projection = {"public_status": actual.get("public_status"), "runtime": actual.get("runtime")}
-        if actual_projection != expected:
-            errors.append(
-                _error(
-                    "SEMANTIC_BRIDGE_STATE_RUNTIME_MAPPING",
-                    _path("bridge", "state_mapping", state),
-                    "bridge public status/runtime mapping does not match the canonical contract",
-                    details={"expected": expected, "actual": actual_projection},
-                )
-            )
-        if runtime_path not in STATE_DIRECTORIES:
-            errors.append(
-                _error(
-                    "SEMANTIC_BRIDGE_RUNTIME_PATH",
-                    _path("bridge", "state_mapping", state, "runtime"),
-                    "bridge state maps to an undeclared runtime directory",
-                    details={"runtime": runtime_path},
-                )
-            )
-
-    reachable = {"committed_request"}
-    changed = True
-    while changed:
-        changed = False
-        for source, targets in EXPECTED_BRIDGE_TRANSITIONS.items():
-            if source in reachable:
-                before = len(reachable)
-                reachable.update(targets)
-                changed = len(reachable) != before
-    unreachable = state_set - reachable
-    for state in sorted(unreachable):
-        errors.append(
-            _error(
-                "SEMANTIC_BRIDGE_TRANSITION_CLOSURE",
-                _path("bridge", "states", state),
-                "bridge state is unreachable from committed_request",
-                details={"state": state},
-            )
-        )
+    _check_exact_set(errors, blueprint.get("commands"), EXPECTED_COMMANDS,
+                     locator="/commands", code="SEMANTIC_COMMAND_REGISTRY_EXACT_SET")
 
 
 def validate_semantic_contract(blueprint: Mapping[str, Any]) -> SemanticValidation:
@@ -1935,9 +1461,7 @@ def validate_semantic_contract(blueprint: Mapping[str, Any]) -> SemanticValidati
     errors: list[dict[str, Any]] = []
     _check_note_paths_and_templates(blueprint, errors)
     _check_relations(blueprint, errors)
-    _check_actions(blueprint, errors)
     _check_exact_registries(blueprint, errors)
-    _check_bridge(blueprint, errors)
     _check_bases(blueprint, errors)
     _check_dashboards(blueprint, errors)
     _check_projection(blueprint, errors)

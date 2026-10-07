@@ -7,7 +7,7 @@
 
 ## Project Structure
 
-- Keep source authority in `SOURCE_CONTRACT.md` and implementation flow in `IMPLEMENTATION_PLAN.md`.
+- Keep current source boundaries in `SOURCE_CONTRACT.md`, `IMPLEMENTATION_PLAN.md`, and the live manifests, policies, source, and tests.
 - Keep architecture, runtime, operations, mobile, and decision rules in their named indexes.
 - Keep current status, evidence, blockers, and handoff records in `PROJECT_STATE.md` only.
 - Keep human explanations in the applicable root or directory `README.md`.
@@ -34,5 +34,5 @@
 
 ## Apply target definitions
 
-- Distinguish observed legacy paths from adopted Core ownership and future migration responsibilities.
+- Remove withdrawn predeployment commands, paths, tests, and claims from maintained contracts. Keep Core 0.18.1 ownership and pending native adoption explicit.
 - Keep maintained indexes and domain authoring plans with KnowledgeOS while placing intermediate review tooling in workspace Tmp.

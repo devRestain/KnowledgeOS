@@ -3,35 +3,34 @@
 - Resolve Core, control, Vault, Operation State and host Runtime as five independent private config v3 roots.
 - Keep the bound KnowledgeHub Vault as an independent Git repository and canonical Obsidian root.
 - Keep State and Runtime untracked, mode `0700`, and outside every sync root.
-- Use Core 0.16.1 as read-only contracts, schemas and frozen manifest inputs; implement executable ports inside KnowledgeOS.
+- Use the exact Core selection in ops/config/core-adoption.json as read-only contracts, schemas and frozen manifest inputs; implement executable ports inside KnowledgeOS.
 - Route selected CLI/MCP workflows through KnowledgeApplication, use one OwnerJournal and bind human decisions to exact source/proposal/policy/schema/semantic bytes.
-- Keep the first Capsule profile graphless and separate admission ACK, execution, domain acceptance, human approval and canonical apply.
+- Separate admission ACK, execution, independent assessment, domain acceptance, human approval, and canonical apply. Admitted Team and Officer Work may use owner-validated immutable Graph segments.
 - Keep the container as the canonical dependency and execution surface.
 - Keep `00_Inbox/Captures` as the single capture lifecycle path.
 - Keep fixed Vault namespaces, eight Base files, twenty views, sixteen templates, and eighteen note types aligned with Blueprint; `Compass.base` owns cross-type orientation signals.
 - Keep Markdown body and flat YAML Properties as the canonical note representation.
 - Keep title equal to filename stem, timezone-aware datetimes, quoted wikilinks, and filesystem mtime freshness.
 - Keep project bundles under `20_Projects/<name>/` with `Working/` and `Artifacts/` siblings.
-- Keep iPhone capture, iPad reading, and Mac deciding or applying roles separate.
-- Keep bridge messages immutable and prevent workers from implicit network Git commands.
-- Keep canonical directory markers exact and exclude bridge event and runtime placeholder files.
-- Keep bridge protocol fixtures separate from production request and response events.
+- Keep Obsidian document operations within the user's selected device and installed profile; a mobile sync or request route requires separate adoption evidence.
+- Keep canonical directory markers exact and exclude runtime placeholder files.
 - Keep ignored Obsidian baselines separate from app-smoke evidence.
-- Keep LLM output schema-constrained and proposal-only until approval binds source, target, policy, schema, and digest.
+- Keep agent proposals action-schema constrained, source and preimage bound, and Pending until owner review. Approval and canonical apply are distinct human-controlled effects.
 - Keep privacy defaults conservative and exclude denied or local-only material from remote candidate sets.
 - Keep confidential or institutionally restricted material outside this Vault until a separate boundary is approved.
-- Keep Obsidian GUI as the canonical human editing and review environment. Assign daily creation to Core Daily Notes, weekly/monthly creation and opening to Notebook Navigator, bounded period-field rendering to Templater, and existing-note contract validation to `vaultctl note validate`.
-- Keep period-note ownership single-sourced: the F lane removes the `vaultctl period create` production writer while the internal template engine remains for non-period typed notes, captures, projects, proposals, AI artifacts, and deterministic fixtures.
-- Keep `vaultctl note create` strict and general-purpose; do not expand it into a period-note writer or use the official Obsidian CLI as a canonical Markdown writer, validator replacement, or GUI-period generator.
+- Keep Obsidian GUI as the human writing, navigation, search, review, and decision environment. Core Daily Notes, Notebook Navigator, Templater, QuickAdd, Bases, Backlinks, and Search retain their GUI jobs; `vaultctl note validate` checks existing note bytes.
+- Keep general note, project, capture, and period creation out of the CLI. The internal template engine may support deterministic generated artifacts and fixtures, but it is not a second human entry point.
 - Keep Home and Note Toolbar as the primary GUI navigation layer and Command Palette as fallback recovery. Toolbar actions must be explicit, reviewed, bounded, and free of arbitrary shell, script, network, Git, AI, or canonical-apply authority.
-- Keep external automation and future Obsidian CLI access behind `vaultctl`; the initial official CLI surface is a status-only adapter with fixed arguments, bounded output, fail-closed identity checks, and no raw command pass-through.
-- Keep the installed Mac Thin Client as a presentation adapter only: send digest-bound requests through the authenticated `127.0.0.1` broker, recheck note/policy/index bindings, and dispatch the provider-free `vaultctl ask` path. Keep retrieval, provider, index, Vault-write, Git, and canonical-apply authority outside the plugin.
-- Keep the explicit local Ollama route separate from the Thin Client presentation path: one authorized `gemma4:12b` job may traverse the C31 frozen context, C40/C35 route validation, and C19 proposal boundary, but provider output remains proposal-only and unattended activation remains disabled.
+- Keep `vaultctl` for owner maintenance, index verification/build, note validation, receipts, repair, and exact storage transitions. User navigation and document operations stay in Obsidian; agent knowledge work uses the single `vaultmcp` v3.
+- Keep the Mac Thin Client as an owner Work and review adapter: submit a digest-bound request to Director admission, display Work status and Pending evidence, and send human decision and separate apply requests to the owner. Keep retrieval, provider, index, Vault-write, Git, and canonical authority outside the plugin.
+- Keep model execution and embedding outside the current KOS source boundary; any future model binding belongs to a separately admitted Runner.
 - Review large-binary storage and Git LFS only after observed asset size and remote policy justify it.
 
 ## AgentFabric target model
 
 - Use the adopted Core environment model in source: Operation canonical and durable control State, host reconstructable Runtime and shared service execution, independently governed Vault knowledge.
-- Keep States/Operations/<operation_id> as the default detachable Operation storage; preserve old private data until the separately authorized C12 cutover.
+- Keep `States/Operations/knowledgeos/` as the detachable owner State root and `Runtimes/KnowledgeOS-runtime/` as reconstructable host Runtime. Retire predeployment archives only through an exact-reference, owner-locked transition; the current owner State has its own Core 0.18.1 pins and journal.
 - Keep Operation routing/export policy, durable delivery intent, outcomes, and decisions when using a shared host transport.
-- Use planning/c12-preparation/CAPSULE_RESPONSIBILITIES.md for the nine selected responsibilities and C12_HANDOFF.md for binding, cutover, rollback and unrun gates.
+- Assign one dedicated Manager to each KnowledgeOS Team: CurationManager, ResearchManager, OntologyManager, ReviewManager, ExchangeManager and MaintenanceManager. A Team exists only with its Manager identity and selects needed teammate calls per admitted Work; use docs/TEAMS_AND_ROADMAP.md for exact routes.
+- Bind admitted Team work to its selected Manager through team_id and manager_executor_id, preserve that binding through immutable continuation, and require explicit Director amendment and owner validation for changes. A bounded Officer task has no Team or Manager binding. Reuse immutable teammate definitions across Teams and compatible Operations only through separate local authority bindings. Keep EvalOfficer independent from the selected Manager, teammates and producing Officer.
+- Use `ops/config/core-adoption.json` and current Work, method, policy, and MCP contracts for implementation.

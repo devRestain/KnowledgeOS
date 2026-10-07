@@ -6,21 +6,18 @@
 - Use `make schema-check` for owned generated-artifact evidence.
 - Use `make container-source-check` and `make container-verify` for canonical container evidence when the active slice requires them.
 - Run `make test` and `make lint` sequentially to avoid disposable cache races.
-- Use `docker compose -f ops/compose.yaml run --rm dev ...` for disposable commands.
+- Use `ops/compose.test.yaml` for canonical offline fixture checks. Use `ops/compose.yaml` only for separately selected private bindings and effects.
 - Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID` from the invoking host account; fail closed on omission.
-- Keep control, `../../../Vaults/KnowledgeHub/`, and `runtime/` as separate storage and evidence surfaces.
-- Verify Vault sentinel identity and branch binding before sync or publish gates.
+- Keep control, independent `../../../Vaults/KnowledgeHub/`, owner `../../../States/Operations/knowledgeos/`, and host `../../../Runtimes/KnowledgeOS-runtime/` as separate storage and evidence surfaces.
+- Verify Vault identity and exact owner binding before any authorized sync or publish gate.
 - Keep runtime payloads durable where classified and never treat ignored as disposable by default.
 - Keep ignored Obsidian baselines separate from disposable app-smoke evidence.
-- Keep Git, plugin, device, provider, remote, and LaunchAgent effects behind exact approval gates.
+- Keep Git, plugin, device, remote service, and native Runner effects behind their exact adoption gates.
 - Keep the normal period-note operation GUI-first: use Core Daily Notes for daily notes, Notebook Navigator for weekly/monthly notes, Templater for bounded rendering, and `vaultctl note validate` for explicit contract checks; do not schedule or invoke terminal period creation.
 - Keep Home and Note Toolbar as the primary user-facing entry points for recurring Obsidian actions. Treat Command Palette as a recovery/diagnostic fallback, not as the intended operating procedure.
-- Keep external automation calling `vaultctl` only. F05 routes the official `obsidian` CLI through one fixed-argv, shell-free, bounded `vaultctl obsidian status` adapter; do not expose raw pass-through or document/plugin control commands.
-- Keep serialized plugin settings, adapter tests, and fake executables separate from GUI/device/deployment evidence. App connection, PATH discovery, Vault identity, Notebook Navigator generation, Templater execution, toolbar behavior, and no-overwrite behavior require their own authorized evidence class.
-- Operate the Mac Thin Client through `vaultctl ai client --serve` on `127.0.0.1` with a bounded mode-0600 token; let the broker recheck current-note, policy, and immutable-index digests before dispatching provider-free `vaultctl ask`. Clear client tokens after each request and keep the plugin free of shell, provider, Vault-write, and canonical-apply authority.
-- Operate local Gemma only through an explicit one-shot `vaultctl ai ollama` invocation with the loopback/cloud-off identity checks and the current 600-second hard bound. Keep C31/C40/C35 output proposal-only until the separate C19 review, approval, and apply commands are completed.
+- Route agent evidence and proposals through `vaultmcp` and human document work through Obsidian. Reserve `vaultctl` for maintenance and exact recovery.
+- Keep serialized plugin settings, source tests, native GUI behavior, and deployment evidence separate. The current Thin Client source is not installed by the source refactor.
+- Treat the Mac Thin Client as an owner Work and review adapter. Its authenticated Web route admits Work through the Director callback, reads status and Pending material, records a human decision, and requests canonical apply separately. The source refactor does not activate a listener or install the plugin.
+- Use the single `vaultmcp` v3 for agent evidence and proposals. The KOS CLI does not run a model or broker provider requests.
 - Keep period templates non-operational: no shell, system command, user script, network, AI, Git, `vaultctl`, automatic canonical apply, or automatic AI-summary insertion.
-- For E03, use `vaultctl launchd install --dry-run` to bind and inspect the exact root/executable without host mutation; use `--activate` only for the approved current-user `gui/<uid>/<label>` installation, and use `vaultctl launchd status` for read-only service evidence.
-- E03 rollback must boot out the exact label first and remove only an unchanged E03-owned plist; `vaultctl launchd rollback --apply` refuses foreign, changed, or unowned bytes.
-- E03 worker stdout is a bounded timestamped JSONL summary and stderr is independently bounded: each file is capped at 16 KiB, carries forward at most 8 KiB on the next wake, clears a file that has been idle for more than one hour on the next wake, and discards legacy unbounded bytes on the first bounded wake; manual terminal invocations keep their full diagnostic JSON.
 - Record every check in `PROJECT_STATE.md` with its evidence class and controlled result.

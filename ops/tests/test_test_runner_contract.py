@@ -39,7 +39,7 @@ def test_boundary_scan_detects_direct_vault_and_whole_control_copies(tmp_path: P
     assert not conftest._source_has_boundary_violation(safe)
 
 
-def test_every_configured_and_legacy_vault_state_alias_is_masked() -> None:
+def test_configured_vault_state_and_existing_runtime_aliases_are_masked() -> None:
     config_path = conftest._CONFIG_FILE
     config = tomllib.loads(config_path.read_text(encoding="utf-8"))
 
@@ -50,7 +50,6 @@ def test_every_configured_and_legacy_vault_state_alias_is_masked() -> None:
     control = configured_root(config["control_root"])
     state_key = "runtime_root" if config["schema_version"] == 1 else "state_root"
     expected = {
-        control / "KnowledgeHub",
         configured_root(config["vault_root"]),
         control / "runtime",
         Path("/workspace/runtime"),
@@ -63,6 +62,26 @@ def test_every_configured_and_legacy_vault_state_alias_is_masked() -> None:
     )
     for alias in expected:
         assert f"target: {alias.as_posix()}" in compose_test
+    assert f"target: {(control / 'KnowledgeHub').as_posix()}" not in compose_test
+
+
+def test_removed_vault_alias_requires_read_only_control_and_refuses_legacy_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    control = tmp_path / "control"
+    control.mkdir()
+    monkeypatch.setattr(conftest, "_CONTROL_ROOT", control)
+
+    with pytest.raises(pytest.UsageError, match="explicitly read-only"):
+        conftest._validate_control_vault_boundary({control: frozenset({"rw"})})
+
+    mounts = {control: frozenset({"ro"})}
+    conftest._validate_control_vault_boundary(mounts)
+    legacy = control / "KnowledgeHub"
+    legacy.mkdir()
+    (legacy / "Home.md").write_text("legacy corpus must not enter test collection")
+    with pytest.raises(pytest.UsageError, match="unexpected legacy Vault"):
+        conftest._validate_control_vault_boundary(mounts)
 
 
 def test_compose_keeps_state_runtime_sources_independent_and_masks_both() -> None:

@@ -49,11 +49,11 @@
 
 ## AgentFabric target ownership
 
-- Treat the Core 0.16.1 graphless preparation as source and local fixture evidence; keep real C12 adoption separately selected.
+- Use the exact Core 0.18.1 selection in `ops/config/core-adoption.json` and the current owner State pin for ownership. Retired predeployment contracts and tests are not current authority.
 - Distinguish existing durable runtime records from host-owned reconstructable Runtime in the target architecture.
 - Keep Operation canonical state, persistent control, routing policy, and effects owner-controlled.
 - Retain maintained source, tests, configuration, and authoring plans here regardless of Git dirty status.
 - Use workspace Tmp freely for unrelated drafts and intermediate verification algorithms.
 - Keep README documents in Korean and directory guidance and machine state in English.
 - Keep selected CLI and MCP control in KnowledgeApplication and finalize decisions in OwnerJournal.
-- Read planning/c12-preparation/C12_HANDOFF.md before selecting real data conversion, writer cutover or activation.
+- Use `docs/IMPLEMENTATION_STATUS.md`, the current Blueprint, and live owner contracts for current entry points. Keep native service activation separate from source verification.

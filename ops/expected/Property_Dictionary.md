@@ -3,9 +3,9 @@
 
 이 파일은 Blueprint registry에서 생성된 C06 strict note contract의 검증된 사본이다.
 
-- contract: `knowledgeos-blueprint-v2`
+- contract: `knowledgeos-blueprint-v3`
 - capability profile: `portable_core`
-- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b`)
+- authoritative input: `blueprint/blueprint.yaml` (SHA-256 `88e014582b7e18803ee6474e522f47aea46928c147647c71d8d5105af31e8c94`)
 - property count: `77`
 
 | Property | Obsidian type | Constraints | Owner |

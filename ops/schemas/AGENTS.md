@@ -2,7 +2,7 @@
 
 ## Definition and contents
 
-- Use this directory for domain, provider, proposal, evidence, and MCP record shapes.
+- Use this directory for current domain, proposal, evidence, index, and MCP record shapes.
 - Use mcp for the declared local protocol schemas.
 
 ## Ownership

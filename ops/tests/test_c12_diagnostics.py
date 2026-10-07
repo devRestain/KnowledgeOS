@@ -21,7 +21,7 @@ from vaultops.diagnostics import (
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutation(
+def test_doctor_reports_current_contracts_without_mutation(
     tmp_path: Path,
 ) -> None:
     root = make_diagnostic_root(tmp_path)
@@ -42,9 +42,9 @@ def test_doctor_reports_valid_core_and_separate_inactive_overlays_without_mutati
         "semantic_validation": "PASS",
         "generated_artifacts": "PASS",
     }
-    assert report["overlays"]["git_identity_configured"]["state"] == "inactive"
-    assert report["overlays"]["obsidian_mac_core_verified"]["state"] == "inactive"
-    assert report["overlays"]["mobile_transport_verified"]["state"] == "deferred"
+    assert "overlays" not in report
+    assert "local_models" not in report
+    assert "vector" not in report
     assert report["plugins"]["profile"] == "mac"
     assert report["roots"] == {
         "core": str(roots.core),
@@ -125,7 +125,7 @@ def test_note_validation_failure_uses_the_stable_validation_exit_class(tmp_path:
     note_path.parent.mkdir(parents=True)
     note_path.write_text("---\ntitle: Invalid\ntitle: Duplicate\n---\n", encoding="utf-8")
 
-    assert main(["note", "validate", "99_System/Templates/Invalid.md", "--root", str(root)]) == EXIT_VALIDATION_FAILED
+    assert main(["note", "validate", "--path", "99_System/Templates/Invalid.md", "--root", str(root)]) == EXIT_VALIDATION_FAILED
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "FAIL"
     assert report["errors"][0]["code"] == "NOTE_FRONTMATTER_INVALID"
@@ -134,7 +134,7 @@ def test_note_validation_failure_uses_the_stable_validation_exit_class(tmp_path:
 def test_note_validation_input_failure_uses_the_stable_input_exit_class(tmp_path: Path, capsys) -> None:
     root = make_control_root(tmp_path, ("blueprint",))
 
-    assert main(["note", "validate", "../escape.md", "--root", str(root)]) == EXIT_INPUT_INVALID
+    assert main(["note", "validate", "--path", "../escape.md", "--root", str(root)]) == EXIT_INPUT_INVALID
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "FAIL"
     assert report["errors"][0]["code"] == "NOTE_INPUT_INVALID"

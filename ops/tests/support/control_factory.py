@@ -46,7 +46,6 @@ DIAGNOSTIC_CONTROL_INPUTS = (
     "ops/actions",
     "ops/config",
     "ops/expected",
-    "ops/launchd",
     "ops/policies",
     "ops/prompts",
     "ops/schemas",
@@ -57,7 +56,6 @@ PORTABLE_CONTROL_INPUTS = (
     "blueprint/blueprint.schema.json",
     "blueprint/blueprint.yaml",
     "ops/actions",
-    "ops/config/prd-traceability.yaml",
     "ops/policies",
     "ops/prompts",
     "ops/schemas",
@@ -74,12 +72,7 @@ C40_LOCAL_CONTROL_INPUTS = (
     "ops/policies",
     "ops/prompts",
     "ops/schemas/answer.schema.json",
-    "ops/schemas/frozen-context.schema.json",
     "ops/schemas/proposal.schema.json",
-    "ops/schemas/provider-failure.schema.json",
-    "ops/schemas/provider-receipt.schema.json",
-    "ops/schemas/provider-request.schema.json",
-    "ops/schemas/provider-response.schema.json",
     "ops/schemas/remote-authorization.schema.json",
     "ops/schemas/triage-result.schema.json",
 )
@@ -389,7 +382,7 @@ def make_diagnostic_root(tmp_path: Path) -> Path:
 def make_identity_root(tmp_path: Path) -> Path:
     """Build only the roots, Blueprint, and sentinel needed for identity probes."""
 
-    from vaultops.bridge_contract import canonical_json_bytes, remote_identity_sha256
+    from vaultops.vault_identity import canonical_json_bytes, remote_identity_sha256
 
     sentinel = {
         "schema_version": 1,

@@ -3,23 +3,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
 from support.control_factory import (
     fixture_path,
     make_portable_fixture_root,
-    make_separate_portable_fixture_roots,
 )
 
 from vaultops.ai_projection import (
     EXIT_CONFLICT,
     EXIT_OK,
-    ai_edge_record_schema,
-    ai_note_record_schema,
     build_ai_projection,
     generate_ai_projection,
     read_current_ai_projection,
 )
-from vaultops.cli import main
 from vaultops.note_engine import render_frontmatter
 from vaultops.paths import ResolvedPaths
 from vaultops.projection import generate_projection
@@ -153,55 +148,6 @@ def test_c29_profiles_filter_notes_properties_and_incident_edges_before_serializ
     assert remote.manifest["eligible_note_count"] < local.manifest["eligible_note_count"]
 
 
-def test_c29_cli_publishes_privacy_filtered_projection_to_separate_runtime(
-    tmp_path: Path,
-    capsys,
-) -> None:
-    roots = make_separate_portable_fixture_roots(tmp_path)
-    _write_eligibility_fixture(roots)
-    vault_before = {
-        path.relative_to(roots.vault).as_posix(): path.read_bytes()
-        for path in roots.vault.rglob("*")
-        if path.is_file()
-    }
-
-    assert main(
-        [
-            "ai",
-            "projection",
-            "build",
-            "--profile",
-            "remote",
-            "--generation-id",
-            "c29-remote-separated",
-            "--root",
-            str(roots.control),
-        ]
-    ) == EXIT_OK
-    report = json.loads(capsys.readouterr().out)
-    assert report["projection_profile"] == "remote"
-    pointer = roots.state / "index/ai/remote/current.json"
-    assert pointer.is_file()
-
-    assert main(
-        ["ai", "projection", "verify", "--profile", "remote", "--root", str(roots.control)]
-    ) == EXIT_OK
-    verified = json.loads(capsys.readouterr().out)
-    assert verified["generation_id"] == "c29-remote-separated"
-    assert all(record["properties"]["ai_policy"] == "remote_ok" for record in verified["notes"])
-    assert _file_snapshot(roots.vault) == vault_before
-    assert not (roots.control / "KnowledgeHub").exists()
-    assert not (roots.control / "runtime").exists()
-
-    pointer_before = pointer.read_bytes()
-    source = roots.vault / "40_Knowledge/Notes/Denied C29.md"
-    source.write_bytes(source.read_bytes() + b"\nsynthetic source drift\n")
-    stale, stale_code = read_current_ai_projection(roots, profile="remote")
-    assert stale_code == EXIT_CONFLICT
-    assert "stale" in stale["errors"][0]["message"]
-    assert pointer.read_bytes() == pointer_before
-
-
 def test_c29_publishes_separate_atomic_profile_pointers_and_replays_immutably(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _write_eligibility_fixture(root)
@@ -257,30 +203,3 @@ def test_c29_rejects_source_drift_and_a_c21_full_content_pointer(tmp_path: Path)
     assert rejected_code == EXIT_CONFLICT
     assert rejected["status"] == "FAIL"
     assert "privacy-minimized" in rejected["errors"][0]["message"]
-
-
-def test_c29_cli_and_generated_record_schemas_are_profile_explicit(tmp_path: Path, capsys) -> None:
-    root = _fresh_control_copy(tmp_path)
-    _write_eligibility_fixture(root)
-
-    assert main(["ai", "projection", "build", "--profile", "remote", "--root", str(root)]) == EXIT_OK
-    report = json.loads(capsys.readouterr().out)
-    assert report["capability"] == "C29"
-    assert report["projection_profile"] == "remote"
-    assert main(["ai", "projection", "verify", "--profile", "remote", "--root", str(root)]) == EXIT_OK
-    verified = json.loads(capsys.readouterr().out)
-    assert verified["eligibility_class"] == "remote_eligible"
-    assert all(
-        not list(schema_validator.iter_errors(record))
-        for schema_validator, records in (
-            (
-                Draft202012Validator(ai_note_record_schema()),
-                verified["notes"],
-            ),
-            (
-                Draft202012Validator(ai_edge_record_schema()),
-                verified["edges"],
-            ),
-        )
-        for record in records
-    )

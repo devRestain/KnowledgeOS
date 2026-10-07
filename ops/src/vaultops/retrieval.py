@@ -4,9 +4,7 @@ The C22 boundary deliberately keeps retrieval read-only.  The Vault remains the
 source of truth, C21's immutable generation is the only input surface, and the
 retrieval policy is checked against both the generated policy artifact and the
 Blueprint before any candidate is returned.  This module implements lexical
-matching and bounded typed-link expansion only by default.  The optional E01
-local vector/RRF overlay is imported lazily so the C22 default remains byte
-and behavior stable without an explicit opt-in.
+matching and bounded typed-link expansion.
 """
 
 from __future__ import annotations
@@ -78,8 +76,6 @@ _ALL_NOTE_TYPES = frozenset(
 _EXPECTED_PHASES = [
     "native_exact_and_links",
     "lexical_fts",
-    "local_vectors",
-    "reciprocal_rank_fusion",
     "bounded_typed_graph_expansion",
 ]
 _EXPECTED_ONE_HOP_PREDICATES = [
@@ -98,28 +94,6 @@ _EXPECTED_ONE_HOP_PREDICATES = [
     "related",
 ]
 _EXPECTED_DIRECTIONS = ["outgoing", "incoming"]
-_EXPECTED_TWO_HOP_SEQUENCES = [
-    [
-        {"direction": "incoming", "predicate": "applies_to"},
-        {"direction": "incoming", "predicate": "supports"},
-    ],
-    [
-        {"direction": "incoming", "predicate": "applies_to"},
-        {"direction": "incoming", "predicate": "contradicts"},
-    ],
-    [
-        {"direction": "outgoing", "predicate": "implements"},
-        {"direction": "outgoing", "predicate": "derived_from"},
-    ],
-    [
-        {"direction": "outgoing", "predicate": "raises"},
-        {"direction": "incoming", "predicate": "explains"},
-    ],
-    [
-        {"direction": "incoming", "predicate": "projects"},
-        {"direction": "outgoing", "predicate": "sources"},
-    ],
-]
 _EXPECTED_DEFAULT_TYPES = [
     "knowledge",
     "source",
@@ -130,7 +104,6 @@ _EXPECTED_DEFAULT_TYPES = [
     "question",
 ]
 _EXPECTED_EXCLUDE_PATHS = [
-    ".vault-bridge/**",
     ".obsidian-*/**",
     "99_System/**",
     "01_AI_Review/Rejected/**",
@@ -138,9 +111,9 @@ _EXPECTED_EXCLUDE_PATHS = [
 ]
 _EXPECTED_REVIEW_PATHS = ["01_AI_Review/Pending/**", "01_AI_Review/Conflict/**"]
 _EXPECTED_POLICY_GATE_POINTS = [
-    "before_remote_embedding_or_indexing",
-    "during_candidate_fusion_and_graph_expansion",
-    "immediately_before_model_context",
+    "before_candidate_selection",
+    "during_link_expansion",
+    "immediately_before_context_return",
 ]
 _EXPECTED_FILTER_ORDER = ["scope", "path", "type", "sensitivity", "ai_policy"]
 _EXPECTED_CANDIDATE_FIELDS = [
@@ -155,11 +128,8 @@ _EXPECTED_CANDIDATE_FIELDS = [
     "chunk_locator",
     "retrieval_reason",
     "lexical_score_and_rank",
-    "vector_score_and_rank",
-    "rrf_parameter_and_rank",
     "graph_path",
     "parser_and_chunker_version",
-    "embedding_provider_model_dimension_and_artifact_digest",
     "indexer_version",
     "retrieval_config_sha256",
 ]
@@ -256,13 +226,10 @@ def _validate_retrieval_policy(retrieval: Mapping[str, Any]) -> None:
             "graph_expansion",
             "corpus",
             "policy_gate_points",
-            "remote_embedding",
-            "local_embedding",
-            "filter_before_model",
+            "filter_before_context",
             "frozen_candidate_fields",
             "staleness",
             "answer_requires",
-            "graphrag_default",
         },
         "/retrieval",
     )
@@ -278,13 +245,12 @@ def _validate_retrieval_policy(retrieval: Mapping[str, Any]) -> None:
             "total_edge_cap",
             "total_candidate_cap",
             "one_hop_allowlist",
-            "two_hop_sequence_allowlist",
             "unknown_sequence_policy",
         },
         "/retrieval/graph_expansion",
     )
     _expect(graph["default_hops"], 1, "/retrieval/graph_expansion/default_hops")
-    _expect(graph["maximum_hops"], 2, "/retrieval/graph_expansion/maximum_hops")
+    _expect(graph["maximum_hops"], 1, "/retrieval/graph_expansion/maximum_hops")
     _expect(graph["per_hop_node_cap"], 20, "/retrieval/graph_expansion/per_hop_node_cap")
     _expect(graph["total_edge_cap"], 60, "/retrieval/graph_expansion/total_edge_cap")
     _expect(graph["total_candidate_cap"], 50, "/retrieval/graph_expansion/total_candidate_cap")
@@ -292,11 +258,6 @@ def _validate_retrieval_policy(retrieval: Mapping[str, Any]) -> None:
     _expect_mapping_keys(allowlist, {"predicates", "directions"}, "/retrieval/graph_expansion/one_hop_allowlist")
     _expect(allowlist["predicates"], _EXPECTED_ONE_HOP_PREDICATES, "/retrieval/graph_expansion/one_hop_allowlist/predicates")
     _expect(allowlist["directions"], _EXPECTED_DIRECTIONS, "/retrieval/graph_expansion/one_hop_allowlist/directions")
-    _expect(
-        graph["two_hop_sequence_allowlist"],
-        _EXPECTED_TWO_HOP_SEQUENCES,
-        "/retrieval/graph_expansion/two_hop_sequence_allowlist",
-    )
     _expect(graph["unknown_sequence_policy"], "reject", "/retrieval/graph_expansion/unknown_sequence_policy")
 
     corpus = _as_mapping(retrieval["corpus"], "/retrieval/corpus")
@@ -311,30 +272,13 @@ def _validate_retrieval_policy(retrieval: Mapping[str, Any]) -> None:
     _expect(corpus["review_corpus_separate"], _EXPECTED_REVIEW_PATHS, "/retrieval/corpus/review_corpus_separate")
 
     _expect(retrieval["policy_gate_points"], _EXPECTED_POLICY_GATE_POINTS, "/retrieval/policy_gate_points")
-    remote = _as_mapping(retrieval["remote_embedding"], "/retrieval/remote_embedding")
-    _expect_mapping_keys(
-        remote,
-        {"allowed_ai_policy", "ask_requires_digest_bound_interactive_authorization", "local_only_and_deny_forbidden"},
-        "/retrieval/remote_embedding",
-    )
-    _expect(remote["allowed_ai_policy"], ["remote_ok"], "/retrieval/remote_embedding/allowed_ai_policy")
-    _expect(
-        remote["ask_requires_digest_bound_interactive_authorization"],
-        True,
-        "/retrieval/remote_embedding/ask_requires_digest_bound_interactive_authorization",
-    )
-    _expect(remote["local_only_and_deny_forbidden"], True, "/retrieval/remote_embedding/local_only_and_deny_forbidden")
-    local = _as_mapping(retrieval["local_embedding"], "/retrieval/local_embedding")
-    _expect_mapping_keys(local, {"deny_forbidden"}, "/retrieval/local_embedding")
-    _expect(local["deny_forbidden"], True, "/retrieval/local_embedding/deny_forbidden")
-    _expect(retrieval["filter_before_model"], _EXPECTED_FILTER_ORDER, "/retrieval/filter_before_model")
+    _expect(retrieval["filter_before_context"], _EXPECTED_FILTER_ORDER, "/retrieval/filter_before_context")
     _expect(retrieval["frozen_candidate_fields"], _EXPECTED_CANDIDATE_FIELDS, "/retrieval/frozen_candidate_fields")
     staleness = _as_mapping(retrieval["staleness"], "/retrieval/staleness")
     _expect_mapping_keys(staleness, {"default", "running_query_pins_generation"}, "/retrieval/staleness")
     _expect(staleness["default"], "fail_closed_and_require_rebuild", "/retrieval/staleness/default")
     _expect(staleness["running_query_pins_generation"], True, "/retrieval/staleness/running_query_pins_generation")
     _expect(retrieval["answer_requires"], _EXPECTED_ANSWER_FIELDS, "/retrieval/answer_requires")
-    _expect(retrieval["graphrag_default"], "deferred", "/retrieval/graphrag_default")
 
 
 def _regular_file(path: Path, label: str) -> bytes:
@@ -374,7 +318,7 @@ def _load_contract(workspace: Path | ResolvedPaths) -> tuple[Mapping[str, Any], 
         "retrieval policy",
     )
     _expect(policy["schema_version"], SCHEMA_VERSION, "/schema_version")
-    _expect(policy["contract_id"], "knowledgeos-blueprint-v2", "/contract_id")
+    _expect(policy["contract_id"], "knowledgeos-blueprint-v3", "/contract_id")
     _expect(policy["capability_profile"], "portable_core", "/capability_profile")
     _expect(policy["artifact_kind"], "retrieval_policy", "/artifact_kind")
     authoritative = _as_list(policy["authoritative_inputs"], "/authoritative_inputs")
@@ -1274,7 +1218,7 @@ def _policy_decision_hash(
     decision = {
         "schema_version": SCHEMA_VERSION,
         "retrieval_phases": list(retrieval["phases"]),
-        "filter_before_model": list(retrieval["filter_before_model"]),
+        "filter_before_context": list(retrieval["filter_before_context"]),
         "scope": scope,
         "path_prefix": path_prefix,
         "include_types": list(include_types),
@@ -1312,23 +1256,7 @@ def _execute_projection(
     if not isinstance(use_vector, bool):
         raise RetrievalValidationError("use_vector must be boolean")
     if use_vector:
-        # Import lazily: E01 is an optional overlay and imports C22 helpers to
-        # preserve one policy filter, chunker, candidate schema, and graph
-        # implementation.  Keeping this branch opt-in preserves C22 defaults.
-        from .vector import vector_retrieve_projection
-
-        return vector_retrieve_projection(
-            projection,
-            query,
-            policy=retrieval,
-            retrieval_config_sha256=retrieval_config_sha256,
-            scope=scope,
-            path_prefix=path_prefix,
-            include_types=include_types,
-            include_review=include_review,
-            limit=limit,
-            hops=hops,
-        )
+        raise RetrievalValidationError("vector retrieval is outside the current KnowledgeOS contract")
     normalized_query, query_sha256, terms = _canonical_query(query)
     options = _normalized_options(
         retrieval,

@@ -1,5 +1,5 @@
 schema_version: 1
-contract_id: knowledgeos-blueprint-v2
+contract_id: knowledgeos-blueprint-v3
 capability_profile: portable_core
 artifact_kind: path_policy
 authoritative_inputs:
@@ -8,13 +8,13 @@ authoritative_inputs:
   - /path_namespaces
   - /path_match_semantics
   - /fixed_paths
-  sha256: b9f07017672153468c82b1886d5d9ed2963fae87da7462832f03429378ac3b6b
+  sha256: 88e014582b7e18803ee6474e522f47aea46928c147647c71d8d5105af31e8c94
 paths:
   namespaces:
-    obsidian_working_copy_bridge: vault_relative_posix
-    control_jobs_and_policies: control_root_relative_posix_with_vault_prefix
+    vault_documents: vault_relative_posix
+    control_contracts: control_root_relative_posix
+    state_artifacts: state_relative_posix
     runtime_artifacts: runtime_relative_posix
-    bridge_ingest_records_both: true
   match_semantics: gitwildmatch_with_nfc_and_casefold_collision_checks
   fixed:
     vault:
@@ -54,7 +54,6 @@ paths:
     - 99_System/CSS
     required_vault_files:
     - .knowledgeos-root.json
-    - .vault-bridge/README.md
     - Home.md
     - Mobile.md
     - 99_System/Templates/T00_Capture.md
@@ -86,31 +85,7 @@ paths:
     - 99_System/Schemas/Property_Dictionary.md
     - 99_System/Scripts/QuickAdd/PrepareTitle.js
     - 99_System/CSS/dashboard.css
-    transport:
-    - .vault-bridge/protocol
-    - .vault-bridge/requests
-    - .vault-bridge/responses
     device_config_roots:
     - .obsidian-mac
     - .obsidian-phone
     - .obsidian-tablet
-    runtime:
-    - staging
-    - queue
-    - quarantine
-    - awaiting_remote_authorization
-    - running
-    - review
-    - approved
-    - applying
-    - done
-    - rejected
-    - expired
-    - failed
-    - conflict
-    - runs
-    - receipts
-    - locks
-    - index
-    - cache
-    - logs

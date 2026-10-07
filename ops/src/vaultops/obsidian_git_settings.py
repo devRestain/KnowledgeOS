@@ -92,57 +92,39 @@ def _empty_string(value: Any, *, policy: str) -> dict[str, Any]:
 
 
 def _blueprint_contract(blueprint: dict[str, Any], errors: list[dict[str, str]]) -> dict[str, Any]:
-    defaults = blueprint.get("defaults")
-    defaults = defaults if isinstance(defaults, dict) else {}
+    """Validate the current GUI Git boundary without assuming a mobile writer."""
+
+    profiles = blueprint.get("plugin_profiles")
+    profiles = profiles if isinstance(profiles, dict) else {}
+    mac_baseline = profiles.get("mac_baseline")
+    mac_baseline = mac_baseline if isinstance(mac_baseline, list) else []
+    git_entry = next((item for item in mac_baseline if isinstance(item, dict) and item.get("id") == P07_PLUGIN_ID), None)
+    forbidden = profiles.get("forbidden_defaults")
+    forbidden = forbidden if isinstance(forbidden, list) else []
     repositories = blueprint.get("repositories")
     repositories = repositories if isinstance(repositories, dict) else {}
-    vault = repositories.get("vault") if isinstance(repositories.get("vault"), dict) else {}
-    git = blueprint.get("git")
-    git = git if isinstance(git, dict) else {}
-    mac_profile = blueprint.get("device_profiles", {}).get("mac", {}) if isinstance(blueprint.get("device_profiles"), dict) else {}
-    privacy = blueprint.get("privacy")
-    privacy = privacy if isinstance(privacy, dict) else {}
+    vault = repositories.get("vault")
+    vault = vault if isinstance(vault, dict) else {}
 
-    expected = {
-        "mac_writer": "obsidian_git_manual_or_vaultctl_not_both_concurrently",
-        "mobile_writer": "working_copy",
-        "one_writer_per_device": True,
-        "exact_path_commit": True,
-        "remote_unattended": False,
-        "always_on_git_roundtrip": False,
-        "github_is_separate_remote_boundary": True,
+    checks = {
+        "manual_mac_git_ui": git_entry is not None and git_entry.get("role") == "manual_mac_git_ui",
+        "automatic_sync_disabled": {"obsidian_git_auto_pull", "obsidian_git_auto_commit", "obsidian_git_auto_push"}.issubset(set(forbidden)),
+        "independent_vault": vault.get("independent_git_repository") is True,
     }
-    observed = {
-        "mac_writer": git.get("mac_writer"),
-        "mobile_writer": git.get("mobile_writer"),
-        "one_writer_per_device": git.get("one_writer_per_device"),
-        "exact_path_commit": git.get("exact_path_commit"),
-        "remote_unattended": defaults.get("remote_unattended"),
-        "always_on_git_roundtrip": defaults.get("always_on_git_roundtrip"),
-        "github_is_separate_remote_boundary": privacy.get("github_is_separate_remote_boundary"),
-    }
-    for key, expected_value in expected.items():
-        if observed[key] != expected_value:
+    for name, passed in checks.items():
+        if not passed:
             errors.append(
                 _error(
                     "P07_BLUEPRINT_GIT_BOUNDARY_DRIFT",
-                    f"blueprint/blueprint.yaml#/{key}",
-                    f"P07 Git boundary field {key} does not match the accepted manual-Mac contract",
+                    f"blueprint/blueprint.yaml#/plugin_profiles/{name}",
+                    f"P07 Git boundary requirement {name} is missing",
                 )
             )
 
     return {
-        "state": "pass" if not errors else "blocked",
-        "mac_writer": observed["mac_writer"],
-        "mobile_writer": observed["mobile_writer"],
-        "one_writer_per_device": observed["one_writer_per_device"],
-        "exact_path_commit": observed["exact_path_commit"],
-        "remote_unattended": observed["remote_unattended"],
-        "always_on_git_roundtrip": observed["always_on_git_roundtrip"],
-        "github_is_separate_remote_boundary": observed["github_is_separate_remote_boundary"],
-        "mac_profile_git_writer": mac_profile.get("git_writer"),
-        "vault_remote_role": vault.get("remote_role"),
-        "source": "blueprint/blueprint.yaml#/defaults /repositories/vault /device_profiles/mac /privacy /git",
+        "state": "pass" if all(checks.values()) else "blocked",
+        "checks": checks,
+        "source": "blueprint/blueprint.yaml#/plugin_profiles /repositories/vault",
     }
 
 

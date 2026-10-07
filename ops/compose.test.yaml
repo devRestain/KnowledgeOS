@@ -31,10 +31,6 @@ services:
           create_host_path: false
       - type: volume
         source: knowledgeos-vault-mask
-        target: /workspace/control/KnowledgeHub
-        read_only: true
-      - type: volume
-        source: knowledgeos-vault-mask
         target: /workspace/KnowledgeHub
         read_only: true
       - type: volume
