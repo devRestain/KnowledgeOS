@@ -145,8 +145,10 @@ def check_vault_readiness(control_root: str | Path | ResolvedPaths) -> VaultArti
         enabled = json.loads(resolve_beneath(vault, ".obsidian-mac/community-plugins.json").read_bytes())
         if not isinstance(enabled, list) or not all(isinstance(name, str) for name in enabled):
             raise ValueError("enabled plugin projection must be a list of names")
-        if "knowledgeos-thin-client" in enabled:
-            errors.append(_issue("VAULT_UNADOPTED_PLUGIN_ENABLED", ".obsidian-mac/community-plugins.json", "broker client must remain staged disabled"))
+        declared = json.loads((roots.control / "ops/config/vault-profile.json").read_bytes())[
+            ".obsidian-mac/community-plugins.json"]
+        if ("knowledgeos-thin-client" in enabled) != ("knowledgeos-thin-client" in declared):
+            errors.append(_issue("VAULT_PLUGIN_ADOPTION_MISMATCH", ".obsidian-mac/community-plugins.json", "selected Thin Client activation differs from its maintained profile"))
         quickadd = load_json(resolve_beneath(vault, ".obsidian-mac/plugins/quickadd/data.json"))
         choices = quickadd.get("choices", [])
         if not isinstance(choices, list) or not all(isinstance(choice, dict) for choice in choices):

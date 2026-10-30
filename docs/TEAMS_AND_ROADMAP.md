@@ -1,10 +1,11 @@
 # KnowledgeOS Team methods
 
-The authoritative offline definitions are [`ops/config/team-catalog.json`](../ops/config/team-catalog.json), [`ops/config/work-methods.json`](../ops/config/work-methods.json), the owner action policy and the single MCP capability manifest. They describe six Teams. Each Team has one dedicated Manager. A bounded task may instead use a standalone Officer with no Manager. A reusable teammate definition confers no authority until this Operation admits an exact local executor and Profile binding.
+The authoritative offline definitions are [`ops/config/team-catalog.json`](../ops/config/team-catalog.json), [`ops/config/work-methods.json`](../ops/config/work-methods.json), the owner action policy and the single MCP capability manifest. They describe seven Teams. Each Team has one dedicated Manager. A bounded task may instead use a standalone Officer with no Manager. A reusable teammate definition confers no authority until this Operation admits an exact local executor and Profile binding.
 
 | Team | Manager | Main method output |
 | --- | --- | --- |
 | Knowledge Curation | `CurationManager` | Source-bound normalization or draft proposal |
+| Corpus Stewardship | `StewardshipManager` | Daily cited empty-field candidate for an owner-only provisional effect |
 | Evidence Research | `ResearchManager` | Cited answer artifact |
 | Relation and Ontology | `OntologyManager` | Relation or alignment proposal |
 | Project Review | `ReviewManager` | Cited project review proposal |

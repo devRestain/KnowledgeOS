@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..adapters.core import AdmissionError
+from ..retrieval import _chunks_for_note
 from .knowledge import KnowledgeApplication
+from .read_tools import KnowledgeReadTools
 from .team_catalog import TeamCatalog
 from .work import PROFILE_KEYS, WorkContracts
 from .work_methods import WorkMethodCatalog
@@ -191,9 +193,18 @@ class OfficerToolSession:
 
     def work_view(self) -> dict[str, Any]:
         record = self._current()
+        source = record["officer_source_reference"]
+        reader = KnowledgeReadTools(self.application)
+        path = self.application.resolve_reference(dict(source))
+        _, notes = reader._eligible(selected_path=path)
+        note = reader._note(source, notes)
         return {"work_run_id": self.work_run_id,
                 "work_spec_digest": record["spec"]["spec_digest"],
-                "source_reference": record["officer_source_reference"],
+                "source_reference": source,
+                "source_chunks": [chunk.locator for chunk in _chunks_for_note(note)],
+                "executor_id": self.executor_id,
+                "generation": record["run"]["generation"],
+                "fencing_token": record["run"]["fencing_token"],
                 "graph_run_id": self.graph_run_id,
                 "allowed_tools": list(self.tools())}
 

@@ -21,7 +21,8 @@
     "breadcrumbs",
     "notebook-navigator",
     "obsidian-meta-bind-plugin",
-    "obsidian-git"
+    "obsidian-git",
+    "knowledgeos-thin-client"
   ],
   ".obsidian-mac/core-plugins.json": {
     "audio-recorder": false,

@@ -10,7 +10,7 @@ from pathlib import Path
 from .paths import ResolvedPaths
 from .yaml_safe import load_yaml_file
 
-MANIFEST_SHA256 = "72d4b183aeae2d5c788b0e1c53185bda46a2050e55f2e16f9f78abfbb48a4498"
+MANIFEST_SHA256 = "d5e6e165dd6a3ca7d774f05286c4de1d0609a25fe5b5875a29ee762e1689e27e"
 
 REQUIRED_FILES = (
     ".gitignore",

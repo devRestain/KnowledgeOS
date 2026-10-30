@@ -65,14 +65,14 @@ def test_mcp_schema_files_and_manifest_are_strict_and_well_formed() -> None:
         "stdout_diagnostic_bytes": 0,
     }
     names = [item["name"] for item in manifest["tools"]]
-    assert len(names) == len(set(names)) == 24
+    assert len(names) == len(set(names)) == 25
     assert names[:4] == ["knowledge_search", "knowledge_retrieve", "proposal_inspect", "proposal_create"]
     assert {"knowledge_read", "artifact_read", "base_view_query", "link_context", "task_query",
             "work_context_read", "method_read", "graph_segment_propose", "artifact_submit",
             "assessment_submit", "proposal_draft_note", "citation_verify",
             "proposal_link_suggestions", "semantic_registry_read", "proposal_alignment",
             "proposal_project_review", "gateway_evidence_read", "proposal_adaptation",
-            "vault_diagnose", "proposal_recovery_plan"} <= set(names)
+            "vault_diagnose", "proposal_recovery_plan", "index_status_read"} <= set(names)
     assert set(manifest["forbidden_tool_names"]).isdisjoint(
         item["name"] for item in manifest["tools"]
     )

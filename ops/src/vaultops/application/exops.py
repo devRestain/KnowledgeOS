@@ -24,6 +24,8 @@ from .work_methods import WorkMethodCatalog
 class ScopedTemporalClient(Protocol):
     async def start(self, dispatch: Any) -> str: ...
 
+    async def observe_start(self, dispatch: Any) -> Any: ...
+
 
 @dataclass(frozen=True)
 class OwnerActor:
@@ -53,24 +55,33 @@ class KnowledgeExOps:
         application: KnowledgeApplication,
         *,
         authorize_actor: Callable[[OwnerActor, str], bool],
-        director_admitted: Callable[[Mapping[str, Any]], bool],
-        current_team_binding: Callable[[str], TeamBinding | None],
-        teams: Mapping[str, TeamBinding],
-        worker_identity: str,
+        director_admitted: Callable[[Mapping[str, Any]], bool] | None = None,
+        current_team_binding: Callable[[str], TeamBinding | None] | None = None,
+        teams: Mapping[str, TeamBinding] | None = None,
+        worker_identity: str | None = None,
         current_officer_binding: Callable[[str], OfficerBinding | None] | None = None,
         officers: Mapping[str, OfficerBinding] | None = None,
         director_method_source_admitted: Callable[[Mapping[str, Any], Mapping[str, Any]], bool] | None = None,
         director_officer_source_admitted: Callable[[Mapping[str, Any], Mapping[str, Any]], bool] | None = None,
+        read_only: bool = False,
     ) -> None:
-        _require(callable(authorize_actor) and callable(director_admitted)
-                 and callable(current_team_binding),
-                 "BINDING_INVALID", "ExOps requires live owner authority callbacks")
-        _require(bool(worker_identity), "BINDING_INVALID", "Worker identity is required")
+        _require(callable(authorize_actor), "BINDING_INVALID",
+                 "ExOps requires live owner actor authorization")
+        if read_only:
+            _require(not any((director_admitted, current_team_binding, teams, worker_identity,
+                              current_officer_binding, officers, director_method_source_admitted,
+                              director_officer_source_admitted)),
+                     "BINDING_INVALID", "Read-only ExOps cannot bind execution authorities")
+        else:
+            _require(callable(director_admitted) and callable(current_team_binding),
+                     "BINDING_INVALID", "ExOps requires live owner authority callbacks")
+            _require(bool(worker_identity), "BINDING_INVALID", "Worker identity is required")
+        self.read_only = read_only
         self.application = application
         self.authorize_actor = authorize_actor
         self.director_admitted = director_admitted
         self.current_team_binding = current_team_binding
-        self.teams = dict(teams)
+        self.teams = dict(teams or {})
         self.current_officer_binding = current_officer_binding
         self.officers = dict(officers or {})
         self.director_method_source_admitted = director_method_source_admitted
@@ -94,12 +105,13 @@ class KnowledgeExOps:
     def _guard(self, actor: OwnerActor, action: str) -> None:
         _require(actor.ingress in {"cli", "web"} and bool(actor.actor_id),
                  "UNAUTHENTICATED", "ExOps needs a trusted actor mapping")
-        self._current_binding()
+        self._current_binding(read=self.read_only and action in {"read_work", "search_query"})
         _require(self.authorize_actor(actor, action), "ACTION_DENIED",
                  "Current owner policy denies this actor or action")
         self.application.journal.read()
 
-    def _current_binding(self) -> None:
+    def _current_binding(self, *, read: bool = False) -> None:
+        _require(not self.read_only or read, "READ_ONLY", "This Owner admits read-only actions")
         self.application.core.verify()
         _require(TeamCatalog.load(self.application.roots.control).digest == self.catalog.digest,
                  "PIN_MISMATCH", "Team definitions changed after ExOps composition")
@@ -262,7 +274,8 @@ class KnowledgeExOps:
     def submit_work(self, spec: Mapping[str, Any], run: Mapping[str, Any], *,
                     actor: OwnerActor, action_id: str, expires_at: datetime,
                     method_source_reference: Mapping[str, Any] | None = None,
-                    officer_source_reference: Mapping[str, Any] | None = None) -> dict[str, Any]:
+                    officer_source_reference: Mapping[str, Any] | None = None,
+                    selected_scope: Mapping[str, str] | None = None) -> dict[str, Any]:
         """Persist one exact Director-admitted initial run before acknowledging it."""
         self._guard(actor, "submit_work")
         _require(1 <= len(action_id) <= 96 and action_id.isascii()
@@ -298,6 +311,11 @@ class KnowledgeExOps:
         else:
             _require(officer_source_reference is None, "SCOPE_DENIED",
                      "Work without a normalization Officer cannot borrow its Capture source")
+        if selected_scope is not None:
+            _require(set(selected_scope) == {"path", "content_sha256"}
+                     and self.application.reference(selected_scope["path"])["source_revision"]
+                     == selected_scope["content_sha256"],
+                     "RESOURCE_STALE", "Selected Work note changed before admission")
         _require(run["state"] == "admitted" and run["revision"] == 1
                  and run["control_revision"] == 1 and run["generation"] == 1
                  and not run["graph_run_ids"] and not run["pending_action_ids"]
@@ -312,6 +330,8 @@ class KnowledgeExOps:
             body["method_source_reference"] = dict(method_source_reference)
         if officer_source_reference is not None:
             body["officer_source_reference"] = dict(officer_source_reference)
+        if selected_scope is not None:
+            body["selected_scope"] = dict(selected_scope)
         content_digest = digest(canonical(body))
         execution_intent = {
             "owner_operation_id": "knowledgeos", "effect_id": action_id,
@@ -330,9 +350,10 @@ class KnowledgeExOps:
                          "IDEMPOTENCY_CONFLICT", "WorkRun identity has different content")
                 return {**previous["receipt"], "replayed": True}
             _require(not any(item.get("spec", {}).get("work_id") == spec["work_id"]
+                             or item.get("action_id") == action_id
                              for name, item in session.value["intents"].items()
                              if name.startswith("exops.work.")),
-                     "IDEMPOTENCY_CONFLICT", "Work identity already has a live run")
+                     "IDEMPOTENCY_CONFLICT", "Work or action identity already has a live run")
             receipt = {"owner_operation_id": "knowledgeos", "work_id": spec["work_id"],
                        "work_run_id": run["work_run_id"], "action_id": action_id,
                        "content_digest": content_digest, "receipt_state": "accepted",
@@ -345,6 +366,8 @@ class KnowledgeExOps:
                 if method_source_reference is not None else None,
                 "officer_source_reference": copy.deepcopy(dict(officer_source_reference))
                 if officer_source_reference is not None else None,
+                "selected_scope": copy.deepcopy(dict(selected_scope))
+                if selected_scope is not None else None,
                 "actor_id": actor.actor_id, "action_id": action_id,
                 "expires_at": stamp(expires_at), "receipt": receipt,
                 "execution_intent": execution_intent,
@@ -365,6 +388,163 @@ class KnowledgeExOps:
                 "dispatch_state": record["dispatch_state"],
                 "application_state": record["application_state"],
                 "observed_at": self.application.journal.read()["observed_at"]}
+
+    def read_template_request(self, request_id: str, *, actor: OwnerActor,
+                              template_id: str, scope: Mapping[str, str]) -> dict[str, Any] | None:
+        """Return a previous exact group receipt without re-admitting or redispatching it."""
+        self._guard(actor, "submit_work")
+        intents = self.application.journal.read()["intents"]
+        record = intents.get("exops.template." + request_id)
+        if record is None:
+            return None
+        _require(record.get("actor_id") == actor.actor_id
+                 and record.get("template_id") == template_id
+                 and record.get("scope") == dict(scope), "IDEMPOTENCY_CONFLICT",
+                 "Structured request identity belongs to different input")
+        return self._template_receipt(intents, record, replayed=True)
+
+    @staticmethod
+    def _template_receipt(intents: Mapping[str, Any], group: Mapping[str, Any], *,
+                          replayed: bool) -> dict[str, Any]:
+        receipt = copy.deepcopy(group["receipt"])
+        current = []
+        for item in receipt["receipts"]:
+            work = intents.get(_key(item["work_run_id"]))
+            _require(isinstance(work, dict)
+                     and work.get("template_request_id") == receipt["request_id"],
+                     "RESOURCE_UNAVAILABLE", "A grouped Work receipt is unavailable")
+            current.append(copy.deepcopy(work["receipt"]))
+        receipt["receipts"] = current
+        receipt["replayed"] = replayed
+        receipt["reconciliation_required"] = any(
+            item["dispatch_state"] == "unknown" or item["application_state"] == "unknown"
+            for item in current)
+        return receipt
+
+    def guard_template_scope_reconciled(self, template_id: str, scope: Mapping[str, str], *,
+                                        actor: OwnerActor) -> None:
+        """Do not issue a new Director receipt while an earlier delivery is unknown."""
+        self._guard(actor, "submit_work")
+        self._require_template_scope_reconciled(
+            self.application.journal.read()["intents"], template_id, scope, actor)
+
+    @staticmethod
+    def _require_template_scope_reconciled(intents: Mapping[str, Any], template_id: str,
+                                           scope: Mapping[str, str], actor: OwnerActor) -> None:
+        _require(not any(
+            isinstance(item, dict) and item.get("template_id") == template_id
+            and item.get("template_scope") == dict(scope)
+            and item.get("actor_id") == actor.actor_id
+            and (item.get("dispatch_state") == "unknown"
+                 or item.get("application_state") == "unknown")
+            for item in intents.values()), "OUTCOME_UNKNOWN",
+            "An earlier template delivery requires owner reconciliation")
+
+    def submit_template_group(self, template_id: str, scope: Mapping[str, str],
+                              request_id: str,
+                              admissions: list[tuple[dict[str, Any], dict[str, Any], str,
+                                                     datetime, dict[str, Any]]], *,
+                              actor: OwnerActor) -> dict[str, Any]:
+        """Validate all Director bindings, then record the complete group under one writer lock.
+
+        Temporal delivery remains a separate outbox operation. A retry only
+        reads these receipts, including when any delivery is unknown.
+        """
+        self._guard(actor, "submit_work")
+        now = self.application.clock()
+        prepared = []
+        for spec, run, action_id, expires_at, source in admissions:
+            _require(isinstance(spec, Mapping) and isinstance(run, Mapping)
+                     and isinstance(source, Mapping), "INVALID_PAYLOAD", "Director template binding is invalid")
+            _require(isinstance(action_id, str) and 1 <= len(action_id) <= 96
+                     and action_id.isascii()
+                     and all(char.islower() or char.isdigit() or char in "._-" for char in action_id),
+                     "INVALID_PAYLOAD", "Template action identity is invalid")
+            _require(now.tzinfo is not None and expires_at.tzinfo is not None
+                     and now < expires_at and (expires_at - now).total_seconds() <= 86400,
+                     "EXPIRED", "Template Work admission expired")
+            self.contracts.spec(spec)
+            self.contracts.run(run, spec)
+            self._team_binding(spec, run)
+            _require("method_contract_ref" in spec and self.director_method_source_admitted is not None,
+                     "ADMISSION_REQUIRED", "Template Work needs a pinned method and Director source")
+            _require(self.application.resolve_reference(dict(source)) == scope["path"]
+                     and source["source_revision"] == scope["content_sha256"]
+                     and self.director_method_source_admitted(spec, source),
+                     "ADMISSION_REQUIRED", "Director source differs from selected note")
+            _require(run["state"] == "admitted" and run["revision"] == 1
+                     and run["control_revision"] == 1 and run["generation"] == 1
+                     and not run["graph_run_ids"] and not run["pending_action_ids"]
+                     and not run["unresolved_effect_ids"] and run["segments_started"] == 0
+                     and run["profile_invocations"] == 0 and run["repeated_gap_count"] == 0,
+                     "SCOPE_DENIED", "Template Work needs an empty admitted run")
+            _require(self.director_admitted(spec), "ADMISSION_REQUIRED",
+                     "Director did not admit the template WorkSpec")
+            body = {"spec": dict(spec), "run": dict(run), "actor_id": actor.actor_id,
+                    "action_id": action_id, "expires_at": stamp(expires_at),
+                    "method_source_reference": dict(source)}
+            content_digest = digest(canonical(body))
+            intent = {"owner_operation_id": "knowledgeos", "effect_id": action_id,
+                      "content_digest": content_digest, "generation": run["generation"],
+                      "fencing_token": run["fencing_token"], "work_run_id": run["work_run_id"],
+                      "issued_at": stamp(now), "expires_at": stamp(expires_at)}
+            self.contracts.record("ExecutionIntent", intent)
+            receipt = {"owner_operation_id": "knowledgeos", "work_id": spec["work_id"],
+                       "work_run_id": run["work_run_id"], "action_id": action_id,
+                       "content_digest": content_digest, "receipt_state": "accepted",
+                       "dispatch_state": "pending", "application_state": "not_started", "replayed": False}
+            prepared.append((spec, run, action_id, expires_at, source, content_digest, intent, receipt))
+        _require(len({item[1]["work_run_id"] for item in prepared}) == len(prepared)
+                 and len({item[0]["work_id"] for item in prepared}) == len(prepared)
+                 and len({item[2] for item in prepared}) == len(prepared),
+                 "IDEMPOTENCY_CONFLICT", "Template group has duplicate Work identities")
+        group_key = "exops.template." + request_id
+        with self.application.journal.writer() as session:
+            previous = session.value["intents"].get(group_key)
+            if previous is not None:
+                _require(previous.get("actor_id") == actor.actor_id
+                         and previous.get("template_id") == template_id
+                         and previous.get("scope") == dict(scope),
+                         "IDEMPOTENCY_CONFLICT", "Structured request identity changed")
+                return self._template_receipt(session.value["intents"], previous, replayed=True)
+            self._require_template_scope_reconciled(
+                session.value["intents"], template_id, scope, actor)
+            _require(self.application.reference(scope["path"])["source_revision"] == scope["content_sha256"],
+                     "RESOURCE_STALE", "Selected note changed before group commit")
+            for spec, run, action_id, *_ in prepared:
+                _require(self.director_admitted(spec), "ADMISSION_REQUIRED",
+                         "Director receipt changed before group commit")
+                _require(_key(run["work_run_id"]) not in session.value["intents"]
+                         and not any(item.get("spec", {}).get("work_id") == spec["work_id"]
+                                     or item.get("action_id") == action_id
+                                     for name, item in session.value["intents"].items()
+                                     if name.startswith("exops.work.")),
+                         "IDEMPOTENCY_CONFLICT", "Template Work or action identity already exists")
+            receipts = []
+            for spec, run, action_id, expires_at, source, content_digest, intent, receipt in prepared:
+                session.value["intents"][_key(run["work_run_id"])] = {
+                    "state": "pending", "recorded_at": stamp(now), "content_digest": content_digest,
+                    "spec": copy.deepcopy(dict(spec)), "run": copy.deepcopy(dict(run)),
+                    "method_source_reference": copy.deepcopy(dict(source)),
+                    "officer_source_reference": None, "actor_id": actor.actor_id,
+                    "action_id": action_id, "expires_at": stamp(expires_at), "receipt": receipt,
+                    "execution_intent": intent, "dispatch_state": "pending",
+                    "application_state": "not_started", "template_id": template_id,
+                    "template_scope": dict(scope), "template_request_id": request_id,
+                }
+                receipts.append(copy.deepcopy(receipt))
+                session.value["history"].append({"event": "exops_work_admitted",
+                                                 "work_run_id": run["work_run_id"],
+                                                 "sequence": session.value["revision"] + 1})
+            group_receipt = {"template_id": template_id, "request_id": request_id,
+                             "scope": dict(scope), "receipts": receipts, "replayed": False}
+            session.value["intents"][group_key] = {"state": "accepted", "recorded_at": stamp(now),
+                                                   "actor_id": actor.actor_id,
+                                                   "template_id": template_id,
+                                                   "scope": dict(scope), "receipt": group_receipt}
+            session.commit(now)
+            return self._template_receipt(session.value["intents"],
+                                          session.value["intents"][group_key], replayed=False)
 
     def authorize_dispatch(self, *, work_run_id: str, action_id: str,
                            content_digest: str) -> dict[str, Any]:
@@ -392,8 +572,57 @@ class KnowledgeExOps:
                      "ADMISSION_REQUIRED", "Officer source admission changed before dispatch")
         return copy.deepcopy(record)
 
+    def authorize_dispatch_observation(self, *, work_run_id: str, action_id: str,
+                                       content_digest: str, work_spec_digest: str) -> None:
+        """Allow only read-only inspection of one previously uncertain start."""
+        record = self.application.journal.read()["intents"].get(_key(work_run_id))
+        _require(record is not None and record["dispatch_state"] == "unknown"
+                 and record["action_id"] == action_id
+                 and record["content_digest"] == content_digest
+                 and record["spec"]["spec_digest"] == work_spec_digest,
+                 "DISPATCH_DENIED", "No matching uncertain owner dispatch exists")
+
+    def record_observed_dispatch(self, work_run_id: str, *, action_id: str,
+                                 observation: Any) -> dict[str, Any]:
+        """Resolve unknown only from an exact, positive Temporal start observation."""
+        _require(not self.read_only, "READ_ONLY", "This Owner admits read-only actions")
+        now = self.application.clock()
+        with self.application.journal.writer() as session:
+            record = session.value["intents"].get(_key(work_run_id))
+            _require(record is not None and record["action_id"] == action_id,
+                     "STALE_REVISION", "Observed dispatch target changed")
+            expected = {"owner_operation_id": "knowledgeos", "work_run_id": work_run_id,
+                        "action_id": action_id, "content_digest": record["content_digest"],
+                        "work_spec_digest": record["spec"]["spec_digest"]}
+            _require(observation.workflow_id == f"knowledgeos/{work_run_id}"
+                     and isinstance(observation.run_id, str) and bool(observation.run_id)
+                     and observation.namespace == "knowledgeos"
+                     and observation.workflow_type == "knowledgeos.work.v1"
+                     and observation.task_queue == "knowledgeos.work.v1"
+                     and observation.payload == expected,
+                     "PIN_MISMATCH", "Observed Workflow start differs from owner intent")
+            if record["dispatch_state"] == "accepted":
+                _require(record.get("workflow_id") == observation.workflow_id,
+                         "IDEMPOTENCY_CONFLICT", "Observed Workflow identity changed")
+                _require(record.get("temporal_run_id", observation.run_id) == observation.run_id,
+                         "IDEMPOTENCY_CONFLICT", "Observed Temporal run changed")
+                return copy.deepcopy(record["receipt"])
+            _require(record["dispatch_state"] == "unknown", "STALE_REVISION",
+                     "Only uncertain dispatch can be reconciled")
+            record["dispatch_state"] = "accepted"
+            record["receipt"]["dispatch_state"] = "accepted"
+            record["workflow_id"] = observation.workflow_id
+            record["temporal_run_id"] = observation.run_id
+            record["state"] = "pending"
+            session.value["history"].append({"event": "exops_dispatch_observed",
+                                              "work_run_id": work_run_id,
+                                              "sequence": session.value["revision"] + 1})
+            session.commit(now)
+            return copy.deepcopy(record["receipt"])
+
     def record_dispatch(self, work_run_id: str, *, action_id: str,
                         outcome: str, workflow_id: str | None = None) -> None:
+        _require(not self.read_only, "READ_ONLY", "This Owner admits read-only actions")
         _require(outcome in {"accepted", "unknown", "rejected"}, "INVALID_PAYLOAD",
                  "Unsupported Temporal transport outcome")
         now = self.application.clock()
@@ -420,7 +649,7 @@ class KnowledgeExOps:
 
     def worker_started(self, work_run_id: str, *, worker_identity: str,
                        action_id: str, content_digest: str,
-                       workflow_id: str) -> dict[str, Any]:
+                       work_spec_digest: str, workflow_id: str) -> dict[str, Any]:
         _require(worker_identity == self.worker_identity, "UNAUTHENTICATED",
                  "Only the bound Operation Worker can report application")
         self._current_binding()
@@ -429,7 +658,8 @@ class KnowledgeExOps:
             record = session.value["intents"].get(_key(work_run_id))
             _require(record is not None and record["action_id"] == action_id
                      and record["content_digest"] == content_digest
-                     and record["dispatch_state"] in {"pending", "accepted"}
+                     and record["spec"]["spec_digest"] == work_spec_digest
+                     and record["dispatch_state"] in {"pending", "accepted", "unknown"}
                      and workflow_id == f"knowledgeos/{work_run_id}"
                      and record.get("workflow_id", workflow_id) == workflow_id
                      and now < datetime.fromisoformat(record["expires_at"])
@@ -441,6 +671,8 @@ class KnowledgeExOps:
             record["dispatch_state"] = "accepted"
             record["receipt"]["dispatch_state"] = "accepted"
             record["workflow_id"] = workflow_id
+            if record["state"] == "unknown":
+                record["state"] = "pending"
             _require(record["application_state"] != "started", "OUTCOME_UNKNOWN",
                      "Started Activity must be reconciled before any re-execution")
             _require(record["application_state"] == "not_started", "STALE_REVISION",
@@ -466,6 +698,28 @@ class KnowledgeExOps:
                         candidate_assessor_id: str | None = None) -> dict[str, Any]:
         _require(worker_identity == self.worker_identity, "UNAUTHENTICATED",
                  "Only the bound Operation Worker can record results")
+        self._current_binding()
+        snapshot = self.application.journal.read()
+        previous = snapshot["intents"].get(_key(work_run_id))
+        if isinstance(previous, dict) and previous.get("application_state") == "recorded":
+            prior_receipt = snapshot["receipts"].get(
+                "exops.work." + action_id, {}).get("receipt", {})
+            _require(previous.get("action_id") == action_id
+                     and previous.get("run") == dict(next_run)
+                     and previous.get("assessment") ==
+                         (dict(assessment) if assessment is not None else None)
+                     and previous.get("evaluations", []) == [dict(item) for item in evaluations]
+                     and previous.get("receipt", {}).get("application_state") == "recorded"
+                     and prior_receipt.get("outcome") == "succeeded"
+                     and prior_receipt.get("result_digest") == digest(canonical(next_run)),
+                     "IDEMPOTENCY_CONFLICT", "Worker result replay differs from its owner receipt")
+            if previous.get("template_id") == "note_metadata":
+                from .metadata_proposals import auto_prepare_metadata_proposal
+
+                auto_prepare_metadata_proposal(
+                    self, previous["template_request_id"],
+                    actor=OwnerActor(previous["actor_id"], "web"))
+            return copy.deepcopy(previous["receipt"])
         now = self.application.clock()
         with self.application.journal.writer() as session:
             record = session.value["intents"].get(_key(work_run_id))
@@ -553,6 +807,9 @@ class KnowledgeExOps:
             _require(next_run["state"] in {"awaiting_human", "paused", "completed"},
                      "SCOPE_DENIED", "Worker result needs a safe waiting or terminal state")
             record["run"] = copy.deepcopy(dict(next_run))
+            if assessment is not None:
+                record["assessment"] = copy.deepcopy(dict(assessment))
+                record["evaluations"] = copy.deepcopy(list(evaluations))
             record["application_state"] = "recorded"
             record["receipt"]["application_state"] = "recorded"
             record["state"] = "recorded"
@@ -570,10 +827,21 @@ class KnowledgeExOps:
                 "receipt": execution_receipt,
             }
             session.commit(now)
-            return copy.deepcopy(record["receipt"])
+            receipt = copy.deepcopy(record["receipt"])
+            metadata_request_id = (record.get("template_request_id")
+                                   if record.get("template_id") == "note_metadata" else None)
+            metadata_actor_id = record.get("actor_id")
+        if metadata_request_id:
+            from .metadata_proposals import auto_prepare_metadata_proposal
+
+            auto_prepare_metadata_proposal(
+                self, metadata_request_id,
+                actor=OwnerActor(metadata_actor_id, "web"))
+        return receipt
 
     def worker_unknown(self, work_run_id: str, *, worker_identity: str,
                        action_id: str) -> None:
+        _require(not self.read_only, "READ_ONLY", "This Owner admits read-only actions")
         _require(worker_identity == self.worker_identity, "UNAUTHENTICATED",
                  "Only the bound Operation Worker can report uncertainty")
         now = self.application.clock()

@@ -8,14 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Any
 
 from ..adapters.core import AdmissionError
 from .exops import KnowledgeExOps, ScopedTemporalClient
-
-WORKFLOW_TYPE = "knowledgeos.work.v1"
-ACTIVITY_TYPE = "knowledgeos.execute_admitted_work.v1"
+from .temporal_contract import ACTIVITY_TYPE, WORKFLOW_TYPE
 
 
 @dataclass(frozen=True)
@@ -59,7 +56,7 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
 
     from clients.temporal import BindingError, TemporalDispatch, connect
 
-    async def authorize(dispatch: TemporalDispatch) -> None:
+    def check_shape(dispatch: TemporalDispatch) -> dict[str, Any]:
         payload = dispatch.payload
         if (set(payload) != {"owner_operation_id", "work_run_id", "action_id",
                              "content_digest", "work_spec_digest"}
@@ -67,6 +64,10 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
                 or dispatch.workflow_id != f"knowledgeos/{payload['work_run_id']}"
                 or dispatch.action_id != payload["action_id"]):
             raise BindingError("Temporal dispatch differs from the owner intent shape")
+        return payload
+
+    async def authorize(dispatch: TemporalDispatch) -> None:
+        payload = check_shape(dispatch)
         record = exops.authorize_dispatch(
             work_run_id=payload["work_run_id"], action_id=dispatch.action_id,
             content_digest=payload["content_digest"],
@@ -74,7 +75,15 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
         if record["spec"]["spec_digest"] != payload["work_spec_digest"]:
             raise BindingError("Temporal dispatch differs from the admitted WorkSpec")
 
-    return await connect(binding, authorize)
+    async def authorize_observation(dispatch: TemporalDispatch) -> None:
+        payload = check_shape(dispatch)
+        exops.authorize_dispatch_observation(
+            work_run_id=payload["work_run_id"], action_id=dispatch.action_id,
+            content_digest=payload["content_digest"],
+            work_spec_digest=payload["work_spec_digest"],
+        )
+
+    return await connect(binding, authorize, authorize_observation)
 
 
 async def dispatch_admitted_work(exops: KnowledgeExOps, client: ScopedTemporalClient,
@@ -96,6 +105,8 @@ async def dispatch_admitted_work(exops: KnowledgeExOps, client: ScopedTemporalCl
         started_id = await client.start(dispatch)
     except Exception:
         current = exops.application.journal.read()["intents"]["exops.work." + work_run_id]
+        if current["dispatch_state"] == "accepted" and current.get("workflow_id") == workflow_id:
+            return current["receipt"].copy()
         if current["dispatch_state"] == "pending":
             exops.record_dispatch(work_run_id, action_id=record["action_id"], outcome="unknown")
         raise
@@ -107,12 +118,34 @@ async def dispatch_admitted_work(exops: KnowledgeExOps, client: ScopedTemporalCl
     return exops.application.journal.read()["intents"]["exops.work." + work_run_id]["receipt"].copy()
 
 
+async def reconcile_unknown_dispatch(exops: KnowledgeExOps, client: ScopedTemporalClient,
+                                     work_run_id: str) -> dict[str, Any]:
+    """Observe exact native start history before releasing an uncertain delivery fence."""
+    record = exops.application.journal.read()["intents"].get("exops.work." + work_run_id)
+    if record is None:
+        raise AdmissionError("NOT_FOUND", "No owner-admitted WorkRun exists")
+    exops.authorize_dispatch_observation(
+        work_run_id=work_run_id, action_id=record["action_id"],
+        content_digest=record["content_digest"],
+        work_spec_digest=record["spec"]["spec_digest"],
+    )
+    dispatch = WorkDispatch("knowledgeos", f"knowledgeos/{work_run_id}", record["action_id"], {
+        "owner_operation_id": "knowledgeos", "work_run_id": work_run_id,
+        "action_id": record["action_id"], "content_digest": record["content_digest"],
+        "work_spec_digest": record["spec"]["spec_digest"],
+    })
+    observation = await client.observe_start(dispatch)
+    return exops.record_observed_dispatch(work_run_id, action_id=record["action_id"],
+                                          observation=observation)
+
+
 def worker_components(exops: KnowledgeExOps, execute_work: WorkExecutor):
     """Build SDK definitions only after a selected runtime imports Temporal."""
     if not callable(execute_work):
         raise AdmissionError("BINDING_INVALID", "Worker needs an Operation-owned executor")
-    from temporalio import activity, workflow
-    from temporalio.common import RetryPolicy
+    from temporalio import activity
+
+    from .temporal_workflow import KnowledgeWorkWorkflow
 
     @activity.defn(name=ACTIVITY_TYPE)
     async def execute_admitted_work(payload: dict[str, Any]) -> dict[str, Any]:
@@ -126,10 +159,9 @@ def worker_components(exops: KnowledgeExOps, execute_work: WorkExecutor):
         run = exops.worker_started(work_run_id, worker_identity=exops.worker_identity,
                                    action_id=payload["action_id"],
                                    content_digest=payload["content_digest"],
+                                   work_spec_digest=payload["work_spec_digest"],
                                    workflow_id=workflow_id)
         record = exops.application.journal.read()["intents"]["exops.work." + work_run_id]
-        if record["spec"]["spec_digest"] != payload["work_spec_digest"]:
-            raise AdmissionError("PIN_MISMATCH", "WorkSpec changed after dispatch")
         try:
             result = await execute_work(record["spec"], run)
             if not isinstance(result, WorkResult):
@@ -146,17 +178,6 @@ def worker_components(exops: KnowledgeExOps, execute_work: WorkExecutor):
             exops.worker_unknown(work_run_id, worker_identity=exops.worker_identity,
                                  action_id=payload["action_id"])
             raise
-
-    @workflow.defn(name=WORKFLOW_TYPE)
-    class KnowledgeWorkWorkflow:
-        @workflow.run
-        async def run(self, payload: dict[str, Any]) -> dict[str, Any]:
-            # No automatic Activity retry: effects require owner reconciliation.
-            return await workflow.execute_activity(
-                ACTIVITY_TYPE, payload,
-                start_to_close_timeout=timedelta(minutes=10),
-                retry_policy=RetryPolicy(maximum_attempts=1),
-            )
 
     return KnowledgeWorkWorkflow, execute_admitted_work
 

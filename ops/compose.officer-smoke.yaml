@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:16.14@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
+    pull_policy: never
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: disposable-officer-only
+    tmpfs:
+      - /var/lib/postgresql/data:rw,nosuid,nodev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  schema:
+    image: temporalio/admin-tools:1.31.3@sha256:76a70ead160808b54acdbc98944dfc07990d9637dda999118a2d9ee1f58b9bc9
+    pull_policy: never
+    entrypoint: ["/bin/sh", "/opt/agentfabric/setup-postgres.sh"]
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: disposable-officer-only
+      POSTGRES_SEEDS: postgres
+      SQL_PASSWORD: disposable-officer-only
+    volumes:
+      - type: bind
+        source: "${KNOWLEDGEOS_TEMPORAL_SCHEMA_SOURCE:?Select Services schema bootstrap script}"
+        target: /opt/agentfabric/setup-postgres.sh
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+  server:
+    image: temporalio/server:1.31.3@sha256:b4a78d2186e558aa3502be08d576086c3a82fccdf6184cb4c819eb27bea7bd63
+    pull_policy: never
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: disposable-officer-only
+      POSTGRES_SEEDS: postgres
+      BIND_ON_IP: 0.0.0.0
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/config/dynamicconfig/officer-smoke.yaml
+    volumes:
+      - type: bind
+        source: "${KNOWLEDGEOS_TEMPORAL_DYNAMIC_CONFIG_SOURCE:?Select Services dynamic config}"
+        target: /etc/temporal/config/dynamicconfig/officer-smoke.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 2s
+      timeout: 3s
+      start_period: 10s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      schema:
+        condition: service_completed_successfully
+  smoke:
+    image: "${KNOWLEDGEOS_OFFICER_IMAGE:?Build the pinned officer image}"
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID through Make}:${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID through Make}"
+    working_dir: /workspace/control/ops
+    read_only: true
+    environment:
+      HOME: /tmp
+      PYTHONPATH: /workspace/control/ops/src:/workspace/control/ops/tests:/opt/services
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: ["python", "/workspace/control/ops/tests/support/normalization_work_smoke.py", "run"]
+    volumes:
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/blueprint:/workspace/control/blueprint:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/src:/workspace/control/ops/src:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/tests:/workspace/control/ops/tests:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/actions:/workspace/control/ops/actions:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/config:/workspace/control/ops/config:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/policies:/workspace/control/ops/policies:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/prompts:/workspace/control/ops/prompts:ro"
+      - "${KNOWLEDGEOS_CONTROL_SOURCE:?Set control source}/ops/schemas:/workspace/control/ops/schemas:ro"
+      - type: bind
+        source: "${KNOWLEDGEOS_CORE_SOURCE:?Set Core source}"
+        target: /workspace/Core
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${KNOWLEDGEOS_TEMPORAL_ADAPTER_SOURCE:?Select Services temporal adapter file}"
+        target: /opt/services/clients/temporal.py
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  default:
+    internal: true

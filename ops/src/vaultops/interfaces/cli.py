@@ -149,11 +149,10 @@ def _dispatch(args: argparse.Namespace, roots: Any) -> tuple[dict[str, Any], int
         result = check_vault_artifacts(roots)
         return result.report, result.exit_code
     if command == "index":
-        from ..projection import build_index, export_jsonl, verify_projection
+        from ..projection import generate_projection, read_current_projection
         if args.index_command == "verify":
-            return verify_projection(roots)
-        runner = build_index if args.index_command == "build" else export_jsonl
-        return runner(roots, generation_id=args.generation_id)
+            return read_current_projection(roots)
+        return generate_projection(roots, generation_id=args.generation_id)
     if command == "note":
         from ..diagnostics import EXIT_INPUT_INVALID, EXIT_VALIDATION_FAILED
         from ..note_engine import NoteEngine, resolve_vault_relative_path
@@ -215,4 +214,5 @@ def main(argv: Sequence[str] | None = None) -> int:
     return code
 
 
-app = main
+if __name__ == "__main__":
+    raise SystemExit(main())

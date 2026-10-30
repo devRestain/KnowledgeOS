@@ -19,7 +19,11 @@ from vaultops.adapters.core import AdmissionError, canonical, digest
 from vaultops.application.exops import KnowledgeExOps, OwnerActor, TeamBinding
 from vaultops.application.knowledge import KnowledgeApplication
 from vaultops.application.team_catalog import OfficerBinding, SpecialistBinding, TeamCatalog
-from vaultops.application.temporal_work import connect_owner_temporal, dispatch_admitted_work
+from vaultops.application.temporal_work import (
+    connect_owner_temporal,
+    dispatch_admitted_work,
+    reconcile_unknown_dispatch,
+)
 from vaultops.application.work import work_spec_digest
 from vaultops.interfaces.exops_web import ExOpsWebBackend
 
@@ -145,6 +149,43 @@ def test_work_admission_replay_and_owner_team_boundary(tmp_path):
                           action_id="action.wrong", expires_at=expiry)
 
 
+@pytest.mark.parametrize("recorded", [False, True])
+def test_action_identity_cannot_be_reused_by_another_work(tmp_path, recorded):
+    exops, fixture = make_exops(tmp_path)
+    actor = OwnerActor("owner.user", "cli")
+    expiry = datetime.now(UTC) + timedelta(hours=1)
+    receipt = exops.submit_work(fixture.spec, fixture.run, actor=actor,
+                                action_id="action.synthetic.start", expires_at=expiry)
+    if recorded:
+        run_id = fixture.run["work_run_id"]
+        started = exops.worker_started(
+            run_id, worker_identity=exops.worker_identity,
+            action_id=receipt["action_id"], content_digest=receipt["content_digest"],
+            work_spec_digest=fixture.spec["spec_digest"], workflow_id=f"knowledgeos/{run_id}")
+        next_run = {**started, "state": "awaiting_human", "revision": 3, "control_revision": 3}
+        exops.worker_finished(run_id, worker_identity=exops.worker_identity,
+                               action_id=receipt["action_id"], next_run=next_run)
+    other_spec = {**fixture.spec, "work_id": fixture.spec["work_id"] + ".second"}
+    other_spec["spec_digest"] = work_spec_digest(other_spec)
+    other_run = {**fixture.run, "work_id": other_spec["work_id"],
+                 "work_run_id": fixture.run["work_run_id"] + ".second",
+                 "work_spec_digest": other_spec["spec_digest"]}
+    before = exops.application.journal.read()
+
+    with pytest.raises(AdmissionError, match="Work or action identity"):
+        exops.submit_work(other_spec, other_run, actor=actor,
+                          action_id=receipt["action_id"], expires_at=expiry)
+
+    assert exops.application.journal.read() == before
+    replay = exops.submit_work(fixture.spec, fixture.run, actor=actor,
+                               action_id=receipt["action_id"], expires_at=expiry)
+    assert replay["replayed"] is True
+    if recorded:
+        assert exops.worker_finished(
+            run_id, worker_identity=exops.worker_identity,
+            action_id=receipt["action_id"], next_run=next_run)["application_state"] == "recorded"
+
+
 def test_worker_start_is_fenced_and_result_is_owner_committed(tmp_path):
     exops, fixture = make_exops(tmp_path)
     receipt = admit(exops, fixture)
@@ -154,12 +195,14 @@ def test_worker_start_is_fenced_and_result_is_owner_committed(tmp_path):
     started = exops.worker_started(run_id, worker_identity="knowledgeos.worker.one",
                                    action_id=receipt["action_id"],
                                    content_digest=receipt["content_digest"],
+                                   work_spec_digest=fixture.spec["spec_digest"],
                                    workflow_id=f"knowledgeos/{run_id}")
     assert started["state"] == "running" and started["revision"] == 2
     with pytest.raises(AdmissionError, match="reconciled"):
         exops.worker_started(run_id, worker_identity="knowledgeos.worker.one",
                              action_id=receipt["action_id"],
                              content_digest=receipt["content_digest"],
+                             work_spec_digest=fixture.spec["spec_digest"],
                              workflow_id=f"knowledgeos/{run_id}")
     next_run = {**started, "state": "awaiting_human", "revision": 3,
                 "control_revision": 3}
@@ -170,6 +213,47 @@ def test_worker_start_is_fenced_and_result_is_owner_committed(tmp_path):
     exops.application.core.validate("ExecutionReceipt", effect_receipt)
     assert effect_receipt["outcome"] == "succeeded"
     assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["run"] == next_run
+
+
+def test_metadata_worker_completion_invokes_promotion_after_receipt_commit(tmp_path, monkeypatch):
+    exops, fixture = make_exops(tmp_path)
+    receipt = admit(exops, fixture)
+    run_id = fixture.run["work_run_id"]
+    with exops.application.journal.writer() as writer:
+        record = writer.value["intents"]["exops.work." + run_id]
+        record["template_id"] = "note_metadata"
+        record["template_request_id"] = "request.synthetic.metadata"
+        writer.commit(exops.application.clock())
+    exops.record_dispatch(run_id, action_id=receipt["action_id"], outcome="accepted",
+                          workflow_id=f"knowledgeos/{run_id}")
+    started = exops.worker_started(run_id, worker_identity="knowledgeos.worker.one",
+                                   action_id=receipt["action_id"],
+                                   content_digest=receipt["content_digest"],
+                                   work_spec_digest=fixture.spec["spec_digest"],
+                                   workflow_id=f"knowledgeos/{run_id}")
+    observed = []
+
+    def record_promotion(selected, request_id, *, actor):
+        current = selected.application.journal.read()["intents"]["exops.work." + run_id]
+        assert current["application_state"] == "recorded"
+        observed.append((request_id, actor))
+        if len(observed) == 1:
+            raise OSError("synthetic interruption after receipt commit")
+
+    monkeypatch.setattr("vaultops.application.metadata_proposals.auto_prepare_metadata_proposal",
+                        record_promotion)
+    next_run = {**started, "state": "awaiting_human", "revision": 3,
+                "control_revision": 3}
+    with pytest.raises(OSError, match="synthetic interruption"):
+        exops.worker_finished(run_id, worker_identity="knowledgeos.worker.one",
+                              action_id=receipt["action_id"], next_run=next_run)
+    result = exops.worker_finished(run_id, worker_identity="knowledgeos.worker.one",
+                                   action_id=receipt["action_id"], next_run=next_run)
+    assert result["application_state"] == "recorded"
+    assert observed == [("request.synthetic.metadata", OwnerActor("owner.user", "web"))] * 2
+    with pytest.raises(AdmissionError, match="replay differs"):
+        exops.worker_finished(run_id, worker_identity="knowledgeos.worker.one",
+                              action_id=receipt["action_id"], next_run={**next_run, "revision": 4})
 
 
 def test_temporal_start_uncertainty_does_not_blindly_retry(tmp_path):
@@ -196,6 +280,80 @@ def test_temporal_start_uncertainty_does_not_blindly_retry(tmp_path):
     assert client.calls == 1
 
 
+def test_worker_start_preceding_lost_ack_returns_accepted_receipt(tmp_path):
+    exops, fixture = make_exops(tmp_path)
+    admit(exops, fixture)
+    run_id = fixture.run["work_run_id"]
+
+    class StartedBeforeAck:
+        async def start(self, dispatch):
+            exops.worker_started(
+                run_id, worker_identity="knowledgeos.worker.one",
+                action_id=dispatch.action_id,
+                content_digest=dispatch.payload["content_digest"],
+                work_spec_digest=dispatch.payload["work_spec_digest"],
+                workflow_id=dispatch.workflow_id)
+            raise ConnectionError("start acknowledgement lost after Worker launch")
+
+    receipt = asyncio.run(dispatch_admitted_work(exops, StartedBeforeAck(), run_id))
+    assert receipt["dispatch_state"] == "accepted"
+    assert receipt["application_state"] == "started"
+
+
+def test_uncertain_start_reconciles_only_exact_observed_history(tmp_path):
+    exops, fixture = make_exops(tmp_path)
+    receipt = admit(exops, fixture)
+    run_id = fixture.run["work_run_id"]
+    exops.record_dispatch(run_id, action_id=receipt["action_id"], outcome="unknown")
+    payload = {"owner_operation_id": "knowledgeos", "work_run_id": run_id,
+               "action_id": receipt["action_id"], "content_digest": receipt["content_digest"],
+               "work_spec_digest": fixture.spec["spec_digest"]}
+
+    class Observer:
+        observation = SimpleNamespace(
+            workflow_id=f"knowledgeos/{run_id}", run_id="temporal-run-1",
+            namespace="knowledgeos", workflow_type="knowledgeos.work.v1",
+            task_queue="knowledgeos.work.v1", payload=payload)
+
+        async def observe_start(self, dispatch):
+            assert dispatch.payload == payload
+            return self.observation
+
+    observer = Observer()
+    observer.observation = SimpleNamespace(**{**vars(observer.observation),
+                                              "payload": {**payload, "content_digest": "wrong"}})
+    with pytest.raises(AdmissionError, match="Observed Workflow start"):
+        asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
+    observer.observation = SimpleNamespace(**{**vars(observer.observation), "payload": payload})
+    reconciled = asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert reconciled["dispatch_state"] == "accepted"
+    record = exops.application.journal.read()["intents"]["exops.work." + run_id]
+    assert record["temporal_run_id"] == "temporal-run-1"
+    with pytest.raises(AdmissionError, match="uncertain"):
+        asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+
+
+def test_actual_worker_callback_resolves_unknown_start_with_exact_pins(tmp_path):
+    exops, fixture = make_exops(tmp_path)
+    receipt = admit(exops, fixture)
+    run_id = fixture.run["work_run_id"]
+    exops.record_dispatch(run_id, action_id=receipt["action_id"], outcome="unknown")
+    with pytest.raises(AdmissionError, match="correlated"):
+        exops.worker_started(run_id, worker_identity="knowledgeos.worker.one",
+                             action_id=receipt["action_id"],
+                             content_digest=receipt["content_digest"],
+                             work_spec_digest="wrong", workflow_id=f"knowledgeos/{run_id}")
+    assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
+    started = exops.worker_started(run_id, worker_identity="knowledgeos.worker.one",
+                                   action_id=receipt["action_id"],
+                                   content_digest=receipt["content_digest"],
+                                   work_spec_digest=fixture.spec["spec_digest"],
+                                   workflow_id=f"knowledgeos/{run_id}")
+    assert started["state"] == "running"
+    assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "accepted"
+
+
 def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch):
     exops, fixture = make_exops(tmp_path)
     receipt = admit(exops, fixture)
@@ -207,8 +365,9 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     )
     captured = {}
 
-    async def fake_connect(selected, authorize):
+    async def fake_connect(selected, authorize, authorize_observation):
         captured["binding"] = selected
+        captured["observe"] = authorize_observation
         return authorize
 
     clients = types.ModuleType("clients")
@@ -230,6 +389,8 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     dispatch = SimpleNamespace(workflow_id=f"knowledgeos/{run_id}",
                                action_id=receipt["action_id"], payload=payload)
     asyncio.run(authorize(dispatch))
+    with pytest.raises(AdmissionError, match="uncertain"):
+        asyncio.run(captured["observe"](dispatch))
     with pytest.raises(ValueError, match="WorkSpec"):
         asyncio.run(authorize(SimpleNamespace(
             workflow_id=dispatch.workflow_id, action_id=dispatch.action_id,

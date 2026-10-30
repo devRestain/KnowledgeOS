@@ -11,18 +11,21 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import math
 import re
 import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from jsonschema import Draft202012Validator
 from yaml import YAMLError
 
+from .adapters.core import AdmissionError
+from .adapters.owner_journal import read_regular
 from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .projection import (
     EXIT_CONFLICT,
@@ -464,37 +467,6 @@ def _normalized_options(
         include_review=include_review,
         limit=limit,
         hops=hops,
-    )
-
-
-def _normalize_options(
-    retrieval: Mapping[str, Any],
-    *,
-    scope: str | None,
-    path_prefix: str | None,
-    include_types: Sequence[str] | None,
-    include_review: bool,
-    limit: int,
-    hops: int,
-) -> tuple[str | None, str | None, tuple[str, ...], bool, int, int]:
-    """Return the legacy tuple shape for callers that expose filter details."""
-
-    options = _normalized_options(
-        retrieval,
-        scope=scope,
-        path_prefix=path_prefix,
-        include_types=include_types,
-        include_review=include_review,
-        limit=limit,
-        hops=hops,
-    )
-    return (
-        options.scope,
-        options.path_prefix,
-        options.include_types,
-        options.include_review,
-        options.limit,
-        options.hops,
     )
 
 
@@ -1375,11 +1347,25 @@ def _run_retrieval(
 
     try:
         projection = load_current_projection(workspace, verify_sources=True)
+        owner_raw = read_regular(workspace.state / "owner-control.json")
+        if owner_raw is not None:
+            owner = json.loads(owner_raw)
+            pending = {(item["path"], field)
+                       for item in owner.get("intents", {}).values()
+                       if isinstance(item, dict) and item.get("state") == "completed"
+                       and item.get("review_status") == "pending"
+                       for field in item.get("fields", {})}
+            if pending:
+                projection = replace(projection, edges=tuple(
+                    edge for edge in projection.edges
+                    if (edge["subject_path"], edge["predicate"]) not in pending))
     except ProjectionError as error:
         message = str(error)
         lowered = message.casefold()
         code = "RETRIEVAL_INDEX_STALE" if any(token in lowered for token in ("stale", "digest", "source changed")) else "RETRIEVAL_INDEX_UNAVAILABLE"
         return _failure(operation, code, message, EXIT_CONFLICT)
+    except (AdmissionError, ValueError, OSError) as error:
+        return _failure(operation, "RETRIEVAL_INDEX_STALE", str(error), EXIT_CONFLICT)
     if expected_generation_id is not None and projection.manifest.get("generation_id") != expected_generation_id:
         return _failure(
             operation,
@@ -1738,8 +1724,3 @@ def evaluate_frozen_baseline(
         "mutation_performed": False,
     }
     return report, EXIT_OK if metrics["all_cases_passed"] else EXIT_CONFLICT
-
-
-evaluate = evaluate_frozen_baseline
-search_records = search_projection
-retrieve_records = retrieve_projection

@@ -11,8 +11,8 @@ from mcp.client.stdio import StdioServerParameters
 from mcp.shared.exceptions import MCPError
 from support.control_factory import make_separate_portable_fixture_roots
 
-from vaultops import mcp_server as mcp_adapter
 from vaultops.application.knowledge import KnowledgeApplication
+from vaultops.interfaces import mcp_server as mcp_adapter
 from vaultops.note_engine import parse_frontmatter, render_frontmatter
 from vaultops.projection import generate_projection
 
@@ -28,19 +28,24 @@ def test_stdio_v3_tools_logical_refs_readonly_review_and_create_replay(tmp_path)
     report, code = generate_projection(roots)
     assert code == 0, report
     app = KnowledgeApplication.from_roots(roots)
-    params = StdioServerParameters(command=sys.executable, args=["-m", "vaultops.mcp_server", "--control-root", str(roots.control)], env={"PYTHONPATH": "/workspace/control/ops/src"}, cwd=tmp_path)
+    params = StdioServerParameters(command=sys.executable, args=["-m", "vaultops.interfaces.mcp_server", "--control-root", str(roots.control)], env={"PYTHONPATH": "/workspace/control/ops/src"}, cwd=tmp_path)
 
     async def exercise():
         async with Client(params, mode="legacy") as client:
             listing = await client.list_tools()
             names = [item.name for item in listing.tools]
-            assert len(names) == 24 and len(set(names)) == 24
+            assert len(names) == 25 and len(set(names)) == 25
             assert {"knowledge_read", "base_view_query", "link_context", "task_query",
                     "work_context_read", "assessment_submit", "proposal_draft_note"} <= set(names)
             with pytest.raises(MCPError):
                 await client.call_tool("proposal_approve", {})
             denied = await client.call_tool("proposal_create", {"source_reference": app.reference(SOURCE), "actor_id": "owner"})
             assert denied.is_error
+            index_status = await client.call_tool("index_status_read", {})
+            assert not index_status.is_error, index_status.structured_content
+            assert index_status.structured_content["effect"] == "read_only"
+            assert index_status.structured_content["data"]["lexical_state"] == "ready"
+            assert index_status.structured_content["data"]["lexical_generation_id"] == report["generation_id"]
             retrieved = await client.call_tool("knowledge_retrieve", {"query": "공포"})
             data = retrieved.structured_content
             assert not retrieved.is_error, data

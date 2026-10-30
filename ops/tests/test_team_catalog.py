@@ -13,11 +13,11 @@ from vaultops.application.team_catalog import SpecialistBinding
 from vaultops.application.work import work_spec_digest
 
 
-def test_six_team_definitions_are_pinned_and_only_one_team_is_registered(tmp_path):
+def test_seven_team_definitions_are_pinned_and_only_one_team_is_registered(tmp_path):
     exops, fixture = make_exops(tmp_path)
     catalog = exops.catalog
-    assert len(catalog.teams) == 6
-    assert len(catalog.roles) == 33
+    assert len(catalog.teams) == 7
+    assert len(catalog.roles) == 36
     assert set(exops.teams) == {"knowledge-curation"}
     assert catalog.roles["knowledgeos.normalizer"]["required_owner_ports"] == [
         "knowledge_retrieve", "proposal_create"]

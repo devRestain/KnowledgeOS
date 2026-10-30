@@ -7,6 +7,7 @@
   "required": ["query"],
   "properties": {
     "query": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "mode": {"enum": ["lexical", "vector", "hybrid", "ontology"], "default": "lexical"},
     "scope": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\r\\n\\u0000]+$"},
     "path_prefix": {"type": "string", "minLength": 1, "maxLength": 500, "pattern": "^(?!/)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"},
     "include_types": {

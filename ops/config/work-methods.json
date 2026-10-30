@@ -58,11 +58,11 @@
       ],
       "required_evidence": ["citation_hashes", "artifact_digest"],
       "human_gate": "A human reviews the cited answer in the Work console",
-      "guidance": "Submit an answer with explicit uncertainty and cited evidence."
+      "guidance": "For document enhancement submit artifact_kind document_enhancement_report with JSON content containing exact source_reference, current index_generation_id, citations with exact resource references, chunk locators and chunk hashes, improvements as point plus nonempty zero-based citation_indices, uncertainty, and missing_materials. This is a cited report, never a note draft or canonical apply."
     },
     {
       "method_id": "knowledgeos.relation_ontology_team",
-      "method_version": "1.0.0",
+      "method_version": "1.1.0",
       "purpose": "Read selected links and propose ontology alignment",
       "target_kind": "team",
       "team_id": "relation-ontology",
@@ -74,7 +74,7 @@
       ],
       "required_evidence": ["source_digest", "registry_digest", "proposal_digest"],
       "human_gate": "Relation truth and alignment require owner review",
-      "guidance": "Unlinked mentions are candidates, not asserted relations."
+      "guidance": "For the structured note request submit artifact_kind note_relations with JSON content containing exact source_reference, registry_digest, fields mapping each declared relation to new values, and evidence mapping every field and value to a nonempty list of exact source-body quotes. Unlinked mentions are candidates, not asserted relations."
     },
     {
       "method_id": "knowledgeos.project_review_team",
@@ -107,6 +107,38 @@
       "required_evidence": ["gateway_receipt", "disclosure_scope", "proposal_digest"],
       "human_gate": "Adaptation requires owner review and separate apply",
       "guidance": "Only Gateway accepted references may be read."
+    },
+    {
+      "method_id": "knowledgeos.note_metadata_team",
+      "method_version": "1.1.0",
+      "purpose": "Inspect one owner selected note and submit cited missing property and tag candidates",
+      "target_kind": "team",
+      "team_id": "corpus-stewardship",
+      "input_kind": "source_reference",
+      "result_kind": "enrichment_candidate",
+      "required_stages": [
+        {"stage_id":"coverage_evidence","role_id":"knowledgeos.coverage_reader","tools":["knowledge_read","semantic_registry_read"],"effect_class":"read_only"},
+        {"stage_id":"metadata_candidate","role_id":"knowledgeos.enrichment_proposer","tools":["artifact_submit"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "field_evidence", "registry_digest", "candidate_digest"],
+      "human_gate": "Owner combines independent metadata and relation evaluations into one exact hash Pending update_note; human review and apply are separate",
+      "guidance": "For the structured note request submit artifact_kind note_metadata with JSON content containing exact source_reference, registry_digest, fields mapping properties or tags to new values, and evidence mapping every field and value to a nonempty list of exact source-body quotes. Preserve populated values. Suggest missing properties and new tags only. No provisional daily write."
+    },
+    {
+      "method_id": "knowledgeos.daily_corpus_stewardship_team",
+      "method_version": "1.0.0",
+      "purpose": "Inspect one owner admitted daily note and submit cited candidates only for empty fields",
+      "target_kind": "team",
+      "team_id": "corpus-stewardship",
+      "input_kind": "source_reference",
+      "result_kind": "enrichment_candidate",
+      "required_stages": [
+        {"stage_id":"coverage_evidence","role_id":"knowledgeos.coverage_reader","tools":["knowledge_read","semantic_registry_read"],"effect_class":"read_only"},
+        {"stage_id":"enrichment_candidate","role_id":"knowledgeos.enrichment_proposer","tools":["artifact_submit"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "field_evidence", "registry_digest", "candidate_digest"],
+      "human_gate": "Owner validates empty fields before provisional write; human confirms or rejects exact delta",
+      "guidance": "The Team submits an artifact, never writes canonical notes or publishes indexes."
     },
     {
       "method_id": "knowledgeos.vault_maintenance_team",

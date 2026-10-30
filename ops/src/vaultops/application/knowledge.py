@@ -38,6 +38,7 @@ class DomainHandlers:
     retrieve: Callable[..., Any] = retrieval.retrieve
     prepare: Callable[..., Any] = prepare_normalization
     inspect: Callable[..., Any] = proposals.review_proposals
+    vector_port: Any = None
 
 
 def evaluate_proposal(report: dict[str, Any], effect_id: str, checkpoint: str) -> dict[str, Any]:
@@ -176,7 +177,18 @@ class KnowledgeApplication:
         try:
             self.guard(action)
             mcp_allowed_path = kwargs.pop("mcp_allowed_path", None)
-            report, code = getattr(self.handlers, action)(self.roots, query, **kwargs)
+            mode = kwargs.pop("mode", "lexical")
+            if action == "search" and mode != "lexical":
+                from ..search_modes import search_mode
+
+                kwargs.pop("use_vector", None)
+                kwargs.pop("include_review", None)
+                kwargs.pop("hops", None)
+                report, code = search_mode(self, query, mode, **kwargs)
+            else:
+                if mode != "lexical":
+                    raise AdmissionError("INVALID_ARGUMENT", "Retrieve supports lexical mode only")
+                report, code = getattr(self.handlers, action)(self.roots, query, **kwargs)
             if code == 0 and self.identity.ingress == "mcp":
                 from .read_tools import KnowledgeReadTools
 
@@ -196,6 +208,11 @@ class KnowledgeApplication:
 
     def retrieve(self, query: str, **kwargs: Any) -> tuple[dict[str, Any], int]:
         return self._read("retrieve", query, **kwargs)
+
+    def daily_stewardship(self):
+        from .daily_stewardship import DailyStewardship
+
+        return DailyStewardship(self)
 
     def inspect_proposal(self, proposal: str | dict[str, Any]) -> tuple[dict[str, Any], int]:
         return self.review_proposals(proposal_path=proposal)

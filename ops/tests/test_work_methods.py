@@ -23,7 +23,7 @@ from vaultops.application.work_tools import TeamToolSession
 SOURCE = "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
 
 
-def test_six_team_methods_bind_exact_manager_and_stage_tools(tmp_path):
+def test_seven_team_methods_bind_exact_manager_and_stage_tools(tmp_path):
     exops, fixture = make_exops(tmp_path)
     methods = WorkMethodCatalog.load(exops.application.roots.control)
     assert {method["team_id"] for method in methods.methods.values()} == set(exops.catalog.teams)
@@ -90,6 +90,7 @@ def _pilot(tmp_path):
     running = exops.worker_started(
         fixture.run["work_run_id"], worker_identity="knowledgeos.worker.one",
         action_id=receipt["action_id"], content_digest=receipt["content_digest"],
+        work_spec_digest=fixture.spec["spec_digest"],
         workflow_id="knowledgeos/" + fixture.run["work_run_id"])
     bundle = fixture.bundle()
     graph = bundle["graph_spec"]
@@ -212,7 +213,7 @@ def test_single_mcp_wire_lists_all_tools_but_checks_manager_and_profile(tmp_path
     run_id = fixture.run["work_run_id"]
 
     def params(executor_id, graph_run_id=None):
-        args = ["-m", "vaultops.mcp_server", "--control-root",
+        args = ["-m", "vaultops.interfaces.mcp_server", "--control-root",
                 str(exops.application.roots.control), "--work-run-id", run_id,
                 "--executor-id", executor_id]
         if graph_run_id:
@@ -222,7 +223,7 @@ def test_single_mcp_wire_lists_all_tools_but_checks_manager_and_profile(tmp_path
 
     async def exercise():
         async with Client(params(fixture.spec["manager_executor_id"]), mode="legacy") as client:
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 25
             view = await client.call_tool("method_read", {})
             assert view.structured_content["data"]["method_contract_ref"] == fixture.spec["method_contract_ref"]
             denied = await client.call_tool("proposal_create", {"source_reference": source})
@@ -231,7 +232,7 @@ def test_single_mcp_wire_lists_all_tools_but_checks_manager_and_profile(tmp_path
                                    bundle=bundle, artifacts=artifacts, source_reference=source)
         async with Client(params("knowledgeos.normalizer.one", bundle["segment"]["graph_run_id"]),
                           mode="legacy") as client:
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 25
             denied = await client.call_tool("proposal_create", {"source_reference": {**source,
                 "content_digest": "sha256:" + "0" * 64}})
             assert denied.is_error and denied.structured_content["effect"] == "none"

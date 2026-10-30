@@ -13,9 +13,12 @@ dependencies = [
   "watchfiles>=1.1,<2",
 ]
 
+[project.optional-dependencies]
+temporal = ["temporalio==1.34.0"]
+
 [project.scripts]
-vaultctl = "vaultops.cli:app"
-vaultmcp = "vaultops.mcp_server:main"
+vaultctl = "vaultops.interfaces.cli:main"
+vaultmcp = "vaultops.interfaces.mcp_server:main"
 
 [dependency-groups]
 dev = [

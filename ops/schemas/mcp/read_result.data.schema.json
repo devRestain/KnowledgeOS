@@ -42,7 +42,9 @@
     },
     "truncated": {
       "type": "boolean"
-    }
+    },
+    "mode": {"enum": ["lexical", "vector", "hybrid", "ontology"]},
+    "vector_generation_id": {"type": "string", "minLength": 1, "maxLength": 128}
   },
   "$defs": {
     "sha256": {
@@ -87,6 +89,10 @@
         },
         "excerpt_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "graph_path": {
+          "type": "array", "maxItems": 2,
+          "items": {"type": "string", "maxLength": 500}
         }
       }
     }

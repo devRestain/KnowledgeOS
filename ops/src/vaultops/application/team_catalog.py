@@ -18,6 +18,7 @@ from .work import PROFILE_KEYS
 
 _TEAMS = {
     "knowledge-curation": "knowledgeos.curation_manager",
+    "corpus-stewardship": "knowledgeos.stewardship_manager",
     "evidence-research": "knowledgeos.research_manager",
     "relation-ontology": "knowledgeos.ontology_manager",
     "project-review": "knowledgeos.review_manager",
@@ -105,7 +106,7 @@ class OfficerBinding:
 
 
 class TeamCatalog:
-    """Pure, strict contract for six definitions and prospective exact bindings."""
+    """Pure, strict contract for seven definitions and prospective exact bindings."""
 
     def __init__(self, document: Mapping[str, Any]) -> None:
         _require(set(document) == {"schema_version", "owner_operation_id", "mode",
@@ -163,7 +164,7 @@ class TeamCatalog:
         _require(set(self.teams) == set(_TEAMS)
                  and {name for name, role in self.roles.items() if role["kind"] == "manager"}
                  == set(_TEAMS.values()),
-                 "BINDING_INVALID", "Catalog must define exactly six Teams and their roles")
+                 "BINDING_INVALID", "Catalog must define exactly seven Teams and their roles")
         self.digest = digest(canonical(dict(document)))
 
     @classmethod

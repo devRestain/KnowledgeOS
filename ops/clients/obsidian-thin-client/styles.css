@@ -1,8 +1,53 @@
-.knowledgeos-work-actions {
+.knowledgeos-sidebar {
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.knowledgeos-target {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.knowledgeos-work-actions,
+.knowledgeos-search {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0;
+}
+
+.knowledgeos-search input {
+  min-width: 120px;
+  flex: 1 1 140px;
+}
+
+.knowledgeos-search h3 {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+
+.knowledgeos-result-card,
+.knowledgeos-work-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  margin: 8px 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+
+.knowledgeos-result-card small {
+  display: block;
+  color: var(--text-muted);
+}
+
+.knowledgeos-results,
+.knowledgeos-work-list,
+.knowledgeos-work-result,
+.knowledgeos-daily,
+.knowledgeos-daily-detail {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 16px;
+  padding-top: 12px;
 }
 
 .knowledgeos-proposals,
@@ -18,7 +63,9 @@
 }
 
 .knowledgeos-work-status,
-.knowledgeos-proposal-detail pre {
+.knowledgeos-proposal-detail pre,
+.knowledgeos-work-result pre,
+.knowledgeos-daily-detail pre {
   max-height: 320px;
   overflow: auto;
   overflow-wrap: anywhere;

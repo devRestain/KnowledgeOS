@@ -474,30 +474,6 @@ def answer_schema() -> dict[str, Any]:
     }
 
 
-def build_note_record_schema() -> dict[str, Any]:
-    """Compatibility alias for schema generation callers."""
-
-    return note_record_schema()
-
-
-def build_edge_record_schema() -> dict[str, Any]:
-    """Compatibility alias for schema generation callers."""
-
-    return edge_record_schema()
-
-
-def build_retrieval_candidate_schema() -> dict[str, Any]:
-    """Compatibility alias for schema generation callers."""
-
-    return retrieval_candidate_schema()
-
-
-def build_answer_schema() -> dict[str, Any]:
-    """Compatibility alias for schema generation callers."""
-
-    return answer_schema()
-
-
 def _workspace(root: str | Path | ResolvedPaths) -> ResolvedPaths:
     if isinstance(root, ResolvedPaths):
         return root
@@ -528,7 +504,17 @@ def _protected_source(relative: str) -> bool:
     parts = relative.split("/")
     if any(part in {".git", ".vault-bridge", ".obsidian"} or part.startswith(".obsidian-") for part in parts):
         return True
-    return relative.startswith("99_System/Templates/")
+    if relative.startswith("99_System/Templates/"):
+        return True
+    # Exclude only owner-generated Work artifacts. User-authored Review notes
+    # remain available to explicit include_review retrieval.
+    return bool(re.fullmatch(
+        r"01_AI_Review/(?:Pending|Rejected|Resolved)/"
+        r"(?:MCP [a-z_]+ [0-9a-f]{24}|Metadata [0-9a-f]{8}-[0-9a-f]{4}-"
+        r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|"
+        r"C27 (?:normalize|draft_note) [0-9a-f]{8}-[0-9a-f]{3})\.md",
+        relative,
+    ))
 
 
 def _candidate_source_paths(workspace: ResolvedPaths) -> tuple[Path, ...]:
@@ -1103,22 +1089,6 @@ def generate_projection(
         return _failure(operation, "PROJECTION_INVALID", str(error))
 
 
-def project_vault(root: str | Path | ResolvedPaths, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
-    """Compatibility alias for :func:`generate_projection`."""
-
-    return generate_projection(root, generation_id=generation_id)
-
-
-def export_jsonl(
-    root: str | Path | ResolvedPaths,
-    *,
-    generation_id: str | None = None,
-) -> tuple[dict[str, Any], int]:
-    """Compatibility alias for the ``vaultctl export jsonl`` command."""
-
-    return generate_projection(root, generation_id=generation_id)
-
-
 def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -1375,28 +1345,6 @@ def read_current_projection(
         return _failure(operation, "PROJECTION_CONFLICT", str(error))
     except (OSError, UnicodeError, ProjectionError, UnsafePathError, KeyError, TypeError, ValueError) as error:
         return _failure(operation, "PROJECTION_INVALID", str(error))
-
-
-def read_projection(
-    root: str | Path | ResolvedPaths,
-    *,
-    verify_sources: bool = True,
-) -> tuple[dict[str, Any], int]:
-    """Compatibility alias for :func:`read_current_projection`."""
-
-    return read_current_projection(root, verify_sources=verify_sources)
-
-
-def verify_projection(root: str | Path | ResolvedPaths, *, verify_sources: bool = True) -> tuple[dict[str, Any], int]:
-    """Compatibility alias for the ``vaultctl index verify`` command."""
-
-    return read_current_projection(root, verify_sources=verify_sources)
-
-
-def build_index(root: str | Path | ResolvedPaths, *, generation_id: str | None = None) -> tuple[dict[str, Any], int]:
-    """Compatibility alias for the ``vaultctl index build`` command."""
-
-    return generate_projection(root, generation_id=generation_id)
 
 
 def load_current_projection(root: str | Path | ResolvedPaths, *, verify_sources: bool = True) -> ProjectionRead:

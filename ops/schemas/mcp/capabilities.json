@@ -39,6 +39,7 @@
     ],
     "include_review": false,
     "vector_retrieval": false,
+    "vector_mode_status": "requires_trusted_local_model_pin",
     "provider_calls": false,
     "excluded_paths": [
       ".vault-bridge/**",
@@ -75,6 +76,7 @@
       "unknown"
     ],
     "proposal_target_change_allowed": false,
+    "daily_canonical_apply_via_mcp": false,
     "proposal_artifact_path": "01_AI_Review/Pending/",
     "proposal_create_action": "normalize",
     "operator_approval_or_apply": false,
@@ -99,7 +101,8 @@
     "gateway_evidence_read": "read_only",
     "proposal_adaptation": "proposal_created",
     "vault_diagnose": "read_only",
-    "proposal_recovery_plan": "proposal_created"
+    "proposal_recovery_plan": "proposal_created",
+    "index_status_read": "read_only"
   },
   "errors": {
     "codes": [
@@ -2667,6 +2670,18 @@
       },
       "data_schema": "tool_result.schema.json#/$defs/extended",
       "effect": "proposal_only"
+    },
+    {
+      "name": "index_status_read",
+      "description": "Read the selected lexical and optional local vector index status",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://local.invalid/knowledgeos/mcp/index_status_read.input.schema.json",
+        "type": "object",
+        "additionalProperties": false
+      },
+      "data_schema": "tool_result.schema.json#/$defs/extended",
+      "effect": "read_only"
     }
   ],
   "forbidden_tool_names": [

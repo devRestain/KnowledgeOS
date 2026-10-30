@@ -1,0 +1,80 @@
+services:
+  owner:
+    image: ${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through Make}
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Use Make with numeric UID}:${KNOWLEDGEOS_GID:?Use Make with numeric GID}"
+    working_dir: /workspace/control/ops
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /workspace/control/ops/src
+      KNOWLEDGEOS_CONFIG_FILE: /workspace/control/ops/vaultops.toml
+      KNOWLEDGEOS_CORE_ROOT: /workspace/Core
+      KNOWLEDGEOS_CONTROL_ROOT: /workspace/control
+      KNOWLEDGEOS_VAULT_ROOT: /workspace/KnowledgeHub
+      KNOWLEDGEOS_STATE_ROOT: /workspace/state
+      KNOWLEDGEOS_RUNTIME_ROOT: /workspace/runtime
+    command:
+      - python
+      - -m
+      - vaultops.interfaces.read_only_owner
+      - --actor-id
+      - ${KNOWLEDGEOS_OWNER_ACTOR_ID:?Select a trusted startup owner login}
+      - --token-file
+      - /run/owner-session/token
+      - --bind-host
+      - owner
+    volumes:
+      - type: bind
+        source: ${KNOWLEDGEOS_CORE_SOURCE:?Select the exact Core root}
+        target: /workspace/Core
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Select the exact control root}
+        target: /workspace/control
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_VAULT_SOURCE:?Select the exact Vault root}
+        target: /workspace/KnowledgeHub
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_STATE_SOURCE:?Select the exact State root}
+        target: /workspace/state
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_RUNTIME_SOURCE:?Select the exact Runtime root}
+        target: /workspace/runtime
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_OWNER_SESSION_SOURCE:?Select a private 0700 session directory}
+        target: /run/owner-session
+        read_only: true
+        bind: {create_host_path: false}
+    networks: [owner-private]
+  relay:
+    image: ${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through Make}
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Use Make with numeric UID}:${KNOWLEDGEOS_GID:?Use Make with numeric GID}"
+    working_dir: /opt/knowledgeos/ops
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: /opt/knowledgeos/ops/src
+    command: [python, -m, vaultops.interfaces.owner_relay]
+    ports:
+      - "127.0.0.1:${KNOWLEDGEOS_OWNER_PORT:-17900}:17900"
+    networks: [owner-private, loopback-publication]
+networks:
+  owner-private:
+    internal: true
+  loopback-publication: {}

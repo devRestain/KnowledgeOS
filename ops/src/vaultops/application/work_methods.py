@@ -29,6 +29,7 @@ _PORT_TO_TOOLS = {
     "adaptation_propose": {"proposal_adaptation"},
     "vault_diagnostics": {"vault_diagnose"},
     "projection_read": {"vault_diagnose"},
+    "index_status": {"index_status_read"},
     "journal_read": {"work_context_read"},
     "recovery_propose": {"proposal_recovery_plan"},
     "assessment_record": {"assessment_submit"},
@@ -40,7 +41,7 @@ _TOOLS = frozenset({"knowledge_search", "knowledge_retrieve", "proposal_inspect"
                     "assessment_submit", "proposal_draft_note", "citation_verify",
                     "proposal_link_suggestions", "semantic_registry_read", "proposal_alignment",
                     "proposal_project_review", "gateway_evidence_read", "proposal_adaptation",
-                    "vault_diagnose", "proposal_recovery_plan"})
+                    "vault_diagnose", "proposal_recovery_plan", "index_status_read"})
 
 
 def _require(condition: bool, code: str, message: str) -> None:

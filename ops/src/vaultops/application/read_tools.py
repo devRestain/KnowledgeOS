@@ -142,11 +142,14 @@ class KnowledgeReadTools:
         if not isinstance(limit, int) or not 1 <= limit <= 20:
             raise AdmissionError("INVALID_ARGUMENT", "Link result limit is invalid")
         path = str(source["path"])
+        pending_relations = self.application.daily_stewardship().pending_relation_fields()
         outgoing = []
         incoming = []
         for edge in projection.edges:
             subject = str(edge["subject_path"])
             target = str(edge["object_path"])
+            if (subject, str(edge["predicate"])) in pending_relations:
+                continue
             if subject not in notes or target not in notes:
                 continue
             row = {"predicate": edge["predicate"], "locator": edge["source_locator"],
@@ -183,6 +186,12 @@ class KnowledgeReadTools:
                 break
         return {"resource_reference": dict(reference), "outgoing": outgoing[:limit],
                 "backlinks": incoming[:limit], "unlinked_mentions": mentions}
+
+    def index_status_read(self) -> dict[str, Any]:
+        self.application.guard("inspect")
+        from ..search_modes import index_status
+
+        return index_status(self.application.roots, self.application.handlers.vector_port)
 
     def task_query(self, *, path_prefix: str | None = None, limit: int = 20) -> dict[str, Any]:
         _, notes = self._eligible(selected_path=path_prefix if path_prefix and path_prefix.endswith(".md") else None)

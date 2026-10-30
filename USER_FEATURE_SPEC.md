@@ -20,7 +20,7 @@ Home과 Mobile은 탐색 화면이고, Base와 Compass 뷰는 원문을 바꾸�
 
 에이전트의 변경안은 출처와 대상 preimage에 묶인 Pending 제안입니다. Obsidian Thin Client의 소스 계약은 owner Work 접수, 진행 상태, 인용된 결과, Pending 원문·출처·diff 표시를 제공합니다. 사용자가 승인 또는 거절을 누르면 owner가 그 결정을 기록합니다. 정본 적용은 별도 버튼과 owner의 재검증을 거칩니다. 승인만으로 파일이 바뀌지 않습니다.
 
-이 Thin Client는 현재 소스 계약입니다. 실제 프로필 설치, Web listener, Hermes Runner, 여섯 Team의 실동작, 외부 Gateway 교환과 기기 UI 검증은 별도 채택 증거가 필요합니다.
+선택된 Obsidian 프로필의 사이드바 배치와 문서 대상 전환은 관측됐지만, Owner를 통한 실제 결과 표시는 별도 검증 대상입니다. Hermes Runner, 일곱 Team의 실동작, 외부 Gateway 교환과 기기별 사용 흐름도 각각 채택 증거가 필요합니다.
 
 ## 운영자가 하는 일
 
@@ -40,4 +40,4 @@ flowchart LR
     R --> A[별도 정본 적용]
 ```
 
-여섯 Team의 역할과 Officer 경로는 [Team 계약](docs/TEAMS_AND_ROADMAP.md), 정확한 현재 상태는 [PROJECT_STATE.md](PROJECT_STATE.md)를 확인하세요. 임베딩·벡터 검색·KOS 모델 실행은 이번 소스 범위 밖입니다.
+일곱 Team의 역할과 Officer 경로는 [Team 계약](docs/TEAMS_AND_ROADMAP.md), 정확한 현재 상태는 [PROJECT_STATE.md](PROJECT_STATE.md)를 확인하세요. Lexical 기본 검색과 선택형 Vector·Hybrid RRF·승인된 ontology 검색의 소스는 구현돼 있습니다. 실제 임베딩 모델의 설치·실행과 검색 품질·메모리 측정은 별도 채택 범위이며, 모델 다운로드는 보류돼 있습니다.

@@ -11,7 +11,8 @@ from support.control_factory import (
     make_separate_portable_fixture_roots,
 )
 
-from vaultops.cli import main
+from vaultops.action_proposals import generate_draft_note_proposal, generate_normalize_proposal
+from vaultops.interfaces.cli import main
 from vaultops.projection import (
     CURRENT_POINTER,
     EXIT_CONFLICT,
@@ -85,6 +86,57 @@ def test_c21_build_is_deterministic_and_does_not_write_runtime_or_vault(tmp_path
     assert implements["object_locator"] is None
     derived = next(edge for edge in edges if edge["predicate"] == "derived_from")
     assert derived["object_locator"] == "#^daily-origin"
+
+
+
+@pytest.mark.parametrize("action", ["normalize", "draft_note"])
+def test_c21_owner_c27_pending_artifacts_preserve_generation_but_user_review_and_sources_do_not(
+    tmp_path: Path, action: str,
+) -> None:
+    roots = make_separate_portable_fixture_roots(tmp_path, review_queues=True)
+    source = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
+    source_path = roots.vault / source
+    original = source_path.read_text()
+    # Valid but noncanonical ordering gives normalization an actual byte delta.
+    source_path.write_text(original.replace(
+        "schema_version: 1\nid: 11111111-1111-4111-8111-111111111111\n",
+        "id: 11111111-1111-4111-8111-111111111111\nschema_version: 1\n"))
+    source_bytes = source_path.read_bytes()
+    before, code = generate_projection(roots)
+    assert code == EXIT_OK, before
+    arguments = {"source_path": source, "expected_sha256": hashlib.sha256(source_bytes).hexdigest()}
+    if action == "normalize":
+        generated, code = generate_normalize_proposal(roots, **arguments)
+    else:
+        generated, code = generate_draft_note_proposal(roots, title="Synthetic projection draft", **arguments)
+    assert code == EXIT_OK and generated["status"] == "PASS", generated
+    generated_path = roots.vault / generated["proposal_path"]
+    assert generated_path.is_file() and source_path.read_bytes() == source_bytes
+    verified, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_OK and verified["source_verified"] is True, verified
+    assert verified["generation_id"] == before["generation_id"]
+
+    user_path = roots.vault / "01_AI_Review/Pending/User-authored Review.md"
+    user_path.write_text(generated_path.read_text()
+        .replace(generated["proposal"]["proposal_id"], "a0526fd1-88db-41a3-b45f-a013309831dd")
+        .replace(generated_path.stem, user_path.stem))
+    stale, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_CONFLICT, stale
+    updated, code = generate_projection(roots)
+    assert code == EXIT_OK, updated
+    verified, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_OK, verified
+    paths = {note["path"] for note in verified["notes"]}
+    assert user_path.relative_to(roots.vault).as_posix() in paths
+    assert generated["proposal_path"] not in paths
+
+    user_path.write_text(user_path.read_text() + "\nUser review changed.\n")
+    stale, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_CONFLICT, stale
+    user_path.write_text(user_path.read_text().removesuffix("\nUser review changed.\n"))
+    source_path.write_bytes(source_bytes + b"\nCanonical source changed.\n")
+    stale, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_CONFLICT, stale
 
 
 def test_c21_cli_uses_configured_separate_vault_and_runtime_roots(tmp_path: Path, capsys) -> None:

@@ -91,6 +91,7 @@ def _admitted_officer(tmp_path):
     running = exops.worker_started(
         fixture.run["work_run_id"], worker_identity="knowledgeos.worker.one",
         action_id=receipt["action_id"], content_digest=receipt["content_digest"],
+        work_spec_digest=fixture.spec["spec_digest"],
         workflow_id="knowledgeos/" + fixture.run["work_run_id"])
     bundle = fixture.bundle(targets=["criterion.proposal"])
     bundle["assignments"][0].update(
@@ -276,14 +277,14 @@ def test_single_mcp_wire_checks_officer_proposal_binding(tmp_path):
                                 bundle=bundle, artifacts=artifacts, source_reference=source)
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "vaultops.mcp_server", "--control-root",
+        args=["-m", "vaultops.interfaces.mcp_server", "--control-root",
               str(exops.application.roots.control), "--work-run-id", run_id,
               "--executor-id", officer_id, "--graph-run-id", graph_run_id],
         env={"PYTHONPATH": "/workspace/control/ops/src"}, cwd=tmp_path)
 
     async def exercise():
         async with Client(params, mode="legacy") as client:
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 25
             denied = await client.call_tool("proposal_create", {"source_reference": other})
             assert denied.is_error and denied.structured_content["effect"] == "none"
             created = await client.call_tool("proposal_create", {"source_reference": source})

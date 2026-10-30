@@ -1,8 +1,11 @@
 services:
   dev:
+    image: "${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through make image-build}"
+    pull_policy: never
     build:
       context: ..
       dockerfile: ops/Dockerfile
+      pull: true
       args:
         KNOWLEDGEOS_UID: ${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID to the host numeric UID, or use make}
         KNOWLEDGEOS_GID: ${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID to the host numeric GID, or use make}
@@ -14,7 +17,6 @@ services:
       PYTHONPATH: /workspace/control/ops/src
       UV_PROJECT_ENVIRONMENT: /opt/venv
       UV_CACHE_DIR: /home/vaultops/.cache/uv
-      KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID: ${KNOWLEDGEOS_SCHEDULED_ATTEMPT_ID:-}
     volumes:
       - type: bind
         source: ${KNOWLEDGEOS_CORE_SOURCE:?Set KNOWLEDGEOS_CORE_SOURCE through Make}

@@ -71,7 +71,8 @@
             "gateway_evidence_read",
             "proposal_adaptation",
             "vault_diagnose",
-            "proposal_recovery_plan"
+            "proposal_recovery_plan",
+            "index_status_read"
           ]
         },
         "status": {
@@ -276,7 +277,8 @@
                 "gateway_evidence_read",
                 "proposal_adaptation",
                 "vault_diagnose",
-                "proposal_recovery_plan"
+                "proposal_recovery_plan",
+                "index_status_read"
               ]
             },
             "data": {

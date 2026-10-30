@@ -8,5 +8,5 @@
 
 ## Workflow
 
-- Retain the four declared MCP tool names.
+- Keep the versioned MCP manifest, tool schemas, and owner call-time scope checks aligned.
 - Keep approval, apply and provider activation outside MCP.

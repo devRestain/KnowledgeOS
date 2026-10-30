@@ -1,6 +1,6 @@
 # KnowledgeOS current implementation boundary
 
-`PROJECT_STATE.md` owns current progress, checks, blockers, and handoff. This file describes the implemented source boundary and the next retirement and native-adoption sequence against current AgentFabric contracts.
+`PROJECT_STATE.md` owns current progress, checks, blockers, and handoff. This file describes the implemented source boundary and the remaining native-adoption sequence against current AgentFabric contracts.
 
 ## Current source
 
@@ -13,17 +13,23 @@
 ## Completed source rebase
 
 - The Blueprint Markdown, YAML, structural schema, semantic checks, generated artifacts, current owner policies, and MCP capability manifest agree on the v3 boundary.
-- Withdrawn provider, embedding, vector execution, mobile bridge, and outdated planning source was removed. The current test inventory is `ops/tests/`.
-- The generated KnowledgeHub guide, contract, Property Dictionary, and inactive Thin Client copies were updated under exact preimage checks. The read-only Vault projection check passes. This does not show installed or running plugin behavior.
+- Provider broker and model execution remain outside `vaultctl` and `vaultmcp`. The accepted daily stewardship slice adds an owner-only provisional metadata effect and an injected local vector index source path; the current test inventory is `ops/tests/`.
+- The generated KnowledgeHub guide, contract, Property Dictionary, and Thin Client copies were updated under exact preimage checks. The selected `.obsidian-mac` profile now enables the plugin. Native Obsidian showed the persistent right sidebar, tracked the active note after a document switch, and listed all four search choices. Owner-backed search and Work remain unverified because the listener is not running.
 - The project-owned container passed source, foundation, Blueprint, generated artifact, Core readiness, invariant, full regression, lint, and State checks. See `PROJECT_STATE.md` for the observed result.
 
-## Next State retirement
+## Completed State retirement
 
-`storage-transition.json` still pins the predeployment Runtime archive by exact inventory digest. Implement the retirement procedure in `docs/RUNTIME.md` with a disposable reference-graph fixture and an owner checkpoint before deleting the archived payload. Treat any unresolved effect or changed preimage as a stop condition.
+The exact predeployment Runtime archive was retired on 2026-10-08 after a read-only reference and inventory preview, disposable reference-graph fixture, fresh writer check, and owner-locked checkpoint. `States/Operations/knowledgeos/storage-retirement.json` records the completed transition without importing archived authority. The retired payload and obsolete `storage-transition.json` are absent.
 
 ## Next native adoption
 
-After State retirement, bind a trusted NormalizationOfficer Runner to one exact WorkRun, Profile, GraphRun, method and source. Verify per-call MCP identity and policy, Pending replay, independent assessment, and GUI review in an isolated fixture before deploying a Web listener or installing the Thin Client. The Thin Client's concrete implementation and pointers may be replaced while keeping its conceptual owner Work and review boundary. Extend the same admission pattern to the six Teams and Gateway only after their own evidence.
+Use `application/normalization_work.py` for one exact NormalizationOfficer WorkRun in disposable roots. The default path executes the deterministic Pending-only method. Its explicit model-bound mode delegates the three scoped MCP calls to `ops/clients/hermes/native_officer.py` under a fresh native Hermes process, then uses the same independent assessment and Owner HTTP export. Keep source, Work/Profile/Graph/runtime pins, real effect receipts and model execution evidence distinct. `make officer-smoke` and `make model-officer-smoke` exercise the respective modes without production mounts.
+
+After the exact Officer boundary, admit and compose a bounded native Team with its dedicated Manager and selected teammates before any production activation. Native Temporal-backed LangGraph topology, Team continuation, Hermes Cron, measured local Qwen service, production Web listener and owner-backed Obsidian results require their own adoption evidence. The two selected Qwen model downloads remain separately deferred.
+
+The user performs Computer Use and native Obsidian verification. Report the required GUI checks and their backend prerequisites rather than opening the app, changing plugin settings, or treating an HTTP pass as device evidence.
+
+For a structured request, replay returns the current two Work receipts. If a prior delivery is unknown, a new request for the same actor, template, and exact source is stopped before Director admission and checked again under the owner writer lock. The host adapter and owner can inspect an exact Temporal Workflow start and reconcile positive matching history; a native WorkRun must satisfy the same identity checks without retrying an uncertain start. The owner Work list marks receipts whose note hash has changed and rechecks that hash during status export, so the sidebar does not offer metadata preparation for stale Work.
 
 ## Proposal action contracts
 

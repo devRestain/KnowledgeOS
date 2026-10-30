@@ -1,18 +1,25 @@
 {
-  "schema_version": 3,
+  "schema_version": 5,
   "capability": "knowledgeos_owner_work_review",
-  "surface": "removable_desktop_obsidian_owner_client",
+  "surface": "persistent_right_sidebar_item_view",
   "commands": ["open-work-review"],
-  "scope_kinds": ["current_note_digest"],
+  "scope_kinds": ["current_note_digest", "owner_corpus_search_without_active_note"],
   "owner": {
     "transport": "authenticated_http_loopback",
     "host": "127.0.0.1",
     "path": "/owner",
     "control_adapter": "vaultops.interfaces.exops_web",
-    "routes": ["work/intake", "work/read", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
+    "routes": ["work/intake", "work/intake-template", "work/read", "work/list", "work/result", "work/prepare-metadata", "search/query", "daily/list", "daily/read", "daily/decide", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
     "endpoint_is_configurable": true,
     "csrf_token_persistence": "none",
-    "work_id_persistence": "last_selected_only"
+    "work_id_persistence": "last_selected_only",
+    "template_request_id_persistence": "view_memory_only",
+    "metadata_promotion": "owner_after_two_independent_worker_evaluations",
+    "metadata_promotion_recovery": "explicit_owner_retry_route",
+    "metadata_evidence": "exact_source_body_quotes_per_new_field_value",
+    "proposal_preview": "structured_field_value_evidence_and_canonical_diff",
+    "search_default": "lexical",
+    "search_modes": ["lexical", "vector", "hybrid", "ontology"]
   },
   "effects": {
     "direct_provider_called": false,
@@ -23,8 +30,8 @@
   },
   "evidence_boundary": {
     "source": "implemented",
-    "installation": "not_run",
-    "device": "not_run",
+    "installation": "selected_mac_profile_enabled",
+    "device": "sidebar_only_observed",
     "owner_web_listener": "not_run",
     "hermes_runner": "not_run"
   }

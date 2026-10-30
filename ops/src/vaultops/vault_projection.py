@@ -36,7 +36,7 @@ def presentation_contract(control: Path) -> dict[str, Any]:
         "interfaces": {"mcp": capabilities, "maintenance_commands": ["operation check", "operation status", "operation recover", "index build", "index verify", "note validate"], "native_execution": "unconfigured", "resource_authority": "trusted_startup_with_Core_ResourceReference"},
         "observations": ["admission_ack", "execution_outcome", "acceptance_state", "human_approval", "freshness", "completeness"],
         "transport": "unconfigured",
-        "thin_client": "staged_disabled_pending_owner_web_and_runner_adoption",
+        "thin_client": "profile_enabled_pending_owner_web_and_runner_adoption",
         "machine_state_owner": "Operations/KnowledgeOS/PROJECT_STATE.md",
     }
 
@@ -74,7 +74,7 @@ private config v3에서 Core, control, Vault, State, Runtime을 각각 선언한
 
 Review Base의 status는 문서 분류다. admission ACK, 실행 완료, domain acceptance, human approval과 서로 대체할 수 없다. 실행 여부를 확인할 근거가 없으면 unknown으로 유지한다. Operation 간 교환은 owner Gateway가 수락한 참조로만 조회한다.
 
-현재 first-party Thin Client 파일은 설치 가능한 정적 자료로만 배치하고 profile에서 비활성으로 둔다. owner Web listener, Hermes Runner와 외부 전송은 구성되지 않았다. 자동 Git, shell과 background writer도 실행하지 않는다.
+현재 first-party Thin Client 파일은 선택한 mac profile에서 활성화한다. owner Web listener, Hermes Runner와 외부 전송은 구성되지 않았다. 자동 Git, shell과 background writer도 실행하지 않는다.
 
 ## 검증과 후속 실행
 

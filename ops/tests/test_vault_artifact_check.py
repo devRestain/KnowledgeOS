@@ -5,7 +5,7 @@ from pathlib import Path
 
 from support.control_factory import fixture_path, make_control_root
 
-from vaultops.cli import main
+from vaultops.interfaces.cli import main
 from vaultops.vault_artifacts import (
     SYSTEM_ARTIFACT_PATHS,
     check_vault_artifacts,

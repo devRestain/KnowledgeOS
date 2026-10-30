@@ -40,14 +40,14 @@ flowchart LR
 
 - Current agent retrieval is bounded, citation-bearing lexical and typed-link evidence. Read tools recheck owner reference, current digest, scope, sensitivity, and `ai_policy` before returning source bytes.
 - Configured local MCP may read `ai_policy: ask` documents under the explicit owner policy. `deny` and confidential content remain excluded. `local_only` body text requires a trusted local execution binding.
-- Embeddings, vector search, remote retrieval, and KOS-managed model execution are outside the current source contract.
+- Explicit vector and Hybrid search use an owner-built immutable generation through an injected trusted local embedding service. Lexical remains the default. A measured model pin is required before service adoption; Qwen3 8B quantized is only a historical candidate. Remote retrieval and KOS-managed model execution remain outside this source contract.
 
 ## Work and review
 
-- Six Teams each have a dedicated Manager. A bounded one-Profile task may use an Officer without a Team or Manager. WorkSpec admission, user pins, Manager Graph segments, independent EvalOfficer assessment, human decision, and canonical apply remain distinct.
+- Seven Team definitions each have a dedicated Manager, including Corpus Stewardship for daily cited empty-field candidates. A bounded one-Profile task may use an Officer without a Team or Manager. WorkSpec admission, user pins, Manager Graph segments, independent EvalOfficer assessment, human decision, and canonical apply remain distinct. Only the daily Stewardship flow permits an owner-validated provisional note write before human review.
 - Curation, Research, Ontology, Project Review, Exchange, and Vault Maintenance methods are versioned in `ops/config/work-methods.json`. Agent proposals use action-specific schemas and the common owner intent/receipt/replay rules.
 - Gateway evidence is limited to accepted exchange references. A foreign Operation's Vault or State is never a direct KnowledgeOS read target.
-- The source has a synthetic stdio MCP and owner Web adapter. Native Hermes Runner identity, actual Web listener, profile installation, six Team execution, external Gateway exchange, and device use require separate adoption evidence.
+- The source has a synthetic stdio MCP and owner Web adapter. Native Hermes Runner identity and Cron behavior, actual Web listener, profile installation, seven Team execution, local embedding service, external Gateway exchange, and device use require separate adoption evidence.
 
 ## Validation
 

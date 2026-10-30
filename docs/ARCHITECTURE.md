@@ -23,7 +23,7 @@
 - Keep Home and Note Toolbar as the primary GUI navigation layer and Command Palette as fallback recovery. Toolbar actions must be explicit, reviewed, bounded, and free of arbitrary shell, script, network, Git, AI, or canonical-apply authority.
 - Keep `vaultctl` for owner maintenance, index verification/build, note validation, receipts, repair, and exact storage transitions. User navigation and document operations stay in Obsidian; agent knowledge work uses the single `vaultmcp` v3.
 - Keep the Mac Thin Client as an owner Work and review adapter: submit a digest-bound request to Director admission, display Work status and Pending evidence, and send human decision and separate apply requests to the owner. Keep retrieval, provider, index, Vault-write, Git, and canonical authority outside the plugin.
-- Keep model execution and embedding outside the current KOS source boundary; any future model binding belongs to a separately admitted Runner.
+- Keep model execution and downloads in a separately bound project-owned local service. The owner may build an immutable vector generation through an injected, measured model pin; CLI and MCP remain free of model execution or installation authority.
 - Review large-binary storage and Git LFS only after observed asset size and remote policy justify it.
 
 ## AgentFabric target model
@@ -31,6 +31,6 @@
 - Use the adopted Core environment model in source: Operation canonical and durable control State, host reconstructable Runtime and shared service execution, independently governed Vault knowledge.
 - Keep `States/Operations/knowledgeos/` as the detachable owner State root and `Runtimes/KnowledgeOS-runtime/` as reconstructable host Runtime. Retire predeployment archives only through an exact-reference, owner-locked transition; the current owner State has its own Core 0.18.1 pins and journal.
 - Keep Operation routing/export policy, durable delivery intent, outcomes, and decisions when using a shared host transport.
-- Assign one dedicated Manager to each KnowledgeOS Team: CurationManager, ResearchManager, OntologyManager, ReviewManager, ExchangeManager and MaintenanceManager. A Team exists only with its Manager identity and selects needed teammate calls per admitted Work; use docs/TEAMS_AND_ROADMAP.md for exact routes.
+- Assign one dedicated Manager to each of seven KnowledgeOS Team definitions: CurationManager, StewardshipManager, ResearchManager, OntologyManager, ReviewManager, ExchangeManager and MaintenanceManager. A Team exists only with its Manager identity and selects needed teammate calls per admitted Work; use docs/TEAMS_AND_ROADMAP.md for exact routes.
 - Bind admitted Team work to its selected Manager through team_id and manager_executor_id, preserve that binding through immutable continuation, and require explicit Director amendment and owner validation for changes. A bounded Officer task has no Team or Manager binding. Reuse immutable teammate definitions across Teams and compatible Operations only through separate local authority bindings. Keep EvalOfficer independent from the selected Manager, teammates and producing Officer.
 - Use `ops/config/core-adoption.json` and current Work, method, policy, and MCP contracts for implementation.

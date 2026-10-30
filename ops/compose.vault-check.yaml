@@ -1,7 +1,7 @@
 name: knowledgeos-vault-check
 services:
   dev:
-    image: sha256:e13a0e3a27ce50fbc622a80b5d69ee9e6ff9f1ab244d1c29aef6765260b8ab8b
+    image: "${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through make image-build}"
     pull_policy: never
     user: "${KNOWLEDGEOS_UID:?Set KNOWLEDGEOS_UID through Make}:${KNOWLEDGEOS_GID:?Set KNOWLEDGEOS_GID through Make}"
     working_dir: /workspace/control/ops

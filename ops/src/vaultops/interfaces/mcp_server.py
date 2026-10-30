@@ -29,8 +29,6 @@ from ..application.read_tools import KnowledgeReadTools
 from ..application.work_tools import EvalToolSession, OfficerToolSession, TeamToolSession
 from ..paths import ResolvedPaths, RootResolutionError, resolve_paths
 
-KnowledgeServices = KnowledgeApplication
-
 _TOOL_NAMES = (
     "knowledge_search",
     "knowledge_retrieve",
@@ -56,6 +54,7 @@ _TOOL_NAMES = (
     "proposal_adaptation",
     "vault_diagnose",
     "proposal_recovery_plan",
+    "index_status_read",
 )
 _TOOL_DESCRIPTIONS = {
     "knowledge_search": "Search the configured KnowledgeHub using bounded read-only filters.",
@@ -88,7 +87,7 @@ class ServerContext:
     """Immutable startup authority shared by protocol callbacks."""
 
     roots: ResolvedPaths
-    services: KnowledgeServices
+    services: KnowledgeApplication
     tools: tuple[types.Tool, ...]
     input_validators: Mapping[str, Draft202012Validator]
     result_validator: Draft202012Validator
@@ -436,7 +435,7 @@ def _validate_input(
 
 
 def _operation(
-    services: KnowledgeServices,
+    services: KnowledgeApplication,
     name: str,
     arguments: dict[str, Any],
     *,
@@ -456,6 +455,7 @@ def _operation(
             hops=0,
             expected_generation_id=arguments.get("expected_generation_id"),
             use_vector=False,
+            mode=arguments.get("mode", "lexical"),
             mcp_allowed_path=work_source_path,
         )
     if name == "knowledge_retrieve":
@@ -502,6 +502,8 @@ def _operation(
             elif name == "link_context":
                 data = reader.link_context(arguments["resource_reference"],
                                            limit=arguments.get("limit", 20))
+            elif name == "index_status_read":
+                data = reader.index_status_read()
             elif name == "task_query":
                 data = reader.task_query(path_prefix=arguments.get("path_prefix"),
                                          limit=arguments.get("limit", 20))
@@ -693,6 +695,7 @@ def _convert_report(
                     **{key: candidate[key] for key in (
                         "note_id", "resource_reference", "chunk_id", "chunk_hash", "chunk_locator")},
                     "excerpt": excerpt["text"], "excerpt_sha256": excerpt["excerpt_sha256"],
+                    **({"graph_path": candidate["graph_path"]} if candidate.get("graph_path") else {}),
                 })
         except (ValueError, OSError, KeyError):
             return _error_envelope(name, "CONFLICT", "Current evidence changed during read.",
@@ -705,6 +708,9 @@ def _convert_report(
             "candidate_count": len(bounded),
             "candidates": bounded,
             "truncated": truncated,
+            **({"mode": report["mode"]} if report.get("mode") else {}),
+            **({"vector_generation_id": report["vector_generation_id"]}
+               if report.get("vector_generation_id") else {}),
         }
         return _success_envelope(
             name,

@@ -6,7 +6,6 @@ from pathlib import Path
 from support.control_factory import fixture_path, make_control_root, make_diagnostic_root
 from support.plugin_factory import make_plugin_profile
 
-from vaultops.cli import main
 from vaultops.diagnostics import (
     EXIT_CONFIG_INVALID,
     EXIT_INPUT_INVALID,
@@ -17,6 +16,7 @@ from vaultops.diagnostics import (
     git_status_report,
     load_strict_config,
 )
+from vaultops.interfaces.cli import main
 
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 

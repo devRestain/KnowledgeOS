@@ -13,5 +13,5 @@
 ## Use and maintenance
 
 - Validate through the existing MCP schema/protocol cases when behavior changes.
-- Maintain the four-tool v2 interface with Core ResourceReference selectors and separate execution/acceptance fields.
+- Maintain the v3 manifest with Core ResourceReference selectors and separate execution/acceptance fields.
 - Derive roots and actor authority from trusted startup settings and reject caller authority fields.
