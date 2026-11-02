@@ -39,6 +39,8 @@ _TEMPLATES = {
 def build_template_admissions(exops: Any, template_id: str, scope: Mapping[str, str],
                               request_id: str, *,
                               issue_director_receipt: Callable[[str, str, Mapping[str, str], str], str],
+                              native_research_runner_binding: Mapping[str, str] | None = None,
+                              native_metadata_runner_binding: Mapping[str, str] | None = None,
                               now: datetime | None = None) -> list[tuple[dict[str, Any], dict[str, Any], str,
                                                                        datetime, dict[str, Any]]]:
     """Pin method/Team/Profile/criteria/budget before owner group admission."""
@@ -72,6 +74,29 @@ def build_template_admissions(exops: Any, template_id: str, scope: Mapping[str, 
             raise AdmissionError("ADMISSION_REQUIRED", "Director did not issue a Work admission receipt")
         work_id = "work.template." + identity
         work_run_id = "workrun.template." + identity
+        if template_id == "document_enhancement" and native_research_runner_binding is not None:
+            from .research_work import research_admission
+
+            spec, run = research_admission(
+                exops.application, binding, source, work_id=work_id, work_run_id=work_run_id,
+                admission_receipt_id=admission_id, runner_binding=native_research_runner_binding,
+                question=objective,
+            )
+            admissions.append((spec, run, "action.template." + identity,
+                               observed + timedelta(hours=1), source))
+            continue
+        if template_id == "note_metadata" and native_metadata_runner_binding is not None:
+            from .metadata_work import metadata_admission
+
+            spec, run = metadata_admission(
+                exops.application, binding, source, method_id=method_id,
+                work_id=work_id, work_run_id=work_run_id,
+                admission_receipt_id=admission_id, runner_binding=native_metadata_runner_binding,
+                objective=objective,
+            )
+            admissions.append((spec, run, "action.template." + identity,
+                               observed + timedelta(hours=1), source))
+            continue
         spec = {"owner_operation_id": "knowledgeos", "work_id": work_id,
                 "work_spec_revision": 1, "criteria_revision": 1, "objective": objective,
                 "constraints": "Use only owner-admitted local note and corpus evidence; submit an artifact, never apply a note",

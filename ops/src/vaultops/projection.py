@@ -1,10 +1,9 @@
 """Deterministic C21 Markdown projection and generation publication.
 
-The Vault remains the source of truth.  C21 reads validated Markdown notes,
-materializes canonical note and relation records, and publishes one immutable
-generation under ``runtime/index/exports``.  A single atomically replaced
-pointer selects the generation that readers may use.  No provider, Git
-command, or Vault mutation is performed by this module.
+The Vault remains the source of truth. Live readers discover document changes
+and materialize their records on first use, reusing unchanged documents. Explicit
+maintenance exports remain immutable generations selected by an atomic pointer.
+No provider, Git command, or Vault mutation is performed by this module.
 """
 
 from __future__ import annotations
@@ -16,9 +15,11 @@ import re
 import stat
 import tempfile
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
+from threading import RLock
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -30,6 +31,8 @@ from .note_engine import (
     UnsafePathError,
     normalize_vault_relative_path,
     parse_frontmatter,
+    parse_source_document,
+    validate_relation_candidate,
 )
 from .paths import ResolvedPaths, RootResolutionError, resolve_paths
 from .recovery import fsync_directory
@@ -137,10 +140,11 @@ class SourceNote:
     properties: dict[str, Any]
     body: str
     note_type: str
+    projection_id: str | None = None
 
     @property
     def identifier(self) -> str:
-        return str(self.properties["id"])
+        return self.projection_id or str(self.properties["id"])
 
     @property
     def content_hash(self) -> str:
@@ -517,10 +521,13 @@ def _protected_source(relative: str) -> bool:
     ))
 
 
-def _candidate_source_paths(workspace: ResolvedPaths) -> tuple[Path, ...]:
+def _candidate_source_paths(workspace: ResolvedPaths, *, strict: bool = True) -> tuple[Path, ...]:
     vault = _vault(workspace)
     paths: list[Path] = []
     for path in sorted(vault.rglob("*"), key=lambda item: item.relative_to(vault).as_posix()):
+        if not strict and (any(part.startswith(".") for part in path.relative_to(vault).parts)
+                           or path.is_symlink()):
+            continue
         if path.is_symlink():
             raise ProjectionError(f"Vault projection source contains a symlink: {path.relative_to(vault)}")
         if not path.is_file() or path.suffix.casefold() != ".md":
@@ -530,6 +537,25 @@ def _candidate_source_paths(workspace: ResolvedPaths) -> tuple[Path, ...]:
             continue
         paths.append(path)
     return tuple(paths)
+
+
+def source_properties(
+    path: str, raw: bytes, *, note_type: str | None = None, engine: NoteEngine | None = None,
+) -> dict[str, Any]:
+    """Supply read-only metadata for ordinary Markdown without changing its bytes."""
+    properties = parse_source_document(raw.decode("utf-8")).properties
+    note_type = note_type or (engine.note_type_for_path(path) if engine else None) or properties.get("type", "knowledge")
+    defaults = {
+        "schema_version": SCHEMA_VERSION,
+        "id": "note-" + _sha256_bytes(path.encode("utf-8"))[:48],
+        "type": note_type,
+        "title": PurePosixPath(path).stem,
+        "status": "unprocessed" if note_type == "capture" else "seed",
+        "sensitivity": "personal",
+        "ai_policy": "deny" if note_type in {"person", "meeting"} else "ask",
+        "ai_status": "idle",
+    }
+    return defaults | properties
 
 
 def _read_source_candidate(workspace: ResolvedPaths, path: Path, engine: NoteEngine) -> SourceNote | None:
@@ -681,12 +707,17 @@ def _edge_sort_key(record: Mapping[str, Any]) -> tuple[Any, ...]:
     )
 
 
-def _build_records(workspace: ResolvedPaths) -> tuple[tuple[SourceNote, ...], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
-    notes = _collect_source_notes(workspace)
-    if not notes:
+def _build_records(
+    workspace: ResolvedPaths, *, notes: tuple[SourceNote, ...] | None = None,
+    cached_records: Mapping[str, dict[str, Any]] | None = None,
+    engine: NoteEngine | None = None,
+) -> tuple[tuple[SourceNote, ...], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+    live = notes is not None
+    notes = _collect_source_notes(workspace) if notes is None else notes
+    if not notes and not live:
         raise ProjectionValidationError("Vault contains no typed Markdown notes")
     targets, target_types = _target_index(notes)
-    engine = NoteEngine.from_root(workspace.control)
+    engine = engine or NoteEngine.from_root(workspace.control)
     ids: dict[str, str] = {}
     note_records: list[dict[str, Any]] = []
     for note in notes:
@@ -696,13 +727,20 @@ def _build_records(workspace: ResolvedPaths) -> tuple[tuple[SourceNote, ...], tu
                 f"duplicate note id {note.identifier!r}: {previous} and {note.path}"
             )
         ids[note.identifier] = note.path
-        result = engine.validate_text(note.path, note.text, target_types=target_types)
-        if not result.passed:
-            raise ProjectionValidationError(f"note validation failed for {note.path}: {_validation_message(result)}")
+        cached = (cached_records or {}).get(note.path)
+        if (cached is not None and cached["content_hash"] == note.content_hash
+                and cached["created"] == str(note.properties["created"])
+                and cached["modified"] == str(note.properties["modified"])):
+            note_records.append({**cached, "wikilinks": _wikilink_records(note, targets)})
+            continue
+        if not live:
+            result = engine.validate_text(note.path, note.text, target_types=target_types)
+            if not result.passed:
+                raise ProjectionValidationError(f"note validation failed for {note.path}: {_validation_message(result)}")
         properties = {
             key: value
             for key, value in note.properties.items()
-            if key not in PROMOTED_FRONTMATTER_FIELDS
+            if key not in PROMOTED_FRONTMATTER_FIELDS or live and key == "id"
         }
         note_records.append(
             {
@@ -734,9 +772,16 @@ def _build_records(workspace: ResolvedPaths) -> tuple[tuple[SourceNote, ...], tu
                     continue
                 target, locator = _resolve_target(value[2:-2], note, targets)
                 if target is None:
+                    if live:
+                        continue
                     raise ProjectionValidationError(
                         f"canonical relation target is unresolved: {note.path} {predicate}[{index}]"
                     )
+                if live and validate_relation_candidate(
+                    predicate, note.note_type, target.note_type,
+                    relation_registry=engine.blueprint["relation_registry"],
+                ):
+                    continue
                 # Keep the resolver result tied to the source map so an alias
                 # cannot accidentally point outside the records being emitted.
                 if target.path not in by_path:
@@ -764,6 +809,8 @@ def _build_records(workspace: ResolvedPaths) -> tuple[tuple[SourceNote, ...], tu
                 )
                 previous = seen_edges.get(duplicate_key)
                 if previous is not None:
+                    if live:
+                        continue
                     raise ProjectionValidationError(
                         f"duplicate canonical edge tuple at {note.path}: {previous} and {edge['source_locator']}"
                     )
@@ -977,7 +1024,8 @@ def _assert_generation_file(path: Path, expected: bytes, label: str) -> bool:
     return True
 
 
-def _publish_generation(workspace: ResolvedPaths, build: ProjectionBuild) -> tuple[bool, str, str, str]:
+def _publish_generation(workspace: ResolvedPaths, build: ProjectionBuild,
+                        *, authorize: Callable[[], None] | None = None) -> tuple[bool, str, str, str]:
     generation, notes_path, edges_path, manifest_path = _generation_paths(workspace, build.generation_id)
     _ensure_private_directory(workspace.runtime)
     _ensure_private_directory(workspace.runtime / "index")
@@ -1024,6 +1072,8 @@ def _publish_generation(workspace: ResolvedPaths, build: ProjectionBuild) -> tup
     if pointer_path.is_file() and stat.S_IMODE(pointer_path.stat().st_mode) != 0o600:
         raise ProjectionConflict("current projection pointer must be mode 0600")
     before = pointer_path.read_bytes() if pointer_path.is_file() else None
+    if authorize is not None:
+        authorize()
     if before != pointer_bytes:
         _atomic_runtime_write(pointer_path, pointer_bytes)
         changed = True
@@ -1234,10 +1284,6 @@ def _verify_manifest_metadata(
     return source_files
 
 
-def _verify_source_records(workspace: ResolvedPaths, manifest: Mapping[str, Any]) -> None:
-    expected = _validated_source_files(manifest)
-    if not _source_snapshot_matches(workspace, expected):
-        raise ProjectionConflict("current projection is stale against Vault source bytes")
 
 
 def read_current_projection(
@@ -1245,11 +1291,21 @@ def read_current_projection(
     *,
     verify_sources: bool = True,
 ) -> tuple[dict[str, Any], int]:
-    """Read one pointer once and validate exactly one generation."""
+    """Read the current document materialization or inspect a frozen publication."""
 
     operation = "index verify"
     try:
         workspace = _workspace(root)
+        if verify_sources:
+            projection = _materialize_documents(workspace)
+            return {
+                "status": "PASS", "operation": operation, "capability": "C21",
+                "generation_id": projection.manifest["generation_id"],
+                "generation_root": projection.manifest["generation_root"],
+                "manifest": projection.manifest, "notes": list(projection.notes),
+                "edges": list(projection.edges), "source_verified": True,
+                "provider_called": False, "mutation_performed": False,
+            }, EXIT_OK
         pointer_path = _state_path(workspace, CURRENT_POINTER)
         pointer = _read_json(pointer_path, "current projection pointer")
         if pointer.get("schema_version") != SCHEMA_VERSION or pointer.get("generator") != GENERATOR_ID:
@@ -1326,8 +1382,6 @@ def read_current_projection(
             raise ProjectionConflict("manifest note count does not match notes JSONL")
         if manifest.get("edges_count", manifest.get("edge_count")) != len(edges):
             raise ProjectionConflict("manifest edge count does not match edges JSONL")
-        if verify_sources:
-            _verify_source_records(workspace, manifest)
         return {
             "status": "PASS",
             "operation": operation,
@@ -1363,3 +1417,92 @@ def load_current_projection(root: str | Path | ResolvedPaths, *, verify_sources:
         notes=tuple(report["notes"]),
         edges=tuple(report["edges"]),
     )
+
+
+_DOCUMENT_LOCK = RLock()
+_DOCUMENT_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
+
+
+def _materialize_documents(workspace: ResolvedPaths) -> ProjectionRead:
+    """Discover paths cheaply; parse and project only new or changed documents."""
+    with _DOCUMENT_LOCK:
+        schema_files, schema_digest = _schema_files(workspace)
+        blueprint_digest = _sha256_bytes(_safe_file(workspace.control / "blueprint/blueprint.yaml", "blueprint"))
+        policy_digest = _retrieval_config_hash(workspace)
+        contract = (schema_digest, blueprint_digest, policy_digest)
+        key = (str(workspace.control), str(workspace.vault))
+        previous = _DOCUMENT_CACHE.get(key, {})
+        if previous.get("contract") != contract:
+            previous = {}
+        engine = previous.get("engine") or NoteEngine.from_root(workspace.control)
+        old_documents = previous.get("documents", {})
+        documents: dict[str, tuple[tuple[int, ...], SourceNote | None]] = {}
+        for path in _candidate_source_paths(workspace, strict=False):
+            try:
+                relative = normalize_vault_relative_path(path.relative_to(workspace.vault).as_posix())
+                metadata = path.stat()
+            except (OSError, UnsafePathError):
+                continue
+            stamp = (metadata.st_dev, metadata.st_ino, metadata.st_size,
+                     metadata.st_mtime_ns, metadata.st_ctime_ns)
+            old = old_documents.get(relative)
+            if old is not None and old[0] == stamp:
+                documents[relative] = old
+                continue
+            try:
+                raw = _safe_file(path, f"Vault source {relative}")
+                text = raw.decode("utf-8")
+                note_type = engine.note_type_for_path(relative) or "knowledge"
+                if relative.startswith("99_System/") and not {"id", "type"} <= parse_source_document(text).properties.keys():
+                    documents[relative] = (stamp, None)
+                    continue
+                properties = source_properties(relative, raw, note_type=note_type)
+                body = parse_source_document(text).body
+                note_type = str(properties["type"])
+                if "created" not in properties or "modified" not in properties:
+                    properties = {
+                        "created": datetime.fromtimestamp(
+                            getattr(metadata, "st_birthtime", metadata.st_mtime), UTC).isoformat(),
+                        "modified": datetime.fromtimestamp(metadata.st_mtime, UTC).isoformat(),
+                        **properties, "projection_timestamp_source": "filesystem",
+                    }
+                note = SourceNote(relative, raw, text, properties, body, note_type,
+                                  projection_id="note-" + _sha256_bytes(relative.encode("utf-8"))[:48])
+            except (ProjectionError, FrontmatterError, UnicodeError, ValueError):
+                # An invalid document is unavailable, never a corpus-wide veto.
+                note = None
+            documents[relative] = (stamp, note)
+        if documents == old_documents and "projection" in previous:
+            return previous["projection"]
+        notes = tuple(value[1] for value in documents.values() if value[1] is not None)
+        old_records = {note["path"]: note for note in previous["projection"].notes} if "projection" in previous else {}
+        _, records, edges = _build_records(workspace, notes=notes, cached_records=old_records, engine=engine)
+        valid = []
+        for record in records:
+            try:
+                if old_records.get(record["path"]) != record:
+                    _validate_records([record], note_record_schema(), "note")
+            except ProjectionError:
+                continue
+            valid.append(record)
+        paths = {note["path"] for note in valid}
+        edges = tuple(edge for edge in edges if edge["subject_path"] in paths and edge["object_path"] in paths)
+        source_files = tuple({"path": note["path"], "sha256": note["content_hash"]} for note in valid)
+        snapshot = _sha256_bytes(canonical_json_bytes(list(source_files)))
+        # This identifies the reader contract, not a freeze of every Vault byte.
+        generation = "local-" + _sha256_bytes(canonical_json_bytes(list(contract)))[:48]
+        manifest = _build_manifest(
+            generation_id=generation, notes=tuple(valid), edges=edges,
+            notes_bytes=_jsonl_bytes(valid), edges_bytes=_jsonl_bytes(edges),
+            source_files=source_files, source_snapshot_sha256=snapshot,
+            schema_files=schema_files, schema_bundle_sha256=schema_digest,
+            blueprint_sha256=blueprint_digest, retrieval_config_sha256=policy_digest,
+        )
+        projection = ProjectionRead(
+            pointer={"generation_id": generation, "generation_root": manifest["generation_root"]},
+            manifest=manifest, notes=tuple(valid), edges=edges,
+        )
+        _DOCUMENT_CACHE[key] = {
+            "contract": contract, "documents": documents, "projection": projection, "engine": engine,
+        }
+        return projection

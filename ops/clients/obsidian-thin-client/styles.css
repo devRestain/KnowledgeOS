@@ -1,73 +1,128 @@
 .knowledgeos-sidebar {
   overflow-y: auto;
   padding: 12px;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
 }
+
+.knowledgeos-sidebar h2 { margin: 0; font-size: var(--font-ui-medium); }
+.knowledgeos-sidebar h3 { margin: 16px 0 8px; font-size: var(--font-ui-medium); }
+.knowledgeos-sidebar h4, .knowledgeos-sidebar h5 { margin: 12px 0 6px; font-size: inherit; }
+.knowledgeos-sidebar p { margin: 8px 0; }
+.knowledgeos-version, .knowledgeos-muted, .knowledgeos-sidebar small { color: var(--text-muted); }
+.knowledgeos-sidebar small { display: block; overflow-wrap: anywhere; }
+.knowledgeos-header, .knowledgeos-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.knowledgeos-header { justify-content: space-between; flex-wrap: wrap; }
+.knowledgeos-identity { flex-wrap: wrap; }
+.knowledgeos-header .knowledgeos-actions { margin: 0; gap: 4px; }
+.knowledgeos-version { font-size: var(--font-smallest); }
 
 .knowledgeos-target {
   color: var(--text-muted);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
   overflow-wrap: anywhere;
 }
 
-.knowledgeos-work-actions,
-.knowledgeos-search {
+.knowledgeos-actions, .knowledgeos-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0;
-}
-
-.knowledgeos-search input {
-  min-width: 120px;
-  flex: 1 1 140px;
-}
-
-.knowledgeos-search h3 {
-  flex-basis: 100%;
-  margin-bottom: 0;
-}
-
-.knowledgeos-result-card,
-.knowledgeos-work-card {
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  gap: 6px;
   margin: 8px 0;
+}
+
+.knowledgeos-sidebar button {
+  min-height: 32px;
+  max-width: 100%;
+  height: auto;
+  padding: 6px 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.knowledgeos-button { display: inline-flex; align-items: center; gap: 6px; }
+.knowledgeos-button-label { min-width: 0; }
+.knowledgeos-button-icon { display: inline-flex; flex: 0 0 auto; }
+.knowledgeos-button-icon svg { width: 16px; height: 16px; }
+.knowledgeos-sidebar .knowledgeos-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  padding: 6px;
+  box-shadow: none;
+}
+.knowledgeos-sidebar button:disabled { opacity: 0.45; }
+.knowledgeos-tabs { border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 8px; }
+.knowledgeos-tabs .knowledgeos-icon-button { flex: 1 1 32px; }
+.knowledgeos-tabs button[aria-pressed="true"] {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+  box-shadow: inset 0 -2px 0 var(--interactive-accent);
+}
+.knowledgeos-panel[hidden] { display: none; }
+.knowledgeos-panel { min-width: 0; }
+
+.knowledgeos-field { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.knowledgeos-field > span { font-weight: var(--font-medium); }
+.knowledgeos-field input, .knowledgeos-field textarea, .knowledgeos-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  font: inherit;
+}
+.knowledgeos-field textarea { resize: vertical; }
+
+.knowledgeos-sidebar button:focus-visible,
+.knowledgeos-sidebar input:focus-visible,
+.knowledgeos-sidebar textarea:focus-visible,
+.knowledgeos-sidebar select:focus-visible,
+.knowledgeos-sidebar summary:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.knowledgeos-notice { overflow-wrap: anywhere; color: var(--text-muted); }
+.knowledgeos-notice:empty, .knowledgeos-sidebar pre:empty, .knowledgeos-work-result:empty { display: none; }
+.knowledgeos-connection { color: var(--text-muted); }
+.knowledgeos-connection pre { color: var(--text-normal); }
+.knowledgeos-error { color: var(--text-error); }
+.knowledgeos-result-card, .knowledgeos-work-card {
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin: 8px 0;
+  padding: 8px 0 12px;
+  overflow-wrap: anywhere;
+}
+.knowledgeos-tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: 6px; }
+.knowledgeos-native-action { min-width: 0; }
+.knowledgeos-native-action .knowledgeos-button { width: 100%; box-shadow: none; }
+.knowledgeos-native-action details { font-size: var(--font-smaller); }
+.knowledgeos-sidebar [hidden] { display: none; }
+.knowledgeos-sidebar details { margin: 12px 0; }
+.knowledgeos-sidebar summary { cursor: pointer; padding: 4px 0; }
+.knowledgeos-sidebar pre {
+  max-height: 360px;
   padding: 8px;
-  overflow-wrap: anywhere;
-}
-
-.knowledgeos-result-card small {
-  display: block;
-  color: var(--text-muted);
-}
-
-.knowledgeos-results,
-.knowledgeos-work-list,
-.knowledgeos-work-result,
-.knowledgeos-daily,
-.knowledgeos-daily-detail {
-  border-top: 1px solid var(--background-modifier-border);
-  margin-top: 16px;
-  padding-top: 12px;
-}
-
-.knowledgeos-proposals,
-.knowledgeos-proposal-detail {
-  border-top: 1px solid var(--background-modifier-border);
-  margin-top: 16px;
-  padding-top: 12px;
-}
-
-.knowledgeos-proposals button,
-.knowledgeos-proposal-detail button {
-  margin: 4px 8px 4px 0;
-}
-
-.knowledgeos-work-status,
-.knowledgeos-proposal-detail pre,
-.knowledgeos-work-result pre,
-.knowledgeos-daily-detail pre {
-  max-height: 320px;
   overflow: auto;
-  overflow-wrap: anywhere;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--font-smaller);
+  background: var(--background-secondary);
+}
+.knowledgeos-facts { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr); gap: 4px 10px; }
+.knowledgeos-facts dt { color: var(--text-muted); }
+.knowledgeos-facts dd { margin: 0; overflow-wrap: anywhere; }
+.knowledgeos-proposal-detail, .knowledgeos-work-result, .knowledgeos-daily-detail {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+@media (pointer: coarse) {
+  .knowledgeos-sidebar button, .knowledgeos-field input, .knowledgeos-field select { min-height: 44px; }
+  .knowledgeos-sidebar .knowledgeos-icon-button { min-width: 44px; }
 }

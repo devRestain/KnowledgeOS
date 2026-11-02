@@ -189,19 +189,20 @@ class OwnerJournal:
         retained_sequences = {item["sequence"] for item in value["history"]}
         for item in value["gateway"].values():
             if "detail_sequence" in item and item["detail_sequence"] not in retained_sequences:
-                item.pop("envelope", None)
+                for detail in ("envelope", "payload", "caller"):
+                    item.pop(detail, None)
         for records in (value["gateway"], value["receipts"]):
             for key, item in list(records.items()):
-                if key.startswith("exops.work."):
+                if key.startswith(("exops.work.", "exops.control.", "exops.attention.")):
                     continue
                 if item.get("unresolved") or key in value["intents"] and value["intents"][key]["state"] in {"pending", "unknown", "approved"}:
                     continue
                 if (now - datetime.fromisoformat(item["recorded_at"])).total_seconds() >= 43200:
                     del records[key]
         for key, intent in value["intents"].items():
-            if key.startswith("exops.work."):
-                # A WorkRun and its dispatch uncertainty remain durable owner
-                # state until an explicit reconciliation or retention decision.
+            if key.startswith(("exops.work.", "exops.attention.")):
+                # WorkRun uncertainty and attention delivery/mappings are
+                # durable until an explicit reconciliation/retention decision.
                 continue
             if intent["state"] == "pending" and (now - datetime.fromisoformat(intent["recorded_at"])).total_seconds() >= 43200:
                 intent["state"] = "expired"

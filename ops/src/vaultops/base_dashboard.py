@@ -1114,6 +1114,7 @@ def evaluate_base_view(
     view_name: str,
     *,
     today: date | str | None = None,
+    records: Iterable[FrozenNote] | None = None,
 ) -> list[dict[str, Any]]:
     """Read one Vault and evaluate its canonical view; never mutate the Vault."""
 
@@ -1129,7 +1130,10 @@ def evaluate_base_view(
     actual = base_path.read_text(encoding="utf-8")
     if yaml.safe_load(actual) != yaml.safe_load(expected[f"{BASE_DIRECTORY}/{base_name}"]):
         raise BaseContractError(f"Base file differs from canonical C08 compiler: {base_name}")
-    return evaluate_records(blueprint, base_name, view_name, _notes_from_vault(roots.vault), today=today)
+    return evaluate_records(
+        blueprint, base_name, view_name,
+        _notes_from_vault(roots.vault) if records is None else records, today=today,
+    )
 
 
 def evaluator_report(rows: Iterable[Mapping[str, Any]]) -> str:

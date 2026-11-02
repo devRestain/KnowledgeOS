@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import stat
 import sys
-from pathlib import Path
 
 from ..adapters.core import AdmissionError
 from ..adapters.paths import ResolvedPaths, resolve_beneath, resolve_paths
@@ -40,33 +38,9 @@ def compose_read_only_owner(roots: ResolvedPaths, *, actor_id: str) -> Knowledge
     return exops
 
 
-def read_session_token(path: Path) -> str:
-    """Read an owner-only startup secret; never accept a token in argv or environment."""
-    selected = resolve_beneath(path.absolute().parent, path.name)
-    parent = selected.parent.stat()
-    if stat.S_IMODE(parent.st_mode) != 0o700 or parent.st_uid != os.getuid():
-        raise AdmissionError("SESSION_MODE_INVALID", "Session directory must be locally owned mode 0700")
-    descriptor = os.open(selected, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    try:
-        metadata = os.fstat(descriptor)
-        if (not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600
-                or metadata.st_uid != os.getuid() or not 43 <= metadata.st_size <= 129):
-            raise AdmissionError("SESSION_MODE_INVALID", "Session token must be a private bounded regular file")
-        with os.fdopen(descriptor, "rb", closefd=False) as handle:
-            raw = handle.read(130)
-    finally:
-        os.close(descriptor)
-    try:
-        token = raw.removesuffix(b"\n").decode("ascii")
-    except UnicodeError:
-        raise AdmissionError("SESSION_INVALID", "Session token must be URL-safe text") from None
-    return token
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--actor-id", required=True, help="Trusted startup owner login, not a request field")
-    parser.add_argument("--token-file", required=True, type=Path, help="Owner-only 0600 startup token file")
     parser.add_argument("--bind-host", choices=("127.0.0.1", "owner"), default="127.0.0.1")
     parser.add_argument("--port", type=int, default=17900)
     arguments = parser.parse_args()
@@ -74,17 +48,15 @@ def main() -> int:
     try:
         roots = resolve_paths()
         exops = compose_read_only_owner(roots, actor_id=arguments.actor_id)
-        token = read_session_token(arguments.token_file)
-        server, _ = create_loopback_owner(
-            exops, actor_id=arguments.actor_id, port=arguments.port,
-            bind_host=arguments.bind_host, session_token=token)
+        server = create_loopback_owner(
+            exops, actor_id=arguments.actor_id, port=arguments.port, bind_host=arguments.bind_host)
         with server:
             print("KnowledgeOS read-only Owner ready", flush=True)
             server.serve_forever()
     except KeyboardInterrupt:
         return 0
     except (ValueError, OSError) as error:
-        # Do not export roots, request data, token bytes or arbitrary exception text.
+        # Do not export roots, request data or arbitrary exception text.
         print(f"KnowledgeOS read-only Owner refused: {getattr(error, 'code', 'STARTUP_FAILED')}",
               file=sys.stderr)
         return 1

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -20,9 +21,11 @@ from ..note_engine import (
     SEMANTIC_RELATIONS,
     NoteEngine,
     parse_frontmatter,
+    parse_source_document,
     render_frontmatter,
     resolve_vault_relative_path,
 )
+from ..projection import source_properties
 from .work_methods import WorkMethodCatalog
 
 METHOD_ID = "knowledgeos.daily_corpus_stewardship_team"
@@ -48,6 +51,7 @@ class DailyStewardship:
         self.engine = NoteEngine.from_root(application.roots)
 
     def _registry_digest(self) -> str:
+        self.engine = NoteEngine.from_root(self.app.roots)
         return digest(canonical(self.engine.blueprint["relation_registry"]))
 
     def _policy_digest(self) -> str:
@@ -72,15 +76,13 @@ class DailyStewardship:
                 raw = read_regular(safe)
                 if raw is None:
                     continue
-                properties = parse_frontmatter(raw.decode("utf-8")).properties
+                properties = source_properties(relative, raw, engine=self.engine)
             except (ValueError, OSError, UnicodeError):
                 continue
             if (properties.get("type") in _SKIP_TYPES
                     or properties.get("sensitivity") == "confidential"
                     or properties.get("ai_policy") not in {"ask", "remote_ok", "local_only"}
                     or properties.get("ai_policy") == "local_only" and not self.app.identity.local_execution):
-                continue
-            if self.engine.note_type_for_path(relative) != properties.get("type"):
                 continue
             result.append((relative, raw, properties))
         return result
@@ -97,12 +99,11 @@ class DailyStewardship:
                 raw = read_regular(resolve_vault_relative_path(self.app.roots.vault, relative))
                 if raw is None:
                     continue
-                properties = parse_frontmatter(raw.decode("utf-8")).properties
+                properties = source_properties(relative, raw, engine=self.engine)
             except (ValueError, OSError, UnicodeError):
                 held.append(relative)
                 continue
-            if (properties.get("ai_policy") not in {"ask", "remote_ok", "local_only", "deny"}
-                    or properties.get("type") != self.engine.note_type_for_path(relative)):
+            if properties.get("ai_policy") not in {"ask", "remote_ok", "local_only", "deny"}:
                 held.append(relative)
         return held
 
@@ -114,8 +115,9 @@ class DailyStewardship:
         return {"request_id": key, "source_reference": reference,
                 "method_contract_ref": method, "empty_fields": empty_fields}
 
-    def due_check(self, *, limit: int = 50) -> dict[str, Any]:
-        """Idempotently record a local-day scan and return exact Work requests."""
+    def due_check(self, *, limit: int = 50,
+                  exclude_request_ids: frozenset[str] = frozenset()) -> dict[str, Any]:
+        """Record a local-day scan, excluding caller-owned durable admissions."""
         self.app.guard("apply")
         if not 1 <= limit <= 50:
             _fail("INVALID_ARGUMENT", "Daily scan limit must be between 1 and 50")
@@ -125,6 +127,7 @@ class DailyStewardship:
         policy = self._policy_digest()
         method = WorkMethodCatalog.load(self.app.roots.control).reference(METHOD_ID)
         candidates = []
+        excluded = []
         with self.app.journal.writer() as writer:
             for relative, raw, properties in self._notes():
                 key = _PREFIX + hashlib.sha256(relative.encode()).hexdigest()
@@ -132,16 +135,21 @@ class DailyStewardship:
                 source_digest = "sha256:" + _sha(raw)
                 unchanged = (previous.get("source_digest") == source_digest
                         and previous.get("registry_digest") == registry
-                        and previous.get("policy_digest") == policy)
+                        and previous.get("policy_digest") == policy
+                        and previous.get("method_contract_ref") == method)
                 if unchanged and previous.get("state") in {"no_evidence", "completed"}:
                     continue
                 if unchanged and previous.get("state") == "started":
                     # Return the same source-bound request after a restart.
                     # A scheduled caller owns admission and deduplicates Work.
+                    request = self._work_request(self.app.reference(relative), method,
+                                                 previous["empty_fields"], registry, policy)
+                    if request["request_id"] in exclude_request_ids:
+                        excluded.append(request["request_id"])
+                        continue
                     if len(candidates) >= limit:
                         break
-                    candidates.append(self._work_request(self.app.reference(relative), method,
-                                                         previous["empty_fields"], registry, policy))
+                    candidates.append(request)
                     continue
                 if any(item.get("path") == relative and (
                            item.get("review_status") in {"pending", "conflict"}
@@ -155,17 +163,23 @@ class DailyStewardship:
                         "state": "completed", "recorded_at": stamp(now), "path": relative,
                         "source_digest": source_digest, "registry_digest": registry,
                         "policy_digest": policy, "day": day, "empty_fields": [],
+                        "method_contract_ref": method,
                     }
+                    continue
+                reference = self.app.reference(relative)
+                request = self._work_request(reference, method, empty, registry, policy)
+                if request["request_id"] in exclude_request_ids:
+                    excluded.append(request["request_id"])
                     continue
                 if len(candidates) >= limit:
                     break
-                reference = self.app.reference(relative)
                 writer.value["intents"][key] = {
                     "state": "started", "recorded_at": stamp(now), "path": relative,
                     "source_digest": source_digest, "registry_digest": registry,
                     "policy_digest": policy, "day": day, "empty_fields": empty,
+                    "method_contract_ref": method,
                 }
-                candidates.append(self._work_request(reference, method, empty, registry, policy))
+                candidates.append(request)
             scan_key = "daily.scan." + day
             writer.value["intents"][scan_key] = {
                 "state": "completed" if len(candidates) < limit else "started",
@@ -173,11 +187,15 @@ class DailyStewardship:
             }
             writer.commit(now)
         return {"day": day, "work_requests": candidates, "held_paths": self._held_paths(),
-                "scan_complete": len(candidates) < limit}
+                "scan_complete": len(candidates) < limit, "excluded_request_ids": excluded}
 
     def _work_artifact(self, work_run_id: str, candidate: dict[str, Any],
-                       source_reference: dict[str, Any]) -> None:
-        journal = self.app.journal.read()
+                       source_reference: dict[str, Any], *,
+                       snapshot: dict[str, Any] | None = None) -> None:
+        """Validate the result under its retained grant, never a new registration."""
+        from .owner_authority import validate_owner_authority
+
+        journal = self.app.journal.read() if snapshot is None else snapshot
         record = journal["intents"].get("exops.work." + work_run_id)
         if (not isinstance(record, dict) or record.get("application_state") != "recorded"
                 or record.get("run", {}).get("state") != "completed"
@@ -186,6 +204,7 @@ class DailyStewardship:
                 != WorkMethodCatalog.load(self.app.roots.control).reference(METHOD_ID)
                 or record.get("method_source_reference") != source_reference):
             _fail("SCOPE_DENIED", "Candidate lacks completed, source-bound Stewardship Work")
+        validate_owner_authority(self.app, journal, record)
         artifact = record["run"].get("result_reference")
         if (not isinstance(artifact, dict)
                 or artifact not in record.get("artifact_references", {}).values()):
@@ -206,6 +225,23 @@ class DailyStewardship:
         if (payload.get("artifact_kind") != "daily_enrichment"
                 or json.loads(payload.get("content", "null")) != candidate):
             _fail("DIGEST_MISMATCH", "Candidate differs from the evaluated artifact")
+        from .temporal_contract import native_team_route
+
+        if native_team_route(record["spec"]) is not None:
+            from .metadata_work import validate_candidate
+            from .work import record_digest
+
+            assessment = record.get("assessment", {})
+            outcomes = assessment.get("criterion_outcomes", [])
+            spec, run = record["spec"], record["run"]
+            if (assessment.get("completion_state") != "complete"
+                    or record_digest(assessment) != run.get("latest_assessment_digest")
+                    or assessment.get("assessor_id") != spec.get("eval_officer_executor_id")
+                    or assessment.get("assessor_id") in [spec.get("manager_executor_id"),
+                                                         *spec.get("allowed_executor_ids", [])]
+                    or not outcomes or any(item.get("outcome") != "satisfied" for item in outcomes)):
+                _fail("ACCEPTANCE_REQUIRED", "Native daily candidate lacks exact independent assessment")
+            validate_candidate(self.app, source_reference, candidate, method_id=METHOD_ID)
 
     def _target_types(self) -> dict[str, str]:
         targets = {}
@@ -214,7 +250,8 @@ class DailyStewardship:
             targets[Path(relative).stem] = properties["type"]
         return targets
 
-    def record_no_evidence(self, work_run_id: str, candidate: dict[str, Any]) -> dict[str, Any]:
+    def record_no_evidence(self, work_run_id: str, candidate: dict[str, Any], *,
+                           authorize: Any = None) -> dict[str, Any]:
         """Suppress repeated inference until source, policy or registry changes."""
         self.app.guard("apply")
         if (set(candidate) != {"source_reference", "registry_digest", "fields", "evidence"}
@@ -227,6 +264,13 @@ class DailyStewardship:
         key = _PREFIX + hashlib.sha256(relative.encode()).hexdigest()
         now = self.app.clock()
         with self.app.journal.writer() as writer:
+            self.app.guard("apply")
+            if authorize is not None and not authorize():
+                _fail("ACTION_DENIED", "Daily effect authorization was revoked")
+            self.app.resolve_reference(source)
+            self._work_artifact(work_run_id, candidate, source, snapshot=writer.value)
+            if candidate["registry_digest"] != self._registry_digest():
+                _fail("RESOURCE_STALE", "Relation registry changed")
             record = writer.value["intents"].get(key)
             if (not isinstance(record, dict) or record.get("source_digest") != source["content_digest"]
                     or record.get("registry_digest") != candidate["registry_digest"]
@@ -239,7 +283,8 @@ class DailyStewardship:
             writer.commit(now)
         return {"path": relative, "status": "no_evidence", "source_digest": source["content_digest"]}
 
-    def record_candidate(self, work_run_id: str, candidate: dict[str, Any]) -> dict[str, Any]:
+    def record_candidate(self, work_run_id: str, candidate: dict[str, Any], *,
+                         authorize: Any = None) -> dict[str, Any]:
         """Write only validated empty fields after a completed Team assessment."""
         self.app.guard("apply")
         if set(candidate) != {"source_reference", "registry_digest", "fields", "evidence"}:
@@ -257,15 +302,16 @@ class DailyStewardship:
         before = read_regular(path)
         if before is None or digest(before) != source["content_digest"]:
             _fail("RESOURCE_STALE", "Source changed before provisional apply")
-        document = parse_frontmatter(before.decode("utf-8"))
+        document = parse_source_document(before.decode("utf-8"))
         properties = dict(document.properties)
-        if (properties.get("sensitivity") == "confidential"
-                or properties.get("ai_policy") not in {"ask", "remote_ok", "local_only"}
-                or properties.get("ai_policy") == "local_only" and not self.app.identity.local_execution):
+        source_policy = source_properties(relative, before, engine=self.engine)
+        if (source_policy.get("sensitivity") == "confidential"
+                or source_policy.get("ai_policy") not in {"ask", "remote_ok", "local_only"}
+                or source_policy.get("ai_policy") == "local_only" and not self.app.identity.local_execution):
             _fail("SCOPE_DENIED", "Document policy denies local enrichment")
         fields, evidence = candidate["fields"], candidate["evidence"]
         if (not isinstance(fields, dict) or not fields
-                or set(fields) - self._eligible_fields(properties["type"])
+                or set(fields) - self._eligible_fields(source_policy["type"])
                 or not isinstance(evidence, dict) or set(evidence) != set(fields)):
             _fail("INVALID_ARGUMENT", "Candidate fields or evidence are invalid")
         original_fields = {field: {"present": field in document.properties,
@@ -284,8 +330,15 @@ class DailyStewardship:
                     or len(set(values)) != len(values)):
                 _fail("CONFLICT", "Candidate may fill only one empty list with bounded values")
             quotes = evidence[field]
-            if (not isinstance(quotes, list) or not quotes
-                    or any(not isinstance(q, str) or not q.strip() or q not in document.body for q in quotes)):
+            if isinstance(quotes, dict):
+                if set(quotes) != set(values):
+                    _fail("INVALID_ARGUMENT", "Every daily value needs exact source-body evidence")
+                groups = list(quotes.values())
+            else:
+                groups = [quotes]
+            if any(not isinstance(group, list) or not group
+                   or any(not isinstance(q, str) or not q.strip() or q not in document.body for q in group)
+                   for group in groups):
                 _fail("INVALID_ARGUMENT", "Every field needs an exact source-body quote")
             properties[field] = values
         tags = list(properties.get("tags", []))
@@ -295,12 +348,20 @@ class DailyStewardship:
         properties["tags"] = tags
         now = self.app.clock()
         properties["modified"] = stamp(now)
-        result = self.engine.validate_properties(properties, relative,
-                                                 target_types=self._target_types())
+        result = self.engine.validate_property_changes(
+            properties, {*fields, "tags", "modified"}, relative, target_types=self._target_types())
         if not result.passed:
             _fail("INVALID_ARGUMENT", "Candidate violates the note or relation registry")
         after = render_frontmatter(properties, document.body).encode("utf-8")
         with self.app.journal.writer() as writer:
+            self.app.guard("apply")
+            if authorize is not None and not authorize():
+                _fail("ACTION_DENIED", "Daily effect authorization was revoked")
+            self.app.resolve_reference(source)
+            self._work_artifact(work_run_id, candidate, source, snapshot=writer.value)
+            if (candidate["registry_digest"] != self._registry_digest()
+                    or coverage.get("policy_digest") != self._policy_digest()):
+                _fail("RESOURCE_STALE", "Daily registry or policy changed before effect")
             if writer.value["intents"].get(coverage_key) != coverage:
                 _fail("RESOURCE_STALE", "Daily coverage changed during candidate validation")
             if effect_id in writer.value["intents"]:
@@ -383,6 +444,7 @@ class DailyStewardship:
                         _fail("STATE_INVALID", "Review source record is unavailable")
                     decision = "confirm" if effect_id.endswith(".confirm") else "reject"
                     source["review_status"] = "confirmed" if decision == "confirm" else "rejected"
+                    self._retain_reviewed_coverage(writer.value, source, record["before_digest"], observed)
                     writer.value["decisions"][effect_id] = {
                         "decision": decision, "effect_id": effect_id.rsplit(".", 1)[0],
                         "recorded_at": stamp(now), "before_digest": record["before_digest"],
@@ -413,6 +475,7 @@ class DailyStewardship:
                 if field in _RELATIONS}
 
     def review(self, effect_id: str, decision: str) -> dict[str, Any]:
+        """Review the exact delta without treating owner-only bytes as new evidence."""
         if decision not in {"confirm", "reject"}:
             _fail("INVALID_ARGUMENT", "Review decision must be confirm or reject")
         self.app.guard("approve" if decision == "confirm" else "reject")
@@ -458,6 +521,7 @@ class DailyStewardship:
             writer.fence()
             writer.value["intents"][review_id]["state"] = "completed"
             record["review_status"] = "confirmed" if decision == "confirm" else "rejected"
+            self._retain_reviewed_coverage(writer.value, record, digest(before), digest(after))
             writer.value["decisions"][review_id] = {
                 "decision": decision, "effect_id": effect_id, "recorded_at": stamp(now),
                 "before_digest": digest(before), "after_digest": digest(after),
@@ -466,9 +530,24 @@ class DailyStewardship:
         return {"effect_id": effect_id, "decision": decision,
                 "path": record["path"], "after_digest": digest(after)}
 
-    def publish_index(self) -> dict[str, Any]:
-        """Publish one source snapshot with the lexical pointer as final switch."""
+    @staticmethod
+    def _retain_reviewed_coverage(journal: dict[str, Any], effect: dict[str, Any],
+                                  before_digest: str, after_digest: str) -> None:
+        # Do not hide an intervening user edit: only the exact provisional
+        # postimage establishes that review alone changed the source bytes.
+        if before_digest != effect["after_digest"]:
+            return
+        key = _PREFIX + hashlib.sha256(effect["path"].encode()).hexdigest()
+        coverage = journal["intents"].get(key)
+        if (isinstance(coverage, dict) and coverage.get("state") == "completed"
+                and coverage.get("source_digest") == effect["source_digest"]):
+            coverage["source_digest"] = after_digest
+
+    def publish_index(self, *, authorize: Callable[[], None] | None = None) -> dict[str, Any]:
+        """Publish one snapshot, with optional host authority at pointer switches."""
         self.app.guard("apply")
+        if authorize is not None:
+            authorize()
         from ..projection import (
             ProjectionConflict,
             ProjectionError,
@@ -487,13 +566,12 @@ class DailyStewardship:
             raise AdmissionError("INDEX_INVALID", "Lexical candidate is invalid") from error
         candidate = ProjectionRead(pointer={}, manifest=build.manifest,
                                    notes=build.notes, edges=build.edges)
-        vector = build_vector_index(self.app.roots, port, projection=candidate)
-        # The vector pointer may temporarily refer to a future generation.
-        # Readers then fail closed. This single lexical pointer write makes
-        # both modes ready together after another exact source check.
+        vector = build_vector_index(self.app.roots, port, projection=candidate, authorize=authorize)
+        # Explicit maintenance exports retain their publication-time source CAS;
+        # live reads independently materialize each current document.
         try:
             changed, generation_root, notes_path, edges_path = _publish_generation(
-                self.app.roots, build)
+                self.app.roots, build, authorize=authorize)
         except (ProjectionConflict, ProjectionError) as error:
             raise AdmissionError("INDEX_STALE", "Lexical source changed before publication") from error
         lexical = {"generation_id": build.generation_id,

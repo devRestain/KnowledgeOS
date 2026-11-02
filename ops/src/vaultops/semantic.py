@@ -712,8 +712,8 @@ EXPECTED_RETRIEVAL_CORPUS = {
 }
 
 EXPECTED_RETRIEVAL_STALENESS = {
-    "default": "fail_closed_and_require_rebuild",
-    "running_query_pins_generation": True,
+    "default": "refresh_changed_documents",
+    "running_query_pins_generation": False,
 }
 
 
@@ -1304,7 +1304,7 @@ def _check_projection(blueprint: Mapping[str, Any], errors: list[dict[str, Any]]
     _check_mapping_value(
         errors,
         projection.get("reader_contract"),
-        "read_pointer_once_and_use_one_generation_only",
+        "materialize_documents_on_read_or_inspect_frozen_export",
         locator="/projection/reader_contract",
         code="SEMANTIC_PROJECTION_SERIALIZATION",
     )

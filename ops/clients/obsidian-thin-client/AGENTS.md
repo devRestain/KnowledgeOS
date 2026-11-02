@@ -3,7 +3,8 @@
 ## Definition and contents
 
 - Use manifest.json, contract.json, main.js, and styles.css as the declared presentation package.
-- Keep authenticated local owner Work and review routes as the domain request boundary.
+- Keep trusted local owner Work and review routes as the domain request boundary without login or HTTP tokens.
+- Keep main.js self-contained because the native Obsidian evaluator resolves only external modules, not sibling CommonJS files.
 
 ## Ownership
 
@@ -12,5 +13,5 @@
 
 ## Use and maintenance
 
-- Use declared client acceptance for implementation changes.
+- Run make thin-client-check for bounded Node host-adapter behavior and canonical container acceptance for Owner contracts without treating either as native GUI proof.
 - Keep device installation and app control separately selected.

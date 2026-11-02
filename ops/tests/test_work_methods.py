@@ -19,6 +19,7 @@ from vaultops.application.team_catalog import SpecialistBinding
 from vaultops.application.work import graph_content_digest, segment_digest, work_spec_digest
 from vaultops.application.work_methods import WorkMethodCatalog
 from vaultops.application.work_tools import TeamToolSession
+from vaultops.projection import generate_projection
 
 SOURCE = "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
 
@@ -72,6 +73,8 @@ def _pilot(tmp_path):
     fixture.spec["spec_digest"] = work_spec_digest(fixture.spec)
     fixture.run["work_spec_digest"] = fixture.spec["spec_digest"]
     fixture.run["binding_reference"] = dict(binding.binding_reference)
+    projection, code = generate_projection(exops.application.roots)
+    assert code == 0, projection
     source_reference = exops.application.reference(SOURCE)
     exops.director_method_source_admitted = (
         lambda spec, selected: spec["admission_receipt_id"] == "admission.synthetic.one"
@@ -199,8 +202,18 @@ def test_method_graph_and_profile_grants_fail_closed(tmp_path):
                              "knowledgeos.triage.one", bundle["segment"]["graph_run_id"])
     normalizer = TeamToolSession(exops.application, fixture.run["work_run_id"],
                                  "knowledgeos.normalizer.one", bundle["segment"]["graph_run_id"])
-    assert triage.tools() == ()
-    assert normalizer.tools() == ("proposal_create",)
+    assert triage.tools() == ("work_context_read", "knowledge_read")
+    assert normalizer.tools() == ("work_context_read", "knowledge_read", "proposal_create")
+    triage.authorize("work_context_read", {})
+    normalizer.authorize("work_context_read", {})
+    for session in (triage, normalizer):
+        session.authorize("knowledge_read", {"resource_reference": source, "chunk_locator": "selected"})
+        with pytest.raises(AdmissionError):
+            session.authorize("artifact_read", {"artifact_reference": source})
+        with pytest.raises(AdmissionError):
+            session.authorize("knowledge_read", {
+                "resource_reference": {**source, "content_digest": "sha256:" + "0" * 64},
+                "chunk_locator": "selected"})
     with pytest.raises(AdmissionError):
         normalizer.authorize("knowledge_retrieve", {"query": "all"})
     with pytest.raises(AdmissionError):
@@ -233,6 +246,17 @@ def test_single_mcp_wire_lists_all_tools_but_checks_manager_and_profile(tmp_path
         async with Client(params("knowledgeos.normalizer.one", bundle["segment"]["graph_run_id"]),
                           mode="legacy") as client:
             assert len((await client.list_tools()).tools) == 25
+            context = await client.call_tool("work_context_read", {})
+            assert not context.is_error
+            view = context.structured_content["data"]
+            assert view["source_reference"] == source and view["source_chunks"]
+            assert view["executor_id"] == "knowledgeos.normalizer.one"
+            current = exops.application.journal.read()["intents"]["exops.work." + run_id]["run"]
+            assert view["generation"] == current["generation"]
+            assert view["fencing_token"] == current["fencing_token"]
+            read = await client.call_tool("knowledge_read", {
+                "resource_reference": source, "chunk_locator": view["source_chunks"][0]})
+            assert not read.is_error and read.structured_content["data"]["text"]
             denied = await client.call_tool("proposal_create", {"source_reference": {**source,
                 "content_digest": "sha256:" + "0" * 64}})
             assert denied.is_error and denied.structured_content["effect"] == "none"
@@ -242,3 +266,22 @@ def test_single_mcp_wire_lists_all_tools_but_checks_manager_and_profile(tmp_path
             assert not replay.is_error and replay.structured_content["effect"] == "proposal_replayed"
 
     asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("groups", [
+    [],
+    [[]],
+    [["normalization_proposal"], ["capture_evidence"]],
+    [["capture_evidence"], ["capture_evidence", "normalization_proposal"]],
+    [["capture_evidence"], ["unadmitted_stage"]],
+])
+def test_segmented_method_cannot_skip_repeat_or_reorder_required_stages(tmp_path, groups):
+    exops, _fixture = make_exops(tmp_path)
+    methods = WorkMethodCatalog.load(exops.application.roots.control)
+    method = copy.deepcopy(methods.methods["knowledgeos.capture_normalization_continuation_team"])
+    method["segment_stages"] = groups
+    with pytest.raises(AdmissionError) as denied:
+        WorkMethodCatalog({
+            "schema_version": 1, "owner_operation_id": "knowledgeos", "methods": [method],
+        }, exops.catalog)
+    assert denied.value.code == "METHOD_INVALID"

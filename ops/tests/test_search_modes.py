@@ -53,14 +53,14 @@ def test_four_modes_provenance_reuse_and_bilingual_fixture_quality(tmp_path):
     roots, app, port = _ready(tmp_path)
     source_bytes = {path.relative_to(roots.vault): path.read_bytes()
                     for path in roots.vault.rglob("*.md")}
-    assert index_status(roots, port)["vector_state"] == "unavailable"
+    assert index_status(roots, port)["vector_state"] == "ready"
     publication = app.daily_stewardship().publish_index()
     first = publication["vector"]
     assert publication["lexical"]["generation_id"] == first["projection_generation_id"]
     assert first["new_vectors"] > 0
     assert index_status(roots, port)["vector_state"] == "ready"
     second = build_vector_index(roots, port)
-    assert second["generation_id"] == first["generation_id"]
+    assert second["record_count"] == first["record_count"]
     assert second["reused_vectors"] == second["record_count"]
     assert port.documents == first["new_vectors"]
     assert source_bytes == {path.relative_to(roots.vault): path.read_bytes()
@@ -78,9 +78,9 @@ def test_four_modes_provenance_reuse_and_bilingual_fixture_quality(tmp_path):
             report, code = app.search(query, mode=mode)
             assert code == 0, report
             top_one_hits[mode] += report["candidates"][0]["path"] == expected
-            assert report["vector_generation_id"] == first["generation_id"]
+            assert report["vector_generation_id"].startswith("vec-")
             assert all(row["resource_reference"]["content_digest"].startswith("sha256:")
-                       and row["index_generation_id"] == publication["lexical"]["generation_id"]
+                       and row["index_generation_id"] == lexical["index_generation_id"]
                        and row["chunk_locator"] for row in report["candidates"])
             if mode == "hybrid":
                 assert report["candidates"][0]["rrf_parameter_and_rank"]["k"] == 60
@@ -112,7 +112,7 @@ def test_vector_reuse_preserves_generation_for_non_unit_embeddings(tmp_path):
         assert pointer.read_bytes() == before
 
 
-def test_delete_policy_and_model_drift_fail_closed(tmp_path):
+def test_delete_is_local_while_policy_and_model_drift_fail_closed(tmp_path):
     roots, app, port = _ready(tmp_path)
     build_vector_index(roots, port)
     changed = replace(app, handlers=DomainHandlers(vector_port=FakeLocalPort("b")))
@@ -130,7 +130,8 @@ def test_delete_policy_and_model_drift_fail_closed(tmp_path):
     note = roots.vault / "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
     note.unlink()
     report, code = app.search("확정되지 않은 정보", mode="vector")
-    assert code != 0 and report["errors"][0]["code"] in {"INDEX_STALE", "INDEX_INVALID"}
+    assert code == 0, report
+    assert all(row["path"] != note.relative_to(roots.vault).as_posix() for row in report["candidates"])
 
 
 def test_failed_embedding_does_not_publish_a_new_lexical_pointer(tmp_path):
@@ -149,3 +150,23 @@ def test_failed_embedding_does_not_publish_a_new_lexical_pointer(tmp_path):
         failing.daily_stewardship().publish_index()
     assert error.value.code == "EMBEDDING_UNAVAILABLE"
     assert pointer.read_bytes() == before
+
+
+def test_vector_first_use_reuses_unchanged_chunks_without_manual_refresh(tmp_path):
+    roots, app, port = _ready(tmp_path)
+    path = "40_Knowledge/Notes/New local vector note.md"
+    note = roots.vault / path
+    note.write_text("# New vector evidence\nUnique first-use-vector-marker.\n")
+    first, code = app.search("first-use-vector-marker", mode="vector")
+    assert code == 0, first
+    assert any(row["path"] == path for row in first["candidates"])
+    embedded = port.documents
+    second, code = app.search("first-use-vector-marker", mode="hybrid")
+    assert code == 0, second
+    assert port.documents == embedded
+    old_hash = next(row["content_hash"] for row in first["candidates"] if row["path"] == path)
+    note.write_text("# New vector evidence\nUnique edited-vector-marker.\n")
+    current, code = app.search("edited-vector-marker", mode="vector")
+    assert code == 0, current
+    assert port.documents == embedded + 1
+    assert all(row["content_hash"] != old_hash for row in current["candidates"] if row["path"] == path)

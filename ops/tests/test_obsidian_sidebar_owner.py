@@ -37,17 +37,14 @@ REQUEST = "12345678-1234-4123-8123-123456789abc"
 @dataclass
 class Ingress:
     owner_operation_id: str = "knowledgeos"
-    actor_login: str = "owner.user"
     method: str = "POST"
     resource_path: str = "search/query"
     body: bytes = b"{}"
-    csrf_token: str = "session-token"
 
 
 def _backend(exops, *, admit_template=None):
     return ExOpsWebBackend(
-        exops, lambda login: OwnerActor(login, "web") if login == "owner.user" else None,
-        lambda _actor, token: token == "session-token", admit_template=admit_template)
+        exops, OwnerActor("owner.user", "web"), admit_template=admit_template)
 
 
 def _call(backend, route, payload):
@@ -208,11 +205,12 @@ def test_sidebar_owner_routes_keep_search_read_only_and_metadata_unpromoted(tmp_
     note.write_bytes(note.read_bytes() + b"\n")
     stale = _call(backend, "work/list", {"path": SOURCE})
     assert all(item["source_stale"] is True for item in stale["works"])
-    with pytest.raises(AdmissionError, match="Work source changed after admission"):
-        _call(backend, "work/result", {"work_run_id": listed["works"][0]["work_run_id"]})
+    result = _call(backend, "work/result", {"work_run_id": listed["works"][0]["work_run_id"]})
+    assert result["source_stale"] is True
+    assert result["text"] is None
 
 
-def test_search_refuses_a_new_generation_between_match_and_excerpt(tmp_path, monkeypatch):
+def test_search_refuses_changed_selected_source_between_match_and_excerpt(tmp_path, monkeypatch):
     exops, _source, _scope, _admissions = _group(tmp_path)
     projection, code = generate_projection(exops.application.roots)
     assert code == 0, projection
@@ -232,8 +230,27 @@ def test_search_refuses_a_new_generation_between_match_and_excerpt(tmp_path, mon
         return original_eligible(reader, selected_path=selected_path)
 
     monkeypatch.setattr(KnowledgeReadTools, "_eligible", change_generation)
-    with pytest.raises(AdmissionError, match="Search generation changed before result export"):
+    with pytest.raises(AdmissionError) as error:
         _call(backend, "search/query", {"query": "정보", "mode": "lexical"})
+    assert error.value.code == "RESOURCE_STALE"
+
+def test_lost_template_response_receipt_is_read_only_and_source_change_does_not_hide_it(tmp_path):
+    exops, _source, scope, admissions = _group(tmp_path)
+    backend = _backend(exops, admit_template=lambda *_args: admissions)
+    request = {"template_id": "note_metadata", "scope": scope, "request_id": REQUEST}
+    accepted = _call(backend, "work/intake-template", request)
+    path = exops.application.roots.vault / SOURCE
+    path.write_bytes(path.read_bytes() + b"\nLater user edit.\n")
+    before = exops.application.journal.read()
+    observed = _call(backend, "mutation/receipt", {"route": "work/intake-template", "request": request})
+    assert observed["found"] is True
+    assert observed["receipt"]["receipts"] == accepted["receipts"]
+    assert observed["observation_only"] is True
+    assert exops.application.journal.read() == before
+    wrong = _call(backend, "mutation/receipt", {
+        "route": "work/intake-template", "request": {**request, "scope": {**scope, "path": "another.md"}}})
+    assert wrong["found"] is False
+
 
 
 def test_work_list_refuses_a_source_change_during_status_export(tmp_path, monkeypatch):
@@ -273,50 +290,47 @@ def test_trusted_template_builder_pins_method_criteria_and_budget(tmp_path):
         assert source["source_revision"] == scope["content_sha256"]
 
 
-def test_loopback_listener_requires_memory_token_and_returns_direct_search(tmp_path):
+def test_loopback_listener_returns_direct_search_and_admits_exact_templates_without_tokens(tmp_path):
     exops, _source, scope, admissions = _group(tmp_path)
     generated, code = generate_projection(exops.application.roots)
     assert code == 0, generated
-    server, token = create_loopback_owner(
+    server = create_loopback_owner(
         exops, actor_id="owner.user", port=0,
         admit_template=lambda _actor, _template, _scope, _request: admissions)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        def request(route, payload, selected_token):
+        def request(route, payload):
             client = http.client.HTTPConnection("127.0.0.1", server.server_address[1], timeout=5)
             client.request("POST", "/owner/" + route,
                            body=json.dumps(payload),
-                           headers={"Content-Type": "application/json",
-                                    "X-KnowledgeOS-CSRF": selected_token})
+                           headers={"Content-Type": "application/json"})
             response = client.getresponse()
             value = response.status, json.loads(response.read())
             client.close()
             return value
 
         query = {"query": "정보", "mode": "lexical"}
-        denied_status, denied = request("search/query", query, "wrong-token")
-        assert denied_status == 403 and denied["status"] == "FAIL"
-        status, result = request("search/query", query, token)
+        status, result = request("search/query", query)
         assert status == 200 and result["results"]
         assert not any(key.startswith("exops.work.")
                        for key in exops.application.journal.read()["intents"])
         intake = {"template_id": "note_metadata", "scope": scope, "request_id": REQUEST}
-        accepted_status, accepted = request("work/intake-template", intake, token)
+        accepted_status, accepted = request("work/intake-template", intake)
         assert accepted_status == 200 and len(accepted["receipts"]) == 2
-        replay_status, replay = request("work/intake-template", intake, token)
+        replay_status, replay = request("work/intake-template", intake)
         assert replay_status == 200 and replay["replayed"] is True
         assert [item["work_run_id"] for item in replay["receipts"]] == [
             item["work_run_id"] for item in accepted["receipts"]]
-        list_status, listed = request("work/list", {"path": SOURCE}, token)
+        list_status, listed = request("work/list", {"path": SOURCE})
         assert list_status == 200 and len(listed["works"]) == 2
         assert all(item["source_stale"] is False for item in listed["works"])
         result_status, pending = request(
-            "work/result", {"work_run_id": accepted["receipts"][0]["work_run_id"]}, token)
+            "work/result", {"work_run_id": accepted["receipts"][0]["work_run_id"]})
         assert result_status == 200 and pending["reason"]
         note = exops.application.roots.vault / SOURCE
         note.write_bytes(note.read_bytes() + b"\n")
-        stale_status, stale = request("work/list", {"path": SOURCE}, token)
+        stale_status, stale = request("work/list", {"path": SOURCE})
         assert stale_status == 200 and all(item["source_stale"] is True for item in stale["works"])
     finally:
         server.shutdown()
@@ -324,13 +338,13 @@ def test_loopback_listener_requires_memory_token_and_returns_direct_search(tmp_p
         thread.join(timeout=5)
 
 
-def test_owner_routes_remain_authenticated_through_relay(tmp_path):
+def test_owner_routes_preserve_loopback_binding_and_domain_admission_through_relay(tmp_path):
     exops, _source, scope, admissions = _group(tmp_path)
     generated, code = generate_projection(exops.application.roots)
     assert code == 0, generated
     with pytest.raises(AdmissionError, match="bind host"):
         create_loopback_owner(exops, actor_id="owner.user", bind_host="0.0.0.0")
-    owner, token = create_loopback_owner(
+    owner = create_loopback_owner(
         exops, actor_id="owner.user", port=0,
         admit_template=lambda _actor, _template, _scope, _request: admissions)
     relay = create_owner_relay(upstream_host="127.0.0.1",
@@ -340,25 +354,23 @@ def test_owner_routes_remain_authenticated_through_relay(tmp_path):
     for thread in threads:
         thread.start()
     try:
-        def request(route, payload, selected_token):
+        def request(route, payload):
             client = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
             client.request("POST", "/owner/" + route, body=json.dumps(payload), headers={
-                "Content-Type": "application/json", "X-KnowledgeOS-CSRF": selected_token,
+                "Content-Type": "application/json",
             })
             response = client.getresponse()
             value = response.status, json.loads(response.read())
             client.close()
             return value
 
-        denied_status, denied = request("search/query", {"query": "정보"}, "wrong-token")
-        assert denied_status == 403 and denied["status"] == "FAIL"
-        status, found = request("search/query", {"query": "정보", "mode": "lexical"}, token)
+        status, found = request("search/query", {"query": "정보", "mode": "lexical"})
         assert status == 200 and found["results"]
         accepted_status, accepted = request("work/intake-template", {
             "template_id": "note_metadata", "scope": scope, "request_id": REQUEST,
-        }, token)
+        })
         assert accepted_status == 200 and len(accepted["receipts"]) == 2
-        listed_status, listed = request("work/list", {"path": SOURCE}, token)
+        listed_status, listed = request("work/list", {"path": SOURCE})
         assert listed_status == 200 and len(listed["works"]) == 2
     finally:
         for server in (relay, owner):

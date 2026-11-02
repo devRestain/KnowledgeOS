@@ -1,0 +1,50 @@
+name: knowledgeos-web-console-smoke
+services:
+  owner:
+    image: "${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through make image-build}"
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Set numeric UID}:${KNOWLEDGEOS_GID:?Set numeric GID}"
+    working_dir: /tmp
+    read_only: true
+    init: true
+    environment:
+      HOME: /tmp
+      PYTHONPATH: /workspace/control/ops/tests
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: ["python", "-m", "support.web_console_smoke", "--bind-host", "owner", "--port", "17902"]
+    volumes:
+      - type: bind
+        source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Set exact control source}
+        target: /workspace/control
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${KNOWLEDGEOS_CORE_SOURCE:?Set exact Core source}
+        target: /workspace/Core
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: [console]
+  relay:
+    image: "${KNOWLEDGEOS_DEV_IMAGE:?Build the project image through make image-build}"
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Set numeric UID}:${KNOWLEDGEOS_GID:?Set numeric GID}"
+    working_dir: /opt/knowledgeos/ops
+    read_only: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: ["python", "-m", "vaultops.interfaces.owner_relay", "--upstream-port", "17902", "--listen-port", "17902"]
+    ports:
+      - "127.0.0.1:${KNOWLEDGEOS_WEB_PORT:-17902}:17902"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: [console, loopback-publication]
+networks:
+  console:
+    internal: true
+  loopback-publication: {}

@@ -94,6 +94,63 @@ def test_exact_capture_read_and_local_only_work_scope(tmp_path):
     assert KnowledgeReadTools(trusted).knowledge_read(trusted.reference(CAPTURE), locator)["text"]
 
 
+def test_first_use_plain_note_freshness_is_document_local(tmp_path):
+    app = _fixture(tmp_path)
+    path = "40_Knowledge/Notes/Ordinary note.md"
+    source_file = app.roots.vault / path
+    source_file.write_text("# Evidence\nFirst-use current content.\n")
+    reader = KnowledgeReadTools(app, allowed_path=path)
+    reference = app.reference(path)
+    projection, notes = reader._eligible(selected_path=path)
+    note = reader._note(reference, notes)
+    chunk = next(chunk for chunk in _chunks_for_note(note) if "First-use" in chunk.text)
+    citation = {"resource_reference": reference, "chunk_locator": chunk.locator, "chunk_hash": chunk.chunk_hash}
+    assert reader.citation_verify([citation])["all_valid"]
+    assert note["properties"]["sensitivity"] == "personal"
+    assert note["properties"]["ai_policy"] == "ask"
+
+    unrelated = app.roots.vault / "40_Knowledge/Notes/Unrelated.md"
+    unrelated.write_text("Unrelated new note.\n")
+    unrelated.write_text("Unrelated edited note.\n")
+    unrelated.rename(unrelated.with_name("Moved unrelated.md"))
+    assert reader.citation_verify([citation])["all_valid"]
+    assert reader._eligible(selected_path=path)[0].manifest["generation_id"] == projection.manifest["generation_id"]
+
+    source_file.write_text("# Evidence\nSelected current replacement.\n")
+    with pytest.raises(AdmissionError):
+        reader.citation_verify([citation])
+    current = app.reference(path)
+    _, notes = reader._eligible(selected_path=path)
+    note = reader._note(current, notes)
+    chunk = next(chunk for chunk in _chunks_for_note(note) if "replacement" in chunk.text)
+    assert "replacement" in reader.knowledge_read(current, chunk.locator)["text"]
+
+    moved = "40_Knowledge/Notes/Moved selected.md"
+    source_file.rename(app.roots.vault / moved)
+    moved_reader = KnowledgeReadTools(app, allowed_path=moved)
+    _, notes = moved_reader._eligible(selected_path=moved)
+    assert moved_reader._note(app.reference(moved), notes)["body"] == note["body"]
+    with pytest.raises(AdmissionError):
+        reader.knowledge_read(current, chunk.locator)
+
+def test_copying_a_note_with_the_same_authored_id_does_not_invalidate_its_source(tmp_path):
+    app = _fixture(tmp_path)
+    reader = KnowledgeReadTools(app, allowed_path=CAPTURE)
+    reference = app.reference(CAPTURE)
+    _, notes = reader._eligible(selected_path=CAPTURE)
+    original = reader._note(reference, notes)
+    chunk = _chunks_for_note(original)[0]
+    citation = {"resource_reference": reference, "chunk_locator": chunk.locator, "chunk_hash": chunk.chunk_hash}
+    copied = "40_Knowledge/Notes/Copied note.md"
+    (app.roots.vault / copied).write_bytes((app.roots.vault / CAPTURE).read_bytes())
+    assert reader.citation_verify([citation])["all_valid"] is True
+    _, current = reader._eligible(selected_path=CAPTURE)
+    _, copies = KnowledgeReadTools(app, allowed_path=copied)._eligible(selected_path=copied)
+    assert current[CAPTURE]["id"] != copies[copied]["id"]
+    assert current[CAPTURE]["properties"]["id"] == copies[copied]["properties"]["id"]
+
+
+
 def test_agent_authored_draft_is_pending_with_source_and_no_canonical_change(tmp_path):
     app = _fixture(tmp_path)
     target = "40_Knowledge/Ideas/MCP Authored Idea.md"
@@ -133,14 +190,11 @@ def test_plan_proposal_replays_and_gui_decision_has_no_apply(tmp_path):
     @dataclass
     class Ingress:
         owner_operation_id: str = "knowledgeos"
-        actor_login: str = "owner.user"
         method: str = "POST"
         resource_path: str = "proposal/read"
         body: bytes = b"{}"
-        csrf_token: str = "fixture-token"
 
-    backend = ExOpsWebBackend(exops, lambda login: OwnerActor(login, "web"),
-                              lambda _actor, token: token == "fixture-token")
+    backend = ExOpsWebBackend(exops, OwnerActor("owner.user", "web"))
     reference = created["data"]["artifact_reference"]
     read = backend(Ingress(body=json.dumps({"proposal_reference": reference}).encode()))
     assert read["apply_allowed"] is False and "source checked" in read["text"]
@@ -159,25 +213,22 @@ def test_gui_work_intake_requires_owner_director_admission(tmp_path):
     @dataclass
     class Ingress:
         owner_operation_id: str = "knowledgeos"
-        actor_login: str = "owner.user"
         method: str = "POST"
         resource_path: str = "work/intake"
         body: bytes = b"{}"
-        csrf_token: str = "bound-token"
 
     ingress = Ingress(body=json.dumps({"question": "Check the source", "scope": {
         "path": SOURCE, "content_sha256": source["source_revision"]}}).encode())
-    authenticate = lambda login: OwnerActor(login, "web") if login == "owner.user" else None
-    csrf = lambda _actor, token: token == "bound-token"
+    actor = OwnerActor("owner.user", "web")
     with pytest.raises(AdmissionError, match="Director intake"):
-        ExOpsWebBackend(exops, authenticate, csrf)(ingress)
+        ExOpsWebBackend(exops, actor)(ingress)
 
     def admit(actor, payload):
         assert actor.actor_id == "owner.user"
         assert payload["scope"] == {"path": SOURCE, "content_sha256": source["source_revision"]}
         return fixture.spec, fixture.run, "action.gui.intake", datetime.now(UTC) + timedelta(hours=1)
 
-    backend = ExOpsWebBackend(exops, authenticate, csrf, admit_request=admit)
+    backend = ExOpsWebBackend(exops, actor, admit_request=admit)
     with pytest.raises(AdmissionError, match="changed before Director admission"):
         backend(Ingress(body=json.dumps({"question": "Check the source", "scope": {
             "path": SOURCE, "content_sha256": "0" * 64}}).encode()))

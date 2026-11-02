@@ -4,7 +4,7 @@
   "methods": [
     {
       "method_id": "knowledgeos.capture_normalization_team",
-      "method_version": "1.0.0",
+      "method_version": "1.1.0",
       "purpose": "Read one admitted Capture before creating a digest-bound Pending normalization proposal",
       "target_kind": "team",
       "team_id": "knowledge-curation",
@@ -14,13 +14,13 @@
         {
           "stage_id": "capture_evidence",
           "role_id": "knowledgeos.triage",
-          "tools": [],
+          "tools": ["work_context_read", "knowledge_read"],
           "effect_class": "read_only"
         },
         {
           "stage_id": "normalization_proposal",
           "role_id": "knowledgeos.normalizer",
-          "tools": ["proposal_create"],
+          "tools": ["work_context_read", "knowledge_read", "proposal_create"],
           "effect_class": "proposal_only"
         }
       ],
@@ -29,8 +29,35 @@
       "guidance": "The Manager may add explanatory context but cannot skip or reorder required stages."
     },
     {
-      "method_id": "knowledgeos.cited_draft_team",
+      "method_id": "knowledgeos.capture_normalization_continuation_team",
       "method_version": "1.0.0",
+      "purpose": "Assess exact Capture evidence before admitting a criterion-linked Pending proposal successor",
+      "target_kind": "team",
+      "team_id": "knowledge-curation",
+      "input_kind": "capture_reference",
+      "result_kind": "pending_proposal",
+      "required_stages": [
+        {
+          "stage_id": "capture_evidence",
+          "role_id": "knowledgeos.triage",
+          "tools": ["work_context_read", "knowledge_read"],
+          "effect_class": "read_only"
+        },
+        {
+          "stage_id": "normalization_proposal",
+          "role_id": "knowledgeos.normalizer",
+          "tools": ["work_context_read", "knowledge_read", "proposal_create"],
+          "effect_class": "proposal_only"
+        }
+      ],
+      "segment_stages": [["capture_evidence"], ["normalization_proposal"]],
+      "required_evidence": ["source_digest", "proposal_digest"],
+      "human_gate": "Exhausted continuation requires owner revision; Pending review and canonical apply remain separate decisions",
+      "guidance": "Assess the initial read-only segment independently, then admit only its exact RemainingWork within the original WorkSpec budgets."
+    },
+    {
+      "method_id": "knowledgeos.cited_draft_team",
+      "method_version": "1.1.0",
       "purpose": "Read one admitted source and submit an agent-authored cited note draft",
       "target_kind": "team",
       "team_id": "knowledge-curation",
@@ -42,7 +69,7 @@
       ],
       "required_evidence": ["source_digest", "draft_body", "proposal_digest"],
       "human_gate": "Human review and separate canonical apply are required",
-      "guidance": "Keep authored draft text separate from the exact source excerpt and digest."
+      "guidance": "Native composition admits immutable target_path, target_type and title in the Work objective JSON. Read every exact source chunk before one proposal_draft_note whose authored body retains exact source chunk locator/hash citations. Keep the C27 original excerpt and digest separate from authored text. Pending human review and separate owner canonical apply remain required; no normalizer fallback or broader Vault target selection."
     },
     {
       "method_id": "knowledgeos.cited_research_team",
@@ -62,7 +89,7 @@
     },
     {
       "method_id": "knowledgeos.relation_ontology_team",
-      "method_version": "1.1.0",
+      "method_version": "1.2.0",
       "purpose": "Read selected links and propose ontology alignment",
       "target_kind": "team",
       "team_id": "relation-ontology",
@@ -70,15 +97,15 @@
       "result_kind": "relation_proposal",
       "required_stages": [
         {"stage_id":"relation_evidence","role_id":"knowledgeos.relation_analyst","tools":["knowledge_read","link_context"],"effect_class":"read_only"},
-        {"stage_id":"ontology_alignment","role_id":"knowledgeos.ontology_curator","tools":["semantic_registry_read","proposal_link_suggestions","proposal_alignment"],"effect_class":"proposal_only"}
+        {"stage_id":"ontology_alignment","role_id":"knowledgeos.ontology_curator","tools":["semantic_registry_read","artifact_submit"],"effect_class":"proposal_only"}
       ],
-      "required_evidence": ["source_digest", "registry_digest", "proposal_digest"],
+      "required_evidence": ["source_digest", "registry_digest", "candidate_digest"],
       "human_gate": "Relation truth and alignment require owner review",
-      "guidance": "For the structured note request submit artifact_kind note_relations with JSON content containing exact source_reference, registry_digest, fields mapping each declared relation to new values, and evidence mapping every field and value to a nonempty list of exact source-body quotes. Unlinked mentions are candidates, not asserted relations."
+      "guidance": "Submit artifact_kind note_relations through the explicitly granted artifact_submit port with JSON containing exact source_reference, registry_digest, fields mapping declared relations to new values, and evidence mapping every field/value to nonempty exact source-body quotes. Native link_context admits only policy-eligible outgoing target references already linked from the exact Director-selected source, never target bodies, backlinks or unrelated mentions. Native source quotes must explicitly identify predicate and resolved wikilink target from this actual link evidence. Unlinked mentions and uncertain semantics remain unasserted candidates, never relation truth. The registry read and noncanonical artifact are separate from human review and apply."
     },
     {
       "method_id": "knowledgeos.project_review_team",
-      "method_version": "1.0.0",
+      "method_version": "1.1.0",
       "purpose": "Inspect selected project evidence and prepare a review",
       "target_kind": "team",
       "team_id": "project-review",
@@ -90,7 +117,7 @@
       ],
       "required_evidence": ["source_digest", "task_locations", "proposal_digest"],
       "human_gate": "Project review remains Pending until a human decision",
-      "guidance": "Separate observations, interpretation, and next actions."
+      "guidance": "Native composition admits one exact project file and immutable period_start, period_end, query, Base and view pins in objective JSON. Run exact source-scoped knowledge_retrieve, base_view_query and task_query before the review. Preserve retrieval citations and every exact task locator/line hash. Separate observations, interpretation and next actions; this generic Pending plan has apply_allowed false and is not a hidden normalizer or whole-Vault review."
     },
     {
       "method_id": "knowledgeos.knowledge_exchange_team",
@@ -126,7 +153,7 @@
     },
     {
       "method_id": "knowledgeos.daily_corpus_stewardship_team",
-      "method_version": "1.0.0",
+      "method_version": "1.1.0",
       "purpose": "Inspect one owner admitted daily note and submit cited candidates only for empty fields",
       "target_kind": "team",
       "team_id": "corpus-stewardship",
@@ -138,7 +165,23 @@
       ],
       "required_evidence": ["source_digest", "field_evidence", "registry_digest", "candidate_digest"],
       "human_gate": "Owner validates empty fields before provisional write; human confirms or rejects exact delta",
-      "guidance": "The Team submits an artifact, never writes canonical notes or publishes indexes."
+      "guidance": "The Team submits a daily_enrichment artifact, never writes canonical notes or publishes indexes. Native candidates contain exact source_reference, registry_digest, fields and per-field/per-value nonempty exact source-body quote evidence; empty fields and evidence explicitly mean no evidence. Only the existing owner DailyStewardship boundary may consume the independently assessed candidate into an empty-field provisional exact delta followed by human confirm or reject. This is not the sidebar Pending-only path or scheduler activation."
+    },
+    {
+      "method_id": "knowledgeos.capture_steering_team",
+      "method_version": "1.0.0",
+      "purpose": "Read a Capture, ask the owner, safely cut over its partial Graph, then produce a deterministic source normalization report",
+      "target_kind": "team",
+      "team_id": "knowledge-curation",
+      "input_kind": "capture_reference",
+      "result_kind": "normalization_report",
+      "required_stages": [
+        {"stage_id":"capture_evidence","role_id":"knowledgeos.triage","tools":["knowledge_read"],"effect_class":"read_only"},
+        {"stage_id":"normalization_report","role_id":"knowledgeos.draft_writer","tools":["artifact_submit"],"effect_class":"proposal_only"}
+      ],
+      "required_evidence": ["source_digest", "human_answer", "partial_assessment", "successor_context", "report_digest"],
+      "human_gate": "Native question and explicit safe cutover precede the immutable successor; objective or criteria amendment needs a separate Director receipt",
+      "guidance": "Only source_order or alphabetical output ordering is steerable. Profiles read exact source bytes and publish an owner-journal report, never a canonical note or external effect. CUTOVER is supported only after triage and before normalization dispatch."
     },
     {
       "method_id": "knowledgeos.vault_maintenance_team",

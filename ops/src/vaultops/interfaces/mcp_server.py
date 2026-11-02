@@ -500,8 +500,24 @@ def _operation(
                                               filters=arguments.get("filters"),
                                               limit=arguments.get("limit", 20))
             elif name == "link_context":
-                data = reader.link_context(arguments["resource_reference"],
-                                           limit=arguments.get("limit", 20))
+                relation_scope = False
+                if isinstance(session, TeamToolSession):
+                    selected = session._current()[0]["spec"]
+                    relation_scope = (
+                        selected.get("method_contract_ref", {}).get("method_id")
+                        == "knowledgeos.relation_ontology_team"
+                        and [item["criterion_id"] for item in selected["acceptance_criteria"]]
+                        == ["criterion.native_relation_ontology"]
+                    )
+                # The versioned native relation method admits only outgoing
+                # target references from this exact source, never target bodies,
+                # backlinks, or unrelated mentions. Generic Work stays source-only.
+                link_reader = KnowledgeReadTools(services) if relation_scope else reader
+                data = link_reader.link_context(arguments["resource_reference"],
+                                                limit=arguments.get("limit", 20))
+                if relation_scope:
+                    data["backlinks"] = []
+                    data["unlinked_mentions"] = []
             elif name == "index_status_read":
                 data = reader.index_status_read()
             elif name == "task_query":

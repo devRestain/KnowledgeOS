@@ -1,4 +1,8 @@
-"""Explicit, compare-and-swap adoption of an exact preserved Core journal."""
+"""Exact fenced Core adoption, including retained v4 Core 0.18.1 to 0.19.0.
+
+Only the journal envelope changes; historical evidence retains its original pins.
+Source support does not authorize a live State transition.
+"""
 
 from __future__ import annotations
 
@@ -10,13 +14,15 @@ import os
 import stat
 from datetime import UTC, datetime
 
-from .core import PINS, AdmissionError, canonical
+from .core import PINS, AdmissionError, CoreContracts, canonical, load_json
 from .owner_journal import OwnerJournal, fsync_directory, read_regular, replace_exact
 from .paths import ResolvedPaths, resolve_beneath
 
 _OLD_CORE = "sha256:b69f3e389de8b8362397dec8d55a92d10a4556cc2c5f4fe646b934944db5188e"
 _PREVIOUS_CORE = "sha256:28697ac0cb49106afa32b143482cdca32e4e638d1a250173db381a2bf836e2be"
 _CORE_0180 = "sha256:a1a051556d2e187c6012c562a46a9e5aed4bc842325e94e66522ccdbd9ce4c13"
+# Frozen agentfabric-core-0.18.1 manifest; retained State uses the same non-Core pins.
+_CORE_0181 = "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676"
 _EMPTY_REQUIRED = ("gateway", "correlations", "experience", "outbox",
                    "human_requests", "decisions", "interops_outbound", "experience_events")
 
@@ -46,7 +52,8 @@ def _inspect(roots: ResolvedPaths, expected_sha256: str):
     old_pins = copy.deepcopy(PINS)
     source_core = value.get("pins", {}).get("core_version") if isinstance(value.get("pins"), dict) else None
     supported_sources = {3: {"0.17.0": _OLD_CORE},
-                         4: {"0.17.4": _PREVIOUS_CORE, "0.18.0": _CORE_0180}}
+                         4: {"0.17.4": _PREVIOUS_CORE, "0.18.0": _CORE_0180,
+                             "0.18.1": _CORE_0181}}
     source_digest = supported_sources[source_version].get(source_core)
     if source_digest is None:
         raise AdmissionError("STATE_PIN_MISMATCH", "cutover source Core release is unsupported")
@@ -56,6 +63,10 @@ def _inspect(roots: ResolvedPaths, expected_sha256: str):
         value["fabric_id"] != "agentfabric" or value["instance_id"] != "knowledgeos.local"
     ):
         raise AdmissionError("STATE_PIN_MISMATCH", "cutover source identity differs")
+    binding = load_json(resolve_beneath(roots.control, "ops/config/core-adoption.json"))
+    CoreContracts(roots.core, binding).verify()
+    if any(binding[key] != value[key] for key in ("fabric_id", "instance_id")):
+        raise AdmissionError("STATE_PIN_MISMATCH", "cutover destination owner identity differs")
     if any(not isinstance(value[key], dict) for key in (
         "intents", "receipts", "human_requests", "decisions", "gateway",
         "correlations", "interops_outbound"

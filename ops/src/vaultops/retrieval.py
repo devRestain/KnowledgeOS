@@ -1,10 +1,9 @@
 """Deterministic, provider-free C22 retrieval over one C21 projection.
 
-The C22 boundary deliberately keeps retrieval read-only.  The Vault remains the
-source of truth, C21's immutable generation is the only input surface, and the
-retrieval policy is checked against both the generated policy artifact and the
-Blueprint before any candidate is returned.  This module implements lexical
-matching and bounded typed-link expansion.
+The C22 boundary keeps retrieval read-only over current document materializations.
+The retrieval policy is checked against both the generated policy artifact and
+the Blueprint before any candidate is returned. Candidate source and chunk
+digests, rather than unrelated Vault bytes, bind lexical and typed-link evidence.
 """
 
 from __future__ import annotations
@@ -279,8 +278,8 @@ def _validate_retrieval_policy(retrieval: Mapping[str, Any]) -> None:
     _expect(retrieval["frozen_candidate_fields"], _EXPECTED_CANDIDATE_FIELDS, "/retrieval/frozen_candidate_fields")
     staleness = _as_mapping(retrieval["staleness"], "/retrieval/staleness")
     _expect_mapping_keys(staleness, {"default", "running_query_pins_generation"}, "/retrieval/staleness")
-    _expect(staleness["default"], "fail_closed_and_require_rebuild", "/retrieval/staleness/default")
-    _expect(staleness["running_query_pins_generation"], True, "/retrieval/staleness/running_query_pins_generation")
+    _expect(staleness["default"], "refresh_changed_documents", "/retrieval/staleness/default")
+    _expect(staleness["running_query_pins_generation"], False, "/retrieval/staleness/running_query_pins_generation")
     _expect(retrieval["answer_requires"], _EXPECTED_ANSWER_FIELDS, "/retrieval/answer_requires")
 
 
@@ -593,6 +592,11 @@ def _filter_notes(
     excluded: list[dict[str, str]] = []
     for note in projection.notes:
         path = str(note.get("path", ""))
+        if options.path_prefix is not None and not (
+            path.casefold() == options.path_prefix.casefold()
+            or path.casefold().startswith(options.path_prefix.casefold() + "/")
+        ):
+            continue
         reason = _note_filter_reason(
             note,
             corpus=corpus,

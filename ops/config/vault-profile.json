@@ -549,6 +549,66 @@
         "items": [
           {
             "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Note Work",
+            "link": "knowledgeos-thin-client:open-note-work",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-note-work",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work for this note; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000001",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-check",
+            "inGallery": false,
+            "label": "Daily enrichment review",
+            "link": "knowledgeos-thin-client:open-daily-review",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-daily-review",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open daily enrichment review; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000002",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-inbox",
+            "inGallery": false,
+            "label": "Owner Pending",
+            "link": "knowledgeos-thin-client:open-pending",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-pending",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Review Owner proposals; opening does not approve or apply",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000003",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
             "icon": "homepage",
             "inGallery": false,
             "label": "Homepage",
@@ -787,6 +847,66 @@
         "items": [
           {
             "hasCommand": false,
+            "icon": "lucide-search",
+            "inGallery": false,
+            "label": "KnowledgeOS search",
+            "link": "knowledgeos-thin-client:open-search",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-search",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open native Owner-backed search",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000004",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Owner Work",
+            "link": "knowledgeos-thin-client:open-work-review",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-work-review",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work review; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000005",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-library",
+            "inGallery": false,
+            "label": "Document library",
+            "link": "knowledgeos-thin-client:open-library",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-library",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open native Bases, dashboards and optional integrations",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000006",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
             "icon": "homepage",
             "inGallery": false,
             "label": "Homepage",
@@ -982,6 +1102,66 @@
         ],
         "hasCommand": false,
         "items": [
+          {
+            "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Note Work",
+            "link": "knowledgeos-thin-client:open-note-work",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-note-work",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work for this note; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000007",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-tags",
+            "inGallery": false,
+            "label": "Prepare metadata request",
+            "link": "knowledgeos-thin-client:request-metadata",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-metadata",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare metadata and relations form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000008",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-file-pen-line",
+            "inGallery": false,
+            "label": "Prepare enhancement request",
+            "link": "knowledgeos-thin-client:request-enhancement",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-enhancement",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare document enhancement form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000009",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
           {
             "hasCommand": false,
             "icon": "homepage",
@@ -1222,6 +1402,66 @@
         "items": [
           {
             "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Note Work",
+            "link": "knowledgeos-thin-client:open-note-work",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-note-work",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work for this note; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000a",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-tags",
+            "inGallery": false,
+            "label": "Prepare metadata request",
+            "link": "knowledgeos-thin-client:request-metadata",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-metadata",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare metadata and relations form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000b",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-file-pen-line",
+            "inGallery": false,
+            "label": "Prepare enhancement request",
+            "link": "knowledgeos-thin-client:request-enhancement",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-enhancement",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare document enhancement form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000c",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
             "icon": "homepage",
             "inGallery": false,
             "label": "Homepage",
@@ -1458,6 +1698,66 @@
         ],
         "hasCommand": false,
         "items": [
+          {
+            "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Note Work",
+            "link": "knowledgeos-thin-client:open-note-work",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-note-work",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work for this note; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000d",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-tags",
+            "inGallery": false,
+            "label": "Prepare metadata request",
+            "link": "knowledgeos-thin-client:request-metadata",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-metadata",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare metadata and relations form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000e",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-file-pen-line",
+            "inGallery": false,
+            "label": "Prepare enhancement request",
+            "link": "knowledgeos-thin-client:request-enhancement",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:request-enhancement",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Prepare document enhancement form; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-00000000000f",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
           {
             "hasCommand": false,
             "icon": "homepage",
@@ -1737,6 +2037,66 @@
         ],
         "hasCommand": false,
         "items": [
+          {
+            "hasCommand": false,
+            "icon": "lucide-inbox",
+            "inGallery": false,
+            "label": "Owner Pending",
+            "link": "knowledgeos-thin-client:open-pending",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-pending",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Review Owner proposals; opening does not approve or apply",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000010",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-calendar-check",
+            "inGallery": false,
+            "label": "Daily enrichment review",
+            "link": "knowledgeos-thin-client:open-daily-review",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-daily-review",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open daily enrichment review; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000011",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
+          {
+            "hasCommand": false,
+            "icon": "lucide-network",
+            "inGallery": false,
+            "label": "Owner Work",
+            "link": "knowledgeos-thin-client:open-work-review",
+            "linkAttr": {
+              "commandCheck": false,
+              "commandId": "knowledgeos-thin-client:open-work-review",
+              "hasVars": false,
+              "type": "command"
+            },
+            "tooltip": "Open Work review; does not submit Work",
+            "uuid": "a4f9c600-0f01-4e01-8000-000000000012",
+            "visibility": {
+              "desktop": { "allViews": { "components": ["icon", "label"] } },
+              "mobile": { "allViews": { "components": ["icon", "label"] } },
+              "tablet": { "allViews": { "components": ["icon", "label"] } }
+            }
+          },
           {
             "hasCommand": false,
             "icon": "homepage",

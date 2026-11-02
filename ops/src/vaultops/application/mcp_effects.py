@@ -13,7 +13,7 @@ from ..adapters.artifacts import create_artifact
 from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
-from ..note_engine import parse_frontmatter
+from ..note_engine import parse_source_document
 from ..template_engine import render_note_template
 
 _PLAN_FIELDS = {
@@ -64,16 +64,16 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
     source_raw = read_regular(resolve_beneath(app.roots.vault, source_path))
     if source_raw is None:
         raise AdmissionError("RESOURCE_UNAVAILABLE", "Selected source is unavailable")
-    note = parse_frontmatter(source_raw.decode("utf-8"))
+    note = parse_source_document(source_raw.decode("utf-8"))
     payload = _payload(action, arguments)
     if action == "proposal_link_suggestions":
         for candidate in payload["candidate_references"]:
             candidate_path = app.resolve_reference(dict(candidate))
             app._mcp_source_policy(candidate_path)
-    if action == "proposal_adaptation":
-        from .read_tools import KnowledgeReadTools
+    if action in {"proposal_adaptation", "proposal_recovery_plan"}:
+        from .boundary_contract import validate_boundary_plan
 
-        KnowledgeReadTools(app).gateway_evidence_read(payload["gateway_receipt_id"])
+        validate_boundary_plan(app, action, source, payload)
     if action == "proposal_alignment":
         from .read_tools import KnowledgeReadTools
 
@@ -94,7 +94,7 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
     suffix = hashlib.sha256(canonical(effect_key)).hexdigest()[:24]
     effect_id = "mcp." + suffix
     proposal_path = f"01_AI_Review/Pending/MCP {action} {suffix}.md"
-    created = str(note.properties["created"])
+    created = stamp(app.clock())
     body = ("# " + action + "\n\n"
             "This is a noncanonical owner proposal or Work artifact.\n\n"
             "## Exact source\n\n`" + source_path + "` — `" + source["content_digest"] + "`\n\n"
@@ -114,6 +114,8 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         app.guard("propose")
         if session is not None:
             session.authorize(action, arguments)
+        elif action in {"proposal_adaptation", "proposal_recovery_plan"}:
+            validate_boundary_plan(app, action, source, payload)
         if app.reference(source_path) != source:
             raise AdmissionError("RESOURCE_STALE", "Source changed before owner intent")
         prior = writer.value["intents"].get(effect_id)
@@ -122,7 +124,7 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
                 raise AdmissionError("IDEMPOTENCY_CONFLICT", "Effect identity belongs to other content")
             if prior["state"] != "completed":
                 raise AdmissionError("OUTCOME_UNKNOWN", "Owner must reconcile the existing effect")
-            if read_regular(resolve_beneath(app.roots.vault, proposal_path)) != artifact:
+            if read_regular(resolve_beneath(app.roots.vault, proposal_path)) != base64.b64decode(prior["frozen_artifact"]):
                 raise AdmissionError("ARTIFACT_CONFLICT", "Pending bytes differ from owner receipt")
             return {"status": "NO_OP", "data": {"effect_id": effect_id,
                     "artifact_reference": app.reference(proposal_path, proposal=True),
@@ -147,6 +149,17 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         intent["state"] = "unknown"
         writer.commit(now)
         writer.fence()
+        if session is not None:
+            if action == "proposal_recovery_plan":
+                # Exact diagnosis was checked under this writer before intent.
+                # Recheck live authority without counting this prepared plan as
+                # an additional preexisting unresolved recovery target.
+                if action not in session.tools():
+                    raise AdmissionError("SCOPE_DENIED", "Pending dispatch lost its current Profile grant")
+            else:
+                session.authorize(action, arguments)
+        if app.reference(source_path) != source:
+            raise AdmissionError("RESOURCE_STALE", "Source changed before artifact creation")
         created_artifact = create_artifact(app.roots.vault, proposal_path, artifact)
         writer.fence()
         if app.reference(source_path) != source:
@@ -155,7 +168,7 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         writer.value["receipts"][effect_id] = {"recorded_at": stamp(now),
             "execution": app._receipt(intent, now, "succeeded", digest(artifact))}
         artifact_reference = app.reference(proposal_path, proposal=True)
-        if action == "artifact_submit" and session is not None:
+        if session is not None and getattr(session, "graph_run_id", None) is not None:
             work_record = writer.value["intents"].get("exops.work." + session.work_run_id)
             if not isinstance(work_record, dict):
                 raise AdmissionError("STALE_REVISION", "Work disappeared before artifact receipt")
@@ -175,6 +188,6 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         writer.commit(now)
         return {"status": "PASS", "data": {"effect_id": effect_id,
                 "artifact_reference": artifact_reference,
-                "work_artifact_reference": formal_reference if action == "artifact_submit" and session is not None else None,
+                "work_artifact_reference": formal_reference if session is not None and getattr(session, "graph_run_id", None) is not None else None,
                 "apply_allowed": False, "created": created_artifact},
                 "execution_outcome": "completed", "acceptance_state": "not_evaluated"}, 0

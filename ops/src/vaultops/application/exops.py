@@ -8,17 +8,33 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
+from uuid import uuid4
 
 from ..adapters.core import AdmissionError, canonical, digest, load_json
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
 from .knowledge import KnowledgeApplication
 from .team_catalog import OfficerBinding, TeamBinding, TeamCatalog
-from .work import PROFILE_KEYS, WorkContracts, record_digest
+from .temporal_contract import (
+    CONTINUATION_METHOD_ID,
+    CONTINUATION_WORKFLOW_TYPE,
+    CONTROL_WORKFLOW_TYPE,
+    RESEARCH_METHOD_ID,
+    RESEARCH_WORKFLOW_TYPE,
+    TEAM_WORKFLOW_TYPE,
+    WORKFLOW_TYPE,
+    native_team_route,
+)
+from .work import PROFILE_KEYS, WorkContracts, gap_signature, record_digest
 from .work_methods import WorkMethodCatalog
+
+_dispatch_claim: ContextVar[tuple[Any, str, str, int] | None] = ContextVar(
+    "knowledgeos_dispatch_claim", default=None)
 
 
 class ScopedTemporalClient(Protocol):
@@ -40,6 +56,35 @@ def _key(work_run_id: str) -> str:
 def _require(condition: bool, code: str, message: str) -> None:
     if not condition:
         raise AdmissionError(code, message)
+
+
+def work_workflow_type(record: Mapping[str, Any]) -> str:
+    """Select the native route already bound into the owner admission."""
+    spec = record["spec"]
+    continuation = spec.get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID
+    if record.get("control_checkpoint") is True or continuation:
+        _require(spec["target_kind"] == "team" and continuation,
+                 "BINDING_INVALID", "Temporal Workflow type differs from the admitted Work method")
+        return CONTROL_WORKFLOW_TYPE if record.get("control_checkpoint") is True else CONTINUATION_WORKFLOW_TYPE
+    if spec["target_kind"] == "officer":
+        return WORKFLOW_TYPE
+    method_id = spec.get("method_contract_ref", {}).get("method_id")
+    native_route = native_team_route(spec)
+    if native_route is not None:
+        _require(spec.get("team_id") == native_route[0] and not record.get("control_checkpoint"),
+                 "BINDING_INVALID", "Native method requires its exact selected Team")
+        return native_route[1]
+    if method_id == "knowledgeos.capture_steering_team":
+        _require(spec.get("team_id") == "knowledge-curation",
+                 "BINDING_INVALID", "Steering method requires its exact Curation Team")
+        return "KnowledgeOSCurationSteeringWorkflow"
+    if method_id == RESEARCH_METHOD_ID:
+        _require(spec.get("team_id") == "evidence-research" and not record.get("control_checkpoint"),
+                 "BINDING_INVALID", "Research method requires its exact Team")
+        return RESEARCH_WORKFLOW_TYPE
+    _require(spec.get("team_id") != "evidence-research",
+             "BINDING_INVALID", "Research Team cannot run another method")
+    return TEAM_WORKFLOW_TYPE
 
 
 class KnowledgeExOps:
@@ -161,9 +206,25 @@ class KnowledgeExOps:
                      and self.director_admitted(spec),
                      "SCOPE_DENIED", "Only the bound Manager may propose this admitted Team Graph")
             self._team_binding(spec, run)
+            if spec.get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID:
+                self._guard(OwnerActor(record["actor_id"], record["actor_ingress"]), "submit_work")
             methods = WorkMethodCatalog.load(self.application.roots.control)
+            lineage = {}
+            if run["graph_run_ids"]:
+                if record.get("control_checkpoint") is True:
+                    controller = getattr(self, "curation_control", None)
+                    _require(controller is not None, "SCOPE_DENIED",
+                             "Controlled Work has no owner release authority")
+                    controller._authorize_successor(session.value, record)
+                predecessor = record.get("admitted_method_segments", {}).get(run["graph_run_ids"][-1])
+                _require(predecessor is not None
+                         and record.get("continuation_state") == "allowed",
+                         "SCOPE_DENIED", "Successor lacks an owner-admitted continuation")
+                lineage = {"predecessor": predecessor["segment"],
+                           "trigger": record.get("remaining_work"),
+                           "assessment": record.get("assessment")}
             methods.validate_segment(spec=spec, run=run, bundle=bundle,
-                                     contracts=self.contracts, artifacts=artifacts)
+                                     contracts=self.contracts, artifacts=artifacts, **lineage)
             self.catalog.validate_assignments(
                 bundle["assignments"], self.teams[spec["team_id"]], spec)
             segment = bundle["segment"]
@@ -275,7 +336,8 @@ class KnowledgeExOps:
                     actor: OwnerActor, action_id: str, expires_at: datetime,
                     method_source_reference: Mapping[str, Any] | None = None,
                     officer_source_reference: Mapping[str, Any] | None = None,
-                    selected_scope: Mapping[str, str] | None = None) -> dict[str, Any]:
+                    selected_scope: Mapping[str, str] | None = None,
+                    control_checkpoint: bool = False) -> dict[str, Any]:
         """Persist one exact Director-admitted initial run before acknowledging it."""
         self._guard(actor, "submit_work")
         _require(1 <= len(action_id) <= 96 and action_id.isascii()
@@ -288,6 +350,10 @@ class KnowledgeExOps:
         self.contracts.spec(spec)
         self.contracts.run(run, spec)
         self._team_binding(spec, run)
+        _require(type(control_checkpoint) is bool
+                 and (not control_checkpoint
+                      or spec.get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID),
+                 "SCOPE_DENIED", "A control checkpoint requires the exact continuation method")
         if "method_contract_ref" in spec:
             _require(isinstance(method_source_reference, Mapping), "SCOPE_DENIED",
                      "Method work needs an exact Director-admitted source")
@@ -332,6 +398,8 @@ class KnowledgeExOps:
             body["officer_source_reference"] = dict(officer_source_reference)
         if selected_scope is not None:
             body["selected_scope"] = dict(selected_scope)
+        if control_checkpoint:
+            body["control_checkpoint"] = True
         content_digest = digest(canonical(body))
         execution_intent = {
             "owner_operation_id": "knowledgeos", "effect_id": action_id,
@@ -368,10 +436,11 @@ class KnowledgeExOps:
                 if officer_source_reference is not None else None,
                 "selected_scope": copy.deepcopy(dict(selected_scope))
                 if selected_scope is not None else None,
-                "actor_id": actor.actor_id, "action_id": action_id,
+                "actor_id": actor.actor_id, "actor_ingress": actor.ingress, "action_id": action_id,
                 "expires_at": stamp(expires_at), "receipt": receipt,
                 "execution_intent": execution_intent,
                 "dispatch_state": "pending", "application_state": "not_started",
+                **({"control_checkpoint": True} if control_checkpoint else {}),
             }
             session.value["history"].append({"event": "exops_work_admitted",
                                               "work_run_id": run["work_run_id"],
@@ -383,11 +452,17 @@ class KnowledgeExOps:
         self._guard(actor, "read_work")
         record = self.application.journal.read()["intents"].get(_key(work_run_id))
         _require(record is not None, "NOT_FOUND", "WorkRun is unavailable")
-        return {"spec": copy.deepcopy(record["spec"]), "run": copy.deepcopy(record["run"]),
-                "receipt": copy.deepcopy(record["receipt"]),
-                "dispatch_state": record["dispatch_state"],
-                "application_state": record["application_state"],
-                "observed_at": self.application.journal.read()["observed_at"]}
+        result = {"spec": copy.deepcopy(record["spec"]), "run": copy.deepcopy(record["run"]),
+                  "receipt": copy.deepcopy(record["receipt"]),
+                  "dispatch_state": record["dispatch_state"],
+                  "application_state": record["application_state"],
+                  "observed_at": self.application.journal.read()["observed_at"]}
+        if "continuation_state" in record:
+            result["continuation_state"] = record["continuation_state"]
+            remaining = record["remaining_work"]
+            if remaining["assessment_digest"] == record["run"].get("latest_assessment_digest"):
+                result["remaining_work"] = copy.deepcopy(remaining)
+        return result
 
     def read_template_request(self, request_id: str, *, actor: OwnerActor,
                               template_id: str, scope: Mapping[str, str]) -> dict[str, Any] | None:
@@ -527,6 +602,7 @@ class KnowledgeExOps:
                     "spec": copy.deepcopy(dict(spec)), "run": copy.deepcopy(dict(run)),
                     "method_source_reference": copy.deepcopy(dict(source)),
                     "officer_source_reference": None, "actor_id": actor.actor_id,
+                    "actor_ingress": actor.ingress,
                     "action_id": action_id, "expires_at": stamp(expires_at), "receipt": receipt,
                     "execution_intent": intent, "dispatch_state": "pending",
                     "application_state": "not_started", "template_id": template_id,
@@ -546,17 +622,46 @@ class KnowledgeExOps:
             return self._template_receipt(session.value["intents"],
                                           session.value["intents"][group_key], replayed=False)
 
+    @contextmanager
+    def claim_dispatch(self, work_run_id: str):
+        """Fence a single send durably before transport; reconstruction never resends."""
+        with self.application.journal.writer() as session:
+            current = session.value["intents"].get(_key(work_run_id))
+            _require(current is not None, "NOT_FOUND", "No admitted dispatch exists")
+            record = self.authorize_dispatch(
+                work_run_id=work_run_id, action_id=current["action_id"],
+                content_digest=current["content_digest"])
+            _require(current == record and current["dispatch_state"] == "pending",
+                     "STALE_REVISION", "Another supervisor claimed this dispatch")
+            nonce = uuid4().hex
+            current["dispatch_claim"] = {"nonce": nonce, "generation": session.value["generation"]}
+            current["dispatch_state"] = current["receipt"]["dispatch_state"] = "unknown"
+            current["state"] = "unknown"
+            session.commit(self.application.clock())
+            generation = session.value["generation"]
+        token = _dispatch_claim.set((self, work_run_id, nonce, generation))
+        try:
+            yield record
+        finally:
+            _dispatch_claim.reset(token)
+
     def authorize_dispatch(self, *, work_run_id: str, action_id: str,
                            content_digest: str) -> dict[str, Any]:
         """Current owner callback for the host Temporal client."""
         self._current_binding()
         record = self.application.journal.read()["intents"].get(_key(work_run_id))
+        claim = _dispatch_claim.get()
+        marker = record.get("dispatch_claim", {}) if record else {}
+        owned = (claim is not None and claim == (
+            self, work_run_id, marker.get("nonce"), marker.get("generation"))
+            and self.application.journal.read()["generation"] == marker.get("generation"))
         _require(record is not None and record["action_id"] == action_id
                  and record["content_digest"] == content_digest
-                 and record["dispatch_state"] == "pending"
+                 and (record["dispatch_state"] == "pending"
+                      or record["dispatch_state"] == "unknown" and owned)
                  and self.application.clock() < datetime.fromisoformat(record["expires_at"])
                  and self.director_admitted(record["spec"]),
-                 "DISPATCH_DENIED", "No current owner-authorized pending dispatch")
+                 "DISPATCH_DENIED", "No current owner-authorized pending or single claimed dispatch")
         self.contracts.spec(record["spec"])
         self.contracts.run(record["run"], record["spec"])
         self._team_binding(record["spec"], record["run"])
@@ -597,7 +702,7 @@ class KnowledgeExOps:
             _require(observation.workflow_id == f"knowledgeos/{work_run_id}"
                      and isinstance(observation.run_id, str) and bool(observation.run_id)
                      and observation.namespace == "knowledgeos"
-                     and observation.workflow_type == "knowledgeos.work.v1"
+                     and observation.workflow_type == work_workflow_type(record)
                      and observation.task_queue == "knowledgeos.work.v1"
                      and observation.payload == expected,
                      "PIN_MISMATCH", "Observed Workflow start differs from owner intent")
@@ -688,6 +793,113 @@ class KnowledgeExOps:
             session.commit(now)
             return copy.deepcopy(current)
 
+    def record_remaining_work(
+        self, work_run_id: str, *, worker_identity: str, action_id: str,
+        next_run: Mapping[str, Any], assessment: Mapping[str, Any],
+        remaining: Mapping[str, Any], segments, evaluations, artifacts, checkpoints,
+        candidate_assessor_id: str,
+    ) -> dict[str, Any]:
+        """Atomically close an assessed segment and admit its exact continuation gap."""
+        _require(worker_identity == self.worker_identity, "UNAUTHENTICATED",
+                 "Only the bound Operation Worker may record RemainingWork")
+        self._current_binding()
+        with self.application.journal.writer() as session:
+            record = session.value["intents"].get(_key(work_run_id))
+            _require(record is not None and record["action_id"] == action_id
+                     and record["application_state"] == "started",
+                     "STALE_REVISION", "RemainingWork has no active owner attempt")
+            spec, run = record["spec"], record["run"]
+            _require(spec.get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID,
+                     "SCOPE_DENIED", "RemainingWork requires the selected continuation method")
+            self._guard(OwnerActor(record["actor_id"], record["actor_ingress"]), "submit_work")
+            self._team_binding(spec, run)
+            _require(self.director_admitted(spec)
+                     and self.director_method_source_admitted is not None
+                     and self.director_method_source_admitted(spec, record["method_source_reference"]),
+                     "ADMISSION_REQUIRED", "Continuation source or Director admission changed")
+            source = record["method_source_reference"]
+            self.application.resolve_reference(dict(source))
+            admitted = record.get("admitted_method_segments", {})
+            _require(run.get("active_graph_run_id") in admitted
+                     and not run["pending_action_ids"] and not run["unresolved_effect_ids"]
+                     and {item["graph_run_id"] for item in segments} == set(admitted)
+                     and all(dict(item) == admitted[item["graph_run_id"]]["segment"]
+                             for item in segments),
+                     "SCOPE_DENIED", "RemainingWork must close the exact effect-safe lineage")
+            self.contracts.assessment(
+                assessment, spec, run, segments=segments, evaluations=evaluations,
+                artifacts=artifacts, checkpoints=checkpoints,
+                candidate_assessor_id=candidate_assessor_id)
+            _require(assessment["completion_state"] != "complete",
+                     "SCOPE_DENIED", "Complete work has no continuation gap")
+            signature = gap_signature(remaining)
+            expected = {
+                **copy.deepcopy(run), "revision": run["revision"] + 1,
+                "control_revision": run["control_revision"] + 1, "state": "running",
+                "latest_assessment_id": assessment["assessment_id"],
+                "latest_assessment_digest": record_digest(assessment),
+                "last_gap_signature": signature,
+                "repeated_gap_count": run["repeated_gap_count"] + 1
+                    if run.get("last_gap_signature") == signature else 1,
+            }
+            expected.pop("active_graph_run_id")
+            self.contracts.remaining(remaining, assessment, spec, expected)
+            state = self.contracts.continuation(remaining, spec, expected, assessment=assessment)
+            method = WorkMethodCatalog.load(self.application.roots.control).admitted_method(
+                spec, self.contracts)
+            groups = method.get("segment_stages")
+            if groups is not None and (
+                run["segments_started"] >= len(groups)
+                or run["profile_invocations"] + len(groups[run["segments_started"]])
+                    > spec["continuation_policy"]["max_profile_invocations"]
+            ):
+                state = "human_required"
+            if state == "human_required":
+                expected["state"] = "awaiting_human"
+            _require(next_run.get("state") in {"running", expected["state"]}
+                     and {**dict(next_run), "state": expected["state"]} == expected,
+                     "STALE_REVISION", "RemainingWork changed counters, control or lineage")
+            self.contracts.run(expected, spec, previous=run)
+            retained = {
+                "assessment": copy.deepcopy(dict(assessment)),
+                "remaining_work": copy.deepcopy(dict(remaining)),
+                "evaluations": copy.deepcopy(list(evaluations)),
+                "checkpoints": copy.deepcopy(dict(checkpoints)),
+                "assessment_artifacts": copy.deepcopy(dict(artifacts)),
+            }
+            _require("curation_initial_assessment" not in record,
+                     "IDEMPOTENCY_CONFLICT", "Initial continuation assessment is immutable")
+            record.update(retained)
+            record["curation_initial_assessment"] = {
+                **copy.deepcopy(retained), "run": copy.deepcopy(expected),
+                "segments": copy.deepcopy(list(segments)),
+            }
+            record["run"] = expected
+            record["continuation_state"] = state
+            if state == "human_required":
+                record["application_state"] = record["state"] = "recorded"
+                record["receipt"]["application_state"] = "recorded"
+                intent = record["execution_intent"]
+                receipt = {
+                    **{key: intent[key] for key in (
+                        "owner_operation_id", "effect_id", "content_digest", "generation",
+                        "fencing_token", "work_run_id")},
+                    "outcome": "succeeded", "observed_at": stamp(self.application.clock()),
+                    "result_digest": record_digest(expected),
+                }
+                self.contracts.record("ExecutionReceipt", receipt)
+                session.value["receipts"]["exops.work." + action_id] = {
+                    "recorded_at": stamp(self.application.clock()), "unresolved": False,
+                    "receipt": receipt,
+                }
+            session.value["history"].append({
+                "event": "exops_remaining_work_admitted", "work_run_id": work_run_id,
+                "continuation_state": state, "sequence": session.value["revision"] + 1,
+            })
+            session.commit(self.application.clock())
+            return {"continuation_state": state, "receipt": copy.deepcopy(record["receipt"])}
+
+
     def worker_finished(self, work_run_id: str, *, worker_identity: str,
                         action_id: str, next_run: Mapping[str, Any],
                         assessment: Mapping[str, Any] | None = None,
@@ -695,13 +907,23 @@ class KnowledgeExOps:
                         evaluations: tuple[Mapping[str, Any], ...] = (),
                         artifacts: Mapping[str, Mapping[str, Any]] | None = None,
                         checkpoints: Mapping[str, Mapping[str, Any]] | None = None,
-                        candidate_assessor_id: str | None = None) -> dict[str, Any]:
+                        candidate_assessor_id: str | None = None,
+                        recovery_id: str | None = None) -> dict[str, Any]:
         _require(worker_identity == self.worker_identity, "UNAUTHENTICATED",
                  "Only the bound Operation Worker can record results")
         self._current_binding()
         snapshot = self.application.journal.read()
         previous = snapshot["intents"].get(_key(work_run_id))
         if isinstance(previous, dict) and previous.get("application_state") == "recorded":
+            if recovery_id is not None:
+                recovery = snapshot["intents"].get("curation.recovery." + recovery_id)
+                _require(isinstance(recovery, dict) and recovery.get("state") == "applied"
+                         and recovery.get("actor_id") == previous.get("actor_id")
+                         and recovery.get("target", {}).get("work_run_id") == work_run_id
+                         and recovery.get("target", {}).get("action_id") == action_id
+                         and recovery.get("applied_receipt") == previous.get("receipt")
+                         and recovery.get("completed_run_digest") == record_digest(next_run),
+                         "IDEMPOTENCY_CONFLICT", "Recovery result replay differs from its owner receipt")
             prior_receipt = snapshot["receipts"].get(
                 "exops.work." + action_id, {}).get("receipt", {})
             _require(previous.get("action_id") == action_id
@@ -723,9 +945,105 @@ class KnowledgeExOps:
         now = self.application.clock()
         with self.application.journal.writer() as session:
             record = session.value["intents"].get(_key(work_run_id))
-            _require(record is not None and record["action_id"] == action_id
-                     and record["application_state"] == "started", "STALE_REVISION",
-                     "Worker result has no active owner attempt")
+            _require(record is not None and record["action_id"] == action_id,
+                     "STALE_REVISION", "Worker result target changed")
+            native_route = native_team_route(record["spec"])
+            if native_route is not None:
+                executor = getattr(self, native_route[2] + "_executor", None)
+                _require(executor is not None and executor.exops is self,
+                         "BINDING_INVALID", "Native result requires its independent owner executor")
+                current = executor.current(work_run_id)
+                _require(current == record, "STALE_REVISION", "Native Work changed before result commit")
+                fresh = executor.assess_record(record)
+                _require(dict(fresh.next_run) == dict(next_run)
+                         and fresh.artifacts == artifacts and fresh.checkpoints == checkpoints
+                         and dict(fresh.assessment) == dict(assessment)
+                         and tuple(fresh.evaluations) == tuple(evaluations)
+                         and fresh.candidate_assessor_id == candidate_assessor_id,
+                         "EVIDENCE_REQUIRED", "Native result differs from fresh independent assessment")
+            if (record["spec"].get("method_contract_ref", {}).get("method_id") == RESEARCH_METHOD_ID
+                    and any(item["criterion_id"] == "criterion.cited_report"
+                            for item in record["spec"]["acceptance_criteria"])):
+                executor = getattr(self, "research_executor", None)
+                _require(executor is not None and executor.exops is self,
+                         "BINDING_INVALID", "Research result requires its exact independent owner executor")
+                current = executor._current(work_run_id)
+                _require(current == record, "STALE_REVISION", "Research changed before result commit")
+                fresh = executor._assess(record)
+                _require(dict(fresh.next_run) == dict(next_run)
+                         and fresh.artifacts == artifacts and fresh.checkpoints == checkpoints
+                         and fresh.assessment["criterion_outcomes"] == assessment["criterion_outcomes"],
+                         "EVIDENCE_REQUIRED", "Research result differs from fresh independent assessment")
+            if record["spec"].get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID:
+                if record.get("control_checkpoint") is True:
+                    controller = getattr(self, "curation_control", None)
+                    _require(controller is not None, "SCOPE_DENIED",
+                             "Controlled result has no owner release authority")
+                    controller._authorize_successor(session.value, record)
+                self._guard(OwnerActor(record["actor_id"], record["actor_ingress"]), "submit_work")
+                self._team_binding(record["spec"], record["run"])
+                _require(self.director_admitted(record["spec"])
+                         and self.director_method_source_admitted is not None
+                         and self.director_method_source_admitted(
+                             record["spec"], record["method_source_reference"]),
+                         "ADMISSION_REQUIRED", "Continuation authority changed before result commit")
+                _require(all(next_run.get(key) == record["run"].get(key) for key in (
+                    "graph_run_ids", "segments_started", "profile_invocations",
+                    "generation", "fencing_token", "binding_reference")),
+                    "STALE_REVISION", "Result cannot replace consumed continuation budget or lineage")
+            recovery = None
+            if recovery_id is not None:
+                recovery = session.value["intents"].get("curation.recovery." + recovery_id)
+                target = recovery.get("target") if isinstance(recovery, dict) else None
+                expected_target = {
+                    "owner_operation_id": "knowledgeos", "work_run_id": work_run_id,
+                    "action_id": action_id, "content_digest": record["content_digest"],
+                    "work_spec_digest": record["spec"]["spec_digest"],
+                    "run_revision": record["run"]["revision"],
+                    "generation": record["run"]["generation"],
+                    "fencing_token": record["run"]["fencing_token"],
+                }
+                _require(record["application_state"] == "unknown"
+                         and record["spec"]["target_kind"] == "team"
+                         and record["spec"].get("method_contract_ref", {}).get("method_id")
+                             == "knowledgeos.capture_normalization_team"
+                         and next_run["state"] == "completed"
+                         and isinstance(recovery, dict) and recovery.get("state") == "applying"
+                         and recovery.get("actor_id") == record.get("actor_id")
+                         and recovery.get("work_record_digest") == record_digest(record)
+                         and isinstance(target, dict)
+                         and all(target.get(key) == value for key, value in expected_target.items()),
+                         "STALE_REVISION", "Unknown Worker result lacks an exact admitted recovery")
+                self._guard(OwnerActor(recovery["actor_id"], recovery["actor_ingress"]), "recover_work")
+                evidence = recovery.get("evidence", {})
+                effect = evidence.get("effect")
+                _require(isinstance(effect, dict), "STALE_REVISION",
+                         "Recovery lacks its exact committed effect evidence")
+                effect_id = effect.get("effect_id")
+                human_id = effect.get("human_request_id")
+                matching = [item for item in session.value["intents"].values()
+                            if isinstance(item, dict) and item.get("effect_id") == effect_id]
+                human = session.value["human_requests"].get(human_id, {})
+                _require(len(matching) == 1 and matching[0] == effect
+                         and session.value["receipts"].get(effect_id) == evidence.get("effect_receipt")
+                         and human == evidence.get("human_request")
+                         and human.get("lifecycle") == "pending"
+                         and datetime.fromisoformat(human["expires_at"]) > now
+                         and evidence.get("human_decision") is None
+                         and session.value["decisions"].get(human_id) is None,
+                         "STALE_REVISION", "Recovery effect receipt or human gate changed before commit")
+                _require(self.application.reference(effect["source_path"])
+                             == record["method_source_reference"]
+                         and record["method_source_reference"]["content_digest"]
+                             == evidence.get("source_digest")
+                         and self.application.reference(effect["artifact_path"], proposal=True)[
+                             "content_digest"] == evidence.get("proposal_digest")
+                         and next_run["result_reference"]["content_digest"]
+                             == evidence.get("proposal_digest"),
+                         "DIGEST_MISMATCH", "Recovery source or Pending bytes changed before commit")
+            else:
+                _require(record["application_state"] == "started", "STALE_REVISION",
+                         "Worker result has no active owner attempt")
             if "method_contract_ref" in record["spec"]:
                 admitted = record.get("admitted_method_segments", {})
                 _require(admitted and {item["graph_run_id"] for item in segments} == set(admitted)
@@ -810,6 +1128,10 @@ class KnowledgeExOps:
             if assessment is not None:
                 record["assessment"] = copy.deepcopy(dict(assessment))
                 record["evaluations"] = copy.deepcopy(list(evaluations))
+                record["checkpoints"] = copy.deepcopy(dict(checkpoints or {}))
+                record["assessment_artifacts"] = copy.deepcopy(dict(artifacts or {}))
+            if "continuation_state" in record:
+                record["continuation_state"] = "completed" if next_run["state"] == "completed" else "human_required"
             record["application_state"] = "recorded"
             record["receipt"]["application_state"] = "recorded"
             record["state"] = "recorded"
@@ -826,6 +1148,16 @@ class KnowledgeExOps:
                 "recorded_at": stamp(now), "unresolved": False,
                 "receipt": execution_receipt,
             }
+            if recovery is not None:
+                recovery.update(
+                    state="applied", applied_at=stamp(now),
+                    applied_receipt=copy.deepcopy(record["receipt"]),
+                    completed_run_digest=record_digest(next_run),
+                )
+                session.value["history"].append({
+                    "event": "curation_recovery_applied", "work_run_id": work_run_id,
+                    "recovery_id": recovery_id, "sequence": session.value["revision"] + 1,
+                })
             session.commit(now)
             receipt = copy.deepcopy(record["receipt"])
             metadata_request_id = (record.get("template_request_id")

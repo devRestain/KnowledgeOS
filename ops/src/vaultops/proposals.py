@@ -27,7 +27,7 @@ from .note_engine import (
     NoteContractError,
     NoteEngine,
     UnsafePathError,
-    parse_frontmatter,
+    parse_source_document,
     render_frontmatter,
     resolve_vault_relative_path,
     write_note_file,
@@ -356,11 +356,9 @@ def _target_type_index(vault: Path, engine: NoteEngine) -> dict[str, str]:
             continue
         relative = path.relative_to(vault).as_posix()
         try:
-            note_type = engine.note_type_for_path(relative)
-            document = parse_frontmatter(path.read_text(encoding="utf-8"))
+            document = parse_source_document(path.read_text(encoding="utf-8"))
+            note_type = document.properties.get("type") or engine.note_type_for_path(relative) or "knowledge"
         except (OSError, UnicodeError, FrontmatterError, UnsafePathError):
-            continue
-        if note_type is None:
             continue
         aliases = document.properties.get("aliases", [])
         values = {
@@ -391,8 +389,6 @@ def _parse_sources(workspace: ResolvedPaths, document: ProposalDocument) -> tupl
         )
     vault = _vault(workspace)
     result: list[dict[str, str]] = []
-    engine = NoteEngine.from_root(workspace)
-    target_types = _target_type_index(vault, engine)
     for item in values:
         if not isinstance(item, str):
             return _problem("proposal", "PROPOSAL_SOURCE_BINDING_INVALID", "source hash binding must be text")
@@ -411,10 +407,10 @@ def _parse_sources(workspace: ResolvedPaths, document: ProposalDocument) -> tupl
                     "source digest does not match proposal binding",
                     details={"path": normalized},
                 )
-            typed = engine.typed_note(normalized, raw.decode("utf-8"), target_types=target_types)
+            source_document = parse_source_document(raw.decode("utf-8"))
         except (OSError, UnicodeError, UnsafePathError, NoteContractError, ValueError) as error:
             return _problem("proposal", "PROPOSAL_SOURCE_INVALID", str(error))
-        if typed.properties.get("sensitivity") == "confidential" or typed.properties.get("ai_policy") == "deny":
+        if source_document.properties.get("sensitivity") == "confidential" or source_document.properties.get("ai_policy") == "deny":
             return _problem(
                 "proposal",
                 "PROPOSAL_PRIVACY_DENIED",
@@ -453,13 +449,14 @@ def _plan(workspace: ResolvedPaths, document: ProposalDocument) -> tuple[Mutatio
     try:
         engine = NoteEngine.from_root(workspace)
         target_types = _target_type_index(_vault(workspace), engine)
-        target_types.update(
-            {
+        if action == "create_note":
+            target_types.update({
                 target_path.removesuffix(".md"): engine.note_type_for_path(target_path) or "",
                 Path(target_path).stem: engine.note_type_for_path(target_path) or "",
-            }
-        )
-        NoteEngine.from_root(workspace).typed_note(target_path, markdown, target_types=target_types)
+            })
+            engine.typed_note(target_path, markdown, target_types=target_types)
+        else:
+            parse_source_document(markdown)
     except (NoteContractError, ValueError, UnicodeError) as error:
         return _problem("proposal", "PROPOSAL_TARGET_NOTE_INVALID", str(error))
     current_exists = target.exists() or target.is_symlink()
@@ -481,6 +478,19 @@ def _plan(workspace: ResolvedPaths, document: ProposalDocument) -> tuple[Mutatio
             return _problem("proposal", "PROPOSAL_TARGET_MISSING", "update target does not exist")
         if expected_target != current_hash:
             return _problem("proposal", "PROPOSAL_TARGET_DRIFT", "update target digest does not match proposal binding")
+        try:
+            before = parse_source_document(target.read_text(encoding="utf-8"))
+            after = parse_source_document(markdown)
+            known = {*engine.blueprint["property_registry"], *engine.blueprint["common_properties"]["required"]}
+            changed = [field for field in after.properties
+                       if field in known and before.properties.get(field) != after.properties[field]]
+            validation = engine.validate_property_changes(
+                after.properties, changed, target_path, target_types=target_types)
+            if not validation.passed:
+                return _problem("proposal", "PROPOSAL_TARGET_NOTE_INVALID",
+                                "Proposed fields violate their property or relation contracts")
+        except (NoteContractError, ValueError, UnicodeError) as error:
+            return _problem("proposal", "PROPOSAL_TARGET_NOTE_INVALID", str(error))
     return MutationPlan(
         action=action,
         target_path=target_path,

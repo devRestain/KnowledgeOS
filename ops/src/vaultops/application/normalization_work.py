@@ -14,7 +14,7 @@ from typing import Any
 from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
-from ..note_engine import parse_frontmatter
+from ..projection import source_properties
 from .exops import KnowledgeExOps
 from .knowledge import KnowledgeApplication
 from .read_tools import KnowledgeReadTools
@@ -218,7 +218,7 @@ def _model_request(exops: KnowledgeExOps, work_run_id: str, runner_binding) -> d
     app._mcp_source_policy(source_path)
     raw = read_regular(resolve_beneath(app.roots.vault, source_path))
     _require(raw is not None, "Model source is unavailable")
-    properties = parse_frontmatter(raw.decode("utf-8")).properties
+    properties = source_properties(source_path, raw)
     _require(properties.get("ai_policy") not in {"local_only", "deny"}
              and properties.get("sensitivity") != "confidential",
              "External model runner cannot receive a local-only or private source")

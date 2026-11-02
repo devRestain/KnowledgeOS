@@ -7,10 +7,10 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from ..adapters.core import AdmissionError
+from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular
 from ..adapters.paths import resolve_beneath
-from ..base_dashboard import evaluate_base_view
+from ..base_dashboard import FrozenNote, evaluate_base_view
 from ..blueprint import load_yaml_file
 from ..projection import load_current_projection
 from ..retrieval import _chunks_for_note, _filter_notes
@@ -121,7 +121,14 @@ class KnowledgeReadTools:
         declared = set(load_yaml_file(self.application.roots.control / "blueprint/blueprint.yaml")["property_registry"])
         if len(requested) > 4 or any(not isinstance(key, str) or key not in declared for key in requested):
             raise AdmissionError("INVALID_ARGUMENT", "Base filter is outside the declared property subset")
-        rows = evaluate_base_view(self.application.roots, base, view)
+        records = (
+            FrozenNote(path, {
+                **note["properties"], **{key: note[key] for key in
+                    ("id", "type", "title", "status", "created", "modified")},
+            }, resolve_beneath(self.application.roots.vault, path).stat().st_mtime)
+            for path, note in notes.items()
+        )
+        rows = evaluate_base_view(self.application.roots, base, view, records=records)
         selected = []
         for row in rows:
             path = row["path"]
@@ -239,17 +246,47 @@ class KnowledgeReadTools:
 
     def gateway_evidence_read(self, receipt_id: str) -> dict[str, Any]:
         self.application.guard("inspect")
-        for record in self.application.journal.read()["gateway"].values():
-            if record["receipt"]["receipt_id"] == receipt_id:
-                return {"receipt": record["receipt"], "envelope": record["envelope"],
-                        "payload_digest": record["payload_digest"]}
+        from .gateway import GatewayIdentity, KnowledgeGateway
+
+        app = self.application
+        for record in app.journal.read()["gateway"].values():
+            if record["receipt"]["receipt_id"] != receipt_id:
+                continue
+            caller = record.get("caller")
+            payload = record.get("payload")
+            if not isinstance(caller, dict) or set(caller) != {
+                    "operation_id", "principal_id", "allowed_actions"} or not isinstance(payload, dict):
+                raise AdmissionError("UNAVAILABLE", "Gateway evidence lacks retained authenticated provenance")
+            envelope = record["envelope"]
+            KnowledgeGateway(app).validate(envelope, payload, GatewayIdentity(
+                caller["operation_id"], caller["principal_id"], tuple(caller["allowed_actions"])),
+                app.clock())
+            fingerprint = digest(canonical({"envelope": envelope, "payload": payload}))
+            receipt = record["receipt"]
+            if (record["content_digest"] != fingerprint
+                    or receipt["content_digest"] != fingerprint
+                    or receipt["receipt_id"] != "admission." + fingerprint[7:39]
+                    or receipt["request_id"] != envelope["request_id"]
+                    or receipt["owner_operation_id"] != "knowledgeos"
+                    or receipt["admission_state"] != "admitted"
+                    or record["payload_digest"] != envelope["payload_digest"]):
+                raise AdmissionError("RESOURCE_STALE", "Gateway evidence differs from its exact owner admission")
+            return {"receipt": receipt, "envelope": envelope, "payload": payload,
+                    "payload_digest": record["payload_digest"], "authenticated_sender": caller}
         raise AdmissionError("NOT_FOUND", "Gateway admission receipt is unavailable")
 
     def vault_diagnose(self, reference: Mapping[str, Any]) -> dict[str, Any]:
         selected_path = self.application.resolve_reference(dict(reference))
         _, notes = self._eligible(selected_path=selected_path)
         note = self._note(reference, notes)
+        journal = self.application.journal.read()
+        unresolved = sorted(key for key, intent in journal["intents"].items()
+                            if intent.get("state") in {"pending", "unknown", "dispatching"}
+                            and intent.get("source_path") == selected_path)
         return {"resource_reference": dict(reference), "note_id": note["id"],
                 "type": note["type"], "status": note["status"],
                 "link_count": len(note["wikilinks"]), "content_hash": note["content_hash"],
-                "canonical_changed": False}
+                "diagnostic_scope": "selected_note_projection_and_owner_effects",
+                "diagnosis_complete": False,
+                "unexamined": ["filesystem_integrity", "backup_recoverability", "semantic_correctness"],
+                "unresolved_effect_ids": unresolved, "canonical_changed": False}

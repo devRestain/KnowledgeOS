@@ -11,8 +11,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..adapters.core import AdmissionError
-from .exops import KnowledgeExOps, ScopedTemporalClient
-from .temporal_contract import ACTIVITY_TYPE, WORKFLOW_TYPE
+from .exops import KnowledgeExOps, ScopedTemporalClient, work_workflow_type
+from .temporal_contract import (
+    ACTIVITY_TYPE,
+    CONTINUATION_WORKFLOW_TYPE,
+    CONTROL_WORKFLOW_TYPE,
+    NATIVE_TEAM_ROUTES,
+    RESEARCH_WORKFLOW_TYPE,
+    TEAM_WORKFLOW_TYPE,
+    WORKFLOW_TYPE,
+)
 
 
 @dataclass(frozen=True)
@@ -49,7 +57,11 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
             or binding.target_host != "server:7233"
             or binding.namespace != "knowledgeos"
             or binding.task_queue != "knowledgeos.work.v1"
-            or binding.workflow_type != WORKFLOW_TYPE
+            or binding.workflow_type not in {
+                WORKFLOW_TYPE, TEAM_WORKFLOW_TYPE, CONTINUATION_WORKFLOW_TYPE,
+                CONTROL_WORKFLOW_TYPE, RESEARCH_WORKFLOW_TYPE,
+                *(route[1] for route in NATIVE_TEAM_ROUTES.values()),
+            }
             or binding.workflow_id_prefix != "knowledgeos/"
             or binding.tls is not False):
         raise AdmissionError("BINDING_INVALID", "Temporal client differs from the selected owner route")
@@ -66,6 +78,10 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
             raise BindingError("Temporal dispatch differs from the owner intent shape")
         return payload
 
+    def check_target(record: Mapping[str, Any]) -> None:
+        if work_workflow_type(record) != binding.workflow_type:
+            raise BindingError("Temporal Workflow type differs from the admitted Work method")
+
     async def authorize(dispatch: TemporalDispatch) -> None:
         payload = check_shape(dispatch)
         record = exops.authorize_dispatch(
@@ -74,6 +90,7 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
         )
         if record["spec"]["spec_digest"] != payload["work_spec_digest"]:
             raise BindingError("Temporal dispatch differs from the admitted WorkSpec")
+        check_target(record)
 
     async def authorize_observation(dispatch: TemporalDispatch) -> None:
         payload = check_shape(dispatch)
@@ -82,40 +99,35 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
             content_digest=payload["content_digest"],
             work_spec_digest=payload["work_spec_digest"],
         )
+        record = exops.application.journal.read()["intents"]["exops.work." + payload["work_run_id"]]
+        check_target(record)
 
     return await connect(binding, authorize, authorize_observation)
 
 
 async def dispatch_admitted_work(exops: KnowledgeExOps, client: ScopedTemporalClient,
                                  work_run_id: str) -> dict[str, Any]:
-    """Deliver one persisted start; ambiguous transport results stay unresolved."""
-    record = exops.application.journal.read()["intents"].get("exops.work." + work_run_id)
-    if record is None:
-        raise AdmissionError("NOT_FOUND", "No owner-admitted WorkRun exists")
-    record = exops.authorize_dispatch(work_run_id=work_run_id,
-                                      action_id=record["action_id"],
-                                      content_digest=record["content_digest"])
-    workflow_id = f"knowledgeos/{work_run_id}"
-    dispatch = WorkDispatch("knowledgeos", workflow_id, record["action_id"], {
-        "owner_operation_id": "knowledgeos", "work_run_id": work_run_id,
-        "action_id": record["action_id"], "content_digest": record["content_digest"],
-        "work_spec_digest": record["spec"]["spec_digest"],
-    })
-    try:
-        started_id = await client.start(dispatch)
-    except Exception:
-        current = exops.application.journal.read()["intents"]["exops.work." + work_run_id]
-        if current["dispatch_state"] == "accepted" and current.get("workflow_id") == workflow_id:
-            return current["receipt"].copy()
-        if current["dispatch_state"] == "pending":
-            exops.record_dispatch(work_run_id, action_id=record["action_id"], outcome="unknown")
-        raise
-    if started_id != workflow_id:
-        exops.record_dispatch(work_run_id, action_id=record["action_id"], outcome="unknown")
-        raise AdmissionError("DISPATCH_UNKNOWN", "Temporal returned another Workflow ID")
-    exops.record_dispatch(work_run_id, action_id=record["action_id"],
-                          outcome="accepted", workflow_id=workflow_id)
-    return exops.application.journal.read()["intents"]["exops.work." + work_run_id]["receipt"].copy()
+    """Claim before sending, then reconcile exact history; never resend uncertainty."""
+    with exops.claim_dispatch(work_run_id) as record:
+        workflow_id = f"knowledgeos/{work_run_id}"
+        dispatch = WorkDispatch("knowledgeos", workflow_id, record["action_id"], {
+            "owner_operation_id": "knowledgeos", "work_run_id": work_run_id,
+            "action_id": record["action_id"], "content_digest": record["content_digest"],
+            "work_spec_digest": record["spec"]["spec_digest"],
+        })
+        try:
+            started_id = await client.start(dispatch)
+        except Exception:
+            current = exops.application.journal.read()["intents"]["exops.work." + work_run_id]
+            if current["dispatch_state"] == "accepted" and current.get("workflow_id") == workflow_id:
+                return current["receipt"].copy()
+            raise
+        if started_id != workflow_id:
+            raise AdmissionError("DISPATCH_UNKNOWN", "Temporal returned another Workflow ID")
+    current = exops.application.journal.read()["intents"]["exops.work." + work_run_id]
+    if current["dispatch_state"] == "accepted" and current.get("workflow_id") == workflow_id:
+        return current["receipt"].copy()
+    return await reconcile_unknown_dispatch(exops, client, work_run_id)
 
 
 async def reconcile_unknown_dispatch(exops: KnowledgeExOps, client: ScopedTemporalClient,
@@ -156,6 +168,10 @@ def worker_components(exops: KnowledgeExOps, execute_work: WorkExecutor):
         info = activity.info()
         workflow_id = info.workflow_id
         work_run_id = payload["work_run_id"]
+        record = exops.application.journal.read()["intents"].get("exops.work." + work_run_id)
+        if (record is None or record["spec"]["target_kind"] != "officer"
+                or info.workflow_type != WORKFLOW_TYPE):
+            raise AdmissionError("BINDING_INVALID", "Officer Worker received another Work target")
         run = exops.worker_started(work_run_id, worker_identity=exops.worker_identity,
                                    action_id=payload["action_id"],
                                    content_digest=payload["content_digest"],

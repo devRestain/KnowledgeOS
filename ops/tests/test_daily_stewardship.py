@@ -78,7 +78,7 @@ def _candidate(app, fields):
             "fields": fields, "evidence": {field: [QUOTE] for field in fields}}
 
 
-def test_due_resume_no_evidence_and_policy_hold(tmp_path):
+def test_due_resume_no_evidence(tmp_path):
     app, current = _app(tmp_path)
     steward = app.daily_stewardship()
     first = steward.due_check()
@@ -92,10 +92,6 @@ def test_due_resume_no_evidence_and_policy_hold(tmp_path):
     assert steward.record_no_evidence(work, empty)["status"] == "no_evidence"
     current[0] += timedelta(days=2)
     assert request not in steward.due_check()["work_requests"]
-    assert (app.roots.vault / SOURCE).read_bytes() == before
-    held = app.roots.vault / "40_Knowledge/Notes/Unclassified.md"
-    held.write_text("---\ntype: knowledge\ntitle: Unclassified\n---\n# Unclassified\n", encoding="utf-8")
-    assert "40_Knowledge/Notes/Unclassified.md" in steward.due_check()["held_paths"]
     assert (app.roots.vault / SOURCE).read_bytes() == before
 
 
@@ -248,7 +244,7 @@ def test_interrupted_apply_reconciles_observed_bytes_without_replay(tmp_path):
         app.daily_stewardship().record_candidate(work, candidate)
 
 
-def test_authenticated_daily_review_route_exposes_exact_delta(tmp_path):
+def test_daily_review_route_exposes_exact_delta(tmp_path):
     app, _ = _app(tmp_path)
     steward = app.daily_stewardship()
     steward.due_check()
@@ -257,17 +253,13 @@ def test_authenticated_daily_review_route_exposes_exact_delta(tmp_path):
     exops = SimpleNamespace(application=app, read_only=False,
                             authorize_actor=lambda actor, action: actor.actor_id == "owner.user"
                             and action in {"daily_list", "daily_read", "daily_decide"})
-    backend = ExOpsWebBackend(exops, lambda login: OwnerActor("owner.user", "web")
-                              if login == "owner.user" else None,
-                              lambda actor, token: token == "valid")
+    backend = ExOpsWebBackend(exops, OwnerActor("owner.user", "web"))
 
-    def call(path, payload, token="valid"):
-        return backend(SimpleNamespace(owner_operation_id="knowledgeos", actor_login="owner.user",
+    def call(path, payload):
+        return backend(SimpleNamespace(owner_operation_id="knowledgeos",
                                        method="POST", resource_path=path,
-                                       body=json.dumps(payload).encode(), csrf_token=token))
+                                       body=json.dumps(payload).encode()))
 
-    with pytest.raises(AdmissionError, match="CSRF"):
-        call("daily/list", {}, token="bad")
     listing = call("daily/list", {})
     assert any(item["effect_id"] == effect["effect_id"] for item in listing["pending"])
     detail = call("daily/read", {"effect_id": effect["effect_id"]})

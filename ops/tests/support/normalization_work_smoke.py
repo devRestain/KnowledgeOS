@@ -10,7 +10,6 @@ import http.client
 import importlib.metadata
 import json
 import os
-import selectors
 import shutil
 import signal
 import subprocess
@@ -22,6 +21,11 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from support.process_streams import iter_process_lines
 
 MARKER = "KNOWLEDGEOS_OFFICER_EVIDENCE="
 MODEL_REQUEST = "KNOWLEDGEOS_MODEL_REQUEST="
@@ -38,24 +42,22 @@ def owner_http(exops, run_id: str, proposal: bytes) -> dict:
     from vaultops.application.exops import OwnerActor
     from vaultops.interfaces.loopback_owner import create_loopback_owner
 
-    server, token = create_loopback_owner(exops, actor_id="owner.officer_smoke", port=0)
+    server = create_loopback_owner(exops, actor_id="owner.officer_smoke", port=0)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    def call(supplied: str, payload: dict) -> tuple[int, dict]:
+    def call(payload: dict) -> tuple[int, dict]:
         connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=10)
         try:
             connection.request("POST", "/owner/work/result", json.dumps(payload), headers={
-                "Content-Type": "application/json", "X-KnowledgeOS-CSRF": supplied})
+                "Content-Type": "application/json"})
             response = connection.getresponse()
             return response.status, json.loads(response.read())
         finally:
             connection.close()
 
     try:
-        wrong_status, denial = call("wrong-token", {"work_run_id": run_id})
-        assert wrong_status == 403 and denial["errors"][0]["code"] == "UNAUTHENTICATED"
-        injected_status, _ = call(token, {"work_run_id": run_id, "actor_id": "other"})
+        injected_status, _ = call({"work_run_id": run_id, "actor_id": "other"})
         assert injected_status == 403
         try:
             exops.read_work(run_id, actor=OwnerActor("other", "web"))
@@ -63,14 +65,14 @@ def owner_http(exops, run_id: str, proposal: bytes) -> dict:
             assert error.code == "ACTION_DENIED"
         else:
             raise AssertionError("Foreign actor read was accepted")
-        status, result = call(token, {"work_run_id": run_id})
+        status, result = call({"work_run_id": run_id})
         assert status == 200 and result["state"] == "completed", result
         assert result["assessment"]["completion_state"] == "complete"
         assert result["reason"] is None and result["truncated"] is False
         assert result["text"].encode() == proposal
         return {"route": "POST /owner/work/result", "status": status,
                 "result_digest": digest(result["text"].encode()),
-                "wrong_token_status": wrong_status, "body_actor_status": injected_status,
+                "body_actor_status": injected_status,
                 "wrong_actor_denied": True, "assessment": result["assessment"]}
     finally:
         server.shutdown()
@@ -375,28 +377,20 @@ def _model_container(compose: list[str], *, binding: dict, control: Path, contai
                                    stderr=errors, text=True, bufsize=1)
         assert process.stdout is not None and process.stdin is not None
         try:
-            with selectors.DefaultSelector() as selector:
-                selector.register(process.stdout, selectors.EVENT_READ)
-                deadline = time.monotonic() + 540
-                requests = 0
-                while True:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0 or not selector.select(timeout=remaining):
-                        raise TimeoutError("Native model WorkRun exceeded its smoke deadline")
-                    line = process.stdout.readline()
-                    if not line:
-                        break
-                    output.append(line)
-                    if line.startswith(MODEL_REQUEST):
-                        requests += 1
-                        if requests != 1:
-                            raise RuntimeError("A bounded Officer cannot request another model invocation")
-                        request = json.loads(line[len(MODEL_REQUEST):])
-                        if request["runner_binding"] != binding:
-                            raise RuntimeError("Owner request differs from the selected native model binding")
-                        response = _native_model_response(request, control=control, container=container)
-                        process.stdin.write(json.dumps(response) + "\n")
-                        process.stdin.flush()
+            deadline = time.monotonic() + 540
+            requests = 0
+            for line in iter_process_lines(process.stdout, deadline):
+                output.append(line)
+                if line.startswith(MODEL_REQUEST):
+                    requests += 1
+                    if requests != 1:
+                        raise RuntimeError("A bounded Officer cannot request another model invocation")
+                    request = json.loads(line[len(MODEL_REQUEST):])
+                    if request["runner_binding"] != binding:
+                        raise RuntimeError("Owner request differs from the selected native model binding")
+                    response = _native_model_response(request, control=control, container=container)
+                    process.stdin.write(json.dumps(response) + "\n")
+                    process.stdin.flush()
             process.wait(timeout=30)
             if process.returncode:
                 raise RuntimeError(f"Model Officer container failed ({process.returncode})")

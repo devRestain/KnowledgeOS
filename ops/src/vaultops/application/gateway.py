@@ -127,7 +127,15 @@ class KnowledgeGateway:
                 return {**previous["receipt"], "replayed": True}
             receipt = {"receipt_id": "admission." + fingerprint[7:39], "owner_operation_id": "knowledgeos", "request_id": envelope["request_id"], "content_digest": fingerprint,
                        "admission_state": "admitted", "execution_outcome": "not_started", "acceptance_state": "not_evaluated", "human_approval": "unknown", "replayed": False}
-            session.value["gateway"][key] = {"recorded_at": stamp(now), "content_digest": fingerprint, "receipt": receipt, "envelope": envelope, "payload_digest": envelope["payload_digest"], "detail_sequence": session.value["revision"] + 1}
+            session.value["gateway"][key] = {
+                "recorded_at": stamp(now), "content_digest": fingerprint,
+                "receipt": receipt, "envelope": envelope, "payload": payload,
+                "caller": {"operation_id": caller.operation_id,
+                           "principal_id": caller.principal_id,
+                           "allowed_actions": list(caller.allowed_actions)},
+                "payload_digest": envelope["payload_digest"],
+                "detail_sequence": session.value["revision"] + 1,
+            }
             session.value["history"].append({"event": "gateway_admitted", "receipt_id": receipt["receipt_id"], "sequence": session.value["revision"] + 1})
             session.commit(now)
             return receipt

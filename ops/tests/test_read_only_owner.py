@@ -1,10 +1,9 @@
-"""Read-only composition, authenticated HTTP and unchanged domain payload boundaries."""
+"""Read-only composition, local HTTP and unchanged domain payload boundaries."""
 
 from __future__ import annotations
 
 import http.client
 import json
-import secrets
 import threading
 from dataclasses import replace
 
@@ -17,7 +16,7 @@ from vaultops.application.read_tools import KnowledgeReadTools
 from vaultops.interfaces.exops_web import ExOpsWebBackend
 from vaultops.interfaces.loopback_owner import LoopbackIngress, create_loopback_owner
 from vaultops.interfaces.owner_relay import create_owner_relay
-from vaultops.interfaces.read_only_owner import compose_read_only_owner, read_session_token
+from vaultops.interfaces.read_only_owner import compose_read_only_owner
 from vaultops.projection import generate_projection
 
 SOURCE = "40_Knowledge/Notes/정보의 빈칸은 공포의 상상을 강화한다.md"
@@ -45,18 +44,18 @@ def test_read_only_owner_over_relay_preserves_sources_and_denies_all_effects(tmp
     roots = _roots(tmp_path)
     before = _snapshot(roots)
     exops = compose_read_only_owner(roots, actor_id="owner.user")
-    server, token = create_loopback_owner(exops, actor_id="owner.user", port=0)
+    server = create_loopback_owner(exops, actor_id="owner.user", port=0)
     relay = create_owner_relay(upstream_host="127.0.0.1", upstream_port=server.server_port,
                                listen_port=0)
     threads = [threading.Thread(target=item.serve_forever, daemon=True) for item in (server, relay)]
     for thread in threads:
         thread.start()
 
-    def call(route, payload, supplied=token):
+    def call(route, payload):
         connection = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=10)
         try:
             connection.request("POST", "/owner/" + route, json.dumps(payload), headers={
-                "Content-Type": "application/json", "X-KnowledgeOS-CSRF": supplied})
+                "Content-Type": "application/json"})
             response = connection.getresponse()
             return response.status, json.loads(response.read())
         finally:
@@ -64,7 +63,6 @@ def test_read_only_owner_over_relay_preserves_sources_and_denies_all_effects(tmp
 
     try:
         query = {"query": "공포", "mode": "lexical"}
-        assert call("search/query", query, "wrong")[0] == 403
         status, report = call("search/query", query)
         assert status == 200
         result = next(item for item in report["results"] if item["path"] == SOURCE)
@@ -103,19 +101,18 @@ def test_read_only_routes_deny_before_parsing_or_admission_and_bind_startup_acto
     actor = OwnerActor("owner.user", "web")
     called = []
     backend = ExOpsWebBackend(
-        exops, lambda login: actor if login == actor.actor_id else None,
-        lambda selected, token: selected == actor and token == "private",
+        exops, actor,
         admit_request=lambda *_args: called.append(True),
         admit_template=lambda *_args: called.append(True))
-    ingress = LoopbackIngress("knowledgeos", actor.actor_id, "POST", "work/submit", b"not JSON", "private")
+    ingress = LoopbackIngress("knowledgeos", "POST", "work/submit", b"not JSON")
     for route in DENIED_ROUTES:
         with pytest.raises(AdmissionError) as failure:
             backend(replace(ingress, resource_path=route))
         assert failure.value.code == "READ_ONLY"
     assert not called
-    with pytest.raises(AdmissionError) as failure:
-        backend(replace(ingress, actor_login="another.owner", resource_path="owner/status", body=b"{}"))
-    assert failure.value.code == "UNAUTHENTICATED"
+    with pytest.raises(AdmissionError):
+        ExOpsWebBackend(exops, OwnerActor("another.owner", "web"))(
+            replace(ingress, resource_path="owner/status", body=b"{}"))
     with pytest.raises(AdmissionError):
         exops._guard(OwnerActor("another.owner", "web"), "read_work")
     before = _snapshot(roots)
@@ -164,24 +161,3 @@ def test_read_only_startup_refuses_missing_roots_stale_state_and_sources(tmp_pat
     with pytest.raises(AdmissionError):
         compose_read_only_owner(roots, actor_id="owner.user")
     assert _snapshot(roots) == before
-
-
-def test_session_input_requires_private_owned_regular_file_without_symlinks(tmp_path):
-    directory = tmp_path / "session"
-    directory.mkdir(mode=0o700)
-    path = directory / "token"
-    token = secrets.token_urlsafe(32)
-    path.write_text(token + "\n")
-    path.chmod(0o600)
-    assert read_session_token(path) == token
-    path.chmod(0o644)
-    with pytest.raises(AdmissionError):
-        read_session_token(path)
-    path.chmod(0o600)
-    link = directory / "linked"
-    link.symlink_to(path)
-    with pytest.raises(ValueError):
-        read_session_token(link)
-    directory.chmod(0o755)
-    with pytest.raises(AdmissionError):
-        read_session_token(path)

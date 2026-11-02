@@ -34,5 +34,6 @@
 
 ## Apply target definitions
 
-- Remove withdrawn predeployment commands, paths, tests, and claims from maintained contracts. Keep Core 0.18.1 ownership and pending native adoption explicit.
+- Remove withdrawn predeployment commands, paths, tests, and claims from maintained contracts.
+- Distinguish Core 0.19.0 source adoption from independently pinned owner State and separately evidenced native activation.
 - Keep maintained indexes and domain authoring plans with KnowledgeOS while placing intermediate review tooling in workspace Tmp.

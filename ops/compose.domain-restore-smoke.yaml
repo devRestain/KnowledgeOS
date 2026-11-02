@@ -1,0 +1,20 @@
+# Only combined with compose.team-smoke.yaml and a unique disposable project.
+# A named volume intentionally replaces the Team pilot's volatile PostgreSQL tmpfs.
+services:
+  postgres:
+    tmpfs: !reset []
+    volumes:
+      - recovery-postgres:/var/lib/postgresql/data
+  server:
+    networks:
+      default:
+        aliases: [restored-server]
+  smoke:
+    volumes:
+      - type: bind
+        source: "${KNOWLEDGEOS_RESTORE_FIXTURE:?Select fresh disposable recovery root}"
+        target: /recovery
+        bind:
+          create_host_path: false
+volumes:
+  recovery-postgres:

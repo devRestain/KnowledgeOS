@@ -49,7 +49,8 @@
 
 ## AgentFabric target ownership
 
-- Use the exact Core 0.18.1 selection in `ops/config/core-adoption.json` and the current owner State pin for ownership. Retired predeployment contracts and tests are not current authority.
+- Use the exact Core 0.19.0 source selection in `ops/config/core-adoption.json`; retain historical contracts and evidence under their original pins.
+- Keep source adoption separate from owner State pins and require an explicit cutover before opening differently pinned State.
 - Distinguish existing durable runtime records from host-owned reconstructable Runtime in the target architecture.
 - Keep Operation canonical state, persistent control, routing policy, and effects owner-controlled.
 - Retain maintained source, tests, configuration, and authoring plans here regardless of Git dirty status.

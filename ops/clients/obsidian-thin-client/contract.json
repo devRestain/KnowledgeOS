@@ -1,38 +1,63 @@
 {
-  "schema_version": 5,
+  "schema_version": 9,
   "capability": "knowledgeos_owner_work_review",
-  "surface": "persistent_right_sidebar_item_view",
-  "commands": ["open-work-review"],
-  "scope_kinds": ["current_note_digest", "owner_corpus_search_without_active_note"],
+  "surface": "native_obsidian_sidebar_item_view",
+  "commands": ["open-work-review", "open-search", "open-note-work", "open-pending", "open-daily-review", "request-metadata", "request-enhancement", "open-library"],
+  "scope_kinds": ["current_note_digest", "owner_corpus_search_without_active_note", "exact_work_run_id"],
+  "presentation": {
+    "icons": "obsidian_setIcon_lucide",
+    "navigation": "five_icon_buttons_with_accessible_names_and_pressed_state",
+    "actions": "icon_only_connection_actions_and_short_labeled_domain_actions",
+    "details": "collapsed_owner_observations_methods_receipts_and_id_lookup",
+    "theme": "inherit_obsidian_variables_and_interface_font"
+  },
   "owner": {
-    "transport": "authenticated_http_loopback",
+    "transport": "trusted_local_http_loopback",
     "host": "127.0.0.1",
     "path": "/owner",
     "control_adapter": "vaultops.interfaces.exops_web",
-    "routes": ["work/intake", "work/intake-template", "work/read", "work/list", "work/result", "work/prepare-metadata", "search/query", "daily/list", "daily/read", "daily/decide", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
+    "routes": ["owner/status", "mutation/receipt", "search/query", "work/methods", "work/intake", "work/intake-template", "work/intake-selected", "work/read", "work/inspection", "work/list", "work/result", "work/prepare-metadata", "work/control/target", "work/control/pause", "work/control/resume", "work/control/cancel", "work/control/command", "work/steering/view", "work/steering/artifact", "work/steering/request", "work/steering/export", "daily/list", "daily/read", "daily/decide", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
     "endpoint_is_configurable": true,
-    "csrf_token_persistence": "none",
     "work_id_persistence": "last_selected_only",
-    "template_request_id_persistence": "view_memory_only",
+    "template_request_id_persistence": "retain_inflight_and_unknown_until_owner_records_terminal_outcome",
     "metadata_promotion": "owner_after_two_independent_worker_evaluations",
     "metadata_promotion_recovery": "explicit_owner_retry_route",
     "metadata_evidence": "exact_source_body_quotes_per_new_field_value",
-    "proposal_preview": "structured_field_value_evidence_and_canonical_diff",
+    "proposal_preview": "current_source_field_value_evidence_canonical_diff_and_decision",
     "search_default": "lexical",
-    "search_modes": ["lexical", "vector", "hybrid", "ontology"]
+    "search_modes": ["lexical", "vector", "hybrid", "ontology"],
+    "mutation_retry": "never_automatic_reconcile_unknown_outcome",
+    "action_validation": "owner_exact_target_at_action_without_client_wall_clock_lock",
+    "control_and_steering": "only_current_owner_reported_binding_and_exact_target",
+    "selected_method_parameters": "fixed_by_owner_not_client_editable"
+  },
+  "local_backend": {
+    "activation": "explicit_sidebar_click_only",
+    "helper": "~/.local/bin/knowledgeos-local",
+    "transport": "node_execFile_shell_false",
+    "arguments": ["status --json", "start --json"],
+    "endpoint_gate": "exact_status_endpoint_matches_current_settings_before_start",
+    "timeout_ms": 65000,
+    "max_output_bytes": 65536,
+    "starting_poll": "at_most_three_read_only_status_queries",
+    "runtime_observation": "unavailable",
+    "view_close": "never_stop_backend",
+    "unknown_mutation_lock": "document_scoped_plugin_lifetime_with_read_only_receipt_reconciliation"
+  },
+  "integrations": {
+    "entry_points": ["command_palette", "file_menu", "editor_menu", "note_toolbar", "ribbon"],
+    "optional_commands": ["quickadd", "notebook-navigator", "obsidian-tasks-plugin", "breadcrumbs"],
+    "native_navigation": ["core_daily_notes", "home", "bases", "dashboards", "root_note_tabs"],
+    "third_party_required_for_owner_work": false,
+    "scripts_or_private_plugin_authority": false
   },
   "effects": {
     "direct_provider_called": false,
-    "plugin_vault_mutation_performed": false,
-    "owner_canonical_apply_requires_separate_click": true,
+    "plugin_direct_canonical_write": false,
+    "native_note_editing": "existing_obsidian_and_configured_community_commands",
+    "owner_canonical_apply_requires_separate_confirmed_click": true,
     "git_effects": false,
-    "network_scope": "127.0.0.1_only"
-  },
-  "evidence_boundary": {
-    "source": "implemented",
-    "installation": "selected_mac_profile_enabled",
-    "device": "sidebar_only_observed",
-    "owner_web_listener": "not_run",
-    "hermes_runner": "not_run"
+    "network_scope": "127.0.0.1_only",
+    "external_browser_or_webview": false
   }
 }

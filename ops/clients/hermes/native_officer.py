@@ -1,7 +1,7 @@
 """Fresh-process Hermes Officer adapter; the Owner remains the effect authority.
 
-Only stdlib is imported until run_native_officer executes. The selected profile is
-read-only credential/route input, never the execution home or MCP configuration.
+Only stdlib is imported until run_native_officer executes. The selected profile
+supplies existing refreshable credentials and a read-only route, not execution context or MCP configuration.
 """
 from __future__ import annotations
 
@@ -209,6 +209,12 @@ def _native_execution(request: dict[str, Any], *, root: Path, profile: Path,
                 _require(provider_config.get("enabled", True) is not False,
                          "Selected profile disables the approved provider")
                 credentials = resolve_codex_runtime_credentials(read_only=True)
+                key = credentials.get("api_key")
+                if isinstance(key, str) and key and _codex_access_token_is_expiring(key, DEADLINE_SECONDS):
+                    # Inference may refresh this existing grant; diagnostics stay read-only.
+                    credentials = resolve_codex_runtime_credentials(
+                        force_refresh=credentials.get("source") == "credential_pool",
+                        refresh_skew_seconds=DEADLINE_SECONDS)
             finally:
                 os.environ["HERMES_HOME"] = str(home)
                 reset_hermes_home_override(selected_scope)

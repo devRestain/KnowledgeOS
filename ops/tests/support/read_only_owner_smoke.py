@@ -7,7 +7,6 @@ import hashlib
 import http.client
 import json
 import os
-import secrets
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -47,9 +46,6 @@ def prepare(root: Path) -> None:
                 "chunk_locator": citation["chunk_locator"], "chunk_hash": citation["chunk_hash"],
                 "excerpt": citation["text"]}
     (root / "expected.json").write_text(json.dumps(expected, ensure_ascii=False))
-    session = root / "session"
-    session.mkdir(mode=0o700)
-    (session / "token").write_text(secrets.token_urlsafe(32) + "\n")
     (root / "baseline.json").write_text(json.dumps(snapshot(root), sort_keys=True))
     print("Disposable read-only Owner fixture prepared")
 
@@ -60,15 +56,14 @@ def check(root: Path, url: str) -> None:
             or target.username or target.password or target.path not in {"", "/"}
             or target.query or target.fragment):
         raise ValueError("Smoke requires an exact host-loopback HTTP endpoint")
-    token = (root / "session/token").read_text().strip()
     expected = json.loads((root / "expected.json").read_text())
     baseline = json.loads((root / "baseline.json").read_text())
 
-    def call(route: str, payload: dict, supplied: str = token) -> tuple[int, dict]:
+    def call(route: str, payload: dict) -> tuple[int, dict]:
         connection = http.client.HTTPConnection("127.0.0.1", target.port or 17900, timeout=10)
         try:
             connection.request("POST", "/owner/" + route, json.dumps(payload), headers={
-                "Content-Type": "application/json", "X-KnowledgeOS-CSRF": supplied})
+                "Content-Type": "application/json"})
             response = connection.getresponse()
             return response.status, json.loads(response.read())
         finally:
@@ -86,7 +81,6 @@ def check(root: Path, url: str) -> None:
         raise RuntimeError("Read-only Owner did not become available")
     assert value["read_only"] is True
     query = {"query": QUERY, "mode": "lexical"}
-    assert call("search/query", query, "wrong")[0] == 403
     status, report = call("search/query", query)
     assert status == 200 and report["mode"] == "lexical"
     result = next(item for item in report["results"] if item["path"] == SOURCE)
@@ -110,7 +104,7 @@ def check(root: Path, url: str) -> None:
     finally:
         source.write_bytes(original)
     assert snapshot(root) == baseline
-    print("PASS: real relay HTTP citation, authentication, effect denial, stale refusal and unchanged roots")
+    print("PASS: real relay HTTP citation, actor restriction, effect denial, stale refusal and unchanged roots")
 
 
 def main() -> None:

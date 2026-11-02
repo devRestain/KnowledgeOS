@@ -160,12 +160,12 @@ class KnowledgeApplication:
             raise AdmissionError("SCOPE_DENIED", "source is outside the owner domain export policy")
 
     def _mcp_source_policy(self, relative: str) -> None:
-        from ..note_engine import parse_frontmatter
+        from ..projection import source_properties
 
         raw = read_regular(resolve_beneath(self.roots.vault, relative))
         if raw is None:
             raise AdmissionError("RESOURCE_UNAVAILABLE", "Selected source is unavailable")
-        properties = parse_frontmatter(raw.decode("utf-8")).properties
+        properties = source_properties(relative, raw)
         if properties.get("sensitivity") == "confidential" or properties.get("ai_policy") == "deny":
             raise AdmissionError("SCOPE_DENIED", "Source privacy policy denies MCP processing")
         if properties.get("ai_policy") == "ask" and self.policy["mcp_document_policy"]["ask"] != "allow_configured_local_mcp":
@@ -177,6 +177,11 @@ class KnowledgeApplication:
         try:
             self.guard(action)
             mcp_allowed_path = kwargs.pop("mcp_allowed_path", None)
+            if mcp_allowed_path is not None:
+                requested_prefix = kwargs.get("path_prefix")
+                if requested_prefix is not None and not mcp_allowed_path.startswith(requested_prefix):
+                    raise AdmissionError("SCOPE_DENIED", "Search prefix is outside the selected document")
+                kwargs["path_prefix"] = mcp_allowed_path
             mode = kwargs.pop("mode", "lexical")
             if action == "search" and mode != "lexical":
                 from ..search_modes import search_mode
@@ -196,7 +201,10 @@ class KnowledgeApplication:
                 report["candidates"] = [item for item in report.get("candidates", [])
                                         if item.get("path") in allowed]
             for candidate in report.get("candidates", []):
-                candidate["resource_reference"] = self.reference(candidate["path"])
+                reference = self.reference(candidate["path"])
+                if candidate.get("content_hash") != reference["source_revision"]:
+                    raise AdmissionError("RESOURCE_STALE", "Selected search source changed before export")
+                candidate["resource_reference"] = reference
             report["execution_outcome"] = "completed" if code == 0 else "failed"
             report["acceptance_state"] = "not_evaluated"
             return report, code
@@ -258,7 +266,10 @@ class KnowledgeApplication:
     def _human_request(self, intent: dict[str, Any], now: datetime) -> dict[str, Any]:
         result = {
             "request_id": "human." + intent["effect_id"].split(".")[-1], "request_revision": 1,
-            "owner_operation_id": "knowledgeos", "question": "Approve this exact normalization proposal?",
+            "owner_operation_id": "knowledgeos",
+            "question": ("Approve this exact cited note draft proposal?"
+                         if intent["effect_id"].startswith("draft_note.")
+                         else "Approve this exact normalization proposal?"),
             "impact": "Approval records a pending canonical apply intent; a separate explicit apply is required.",
             "allowed_actions": ["approve", "reject", "inspect"],
             "target_digest": self._target_digest(intent["source_path"], intent["artifact_path"]),
@@ -302,6 +313,13 @@ class KnowledgeApplication:
                 self._mcp_source_policy(source_path)
             with self.journal.writer() as session:
                 self.guard("propose")
+                if isinstance(work_binding, dict):
+                    selected_work = session.value["intents"].get(
+                        "exops.work." + str(work_binding.get("work_run_id", "")))
+                    if isinstance(selected_work, dict):
+                        from .owner_authority import validate_owner_authority
+
+                        validate_owner_authority(self, session.value, selected_work)
                 if action == "draft_note":
                     from ..action_proposals import generate_action_proposal
 
@@ -339,6 +357,10 @@ class KnowledgeApplication:
                                 or not any(item["executor_id"] == work_binding["executor_id"]
                                            for item in assigned)):
                             raise AdmissionError("SCOPE_DENIED", "Team effect differs from admitted Work and Graph")
+                        if record.get("control_checkpoint") is True:
+                            from .curation_control import validate_control_release
+
+                            validate_control_release(self, session.value, record)
                     elif (spec["target_kind"] != "officer"
                             or not common_valid
                             or spec["officer_executor_id"] != work_binding["executor_id"]
@@ -384,6 +406,11 @@ class KnowledgeApplication:
                 intent["state"] = "unknown"
                 session.commit(now)
                 session.fence()
+                if work_binding is not None:
+                    from .owner_authority import validate_owner_authority
+
+                    validate_owner_authority(self, session.value,
+                        session.value["intents"]["exops.work." + work_binding["work_run_id"]])
                 dispatched = True
                 created = create_artifact(self.roots.vault, intent["artifact_path"], content)
                 self.fault_hook("artifact_created")
@@ -510,18 +537,24 @@ class KnowledgeApplication:
                         session.value["receipts"][effect_id] = {"recorded_at": stamp(now), "unresolved": True, "execution": self._receipt(intent, now, "outcome_unknown")}
                     observations.append({"effect_id": effect_id, "state": intent["state"]})
                 if observations:
+                    for effect_id in recovered_effects:
+                        intent = session.value["intents"][effect_id]
+                        marker_key = "experience.local_recovery." + hashlib.sha256(
+                            effect_id.encode()
+                        ).hexdigest()[:24]
+                        session.value["intents"][marker_key] = {
+                            "state": "observed", "effect_id": effect_id,
+                            "source_reference": self.reference(intent["canonical_path"]),
+                            "execution": copy.deepcopy(
+                                session.value["receipts"][effect_id]["execution"]
+                            ),
+                        }
                     session.value["history"].append({"event": "recovery_observed", "sequence": session.value["revision"] + 1})
                     session.commit(now)
-            if recovered_effects:
-                from .experience import KnowledgeExperience
+            from .native_lifecycle import scan_native_lifecycle
 
-                experience = KnowledgeExperience(self.journal, self.core, self.clock)
-                for effect_id in recovered_effects:
-                    event_id = "event." + hashlib.sha256(effect_id.encode()).hexdigest()[:24]
-                    experience.observe(event_id=event_id, category="crash_recovery",
-                                       outcome_state="recovered", evaluation_state="not_evaluated")
-                experience.scan()
-            return {"status": "PASS", "observations": observations, "dispatch_performed": False, "canonical_target_changed": False}, 0
+            experience = scan_native_lifecycle(self)
+            return {"status": "PASS", "observations": observations, "experience": experience, "dispatch_performed": False, "canonical_target_changed": False}, 0
         except (ValueError, OSError) as error:
             return failure("recover", error)
 

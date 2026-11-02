@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KnowledgeOS · 작업실</title>
+<link rel="stylesheet" href="/console/style.css">
+<script src="/console/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#workspace">작업 본문으로 이동</a>
+<header class="masthead"><a class="brand" href="/console/">KnowledgeOS <span>작업실</span></a><p>읽은 근거에서, 확인한 결정으로.</p><span id="connection-state" class="badge">Owner 확인 중</span></header>
+<section class="owner-connection" aria-label="로컬 Owner 상태">
+<div class="row"><button id="refresh-owner" type="button">Owner 새로 조회 · 재시도</button><button id="disconnect" type="button">연결 해제 · 화면 지우기</button></div>
+<p id="owner-status">이 기기의 로컬 Owner 상태를 자동으로 조회합니다.</p>
+</section>
+<div id="notice" class="notice" role="status" aria-live="polite" aria-atomic="true">Owner 상태만 자동 조회합니다. 작업 실행과 결정은 직접 요청하며 자동 재시도하지 않습니다.</div>
+<div class="layout">
+<aside class="library">
+<h1>노트에서 시작하기</h1>
+<form id="search-form"><label for="query">Vault 검색</label><input id="query" type="search" required maxlength="512" placeholder="찾을 지식이나 문장"><div class="row"><label class="grow" for="search-mode"><span class="sr-only">검색 방식</span><select id="search-mode"><option value="lexical">Lexical</option><option value="vector">Vector (바인딩 필요)</option><option value="hybrid">Hybrid (바인딩 필요)</option><option value="ontology">승인된 온톨로지</option></select></label><button type="submit" data-owner>검색</button></div></form>
+<div id="search-results" class="stack"><p class="empty">검색 결과에서 정확한 노트 범위를 선택하세요.</p></div>
+<section class="scope"><h2>선택 범위</h2><p id="scope-path">선택한 노트 없음</p><label for="scope-digest">원문 SHA-256</label><textarea id="scope-digest" rows="2" readonly aria-describedby="scope-help"></textarea><p id="scope-help" class="muted">검색 시 Owner가 반환한 경로와 해시입니다. 원문이 바뀌면 새로 검색하세요.</p></section>
+</aside>
+<main id="workspace" tabindex="-1">
+<nav class="tabs" aria-label="작업실 보기"><button type="button" data-tab="work" aria-current="page">작업과 근거</button><button type="button" data-tab="pending">Pending 결정</button><button type="button" data-tab="daily">일일 검토</button></nav>
+<section id="tab-work" class="tab-panel">
+<div class="section-head"><div><h2>새 작업</h2><p class="muted">Director가 목표와 범위를 접수합니다. 접수는 실행 완료가 아닙니다.</p></div></div>
+<form id="intake-form"><label for="question">작업 요청</label><textarea id="question" rows="3" maxlength="8192" required placeholder="선택한 노트로 무엇을 확인하거나 정리할까요?"></textarea><div class="row"><button id="intake" type="submit" data-write>Director에 요청</button><span id="intake-availability" class="muted">연결 후 바인딩 확인</span></div></form>
+<details class="templates"><summary>구조화된 작업 템플릿</summary><p>노트 메타데이터는 두 Team, 문서 개선은 Evidence Research Team에 접수합니다. 현재 Director 입력 계약에는 사용자 지정 배정 pin 입력이 없습니다. 승인된 pin은 작업 상세에서 확인합니다.</p><div class="row"><button id="template-metadata" type="button" data-write>메타데이터 제안</button><button id="template-research" type="button" data-write>근거 기반 문서 개선</button></div></details>
+<details><summary>마지막 접수 영수증</summary><pre id="intake-receipt">아직 접수하지 않았습니다.</pre></details>
+<section class="work-list"><div class="section-head"><h2>이 노트의 작업</h2><button id="refresh-works" type="button" data-owner>목록 새로 조회</button></div><div id="works"><p class="empty">노트를 선택하면 작업을 조회합니다.</p></div><form id="open-work-form" class="row"><label class="grow" for="work-id">정확한 WorkRun ID<input id="work-id" required maxlength="160" placeholder="workrun.…"></label><button type="submit" data-owner>작업 열기</button></form></section>
+<section id="work-detail" hidden><div class="section-head"><h2>작업 상세</h2><button id="refresh-work" type="button" data-owner>상세 새로 조회</button></div><p id="work-observed" class="observation"></p><div id="work-summary"></div><h3>완료 기준과 독립 평가</h3><div id="criteria"></div><h3>현재 세그먼트와 계보</h3><div id="segments"></div><details><summary>허용 Profiles · 명시적 배정 pin · 계속 실행 한도</summary><pre id="profiles"></pre></details><div id="gaps"></div>
+<section class="controls"><h3>안전한 실행 제어</h3><p>현재 checkpoint와 control revision에 묶인 명령만 접수합니다. 접수(received)와 실제 적용(applied)은 다릅니다. Worker 상태는 이 화면에서 실시간 확인할 수 없습니다.</p><button id="control-target" type="button" data-owner>제어 대상 새로 확인</button><pre id="target">제어 대상 미조회</pre><div class="row"><button id="control-pause" type="button" data-write>일시 정지 요청</button><button id="control-resume" type="button" data-write>다시 실행 요청</button><button id="control-cancel" class="danger" type="button" data-write>취소 요청</button></div><form id="command-form" class="row"><label class="grow" for="command-id">명령 ID<input id="command-id" maxlength="96" required></label><button type="submit" data-owner>접수·적용 상태 조회</button></form><pre id="command-state">명령 없음</pre></section>
+<section class="controls" id="steering-section"><h3>질문 응답과 범위 안 조정</h3><p id="steering-availability">안전한 steering 바인딩 미확인. 실행 중 재배정이나 임의 CUTOVER는 지원하지 않습니다.</p><button id="refresh-steering" type="button" data-owner>질문·허용 조정 새로 조회</button><p id="steering-observed" class="observation"></p><pre id="steering-view">조회 전</pre><form id="steering-artifact-form"><label for="steering-kind">현재 Owner가 허용한 행동</label><select id="steering-kind"></select><div id="steering-answer-fields" hidden><label for="steering-answer">질문에 대한 응답</label><textarea id="steering-answer" rows="3" maxlength="2048"></textarea></div><div id="steering-parameter-fields" hidden><label for="steering-parameter-id">Owner가 허용한 parameter ID</label><input id="steering-parameter-id" maxlength="128"><label for="steering-parameter-value">허용 값</label><select id="steering-parameter-value"><option value="source_order">원문 순서 (source_order)</option><option value="alphabetical">이름 순서 (alphabetical)</option></select></div><div id="steering-reason-fields" hidden><label for="steering-reason">조정 사유</label><textarea id="steering-reason" rows="2" maxlength="2048"></textarea></div><div id="steering-amendment-fields" hidden><label for="steering-successor-spec">Director가 승인한 successor WorkSpec JSON</label><textarea id="steering-successor-spec" rows="10" maxlength="14000" spellcheck="false"></textarea><p class="muted">현재 Owner의 successor context와 명시적 배정 pin을 확인하세요. 브라우저는 Director 승인이나 spec digest를 만들어 주지 않습니다.</p></div><button id="register-steering-artifact" type="submit" data-write>조정 근거 등록</button></form><pre id="steering-artifact">등록된 근거 없음</pre><button id="submit-steering" type="button" data-write>현재 revision에 명령 접수</button><pre id="steering-receipt">접수된 명령 없음</pre><p class="muted">근거 등록은 명령 접수가 아닙니다. 명령 접수도 실제 적용이 아닙니다. 위 새로 조회로 Owner의 명령 상태를 대조하세요.</p></section>
+<section class="result"><h3>조정 Work의 독립 평가 결과</h3><button id="steering-export" type="button" data-owner>조정 Work 결과 조회</button><p id="steering-export-observed" class="observation"></p><pre id="steering-export-text">Owner export 전</pre><details><summary>정확한 artifact reference와 독립 평가</summary><pre id="steering-export-record"></pre></details></section>
+<section class="result"><h3>독립 평가된 결과와 근거</h3><p id="result-state"></p><div id="result-evidence"></div><pre id="result-text"></pre><details><summary>평가 및 근거 참조 원본</summary><pre id="result-record"></pre></details></section></section>
+</section>
+<section id="tab-pending" class="tab-panel" hidden><div class="section-head"><div><h2>Pending 결정</h2><p>승인·거절을 기록한 뒤, 적용 가능한 제안만 별도로 원본에 적용합니다.</p></div><button id="refresh-proposals" type="button" data-owner>제안 조회</button></div><div id="proposals"><p class="empty">Owner에서 제안을 조회하세요.</p></div><section id="proposal-detail" hidden><h3 id="proposal-title">제안 검토</h3><p id="proposal-state" class="observation"></p><h3>원문과 근거</h3><pre id="proposal-source"></pre><h3>변경 diff</h3><pre id="proposal-diff"></pre><details><summary>Pending 문서 원본</summary><pre id="proposal-text"></pre></details><label for="decision-reason">결정 사유</label><textarea id="decision-reason" maxlength="2048" rows="2"></textarea><div class="row decision-row"><button id="proposal-approve" type="button" data-write>승인 기록</button><button id="proposal-reject" type="button" class="danger" data-write>거절 기록</button><button id="proposal-apply" type="button" data-write>승인한 제안 원본 적용</button></div><p id="proposal-action-state"></p></section></section>
+<section id="tab-daily" class="tab-panel" hidden><div class="section-head"><div><h2>일일 검토</h2><p>이미 잠정 추가된 필드의 근거와 현재 값을 확인합니다. 거절은 Owner의 정확한 delta 복구 규칙을 따릅니다.</p></div><button id="refresh-daily" type="button" data-owner>검토 목록 조회</button></div><div id="daily-list"><p class="empty">Owner에서 검토 대상을 조회하세요.</p></div><section id="daily-detail" hidden><h3>잠정 변경 검토</h3><pre id="daily-record"></pre><div class="row"><button id="daily-confirm" type="button" data-write>잠정 변경 확정</button><button id="daily-reject" type="button" class="danger" data-write>잠정 변경 거절</button></div><p id="daily-action-state"></p></section></section>
+</main>
+</div>
+<footer>KnowledgeOS Owner 관측값만 표시합니다. 화면 데이터는 저장하지 않으며 새로고침·연결 해제 시 지웁니다. 페이지를 열면 Owner 상태를 자동 조회하며 실시간 스트림은 연결하지 않습니다.</footer>
+</body>
+</html>

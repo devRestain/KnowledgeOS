@@ -33,10 +33,10 @@ def presentation_contract(control: Path) -> dict[str, Any]:
         "ownership": {"vault": "durable_domain_content", "state": "owner_control_and_restart_evidence_outside_vault", "runtime": "reconstructable_host_artifacts_outside_vault"},
         "workflow": ["owner_work_admission", "bounded_mcp_evidence", "pending_proposal_or_artifact", "independent_assessment", "human_review", "separate_apply"],
         "control": {"owner": "KnowledgeApplication", "journal": "OwnerJournal", "approval": "digest_bound_decision_and_pending_intent", "canonical_apply": "separate_explicit_dispatch", "recovery": "observe_and_reconcile_without_dispatch"},
-        "interfaces": {"mcp": capabilities, "maintenance_commands": ["operation check", "operation status", "operation recover", "index build", "index verify", "note validate"], "native_execution": "unconfigured", "resource_authority": "trusted_startup_with_Core_ResourceReference"},
+        "interfaces": {"mcp": capabilities, "maintenance_commands": ["operation check", "operation status", "operation recover", "index build", "index verify", "note validate"], "native_execution": "owner_selected_runtime_binding", "resource_authority": "trusted_startup_with_Core_ResourceReference"},
         "observations": ["admission_ack", "execution_outcome", "acceptance_state", "human_approval", "freshness", "completeness"],
-        "transport": "unconfigured",
-        "thin_client": "profile_enabled_pending_owner_web_and_runner_adoption",
+        "transport": "trusted_local_http",
+        "thin_client": "native_obsidian_owner_sidebar",
         "machine_state_owner": "Operations/KnowledgeOS/PROJECT_STATE.md",
     }
 
@@ -64,9 +64,10 @@ private config v3에서 Core, control, Vault, State, Runtime을 각각 선언한
 
 ## 조회와 제안
 
-- 사용자는 Obsidian Search, Bases, Backlinks, Tasks로 문서를 탐색하고 QuickAdd와 템플릿으로 작성한다.
+- 사용자는 Obsidian Search, Bases, Backlinks, Tasks로 문서를 탐색하고 자유롭게 작성·편집·이동한다. QuickAdd와 템플릿은 선택 사항이며 일반 Markdown에도 사전 등록이 필요하지 않다.
 - 에이전트는 단일 `vaultmcp` v3에서 owner가 허용한 근거를 읽고 Pending 제안 또는 비정본 Work 산출물을 제출한다. 정확한 ResourceReference와 digest를 사용하며 actor, host root 또는 Work binding을 도구 입력으로 고를 수 없다.
 - Thin Client의 Work 요청은 owner Director admission에 접수되고 진행 상태를 표시한다. Pending의 원문·출처·변경안을 GUI에서 확인한 뒤 승인 또는 거절한다. 정본 적용은 별도 owner 요청이다.
+- Projection은 문서별로 필요할 때 생성·갱신한다. 다른 노트 변경 때문에 Vault 전체를 오래된 상태로 거부하지 않으며 수동 index 갱신도 일반 작업의 선행 조건이 아니다.
 - `vaultctl operation check/status/recover`, `index build/verify`, `note validate`는 운영 검사와 복구에 사용한다. `recover`는 불확실한 효과를 자동 재실행하지 않는다.
 - `ai_policy: ask`는 구성된 로컬 MCP에 허용된다. `deny`와 confidential은 제외하고 `local_only` 본문은 신뢰된 로컬 실행 문맥에서만 반환한다.
 
@@ -74,11 +75,11 @@ private config v3에서 Core, control, Vault, State, Runtime을 각각 선언한
 
 Review Base의 status는 문서 분류다. admission ACK, 실행 완료, domain acceptance, human approval과 서로 대체할 수 없다. 실행 여부를 확인할 근거가 없으면 unknown으로 유지한다. Operation 간 교환은 owner Gateway가 수락한 참조로만 조회한다.
 
-현재 first-party Thin Client 파일은 선택한 mac profile에서 활성화한다. owner Web listener, Hermes Runner와 외부 전송은 구성되지 않았다. 자동 Git, shell과 background writer도 실행하지 않는다.
+first-party Thin Client의 `Owner 새로 조회`와 `연결 상세`에서 현재 선택한 Owner·method·Worker 관측을 확인한다. 설치 파일이나 이 가이드 자체는 실행 상태의 증거가 아니다. 자동 Git과 외부 전송은 문서 작업의 필수 조건이 아니다.
 
 ## 검증과 후속 실행
 
-사용자 문서가 없어도 정상 Vault다. 예시는 hermetic test fixture에만 둔다. 운영 CLI의 검사는 admission이나 실행 권한을 만들지 않는다. 철회된 Runtime 자료는 현재 owner 참조를 확인한 뒤 별도 retirement 절차로 제거한다. Temporal Worker, Web, Discord와 Team 실행은 구성되지 않았다.
+사용자 문서가 없어도 정상 Vault다. 운영 CLI의 검사는 문서 작성의 허가 절차가 아니다. 실제 서비스·모델·GUI 채택 근거는 KnowledgeOS의 `PROJECT_STATE.md`를 따른다. 이미 확인한 근거는 적용 범위 안에서 재사용하고 필요한 변경 경로만 검증한다.
 """)
 
 

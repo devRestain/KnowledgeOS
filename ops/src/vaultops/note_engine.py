@@ -258,6 +258,14 @@ def parse_frontmatter(markdown: str) -> FrontmatterDocument:
     return FrontmatterDocument(properties=dict(loaded), body="".join(lines[closing + 1 :]))
 
 
+def parse_source_document(markdown: str) -> FrontmatterDocument:
+    """Read user Markdown without requiring authored KnowledgeOS metadata."""
+    lines = markdown.splitlines()
+    if not lines or lines[0] != "---":
+        return FrontmatterDocument(properties={}, body=markdown)
+    return parse_frontmatter(markdown)
+
+
 def render_frontmatter(properties: Mapping[str, Any], body: str = "") -> str:
     """Render deterministic, flat YAML frontmatter and preserve body bytes."""
 
@@ -768,6 +776,34 @@ class NoteEngine:
             deduplicated[(error.code, error.locator, error.message)] = error
         ordered = tuple(deduplicated[key] for key in sorted(deduplicated))
         return NoteValidationResult(normalized_path, values, None, ordered)
+
+    def validate_property_changes(
+        self,
+        properties: Mapping[str, Any],
+        fields: Iterable[str],
+        relative_path: str,
+        *,
+        target_types: Mapping[str, str] | None = None,
+    ) -> NoteValidationResult:
+        """Validate proposed fields without imposing a schema on the user's note."""
+        changed = {field: properties[field] for field in fields}
+        errors: list[NoteIssue] = []
+        for field, value in changed.items():
+            descriptor = self.blueprint["property_registry"].get(
+                field, self.blueprint["common_properties"]["required"].get(field))
+            if descriptor is None:
+                errors.append(NoteIssue("NOTE_UNKNOWN_PROPERTY", f"/{field}", "unknown proposed property"))
+                continue
+            errors.extend(_json_schema_errors(
+                {"type": "object", "properties": {field: _descriptor_to_schema(descriptor)}},
+                {field: value},
+            ))
+            errors.extend(_validate_scalar(field, value, descriptor))
+        errors.extend(self._relation_errors(
+            {**changed, "type": properties.get("type", "knowledge")},
+            target_types=target_types,
+        ))
+        return NoteValidationResult(relative_path, dict(properties), None, tuple(errors))
 
     def validate_text(
         self,

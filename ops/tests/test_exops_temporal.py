@@ -19,6 +19,7 @@ from vaultops.adapters.core import AdmissionError, canonical, digest
 from vaultops.application.exops import KnowledgeExOps, OwnerActor, TeamBinding
 from vaultops.application.knowledge import KnowledgeApplication
 from vaultops.application.team_catalog import OfficerBinding, SpecialistBinding, TeamCatalog
+from vaultops.application.temporal_contract import TEAM_WORKFLOW_TYPE, WORKFLOW_TYPE
 from vaultops.application.temporal_work import (
     connect_owner_temporal,
     dispatch_admitted_work,
@@ -312,7 +313,7 @@ def test_uncertain_start_reconciles_only_exact_observed_history(tmp_path):
     class Observer:
         observation = SimpleNamespace(
             workflow_id=f"knowledgeos/{run_id}", run_id="temporal-run-1",
-            namespace="knowledgeos", workflow_type="knowledgeos.work.v1",
+            namespace="knowledgeos", workflow_type=TEAM_WORKFLOW_TYPE,
             task_queue="knowledgeos.work.v1", payload=payload)
 
         async def observe_start(self, dispatch):
@@ -326,6 +327,11 @@ def test_uncertain_start_reconciles_only_exact_observed_history(tmp_path):
         asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
     assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
     observer.observation = SimpleNamespace(**{**vars(observer.observation), "payload": payload})
+    observer.observation.workflow_type = WORKFLOW_TYPE
+    with pytest.raises(AdmissionError, match="Observed Workflow start"):
+        asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
+    observer.observation.workflow_type = TEAM_WORKFLOW_TYPE
     reconciled = asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
     assert reconciled["dispatch_state"] == "accepted"
     record = exops.application.journal.read()["intents"]["exops.work." + run_id]
@@ -361,7 +367,7 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     binding = SimpleNamespace(
         owner_operation_id="knowledgeos", target_host="server:7233",
         namespace="knowledgeos", task_queue="knowledgeos.work.v1",
-        workflow_type="knowledgeos.work.v1", workflow_id_prefix="knowledgeos/", tls=False,
+        workflow_type=TEAM_WORKFLOW_TYPE, workflow_id_prefix="knowledgeos/", tls=False,
     )
     captured = {}
 
@@ -399,34 +405,31 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
         asyncio.run(authorize(SimpleNamespace(
             workflow_id="knowledgeos/another-run", action_id=dispatch.action_id,
             payload=payload)))
+    officer_authorize = asyncio.run(connect_owner_temporal(
+        exops, SimpleNamespace(**{**vars(binding), "workflow_type": WORKFLOW_TYPE})))
+    with pytest.raises(ValueError, match="Workflow"):
+        asyncio.run(officer_authorize(dispatch))
     with pytest.raises(AdmissionError, match="selected owner route"):
         asyncio.run(connect_owner_temporal(exops, SimpleNamespace(
             **{**vars(binding), "namespace": "other-operation"})))
 
 
-def test_web_backend_requires_owner_session_and_csrf(tmp_path):
+def test_web_backend_binds_startup_actor_and_rechecks_live_authority(tmp_path):
     exops, fixture = make_exops(tmp_path)
-    backend = ExOpsWebBackend(
-        exops, authenticate_login=lambda login: OwnerActor("owner.user", "web")
-        if login == "owner@example.invalid" else None,
-        validate_csrf=lambda actor, token: actor.actor_id == "owner.user" and token == "bound-token",
-    )
+    backend = ExOpsWebBackend(exops, OwnerActor("owner.user", "web"))
 
     @dataclass
     class Ingress:
         owner_operation_id: str
-        actor_login: str
         method: str
         resource_path: str
         body: bytes
-        csrf_token: str | None
 
     payload = {"spec": fixture.spec, "run": fixture.run,
                "action_id": "action.synthetic.start",
                "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat()}
-    request = Ingress("knowledgeos", "owner@example.invalid", "POST", "work/submit",
-                      json.dumps(payload).encode(), "bound-token")
+    request = Ingress("knowledgeos", "POST", "work/submit", json.dumps(payload).encode())
     assert backend(request)["receipt_state"] == "accepted"
-    request.csrf_token = "wrong"
-    with pytest.raises(AdmissionError, match="CSRF"):
+    exops.authorize_actor = lambda _actor, _action: False
+    with pytest.raises(AdmissionError):
         backend(request)

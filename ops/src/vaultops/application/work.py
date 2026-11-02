@@ -451,7 +451,8 @@ class WorkContracts:
 
     def steering(self, directive: Mapping[str, Any], spec: Mapping[str, Any], run: Mapping[str, Any], *,
                  request, response, decision, target_binding, intent, candidate_actor_id, now: datetime, artifacts,
-                 receipt=None, receipt_reference_id=None, applied_run=None, successor_spec=None) -> None:
+                 receipt=None, receipt_reference_id=None, applied_run=None, successor_spec=None,
+                 cutting_over_run=None) -> None:
         self.spec(spec)
         self.record("WorkRun", run)
         self.context(run, spec)
@@ -518,8 +519,22 @@ class WorkContracts:
                 if successor_spec["acceptance_criteria"] != spec["acceptance_criteria"] and successor_spec["criteria_revision"] <= spec["criteria_revision"]:
                     _fail("STALE_REVISION", "Changed criteria need a new interpretation revision")
                 applied_spec = successor_spec
-            self.run(applied_run, applied_spec, previous=run)
-            if applied_run["control_revision"] != directive["target_control_revision"] + 1:
+            predecessor = run
+            expected_control_revision = directive["target_control_revision"] + 1
+            if cutting_over_run is not None:
+                if directive["kind"] != "cutover" or cutting_over_run["state"] != "cutting_over":
+                    _fail("INVALID_PAYLOAD", "Only structural CUTOVER may retain an intermediate transition")
+                self.run(cutting_over_run, spec, previous=run)
+                if cutting_over_run["control_revision"] != expected_control_revision:
+                    _fail("STALE_REVISION", "CUTOVER did not stop its exact scheduling revision")
+                if any(cutting_over_run.get(key) != run.get(key) for key in (
+                    "active_graph_run_id", "generation", "fencing_token", "unresolved_effect_ids",
+                )):
+                    _fail("OUTCOME_UNKNOWN", "CUTOVER cannot replace execution before partial evaluation")
+                predecessor = cutting_over_run
+                expected_control_revision += 1
+            self.run(applied_run, applied_spec, previous=predecessor)
+            if applied_run["control_revision"] != expected_control_revision:
                 _fail("STALE_REVISION", "An applied command must close its exact control revision")
             if applied_run["revision"] != directive["applied_run_revision"] or directive["directive_id"] in applied_run["pending_action_ids"]:
                 _fail("STALE_REVISION", "Command result was not applied to the next canonical revision")
@@ -530,6 +545,41 @@ class WorkContracts:
                 _fail("INVALID_PAYLOAD", "Applied control result has the wrong lifecycle state")
             if directive["kind"] == "cutover" and applied_run.get("active_graph_run_id") is not None:
                 _fail("SCOPE_DENIED", "Applied CUTOVER must close the prior active segment")
+
+    def cancellation_reference(self, directive, spec, previous_run, cancelled_run, *,
+                               receipt, classification, **steering_context):
+        """Reference an already committed owner CANCEL after existing control validation.
+
+        Source authenticity and export policy remain owner responsibilities.
+        The journal has no artifact export endpoint, so this ordinary reference
+        truthfully reports unavailable. It is not a second control proof wire.
+        """
+        if directive.get("kind") != "cancel" or directive.get("application_state") != "applied":
+            _fail("INVALID_PAYLOAD", "Cancellation Experience requires an applied owner CANCEL")
+        self.steering(directive, spec, previous_run, receipt=receipt,
+                      applied_run=cancelled_run, **steering_context)
+        if (cancelled_run["revision"] != previous_run["revision"] + 1
+                or cancelled_run["control_revision"] != directive["target_control_revision"] + 1
+                or any(cancelled_run[key] != previous_run[key] for key in ("generation", "fencing_token"))):
+            _fail("STALE_REVISION", "Cancellation observation must retain its exact safe revision and worker fence")
+        if receipt.get("result_digest") != record_digest(cancelled_run):
+            _fail("DIGEST_MISMATCH", "Cancellation receipt does not bind the exact cancelled WorkRun")
+        evidence = {
+            "work_spec_digest": spec["spec_digest"],
+            "previous_run": dict(previous_run), "cancelled_run": dict(cancelled_run),
+            "directive": dict(directive), "execution_receipt": dict(receipt),
+        }
+        content_digest = record_digest(evidence)
+        reference = {
+            "artifact_id": "artifact.cancellation." + content_digest[7:39],
+            "owner_operation_id": self.owner,
+            "source_revision": "revision.r" + str(cancelled_run["revision"]),
+            "content_digest": content_digest,
+            "media_type": "application/json", "size_bytes": len(canonical_json(evidence)),
+            "classification": classification, "availability": "unavailable",
+        }
+        self.record("ArtifactReference", reference)
+        return reference
 
 
 def validate_bundle_file(core, control, relative):

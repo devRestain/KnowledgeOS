@@ -10,7 +10,7 @@
 - Keep path, type, template, relation, Base, maintenance command, projection, owner method and MCP contracts exact.
 - Keep `PROJECT_STATE.md` as the only machine-state source; keep this file as a static source index.
 - Current human writing and navigation remain in Obsidian; the CLI validates existing note bytes.
-- Keep GUI-created daily, weekly, and monthly notes subject to the same KnowledgeOS path, title, frontmatter, period, and hash-validation contracts; `vaultctl note validate` is the file-byte contract check and must not be replaced by Obsidian CLI output.
+- Treat template/period/schema validation as maintained authoring and explicit maintenance checks, not permission to create, edit, move or process an ordinary Obsidian note. Materialize source metadata per document on first use; retain exact selected-target conflict checks for apply.
 - Keep the production ownership split exact: Core Daily Notes creates daily notes, Notebook Navigator creates/opens weekly and monthly notes, Templater renders only bounded date and document fields, and no second Python period writer remains after F01.
 - Keep Templater templates free of shell, system commands, user scripts, network, AI, Git, `vaultctl`, global new-file triggers, and approval-free existing-note mutation.
 - Keep the initial official Obsidian CLI adapter status-only and internal to `vaultctl`; reject arbitrary command text, arbitrary argv, document read/write/create/append/search/eval, and plugin control operations.

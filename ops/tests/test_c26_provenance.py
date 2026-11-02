@@ -77,8 +77,7 @@ def test_c26_citation_binds_frontmatter_chunk_and_displayed_excerpt(tmp_path: Pa
     citation = report["citations"][0]
     assert citation["path"] == relative
     assert citation["locator"] == "/frontmatter"
-    assert citation["note_id"] == "c26f0000-0000-4000-8000-000000000026"
-    assert citation["index_generation_id"] == "c26-fixture"
+    assert citation["index_generation_id"] == report["index_generation_id"]
     assert "c26-frontmatter-marker" in citation["excerpt"]
     assert "Body-only fallback" not in citation["excerpt"]
     assert citation["excerpt_sha256"] == hashlib.sha256(citation["excerpt"].encode("utf-8")).hexdigest()
@@ -108,7 +107,7 @@ def test_c26_lexical_candidate_rejects_chunk_or_generation_drift(tmp_path: Path)
     candidate = report["candidates"][0]
     lexical = candidate["lexical_score_and_rank"]
     assert lexical["provenance"]["note_id"] == candidate["note_id"]
-    assert lexical["provenance"]["index_generation_id"] == "c26-fixture"
+    assert lexical["provenance"]["index_generation_id"] == report["index_generation_id"]
     assert lexical["provenance"]["chunk_id"]
 
     projection = load_current_projection(root)

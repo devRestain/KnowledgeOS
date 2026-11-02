@@ -90,7 +90,7 @@ def test_c21_build_is_deterministic_and_does_not_write_runtime_or_vault(tmp_path
 
 
 @pytest.mark.parametrize("action", ["normalize", "draft_note"])
-def test_c21_owner_c27_pending_artifacts_preserve_generation_but_user_review_and_sources_do_not(
+def test_c21_generated_artifacts_are_excluded_while_user_review_is_live(
     tmp_path: Path, action: str,
 ) -> None:
     roots = make_separate_portable_fixture_roots(tmp_path, review_queues=True)
@@ -114,29 +114,28 @@ def test_c21_owner_c27_pending_artifacts_preserve_generation_but_user_review_and
     assert generated_path.is_file() and source_path.read_bytes() == source_bytes
     verified, code = read_current_projection(roots, verify_sources=True)
     assert code == EXIT_OK and verified["source_verified"] is True, verified
-    assert verified["generation_id"] == before["generation_id"]
+    generation = verified["generation_id"]
 
     user_path = roots.vault / "01_AI_Review/Pending/User-authored Review.md"
     user_path.write_text(generated_path.read_text()
         .replace(generated["proposal"]["proposal_id"], "a0526fd1-88db-41a3-b45f-a013309831dd")
         .replace(generated_path.stem, user_path.stem))
-    stale, code = read_current_projection(roots, verify_sources=True)
-    assert code == EXIT_CONFLICT, stale
-    updated, code = generate_projection(roots)
-    assert code == EXIT_OK, updated
     verified, code = read_current_projection(roots, verify_sources=True)
     assert code == EXIT_OK, verified
+    assert verified["generation_id"] == generation
     paths = {note["path"] for note in verified["notes"]}
     assert user_path.relative_to(roots.vault).as_posix() in paths
     assert generated["proposal_path"] not in paths
 
     user_path.write_text(user_path.read_text() + "\nUser review changed.\n")
-    stale, code = read_current_projection(roots, verify_sources=True)
-    assert code == EXIT_CONFLICT, stale
-    user_path.write_text(user_path.read_text().removesuffix("\nUser review changed.\n"))
+    current, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_OK, current
+    assert "User review changed." in next(note["body"] for note in current["notes"]
+                                        if note["path"] == user_path.relative_to(roots.vault).as_posix())
     source_path.write_bytes(source_bytes + b"\nCanonical source changed.\n")
-    stale, code = read_current_projection(roots, verify_sources=True)
-    assert code == EXIT_CONFLICT, stale
+    current, code = read_current_projection(roots, verify_sources=True)
+    assert code == EXIT_OK, current
+    assert "Canonical source changed." in next(note["body"] for note in current["notes"] if note["path"] == source)
 
 
 def test_c21_cli_uses_configured_separate_vault_and_runtime_roots(tmp_path: Path, capsys) -> None:
@@ -158,7 +157,7 @@ def test_c21_cli_uses_configured_separate_vault_and_runtime_roots(tmp_path: Path
 
     assert main(["index", "verify", "--root", str(roots.control)]) == EXIT_OK
     verified = json.loads(capsys.readouterr().out)
-    assert verified["generation_id"] == "c21-separated-cli"
+    assert verified["generation_id"].startswith("local-")
     assert _file_snapshot(roots.vault) == vault_before
 
 
@@ -180,13 +179,13 @@ def test_c21_publish_replays_same_generation_and_reader_pins_one_pointer(tmp_pat
     assert second["pointer_swapped"] is False
     assert pointer_path.read_bytes() == pointer_before
 
-    verified, verify_code = read_current_projection(root)
+    verified, verify_code = read_current_projection(root, verify_sources=False)
     assert verify_code == EXIT_OK, verified
     assert verified["status"] == "PASS"
     assert verified["generation_id"] == "c21-fixture"
     assert len(verified["notes"]) == first["note_count"]
     assert len(verified["edges"]) == first["edge_count"]
-    assert verified["source_verified"] is True
+    assert verified["source_verified"] is False
 
 
 def test_c21_cli_exposes_export_build_and_verify_without_provider_or_vault_mutation(
@@ -208,22 +207,22 @@ def test_c21_cli_exposes_export_build_and_verify_without_provider_or_vault_mutat
     assert main(["index", "verify", "--root", str(root)]) == EXIT_OK
     verified = json.loads(capsys.readouterr().out)
     assert verified["status"] == "PASS"
-    assert verified["generation_id"] == "c21-cli"
+    assert verified["generation_id"].startswith("local-")
     assert verified["mutation_performed"] is False
     assert _file_snapshot(fixture_path(root, "vault")) == before
 
 
-def test_c21_reader_rejects_stale_source_and_tampered_generation(tmp_path: Path) -> None:
+def test_c21_live_reader_tracks_source_and_frozen_reader_rejects_tampering(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     report, code = generate_projection(root, generation_id="c21-fixture")
     assert code == EXIT_OK, report
 
     source = (fixture_path(root, "vault") / "20_Projects/guestbook-horror/guestbook-horror.md")
     source.write_bytes(source.read_bytes() + b"\n")
-    stale, stale_code = read_current_projection(root)
-    assert stale_code == EXIT_CONFLICT
-    assert stale["status"] == "FAIL"
-    assert "stale" in stale["errors"][0]["message"]
+    current, current_code = read_current_projection(root)
+    assert current_code == EXIT_OK, current
+    projected = next(note for note in current["notes"] if note["path"] == source.relative_to(fixture_path(root, "vault")).as_posix())
+    assert projected["content_hash"] == hashlib.sha256(source.read_bytes()).hexdigest()
 
     source.write_bytes(source.read_bytes().removesuffix(b"\n"))
     notes_path = fixture_path(root, "runtime") / report["notes_path"]
@@ -272,3 +271,41 @@ def test_c21_manifest_and_pointer_hashes_use_canonical_json_bytes(tmp_path: Path
     manifest_bytes = manifest_path.read_bytes()
     assert pointer["manifest_sha256"] == hashlib.sha256(manifest_bytes).hexdigest()
     assert manifest_bytes == canonical_json_bytes(json.loads(manifest_bytes))
+
+
+def test_c21_first_use_needs_no_publication_and_reparses_only_changed_documents(tmp_path, monkeypatch):
+    from vaultops import projection
+
+    roots = make_separate_portable_fixture_roots(tmp_path)
+    calls = []
+    original = projection.source_properties
+
+    def observed(path, raw, **kwargs):
+        calls.append(path)
+        return original(path, raw, **kwargs)
+
+    monkeypatch.setattr(projection, "source_properties", observed)
+    first = projection.load_current_projection(roots)
+    assert first.notes and calls
+    assert not (roots.state / CURRENT_POINTER).exists()
+    calls.clear()
+    assert projection.load_current_projection(roots).manifest == first.manifest
+    assert calls == []
+
+    path = "40_Knowledge/Notes/Plain first use.md"
+    note = roots.vault / path
+    note.write_text("# Current\nCreated directly in Obsidian.\n")
+    current = projection.load_current_projection(roots)
+    assert calls == [path]
+    projected = next(item for item in current.notes if item["path"] == path)
+    assert projected["body"] == note.read_text()
+    assert projected["content_hash"] == hashlib.sha256(note.read_bytes()).hexdigest()
+    assert projected["properties"]["projection_timestamp_source"] == "filesystem"
+    defaults = original(path, note.read_bytes())
+    assert "created" not in defaults and "modified" not in defaults
+    assert current.manifest["generation_id"] == first.manifest["generation_id"]
+    calls.clear()
+    note.write_text("# Current\nEdited directly in Obsidian.\n")
+    current = projection.load_current_projection(roots)
+    assert calls == [path]
+    assert next(item for item in current.notes if item["path"] == path)["content_hash"] != projected["content_hash"]

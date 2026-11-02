@@ -141,7 +141,9 @@ def test_profile_effect_guard_survives_matching_generated_bytes(tmp_path, effect
         profile[relative]["ai"]["providers"] = [{"endpoint": "https://provider.invalid", "apiKey": ""}]
     else:
         relative = ".obsidian-mac/plugins/note-toolbar/data.json"
-        profile[relative]["toolbars"][0]["items"][0]["link"] = "Missing.md"
+        file_link = next(item for toolbar in profile[relative]["toolbars"]
+                         for item in toolbar["items"] if item["linkAttr"]["type"] == "file")
+        file_link["link"] = "Missing.md"
         expected_error = "VAULT_LINK_MISSING"
     profile_path.write_text(json.dumps(profile))
     (roots.vault / relative).write_bytes(expected_projection(roots.control)[relative])

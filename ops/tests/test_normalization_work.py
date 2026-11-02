@@ -134,11 +134,9 @@ def test_executor_creates_pending_and_exports_independently_checked_exact_owner_
     with pytest.raises(AdmissionError, match="independent EvalOfficer"):
         _finish(exops, run, receipt, result, candidate_assessor_id=spec["officer_executor_id"])
     assert _finish(exops, run, receipt, result)["application_state"] == "recorded"
-    backend = ExOpsWebBackend(exops,
-        lambda login: OwnerActor(ACTOR.actor_id, "web") if login == "owner" else None,
-        lambda _actor, token: token == "csrf")
-    exported = backend(SimpleNamespace(owner_operation_id="knowledgeos", actor_login="owner",
-        method="POST", resource_path="work/result", csrf_token="csrf",
+    backend = ExOpsWebBackend(exops, OwnerActor(ACTOR.actor_id, "web"))
+    exported = backend(SimpleNamespace(owner_operation_id="knowledgeos",
+        method="POST", resource_path="work/result",
         body=json.dumps({"work_run_id": run["work_run_id"]}).encode()))
     assert exported["state"] == "completed" and exported["text"].encode() == proposal_bytes
     assert exported["assessment"] == result.assessment

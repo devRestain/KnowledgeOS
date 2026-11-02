@@ -1,4 +1,4 @@
-"""The published relay must preserve owner authorization without owning data."""
+"""The published relay preserves JSON transport without owning domain data."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import pytest
 from vaultops.interfaces.owner_relay import create_owner_relay
 
 
-def test_relay_forwards_authenticated_json_and_rejects_invalid_ingress():
+def test_relay_forwards_json_and_rejects_invalid_ingress():
     observed = []
 
     class Owner(BaseHTTPRequestHandler):
@@ -22,10 +22,8 @@ def test_relay_forwards_authenticated_json_and_rejects_invalid_ingress():
 
         def do_POST(self):
             body = self.rfile.read(int(self.headers["Content-Length"]))
-            observed.append((self.path, self.headers.get("X-KnowledgeOS-CSRF"), body))
-            allowed = (self.path == "/owner/search/query"
-                       and self.headers.get("X-KnowledgeOS-CSRF") == "fixture-token"
-                       and body == b'{"query":"fixture"}')
+            observed.append((self.path, body))
+            allowed = self.path == "/owner/search/query" and body == b'{"query":"fixture"}'
             response = json.dumps({"status": "PASS" if allowed else "FAIL"}).encode()
             self.send_response(200 if allowed else 403)
             self.send_header("Content-Length", str(len(response)))
@@ -42,27 +40,23 @@ def test_relay_forwards_authenticated_json_and_rejects_invalid_ingress():
             thread.start()
         url = f"http://127.0.0.1:{relay.server_port}/owner/search/query"
 
-        def post(target: str, token: str, body: bytes):
+        def post(target: str, body: bytes):
             return opener.open(Request(target, data=body, method="POST", headers={
-                "Content-Type": "application/json", "X-KnowledgeOS-CSRF": token,
+                "Content-Type": "application/json",
             }), timeout=3)
 
         try:
-            with post(url, "fixture-token", b'{"query":"fixture"}') as response:
+            with post(url, b'{"query":"fixture"}') as response:
                 assert response.status == 200
                 assert json.load(response) == {"status": "PASS"}
                 assert response.headers["Cache-Control"] == "no-store"
-            with pytest.raises(HTTPError) as denied:
-                post(url, "wrong-token", b'{"query":"fixture"}')
-            assert denied.value.code == 403
-            assert len(observed) == 2
             with pytest.raises(HTTPError) as invalid_route:
-                post(url + "?unexpected=true", "fixture-token", b"{}")
+                post(url + "?unexpected=true", b"{}")
             assert invalid_route.value.code == 404
             with pytest.raises(HTTPError) as oversized:
-                post(url, "fixture-token", b"x" * 16385)
+                post(url, b"x" * 16385)
             assert oversized.value.code == 413
-            assert len(observed) == 2
+            assert observed == [("/owner/search/query", b'{"query":"fixture"}')]
         finally:
             relay.shutdown()
             upstream.shutdown()

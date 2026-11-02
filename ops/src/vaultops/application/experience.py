@@ -11,8 +11,8 @@ from typing import Any
 from ..adapters.core import PINS, AdmissionError, canonical, digest
 from ..adapters.owner_journal import OwnerJournal, stamp, utc_now
 
-_ELIGIBLE = frozenset({"failure", "timeout", "crash_recovery", "human_correction",
-                       "policy_denial", "verified_unusual_success"})
+_ELIGIBLE = frozenset({"failure", "timeout", "crash_recovery", "cancellation",
+                       "human_correction", "policy_denial", "verified_unusual_success"})
 _SAFE_TERMS = frozenset({"agentfabric.core.experience_candidate",
                          "agentfabric.core.run_outcome", "agentfabric.core.run_evaluation",
                          "agentfabric.core.evidence_availability"})
@@ -39,18 +39,22 @@ class KnowledgeExperience:
         evaluation_state: str = "not_evaluated", classification: str = "internal",
         evidence_references: tuple[dict[str, Any], ...] = (),
         semantic_term_ids: tuple[str, ...] = (),
+        source_run_id: str | None = None,
     ) -> dict[str, Any]:
         """Commit a bounded owner event before any candidate extraction."""
         if category not in _ELIGIBLE and category != "routine_progress":
             raise AdmissionError("EXPERIENCE_INVALID", "unsupported lifecycle category")
         expected_outcomes = {"failure": "failed", "timeout": "timed_out",
                              "crash_recovery": "recovered", "policy_denial": "denied",
+                             "cancellation": "aborted",
                              "verified_unusual_success": "completed",
                              "routine_progress": "completed"}
         if expected_outcomes.get(category, outcome_state) != outcome_state:
             raise AdmissionError("EXPERIENCE_INVALID", "lifecycle category and outcome differ")
         if not event_id.startswith("event.") or len(event_id) > 96:
             raise AdmissionError("EXPERIENCE_INVALID", "owner event ID is invalid")
+        if category == "cancellation" and (not source_run_id or not evidence_references):
+            raise AdmissionError("EXPERIENCE_INVALID", "cancellation requires committed owner evidence and WorkRun identity")
         now = self.clock()
         with self.journal.writer() as session:
             prior = next((row for row in session.value["experience_events"]
@@ -58,8 +62,9 @@ class KnowledgeExperience:
             if prior is not None:
                 if (prior["category"], prior["outcome_state"], prior["evaluation_state"],
                         prior["classification"], prior["evidence_references"],
-                        prior["semantic_term_ids"]) != (category, outcome_state, evaluation_state,
-                            classification, list(evidence_references), sorted(set(semantic_term_ids))):
+                        prior["semantic_term_ids"], prior.get("source_run_id")) != (
+                            category, outcome_state, evaluation_state, classification,
+                            list(evidence_references), sorted(set(semantic_term_ids)), source_run_id):
                     raise AdmissionError("EXPERIENCE_CONFLICT", "event ID changed meaning")
                 return copy.deepcopy(prior)
             if len(session.value["experience_events"]) >= 100:
@@ -73,6 +78,10 @@ class KnowledgeExperience:
                 "evidence_references": list(copy.deepcopy(evidence_references)),
                 "semantic_term_ids": sorted(set(semantic_term_ids)),
             }
+            if source_run_id is not None:
+                signal["source_run_id"] = source_run_id
+            if category == "cancellation":
+                signal["source_instance_id"] = self.journal.identity["instance_id"]
             if len(signal["evidence_references"]) > 8 or len(signal["semantic_term_ids"]) > 16:
                 raise AdmissionError("EXPERIENCE_CAPACITY", "source references exceed Core bounds")
             for reference in signal["evidence_references"]:
@@ -151,6 +160,8 @@ class KnowledgeExperience:
                     "semantic_version": PINS["semantic_version"],
                     "semantic_digest": PINS["semantic_digest"], "capability_pins": [],
                 }
+                if "source_run_id" in event:
+                    candidate["source_run_id"] = event["source_run_id"]
                 self.core.validate("ExperienceCandidate", candidate)
                 if len(canonical(candidate)) > 4096:
                     raise AdmissionError("EXPERIENCE_CAPACITY", "candidate exceeds the 4 KiB bound")

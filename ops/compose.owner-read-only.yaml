@@ -23,8 +23,6 @@ services:
       - vaultops.interfaces.read_only_owner
       - --actor-id
       - ${KNOWLEDGEOS_OWNER_ACTOR_ID:?Select a trusted startup owner login}
-      - --token-file
-      - /run/owner-session/token
       - --bind-host
       - owner
     volumes:
@@ -51,11 +49,6 @@ services:
       - type: bind
         source: ${KNOWLEDGEOS_RUNTIME_SOURCE:?Select the exact Runtime root}
         target: /workspace/runtime
-        read_only: true
-        bind: {create_host_path: false}
-      - type: bind
-        source: ${KNOWLEDGEOS_OWNER_SESSION_SOURCE:?Select a private 0700 session directory}
-        target: /run/owner-session
         read_only: true
         bind: {create_host_path: false}
     networks: [owner-private]

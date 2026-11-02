@@ -1,0 +1,85 @@
+# Explicit activation only. The selected host owns Temporal and the native bridge.
+services:
+  owner:
+    image: ${KNOWLEDGEOS_TEAM_IMAGE:?Select an installed verified Team image}
+    pull_policy: never
+    container_name: ${KNOWLEDGEOS_OWNER_CONTAINER:?Select the exact native bridge MCP target}
+    user: "${KNOWLEDGEOS_UID:?Select numeric UID}:${KNOWLEDGEOS_GID:?Select numeric GID}"
+    working_dir: /opt/knowledgeos/ops
+    read_only: true
+    stdin_open: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HOME: /tmp
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /opt/knowledgeos/ops/src:/opt/services
+      KNOWLEDGEOS_CONFIG_FILE: /workspace/control/ops/vaultops.toml
+      KNOWLEDGEOS_CORE_ROOT: /workspace/Core
+      KNOWLEDGEOS_CONTROL_ROOT: /workspace/control
+      KNOWLEDGEOS_VAULT_ROOT: /workspace/KnowledgeHub
+      KNOWLEDGEOS_STATE_ROOT: /workspace/state
+      KNOWLEDGEOS_RUNTIME_ROOT: /workspace/runtime
+    command: [python, -m, vaultops.interfaces.writable_owner, serve,
+              --policy-file, /run/owner-policy/policy.json,
+              --bind-host, owner-http]
+    volumes:
+      - type: bind
+        source: ${KNOWLEDGEOS_CORE_SOURCE:?Select exact existing Core}
+        target: /workspace/Core
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_CONTROL_SOURCE:?Select exact existing control}
+        target: /workspace/control
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_VAULT_SOURCE:?Select exact existing Vault}
+        target: /workspace/KnowledgeHub
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_STATE_SOURCE:?Select initialized State}
+        target: /workspace/state
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_RUNTIME_SOURCE:?Select current Runtime}
+        target: /workspace/runtime
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_OWNER_POLICY_SOURCE:?Select the owner policy directory}
+        target: /run/owner-policy
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${KNOWLEDGEOS_TEMPORAL_ADAPTER_SOURCE:?Select exact Services temporal adapter}
+        target: /opt/services/clients/temporal.py
+        read_only: true
+        bind: {create_host_path: false}
+    tmpfs: ["/tmp:rw,nosuid,nodev,mode=1777"]
+    networks:
+      owner-private:
+        aliases: [owner-http]
+      temporal-service: {}
+  relay:
+    image: ${KNOWLEDGEOS_TEAM_IMAGE:?Select installed verified Team image}
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Select numeric UID}:${KNOWLEDGEOS_GID:?Select numeric GID}"
+    working_dir: /opt/knowledgeos/ops
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: /opt/knowledgeos/ops/src
+    command: [python, -m, vaultops.interfaces.owner_relay, --upstream-host, owner-http]
+    ports: ["127.0.0.1:${KNOWLEDGEOS_OWNER_PORT:-17900}:17900"]
+    networks: [owner-private, loopback-publication]
+networks:
+  owner-private:
+    internal: true
+  loopback-publication: {}
+  temporal-service:
+    external: true
+    name: ${KNOWLEDGEOS_TEMPORAL_NETWORK:?Select host-owned network providing exact server:7233 route}

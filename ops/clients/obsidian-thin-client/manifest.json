@@ -1,9 +1,9 @@
 {
   "id": "knowledgeos-thin-client",
   "name": "KnowledgeOS Thin Client",
-  "version": "0.3.1",
+  "version": "0.6.0",
   "minAppVersion": "1.5.0",
-  "description": "Persistent KnowledgeOS owner sidebar for Work, search, and human review.",
+  "description": "Native KnowledgeOS document work, evidence, review and existing Obsidian integrations.",
   "author": "KnowledgeOS",
   "isDesktopOnly": true
 }

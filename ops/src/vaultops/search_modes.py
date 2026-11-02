@@ -13,7 +13,7 @@ import os
 import re
 import stat
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -36,6 +36,7 @@ _INDEX_ROOT = "index/vector"
 _PARSER = "markdown-headings-v1"
 _INDEXER = "knowledgeos.vector.v1"
 _RRF_K = 60
+_LOCAL_VECTORS: dict[tuple[str, str, str, str, str], list[float]] = {}
 
 
 @dataclass(frozen=True)
@@ -187,8 +188,11 @@ def _current_projection(roots: Any) -> ProjectionRead:
 
 
 def build_vector_index(roots: Any, port: EmbeddingPort,
-                       *, projection: ProjectionRead | None = None) -> dict[str, Any]:
-    """Build a disposable immutable candidate and promote its exact pointer."""
+                       *, projection: ProjectionRead | None = None,
+                       authorize: Callable[[], None] | None = None) -> dict[str, Any]:
+    """Build an immutable candidate; reauthorize before its pointer promotion."""
+    if authorize is not None:
+        authorize()
     port.pin.validate()
     if getattr(port, "trusted_local", False) is not True:
         raise AdmissionError("SCOPE_DENIED", "Embedding requires a trusted local service binding")
@@ -256,6 +260,8 @@ def build_vector_index(roots: Any, port: EmbeddingPort,
         raise AdmissionError("INDEX_STALE", "Source changed while vector index was built")
     pointer_path = _path(roots.runtime, f"{_INDEX_ROOT}/current.json")
     _private_parent(roots.runtime, pointer_path)
+    if authorize is not None:
+        authorize()
     _write_atomic(pointer_path, canonical(pointer) + b"\n")
     return {"generation_id": generation, "record_count": len(records),
             "reused_vectors": reused, "new_vectors": len(records) - reused,
@@ -274,15 +280,15 @@ def index_status(roots: Any, port: EmbeddingPort | None = None) -> dict[str, Any
         pointer, _ = _read_index(roots.runtime)
         status["vector_generation_id"] = pointer["generation_id"]
         status["vector_state"] = ("ready" if (
-            pointer["projection_generation_id"] == projection.manifest["generation_id"]
-            and pointer["source_snapshot_sha256"] == projection.manifest["source_snapshot_sha256"]
-            and pointer["retrieval_config_sha256"] == _policy_contract(roots)[2]
+            pointer["retrieval_config_sha256"] == _policy_contract(roots)[2]
             and pointer["parser"] == _PARSER and pointer["indexer"] == _INDEXER
             and port is not None and getattr(port, "trusted_local", False) is True
             and pointer["model"] == vars(port.pin)) else "rebuild_required")
     except AdmissionError as error:
-        status["vector_state"] = ("unavailable" if error.code == "INDEX_UNAVAILABLE"
-                                  else "rebuild_required")
+        status["vector_state"] = (
+            "ready" if error.code == "INDEX_UNAVAILABLE"
+            and port is not None and getattr(port, "trusted_local", False) is True
+            else "unavailable" if error.code == "INDEX_UNAVAILABLE" else "rebuild_required")
     return status
 
 
@@ -328,6 +334,11 @@ def search_mode(application: Any, query: str, mode: str, *, scope: str | None = 
     included, *_ = _filter_notes(projection, policy, scope=scope,
                                  path_prefix=path_prefix, include_types=include_types,
                                  include_review=False, limit=limit, hops=0)
+    if application.identity.ingress == "mcp":
+        from .application.read_tools import KnowledgeReadTools
+
+        _, allowed = KnowledgeReadTools(application)._eligible()
+        included = tuple(note for note in included if note["path"] in allowed)
     query_hash = _canonical_query(query)[1]
     if mode == "ontology":
         candidates = _search_ontology(application, projection, query, included, limit, policy_digest)
@@ -337,25 +348,43 @@ def search_mode(application: Any, query: str, mode: str, *, scope: str | None = 
         if port is None or getattr(port, "trusted_local", False) is not True:
             raise AdmissionError("INDEX_UNAVAILABLE", "Trusted local embedding port is not bound")
         port.pin.validate()
-        pointer, records = _read_index(roots.runtime)
-        if (pointer.get("model") != vars(port.pin)
-                or pointer.get("projection_generation_id") != projection.manifest["generation_id"]
-                or pointer.get("source_snapshot_sha256") != projection.manifest["source_snapshot_sha256"]
-                or pointer.get("retrieval_config_sha256") != policy_digest):
-            raise AdmissionError("INDEX_STALE", "Vector generation requires rebuilding")
-        if pointer.get("parser") != _PARSER or pointer.get("indexer") != _INDEXER:
-            raise AdmissionError("INDEX_STALE", "Vector chunker or indexer changed")
-        expected = {
-            (str(note["path"]), chunk.chunk_id, chunk.chunk_hash, note["content_hash"])
-            for note in _eligible_notes(projection, policy)
-            for chunk in _chunks_for_note(note)
-            if chunk.locator != "/frontmatter" and chunk.text.strip()
-        }
-        observed = {(str(row.get("path")), row.get("chunk_id"), row.get("chunk_hash"),
-                     row.get("content_hash")) for row in records}
-        if len(observed) != len(records) or observed != expected:
-            raise AdmissionError("INDEX_STALE", "Vector records differ from the current source corpus")
-        vector_generation = pointer["generation_id"]
+        try:
+            pointer, records = _read_index(roots.runtime)
+        except AdmissionError as error:
+            if error.code != "INDEX_UNAVAILABLE":
+                raise
+            pointer, records = {}, []
+        if pointer and (pointer.get("model") != vars(port.pin)
+                        or pointer.get("retrieval_config_sha256") != policy_digest
+                        or pointer.get("parser") != _PARSER or pointer.get("indexer") != _INDEXER):
+            raise AdmissionError("INDEX_STALE", "Vector model, policy or chunker changed")
+        model_digest = digest(canonical(vars(port.pin)))
+        reuse = {(row["chunk_hash"], row["chunk_locator"]): row["vector"] for row in records}
+        current_records = []
+        for note in included:
+            for chunk in _chunks_for_note(note):
+                if chunk.locator == "/frontmatter" or not chunk.text.strip():
+                    continue
+                cache_key = (str(roots.runtime), model_digest, policy_digest, chunk.chunk_hash, chunk.locator)
+                vector = reuse.get((chunk.chunk_hash, chunk.locator), _LOCAL_VECTORS.get(cache_key))
+                if vector is None:
+                    try:
+                        vector = _vector(port.embed_document(
+                            port.pin.document_format.replace("{text}", chunk.text)), port.pin.dimension)
+                    except Exception as error:
+                        raise AdmissionError("EMBEDDING_UNAVAILABLE", "Local document embedding failed") from error
+                    if len(_LOCAL_VECTORS) >= 8192:
+                        _LOCAL_VECTORS.pop(next(iter(_LOCAL_VECTORS)))
+                    _LOCAL_VECTORS[cache_key] = vector
+                current_records.append({
+                    "note_id": note["id"], "path": note["path"], "content_hash": note["content_hash"],
+                    "chunk_id": chunk.chunk_id, "chunk_hash": chunk.chunk_hash,
+                    "chunk_locator": chunk.locator, "vector": vector,
+                })
+        records = current_records
+        vector_generation = "vec-" + hashlib.sha256(canonical({
+            "model": vars(port.pin), "policy": policy_digest, "records": records,
+        })).hexdigest()
         try:
             embedded_query = port.embed_query(port.pin.query_format.replace("{text}", query))
         except Exception as error:

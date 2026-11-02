@@ -1,0 +1,36 @@
+# Overlay on compose.team-smoke.yaml; all roots remain synthetic tmpfs fixtures.
+services:
+  smoke:
+    hostname: owner
+    networks:
+      default:
+        aliases: [owner]
+    command:
+      - python
+      - /workspace/control/ops/tests/support/curation_steering_smoke.py
+      - hold
+      - --bind-host
+      - owner
+      - --port
+      - "17903"
+      - --hold-seconds
+      - "1800"
+      - --delivery-delay-seconds
+      - "5"
+      - --admit-steering-revision
+  steering-relay:
+    image: "${KNOWLEDGEOS_TEAM_IMAGE:?Build the pinned Team image with the current Owner relay}"
+    pull_policy: never
+    user: "${KNOWLEDGEOS_UID:?Set numeric UID}:${KNOWLEDGEOS_GID:?Set numeric GID}"
+    working_dir: /opt/knowledgeos/ops
+    read_only: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: ["python", "-m", "vaultops.interfaces.owner_relay", "--upstream-port", "17903", "--listen-port", "17903"]
+    ports:
+      - "127.0.0.1:17903:17903"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: [default, steering-loopback-publication]
+networks:
+  steering-loopback-publication: {}

@@ -896,6 +896,7 @@ quickadd_choices:
     template: T60_Meeting.md
     target_pattern: 60_Meetings/YYYY/YYYY-MM-DD — title.md
 
+# Immutable maintenance exports. Normal Work uses the document-local reader below.
 projection:
   output_path_namespace: runtime_relative_posix
   schema_path_namespace: control_root_relative_posix
@@ -980,7 +981,7 @@ projection:
     - verify_source_snapshot_unchanged
     - atomic_replace_current_pointer
     - fsync_parent_directory
-  reader_contract: read_pointer_once_and_use_one_generation_only
+  reader_contract: materialize_documents_on_read_or_inspect_frozen_export
   reject_mixed_generation_or_digest_mismatch: true
   modifies_vault: false
   canonical_edges_only: true
@@ -1021,7 +1022,7 @@ retrieval:
   policy_gate_points: [before_candidate_selection, during_link_expansion, immediately_before_context_return]
   filter_before_context: [scope, path, type, sensitivity, ai_policy]
   frozen_candidate_fields: [query_sha256, policy_decision_sha256, index_generation_id, note_id, path, content_hash, chunk_id, chunk_hash, chunk_locator, retrieval_reason, lexical_score_and_rank, graph_path, parser_and_chunker_version, indexer_version, retrieval_config_sha256]
-  staleness: {default: fail_closed_and_require_rebuild, running_query_pins_generation: true}
+  staleness: {default: refresh_changed_documents, running_query_pins_generation: false}
   answer_requires: [note_id, path, locator, evidence_hash, uncertainty]
 
 privacy:

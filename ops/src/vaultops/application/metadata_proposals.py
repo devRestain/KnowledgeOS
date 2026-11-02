@@ -18,7 +18,7 @@ from ..adapters.artifacts import create_artifact
 from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
-from ..note_engine import NoteEngine, parse_frontmatter, render_frontmatter
+from ..note_engine import NoteEngine, parse_frontmatter, parse_source_document, render_frontmatter
 from ..template_engine import render_note_template
 from .work import record_digest
 
@@ -72,6 +72,19 @@ def _candidate(app: Any, record: dict[str, Any], kind: str,
             or not isinstance(candidate["evidence"], dict)
             or set(candidate["fields"]) != set(candidate["evidence"])):
         _fail("INVALID_ARGUMENT", "Candidate source, registry, or evidence shape differs")
+    from .temporal_contract import native_team_route
+
+    if native_team_route(record["spec"]) is not None:
+        from .metadata_work import RELATION_METHOD_ID, relation_link_evidence, validate_candidate
+
+        spec = record["spec"]
+        if (assessment.get("assessor_id") != spec.get("eval_officer_executor_id")
+                or assessment.get("assessor_id") in [spec.get("manager_executor_id"),
+                                                     *spec.get("allowed_executor_ids", [])]):
+            _fail("ACCEPTANCE_REQUIRED", "Native candidate needs its exact independent EvalOfficer")
+        method_id = spec["method_contract_ref"]["method_id"]
+        links = relation_link_evidence(record) if method_id == RELATION_METHOD_ID else None
+        validate_candidate(app, source, candidate, method_id=method_id, link_evidence=links)
     return candidate
 
 
@@ -154,7 +167,7 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
     raw = read_regular(resolve_beneath(app.roots.vault, source_path))
     if raw is None or digest(raw) != source["content_digest"]:
         _fail("RESOURCE_STALE", "Selected note changed during candidate review")
-    document = parse_frontmatter(raw.decode("utf-8"))
+    document = parse_source_document(raw.decode("utf-8"))
     properties = dict(document.properties)
     permitted = set(engine.blueprint["property_registry"])
     relation_fields = set(engine.blueprint["relation_registry"]["canonical_predicates"])
@@ -202,7 +215,7 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
             properties[field] = values
     properties["modified"] = stamp(app.clock())
     target_types = app.daily_stewardship()._target_types()
-    validated = engine.validate_properties(properties, source_path, target_types=target_types)
+    validated = engine.validate_property_changes(properties, changes, source_path, target_types=target_types)
     if not validated.passed:
         _fail("INVALID_ARGUMENT", "Candidate violates the Blueprint note or relation registry")
     target = render_frontmatter(properties, document.body)
@@ -221,7 +234,7 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
             + "\n-->\n")
     content = render_note_template("T01_AI_Proposal.md", {
         "title": f"Metadata {proposal_id}", "id": proposal_id, "proposal_id": proposal_id,
-        "created": str(document.properties["created"]), "modified": str(document.properties["created"]),
+        "created": stamp(app.clock()), "modified": stamp(app.clock()),
         "sensitivity": document.properties.get("sensitivity", "personal"),
         "source_hashes": [f"{source_path}|{source['content_digest']}"], "body": body,
     }).markdown.encode("utf-8")
@@ -236,6 +249,28 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
             _fail("RESOURCE_STALE", "Metadata group changed before proposal commit")
         if app.reference(source_path) != source:
             _fail("RESOURCE_STALE", "Selected note changed before proposal commit")
+        exops._guard(actor, "submit_work")
+        app.guard("propose")
+        if any(writer.value["intents"].get("exops.work." + receipt["work_run_id"]) != record
+               for receipt, record in zip(receipts, records)):
+            _fail("RESOURCE_STALE", "A grouped Work result changed before Pending commit")
+        current_registry = digest(canonical(NoteEngine.from_root(app.roots).blueprint["relation_registry"]))
+        if current_registry != registry_digest:
+            _fail("RESOURCE_STALE", "Blueprint registry changed before Pending commit")
+        from .temporal_contract import native_team_route
+        from .work_methods import WorkMethodCatalog
+
+        for record, kind in zip(records, ("note_metadata", "note_relations")):
+            if native_team_route(record["spec"]) is not None:
+                spec = record["spec"]
+                exops._team_binding(spec, record["run"])
+                if (not exops.director_admitted(spec)
+                        or exops.director_method_source_admitted is None
+                        or not exops.director_method_source_admitted(spec, source)
+                        or spec["method_contract_ref"] != WorkMethodCatalog.load(app.roots.control).reference(
+                            spec["method_contract_ref"]["method_id"])):
+                    _fail("ADMISSION_REQUIRED", "Native candidate authority changed before Pending commit")
+                _candidate(app, record, kind, source, registry_digest)
         if effect_id in writer.value["intents"]:
             _fail("OUTCOME_UNKNOWN", "Existing proposal intent requires reconciliation")
         effect = {"effect_id": effect_id, "owner_operation_id": "knowledgeos",
@@ -257,6 +292,11 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
         intent["state"] = "unknown"
         writer.commit(now)
         writer.fence()
+        from .owner_authority import validate_owner_authority
+
+        exops._guard(actor, "submit_work")
+        for record in records:
+            validate_owner_authority(app, writer.value, record)
         created = create_artifact(app.roots.vault, proposal_path, content)
         writer.fence()
         if app.reference(source_path) != source:

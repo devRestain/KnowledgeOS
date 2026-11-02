@@ -4,7 +4,7 @@
 
 ## Ownership
 
-- AgentFabric Core supplies versioned static contracts. `ops/config/core-adoption.json` selects Core 0.18.1 and the current semantic bundle.
+- AgentFabric Core supplies versioned static contracts. `ops/config/core-adoption.json` selects Core 0.19.0 and the current semantic bundle.
 - `Operations/KnowledgeOS/` owns code, policy, methods, tests, and this Blueprint.
 - `Vaults/KnowledgeHub/` is the independent Obsidian Vault and Git root. It owns canonical Markdown, Properties, attachments, and Pending review material.
 - `States/Operations/knowledgeos/` owns the journal, Work and Graph bindings, human decisions, receipts, and unresolved effects.
@@ -36,11 +36,21 @@ flowchart LR
 - `Home.md` and `Mobile.md` are navigation surfaces. The canonical Bases and Compass views provide filters and relationship orientation. Search results, backlinks, and unlinked mentions are evidence candidates; they do not create relations automatically.
 - Obsidian manages user note creation. Agent suggestions become owner-journaled Pending proposals with exact source references and preimages. Approval alone does not apply a proposal.
 
+## Document-local processing
+
+- Treat ordinary Markdown as a usable source without mandatory frontmatter, registration, fixed paths or manual index refresh. Keep template and schema checks as authoring/maintenance tools, not a permission gate on personal writing.
+- Materialize read-only Projection records on first use and refresh changed documents. Discover create/edit/move/delete through file metadata; do not hash-freeze the Vault or invalidate an admitted source because another document changed.
+- Give live projected records a path-derived identity, preserving an authored note ID in `properties.id`. A copied note with a duplicate authored ID must not remove either document from processing. Preserve explicit source metadata and body bytes; internal defaults never rewrite notes.
+- Bind evidence and canonical apply to the exact selected source revision and chunk, not an unrelated corpus generation. Permit historical evaluated result inspection with explicit stale-source/no-current-evidence flags.
+- Keep immutable, LF-canonical published exports for maintenance and inspection only. Do not require their pointer or whole-source snapshot to match before ordinary Work. Accept current UTF-8 Markdown line endings in the live reader without rewriting them.
+- Remove client wall-clock review locks. Scope uncertain delivery to its affected document/request, reconcile through exact read-only receipts and keep other documents usable. Retain source-specific overwrite protection and separate human approval/apply.
+
+
 ## Retrieval and privacy
 
 - Current agent retrieval is bounded, citation-bearing lexical and typed-link evidence. Read tools recheck owner reference, current digest, scope, sensitivity, and `ai_policy` before returning source bytes.
 - Configured local MCP may read `ai_policy: ask` documents under the explicit owner policy. `deny` and confidential content remain excluded. `local_only` body text requires a trusted local execution binding.
-- Explicit vector and Hybrid search use an owner-built immutable generation through an injected trusted local embedding service. Lexical remains the default. A measured model pin is required before service adoption; Qwen3 8B quantized is only a historical candidate. Remote retrieval and KOS-managed model execution remain outside this source contract.
+- Explicit Vector and Hybrid search use the selected trusted local embedding port, materializing missing or changed chunks and reusing unchanged vectors. Lexical remains the default. Keep exact model/policy/parser identity checks without requiring a whole-Vault generation match or manual publication for new notes.
 
 ## Work and review
 

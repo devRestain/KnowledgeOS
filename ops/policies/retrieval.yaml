@@ -6,7 +6,7 @@ authoritative_inputs:
 - path: blueprint/blueprint.yaml
   selectors:
   - /retrieval
-  sha256: 88e014582b7e18803ee6474e522f47aea46928c147647c71d8d5105af31e8c94
+  sha256: fe38aeb5336d7203acef735c11438f001fd6deffc7a1311199f7cf16ff1aa40d
 retrieval:
   phases:
   - native_exact_and_links
@@ -82,8 +82,8 @@ retrieval:
   - indexer_version
   - retrieval_config_sha256
   staleness:
-    default: fail_closed_and_require_rebuild
-    running_query_pins_generation: true
+    default: refresh_changed_documents
+    running_query_pins_generation: false
   answer_requires:
   - note_id
   - path

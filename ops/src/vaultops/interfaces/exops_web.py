@@ -1,7 +1,8 @@
-"""Owner Web backend for a trusted Services ServeRouter ingress."""
+"""Owner Web backend bound to the trusted local startup actor."""
 
 from __future__ import annotations
 
+import base64
 import copy
 import difflib
 import json
@@ -11,14 +12,15 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Any, Protocol
 
-from ..adapters.core import AdmissionError, digest
+from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
+from ..application.curation_steering_contract import METHOD_ID as STEERING_METHOD
 from ..application.exops import KnowledgeExOps, OwnerActor
 from ..application.knowledge import LocalIdentity
 from ..application.read_tools import KnowledgeReadTools
 from ..application.work import record_digest
-from ..projection import ProjectionError, load_current_projection
+from ..projection import ProjectionError
 
 _TEMPLATE_TEAMS = {
     "note_metadata": ("corpus-stewardship", "relation-ontology"),
@@ -29,7 +31,9 @@ _TEMPLATE_METHODS = {
     "document_enhancement": ("knowledgeos.cited_research_team",),
 }
 _READ_ONLY_ROUTES = frozenset({
-    "search/query", "owner/status", "work/read", "work/list", "work/result",
+    "search/query", "owner/status", "work/read", "work/inspection", "work/list", "work/result",
+    "work/steering/view", "work/steering/export",
+    "work/methods", "mutation/receipt",
 })
 
 
@@ -69,28 +73,31 @@ def _validate_research_report(report: Any) -> None:
 
 class OwnerIngress(Protocol):
     owner_operation_id: str
-    actor_login: str
     method: str
     resource_path: str
     body: bytes
-    csrf_token: str | None
 
 
 class ExOpsWebBackend:
-    """Reauthenticates the owner actor and mutation token at every call."""
+    """Use the local startup actor while preserving live owner action policy."""
 
-    def __init__(self, exops: KnowledgeExOps,
-                 authenticate_login: Callable[[str], OwnerActor | None],
-                 validate_csrf: Callable[[OwnerActor, str], bool],
+    def __init__(self, exops: KnowledgeExOps, actor: OwnerActor,
                  admit_request: Callable[[OwnerActor, dict[str, Any]], tuple[dict[str, Any], dict[str, Any], str, datetime]] | None = None,
-                 admit_template: Callable[[OwnerActor, str, dict[str, Any], str], list[tuple[dict[str, Any], dict[str, Any], str, datetime, dict[str, Any]]]] | None = None) -> None:
-        if not callable(authenticate_login) or not callable(validate_csrf):
-            raise AdmissionError("BINDING_INVALID", "Web ingress needs owner session checks")
+                 admit_template: Callable[[OwnerActor, str, dict[str, Any], str], list[tuple[dict[str, Any], dict[str, Any], str, datetime, dict[str, Any]]]] | None = None,
+                 run_control: Any = None,
+                 selected_methods: Callable[[OwnerActor], dict[str, Any]] | None = None,
+                 admit_selected_request: Callable[[OwnerActor, dict[str, Any]], dict[str, Any]] | None = None) -> None:
+        if not isinstance(actor, OwnerActor) or actor.ingress != "web" or not actor.actor_id:
+            raise AdmissionError("BINDING_INVALID", "Web ingress needs a trusted local owner actor")
         self.exops = exops
-        self.authenticate_login = authenticate_login
-        self.validate_csrf = validate_csrf
+        self.actor = actor
         self.admit_request = admit_request
         self.admit_template = admit_template
+        self.selected_methods = selected_methods
+        self.admit_selected_request = admit_selected_request
+        if run_control is not None and (getattr(run_control, "exops", None) is not exops or exops.read_only):
+            raise AdmissionError("BINDING_INVALID", "Run control needs this exact writable Owner")
+        self.run_control = run_control
 
     def _scope(self, scope: Any) -> dict[str, str]:
         if (not isinstance(scope, dict) or set(scope) != {"path", "content_sha256"}
@@ -104,13 +111,83 @@ class ExOpsWebBackend:
             raise AdmissionError("RESOURCE_STALE", "Selected note changed before Director admission")
         return scope
 
+    def _mutation_receipt(self, actor: OwnerActor, payload: dict[str, Any]) -> dict[str, Any]:
+        """Observe an exact retained command without resending an effect."""
+        self.exops._guard(actor, "read_work")
+        if set(payload) != {"route", "request"} or not isinstance(payload["request"], dict):
+            raise AdmissionError("INVALID_PAYLOAD", "Receipt lookup needs the original route and request")
+        route, request = payload["route"], payload["request"]
+        state = self.exops.application.journal.read()
+        intents = state["intents"]
+        receipt = None
+        if route == "work/intake-template":
+            group = intents.get("exops.template." + str(request.get("request_id")))
+            if (isinstance(group, dict) and group.get("actor_id") == actor.actor_id
+                    and all(group.get(key) == request.get(key) for key in ("template_id", "scope"))):
+                receipt = self.exops._template_receipt(intents, group, replayed=True)
+        elif route in {"work/intake-selected", "work/intake"}:
+            admission = next((item for key, item in intents.items()
+                              if key.startswith("owner.director.")
+                              and item.get("actor_id") == actor.actor_id
+                              and item.get("request") == request), None)
+            if admission is not None:
+                work = intents.get("exops.work." + admission["run"]["work_run_id"])
+                if isinstance(work, dict):
+                    receipt = work["receipt"]
+        elif route in {"proposal/decide", "proposal/apply"}:
+            reference = request.get("proposal_reference")
+            if isinstance(reference, dict):
+                path = self.exops.application.resolve_reference(reference, proposal=True)
+                intent = next((item for item in intents.values() if item.get("artifact_path") == path), {})
+                key = ("plan." + intent["effect_id"] if str(intent.get("effect_id", "")).startswith("mcp.")
+                       else intent.get("human_request_id"))
+                if route == "proposal/apply":
+                    effect_id = "apply." + str(intent.get("effect_id", "")).split(".")[-1]
+                    effect = intents.get(effect_id, {})
+                    if effect.get("state") == "completed":
+                        receipt = state["receipts"].get(effect_id)
+                else:
+                    decision = state["decisions"].get(key)
+                    chosen = (decision or {}).get("decision") or (decision or {}).get("response", {}).get("chosen_action")
+                    reason = request.get("reason")
+                    reason_matches = (
+                        decision.get("reason") == reason if decision and "reason" in decision else
+                        (decision or {}).get("reason_digest") == (digest(reason.encode()) if isinstance(reason, str) else None))
+                    if chosen == request.get("decision") and reason_matches:
+                        receipt = {"decision": decision}
+        elif route == "daily/decide":
+            receipt = state["decisions"].get(str(request.get("effect_id")) + "." + str(request.get("decision")))
+        elif route in {"work/control/pause", "work/control/resume", "work/control/cancel"}:
+            if self.run_control is not None:
+                receipt = self.run_control.read_command(request.get("work_run_id"), request.get("command_id"), actor=actor)
+        elif route == "work/prepare-metadata":
+            group = intents.get("exops.template." + str(request.get("request_id")), {})
+            if group.get("actor_id") == actor.actor_id:
+                reference = group.get("canonical_proposal_reference")
+                if reference is not None or group.get("metadata_promotion", {}).get("state") == "no_change":
+                    receipt = {"proposal_reference": reference, "metadata_promotion": group.get("metadata_promotion")}
+        elif route in {"work/steering/artifact", "work/steering/request"}:
+            work_id = request.get("work_run_id")
+            self.exops.read_work(work_id, actor=actor)
+            record = intents.get("exops.work." + work_id, {})
+            if route.endswith("/artifact"):
+                raw = canonical(request.get("content"))
+                stored = record.get("steering_artifacts", {}).get("artifact.steering." + digest(raw)[7:39])
+                if stored is not None and base64.b64decode(stored["bytes"], validate=True) == raw:
+                    receipt = stored["reference"]
+            else:
+                command = intents.get("curation.steering.command." + str(request.get("command_id")), {})
+                if (command.get("actor_id") == actor.actor_id and command.get("target") == request.get("target")
+                        and command.get("receipt", {}).get("work_run_id") == work_id):
+                    receipt = command["receipt"]
+        return {"found": receipt is not None, "receipt": copy.deepcopy(receipt),
+                "observation_only": True, "mutation_retried": False}
+
+
     def __call__(self, ingress: OwnerIngress) -> dict[str, Any]:
         if ingress.owner_operation_id != "knowledgeos" or ingress.method != "POST":
             raise AdmissionError("OWNER_DENIED", "Web route is outside KnowledgeOS ExOps")
-        actor = self.authenticate_login(ingress.actor_login)
-        if (actor is None or actor.ingress != "web" or ingress.csrf_token is None
-                or not self.validate_csrf(actor, ingress.csrf_token)):
-            raise AdmissionError("UNAUTHENTICATED", "Web actor or CSRF binding is invalid")
+        actor = self.actor
         if self.exops.read_only and ingress.resource_path not in _READ_ONLY_ROUTES:
             raise AdmissionError("READ_ONLY", "This Owner route is unavailable in read-only mode")
         if len(ingress.body) > 16384:
@@ -121,13 +198,42 @@ class ExOpsWebBackend:
             raise AdmissionError("INVALID_PAYLOAD", "Web body must be JSON") from error
         if not isinstance(payload, dict):
             raise AdmissionError("INVALID_PAYLOAD", "Web body must be an object")
+        if ingress.resource_path == "mutation/receipt":
+            return self._mutation_receipt(actor, payload)
         if ingress.resource_path == "owner/status":
             if payload:
                 raise AdmissionError("INVALID_PAYLOAD", "Owner status takes no selectors")
             self.exops._guard(actor, "read_work")
             state = self.exops.application.journal.read()
             return {"owner_operation_id": "knowledgeos", "read_only": self.exops.read_only,
-                    "generation": state["generation"], "revision": state["revision"]}
+                    "generation": state["generation"], "revision": state["revision"],
+                    "observed_at": stamp(self.exops.application.clock()),
+                    "bindings": {
+                        "director_intake": not self.exops.read_only and self.admit_request is not None
+                            and self.exops.authorize_actor(actor, "submit_work"),
+                        "structured_templates": not self.exops.read_only and self.admit_template is not None
+                            and self.exops.authorize_actor(actor, "submit_work"),
+                        "selected_methods": not self.exops.read_only and self.selected_methods is not None
+                            and self.admit_selected_request is not None
+                            and self.exops.authorize_actor(actor, "submit_work"),
+                        "run_control": self.run_control is not None,
+                        "control_write": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "control_work"),
+                        "safe_steering": not self.exops.read_only
+                            and getattr(getattr(self.exops, "curation_steering", None),
+                                        "exops", None) is self.exops,
+                        "proposal_review": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "proposal_list"),
+                        "proposal_decide": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "proposal_decide"),
+                        "proposal_apply": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "proposal_apply"),
+                        "daily_review": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "daily_list"),
+                        "daily_decide": not self.exops.read_only
+                            and self.exops.authorize_actor(actor, "daily_decide"),
+                    },
+                    "runtime_observation": "unavailable"}
         if ingress.resource_path == "work/submit":
             if set(payload) != {"spec", "run", "action_id", "expires_at"}:
                 raise AdmissionError("INVALID_PAYLOAD", "Work admission body has an unsupported shape")
@@ -138,6 +244,106 @@ class ExOpsWebBackend:
             if set(payload) != {"work_run_id"} or not isinstance(payload["work_run_id"], str):
                 raise AdmissionError("INVALID_PAYLOAD", "Work read body has an unsupported shape")
             return self.exops.read_work(payload["work_run_id"], actor=actor)
+        if ingress.resource_path == "work/inspection":
+            if set(payload) != {"work_run_id"} or not isinstance(payload["work_run_id"], str):
+                raise AdmissionError("INVALID_PAYLOAD", "Work inspection needs one exact run")
+            read = self.exops.read_work(payload["work_run_id"], actor=actor)
+            record = self.exops.application.journal.read()["intents"].get(
+                "exops.work." + payload["work_run_id"])
+            if record is None or record["run"] != read["run"]:
+                raise AdmissionError("RESOURCE_STALE", "Work changed during inspection")
+            segments = []
+            for key in ("admitted_method_segments", "admitted_officer_segments"):
+                for item in record.get(key, {}).values():
+                    segments.append({"segment": copy.deepcopy(item["segment"]),
+                                     "assignments": copy.deepcopy(item.get("assignments")
+                                         or ([item["assignment"]] if "assignment" in item else []))})
+            assessment = record.get("assessment")
+            evaluated = (isinstance(assessment, dict)
+                         and record_digest(assessment) == read["run"].get("latest_assessment_digest"))
+            return {"work_run_id": payload["work_run_id"],
+                    "observed_at": stamp(self.exops.application.clock()),
+                    "segments": segments,
+                    "assessment": copy.deepcopy(assessment) if evaluated else None,
+                    "evaluations": copy.deepcopy(record.get("evaluations", [])) if evaluated else [],
+                    "source_scope": copy.deepcopy(
+                        record.get("template_scope") or record.get("selected_scope")),
+                    "runtime_observation": "unavailable"}
+        if ingress.resource_path in {
+            "work/steering/view", "work/steering/artifact", "work/steering/request",
+            "work/steering/export",
+        }:
+            controller = getattr(self.exops, "curation_steering", None)
+            if controller is None:
+                raise AdmissionError("UNAVAILABLE", "This Owner has no safe steering binding")
+            if getattr(controller, "exops", None) is not self.exops:
+                raise AdmissionError("BINDING_INVALID", "Steering belongs to another Owner")
+            work_run_id = payload.get("work_run_id")
+            if not isinstance(work_run_id, str) or not 1 <= len(work_run_id) <= 160:
+                raise AdmissionError("INVALID_PAYLOAD", "Steering needs one exact WorkRun")
+            if ingress.resource_path == "work/steering/view":
+                if set(payload) != {"work_run_id"}:
+                    raise AdmissionError("INVALID_PAYLOAD", "Steering view takes one WorkRun")
+                return controller.view(work_run_id, actor=actor)
+            if ingress.resource_path == "work/steering/export":
+                if set(payload) != {"work_run_id"}:
+                    raise AdmissionError("INVALID_PAYLOAD", "Steering export takes one WorkRun")
+                return controller.export(work_run_id, actor=actor)
+            if ingress.resource_path == "work/steering/artifact":
+                if set(payload) != {"work_run_id", "content"} or not isinstance(payload["content"], dict):
+                    raise AdmissionError("INVALID_PAYLOAD", "Steering evidence needs bounded content")
+                return controller.register_directive(work_run_id, actor=actor, content=payload["content"])
+            required = {"work_run_id", "command_id", "kind", "target", "expires_at",
+                        "directive_reference"}
+            if (not required <= set(payload)
+                    or set(payload) - required - {"parameter_id", "successor_spec"}
+                    or not isinstance(payload["kind"], str)
+                    or payload["kind"] not in {"answer", "parameter", "cutover", "amend_work", "resume"}
+                    or not isinstance(payload["command_id"], str)
+                    or not isinstance(payload["target"], dict)
+                    or not isinstance(payload["directive_reference"], dict)
+                    or not isinstance(payload["expires_at"], str)
+                    or len(payload["expires_at"]) > 64
+                    or "parameter_id" in payload and not isinstance(payload["parameter_id"], str)
+                    or "successor_spec" in payload and not isinstance(payload["successor_spec"], dict)):
+                raise AdmissionError("INVALID_PAYLOAD", "Steering request differs from its owner contract")
+            try:
+                expires_at = datetime.fromisoformat(payload["expires_at"])
+            except ValueError as error:
+                raise AdmissionError("INVALID_PAYLOAD", "Steering expiry is invalid") from error
+            selected = {key: value for key, value in payload.items()
+                        if key not in {"work_run_id", "expires_at"}}
+            return controller.request(work_run_id, actor=actor, expires_at=expires_at, **selected)
+        if ingress.resource_path in {
+            "work/control/target", "work/control/cancel", "work/control/pause",
+            "work/control/resume", "work/control/command",
+        }:
+            if self.run_control is None:
+                raise AdmissionError("UNAVAILABLE", "This Owner has no native control binding")
+            required = (
+                {"work_run_id"} if ingress.resource_path == "work/control/target"
+                else {"work_run_id", "command_id"} if ingress.resource_path == "work/control/command"
+                else {"work_run_id", "command_id", "target", "expires_at"}
+            )
+            if set(payload) != required or not isinstance(payload["work_run_id"], str):
+                raise AdmissionError("INVALID_PAYLOAD", "Control body differs from its admitted route")
+            if ingress.resource_path == "work/control/target":
+                return self.run_control.target(payload["work_run_id"], actor=actor)
+            if not isinstance(payload["command_id"], str):
+                raise AdmissionError("INVALID_PAYLOAD", "Control command needs one stable identity")
+            if ingress.resource_path == "work/control/command":
+                return self.run_control.read_command(
+                    payload["work_run_id"], payload["command_id"], actor=actor)
+            if not isinstance(payload["expires_at"], str) or len(payload["expires_at"]) > 64:
+                raise AdmissionError("INVALID_PAYLOAD", "Control expiry must be a bounded timestamp")
+            try:
+                expires_at = datetime.fromisoformat(payload["expires_at"])
+            except ValueError as error:
+                raise AdmissionError("INVALID_PAYLOAD", "Control expiry is invalid") from error
+            return self.run_control.request_control(
+                payload["work_run_id"], kind=ingress.resource_path.rsplit("/", 1)[-1],
+                actor=actor, command_id=payload["command_id"],
+                target=payload["target"], expires_at=expires_at)
         if ingress.resource_path == "work/list":
             if set(payload) != {"path"} or not isinstance(payload["path"], str):
                 raise AdmissionError("INVALID_PAYLOAD", "Work list requires one path")
@@ -167,7 +373,8 @@ class ExOpsWebBackend:
                                   for item in outcomes))
                 works.append({"work_run_id": run["work_run_id"],
                               "template_id": record.get("template_id"), "team_id": record["spec"].get("team_id"),
-                              "request_id": record.get("template_request_id"),
+                              "request_id": record.get("template_request_id") or
+                                  intents.get("owner.director." + record["spec"]["admission_receipt_id"], {}).get("request", {}).get("request_id"),
                               "source_stale": scope.get("content_sha256") != current_source_sha256,
                               "proposal_reference": record.get("canonical_proposal_reference"),
                               "metadata_promotion_state": promotion.get("state", "pending")
@@ -177,7 +384,7 @@ class ExOpsWebBackend:
                               "receipt_state": record["receipt"]["receipt_state"],
                               "dispatch_state": record["dispatch_state"],
                               "application_state": record["application_state"],
-                              "run_state": run["state"],
+                              "run_state": "unknown" if record["application_state"] == "unknown" else run["state"],
                               "evaluation_state": "passed" if passed else
                                   "needs_attention" if evaluated else
                                   "unavailable" if run.get("latest_assessment_digest") else "pending"})
@@ -196,24 +403,83 @@ class ExOpsWebBackend:
                 raise AdmissionError("INVALID_PAYLOAD", "Work result needs one run identity")
             read = self.exops.read_work(payload["work_run_id"], actor=actor)
             run = read["run"]
-            result = {"work_run_id": run["work_run_id"], "state": run["state"],
-                      "assessment": None,
-                      "text": None, "reason": "No independently evaluated result is available yet."}
+            result = {"work_run_id": run["work_run_id"],
+                      "state": "unknown" if read["application_state"] == "unknown" else run["state"],
+                      "assessment": None, "text": None,
+                      "reason": "Owner execution outcome is unknown; do not replay the producer."
+                          if read["application_state"] == "unknown" else
+                          "No independently evaluated result is available yet."}
             record = self.exops.application.journal.read()["intents"].get("exops.work." + run["work_run_id"])
             if record is None:
                 raise AdmissionError("RESOURCE_UNAVAILABLE", "Work record is unavailable")
             scope = record.get("template_scope") or record.get("selected_scope")
             application = replace(self.exops.application,
                                   identity=LocalIdentity(actor.actor_id, "operator", local_execution=True))
+            source_stale = False
             if scope:
                 application._source_policy(scope["path"])
-                application._mcp_source_policy(scope["path"])
-                if self.exops.application.reference(scope["path"])["source_revision"] != scope["content_sha256"]:
-                    raise AdmissionError("RESOURCE_STALE", "The Work source changed after admission")
+                try:
+                    current_source = application.reference(scope["path"])
+                except AdmissionError as error:
+                    if error.code != "RESOURCE_UNAVAILABLE":
+                        raise
+                    current_source = None
+                if current_source is not None:
+                    application._mcp_source_policy(scope["path"])
+                source_stale = current_source is None or current_source["source_revision"] != scope["content_sha256"]
+            elif (record.get("method_source_reference") or {}).get("resource_kind") == "vault":
+                try:
+                    relative = application.resolve_reference(record["method_source_reference"])
+                    application._mcp_source_policy(relative)
+                except AdmissionError as error:
+                    if error.code not in {"RESOURCE_STALE", "RESOURCE_UNAVAILABLE"}:
+                        raise
+                    source_stale = True
+            result.update(source_stale=source_stale, source_scope=copy.deepcopy(scope))
             assessment = record.get("assessment")
             if (assessment is not None and run.get("latest_assessment_digest")
                     and record_digest(assessment) == run["latest_assessment_digest"]):
                 result["assessment"] = copy.deepcopy(assessment)
+            if "continuation_state" in read:
+                result["continuation_state"] = read["continuation_state"]
+            if "remaining_work" in read and result["assessment"] is not None:
+                result["remaining_work"] = read["remaining_work"]
+                if read["continuation_state"] == "human_required":
+                    result["reason"] = "Continuation requires an authorized owner revision."
+            if (record["spec"].get("method_contract_ref", {}).get("method_id") == STEERING_METHOD
+                    and run["state"] == "completed"):
+                controller = getattr(self.exops, "curation_steering", None)
+                if controller is None:
+                    raise AdmissionError("UNAVAILABLE", "This Owner has no steering result exporter")
+                if getattr(controller, "exops", None) is not self.exops:
+                    raise AdmissionError("BINDING_INVALID", "Steering result belongs to another Owner")
+                exported = controller.export(run["work_run_id"], actor=actor)
+                if (exported["reference"] != run.get("result_reference")
+                        or exported["assessment"] != record.get("assessment")):
+                    raise AdmissionError("RESOURCE_STALE", "Steering result changed during export")
+                try:
+                    raw = base64.b64decode(exported["content_base64"], validate=True)
+                    text = raw.decode("utf-8")
+                    report = json.loads(text)
+                except (ValueError, UnicodeError, TypeError) as error:
+                    raise AdmissionError("EVIDENCE_REQUIRED", "Steering result is not exact JSON") from error
+                reference = exported["reference"]
+                if (not isinstance(report, dict)
+                        or digest(raw) != reference["content_digest"]
+                        or len(raw) != reference["size_bytes"]):
+                    raise AdmissionError("EVIDENCE_REQUIRED", "Steering result bytes differ from their reference")
+                result.update({
+                    "assessment": exported["assessment"], "text": text, "truncated": False,
+                    "result_reference": copy.deepcopy(reference), "report": report,
+                    "evidence": {
+                        "source_reference": copy.deepcopy(record["method_source_reference"]),
+                        "result_reference": copy.deepcopy(reference),
+                        "criterion_outcomes": copy.deepcopy(exported["assessment"]["criterion_outcomes"]),
+                    },
+                    "proposal_reference": None, "reason": None,
+                    "truth_evaluated": False, "apply_allowed": False,
+                })
+                return result
             if run["state"] != "completed" or result["assessment"] is None:
                 return result
             reference = run.get("result_reference")
@@ -236,6 +502,61 @@ class ExOpsWebBackend:
             result.update({"text": "".join(excerpts), "truncated": artifact["truncated"],
                            "proposal_reference": record.get("canonical_proposal_reference"),
                            "reason": None})
+            if source_stale:
+                result.update(historical=True, current_evidence_valid=False, apply_allowed=False,
+                              truth_evaluated=False, proposal_reference=None,
+                              reason="Historical evaluated result; its source changed or moved. It is not current evidence.")
+                return result
+            boundary_method = record["spec"].get("method_contract_ref", {}).get("method_id")
+            if boundary_method in {
+                    "knowledgeos.note_metadata_team", "knowledgeos.relation_ontology_team",
+                    "knowledgeos.daily_corpus_stewardship_team"}:
+                from ..application.temporal_contract import native_team_route
+
+                if native_team_route(record["spec"]) is not None:
+                    from ..application.metadata_work import (
+                        KINDS,
+                        relation_link_evidence,
+                        validate_candidate,
+                    )
+
+                    body = result["text"].split("```json\n", 1)
+                    if len(body) != 2 or "\n```" not in body[1] or result["truncated"]:
+                        raise AdmissionError("EVIDENCE_REQUIRED", "Native metadata result is incomplete")
+                    try:
+                        envelope = json.loads(body[1].split("\n```", 1)[0])
+                        candidate = json.loads(envelope["content"])
+                        if envelope.get("artifact_kind") != KINDS[boundary_method]:
+                            raise AdmissionError("EVIDENCE_REQUIRED", "Native metadata artifact kind changed")
+                        source = record["method_source_reference"]
+                        links = (relation_link_evidence(record) if boundary_method
+                                 == "knowledgeos.relation_ontology_team" else None)
+                        validate_candidate(application, source, candidate, method_id=boundary_method,
+                                           link_evidence=links)
+                    except (KeyError, TypeError, ValueError) as error:
+                        raise AdmissionError("EVIDENCE_REQUIRED", "Native metadata result evidence is invalid") from error
+                    result["report"] = candidate
+                    result["evidence"] = candidate["evidence"]
+                    result["apply_allowed"] = False
+                    result["truth_evaluated"] = False
+            if boundary_method in {"knowledgeos.knowledge_exchange_team", "knowledgeos.vault_maintenance_team"}:
+                from ..application.boundary_contract import validate_boundary_export
+
+                source = record["method_source_reference"]
+                application.resolve_reference(source)
+                application._mcp_source_policy(application.resolve_reference(source))
+                body = result["text"].split("```json\n", 1)
+                if len(body) != 2 or "\n```" not in body[1] or result["truncated"]:
+                    raise AdmissionError("EVIDENCE_REQUIRED", "Boundary result lacks exact structured plan content")
+                try:
+                    plan = json.loads(body[1].split("\n```", 1)[0])
+                    evidence = validate_boundary_export(
+                        application, record, plan, result["text"].encode("utf-8"))
+                except (KeyError, TypeError, ValueError) as error:
+                    raise AdmissionError("EVIDENCE_REQUIRED", "Boundary result plan evidence is invalid") from error
+                result["report"] = plan
+                result["evidence"] = evidence
+                result["apply_allowed"] = False
             if record.get("template_id") == "document_enhancement":
                 body = result["text"].split("```json\n", 1)
                 if len(body) != 2 or "\n```" not in body[1] or result["truncated"]:
@@ -250,12 +571,6 @@ class ExOpsWebBackend:
                 _validate_research_report(research)
                 if research["source_reference"] != application.reference(scope["path"]):
                     raise AdmissionError("EVIDENCE_REQUIRED", "Research report lacks cited findings and gaps")
-                try:
-                    projection = load_current_projection(application.roots, verify_sources=True)
-                except ProjectionError as error:
-                    raise AdmissionError("INDEX_STALE", "Research source generation requires rebuilding") from error
-                if research["index_generation_id"] != projection.manifest["generation_id"]:
-                    raise AdmissionError("INDEX_STALE", "Research report uses an older source generation")
                 try:
                     citations = reader.citation_verify(research["citations"])
                 except ProjectionError as error:
@@ -291,11 +606,9 @@ class ExOpsWebBackend:
                                      error.get("message", "Owner search failed"))
             reader = KnowledgeReadTools(application)
             try:
-                projection, eligible = reader._eligible()
+                _, eligible = reader._eligible()
             except ProjectionError as error:
                 raise AdmissionError("INDEX_STALE", "Search sources changed before result export") from error
-            if projection.manifest["generation_id"] != report.get("index_generation_id"):
-                raise AdmissionError("INDEX_STALE", "Search generation changed before result export")
             results = []
             seen = set()
             for candidate in report.get("candidates", []):
@@ -316,31 +629,49 @@ class ExOpsWebBackend:
                                 "chunk_locator": excerpt["chunk_locator"],
                                 "chunk_hash": excerpt["chunk_hash"]})
                 seen.add(path)
-            try:
-                current = load_current_projection(application.roots, verify_sources=True)
-            except ProjectionError as error:
-                raise AdmissionError("INDEX_STALE", "Search sources changed during result export") from error
-            if current.manifest != projection.manifest:
-                raise AdmissionError("INDEX_STALE", "Search generation changed during result export")
-            if payload["mode"] in {"vector", "hybrid"}:
-                from ..search_modes import index_status
-
-                status = index_status(application.roots, application.handlers.vector_port)
-                if (status.get("vector_state") != "ready"
-                        or status.get("vector_generation_id") != report.get("vector_generation_id")):
-                    raise AdmissionError("INDEX_STALE", "Vector generation changed during result export")
+            for item in results:
+                if application.reference(item["path"]) != item["resource_reference"]:
+                    raise AdmissionError("RESOURCE_STALE", "Search result source changed during export")
             return {"mode": payload["mode"], "index_generation_id": report.get("index_generation_id"),
                     "vector_generation_id": report.get("vector_generation_id"), "results": results}
+        if ingress.resource_path == "work/methods":
+            if payload:
+                raise AdmissionError("INVALID_PAYLOAD", "Method enumeration takes no selectors")
+            self.exops._guard(actor, "read_work")
+            if self.selected_methods is not None and not self.exops.read_only:
+                return self.selected_methods(actor)
+            from ..application.work_methods import WorkMethodCatalog
+            return {"methods": [
+                {"method_id": method, "purpose": definition["purpose"], "available": False,
+                 "reason": "This Owner has no writable selected-method admission binding", "parameters": {}}
+                for method, definition in WorkMethodCatalog.load(
+                    self.exops.application.roots.control).methods.items()],
+                "observed_at": stamp(self.exops.application.clock())}
+        if ingress.resource_path == "work/intake-selected":
+            self.exops._guard(actor, "submit_work")
+            if (set(payload) != {"method_id", "scope", "request_id"}
+                    or not isinstance(payload["method_id"], str)
+                    or not isinstance(payload["request_id"], str)):
+                raise AdmissionError("INVALID_PAYLOAD", "Selected Work request shape is invalid")
+            if self.admit_selected_request is None:
+                raise AdmissionError("ADMISSION_REQUIRED", "Selected-method Director admission is unavailable")
+            self._scope(payload["scope"])
+            return self.admit_selected_request(actor, payload)
         if ingress.resource_path == "work/intake":
             if self.admit_request is None or set(payload) != {"question", "scope"}:
                 raise AdmissionError("ADMISSION_REQUIRED", "Owner Director intake is unavailable")
             if not isinstance(payload["question"], str) or not 1 <= len(payload["question"]) <= 8192:
                 raise AdmissionError("INVALID_PAYLOAD", "Work question is invalid")
-            self._scope(payload["scope"])
+            scope = dict(self._scope(payload["scope"]))
             spec, run, action_id, expires_at = self.admit_request(actor, payload)
+            source = (self.exops.application.reference(scope["path"])
+                      if spec.get("method_contract_ref") else None)
+            if source is not None and source["source_revision"] != scope["content_sha256"]:
+                raise AdmissionError("RESOURCE_STALE", "Selected note changed during Director admission")
             return self.exops.submit_work(spec, run, actor=actor,
                                           action_id=action_id, expires_at=expires_at,
-                                          selected_scope=payload["scope"])
+                                          selected_scope=scope,
+                                          method_source_reference=source)
         if ingress.resource_path == "work/intake-template":
             if (set(payload) != {"template_id", "scope", "request_id"}
                     or not isinstance(payload["template_id"], str)
@@ -426,7 +757,9 @@ class ExOpsWebBackend:
                     raise AdmissionError("RESOURCE_UNAVAILABLE", "Pending artifact is unavailable")
                 if digest(raw) != intent["content_digest"]:
                     raise AdmissionError("RESOURCE_STALE", "Pending artifact differs from its owner receipt")
-                decision = application.journal.read()["decisions"].get("plan." + intent["effect_id"])
+                decision_key = ("plan." + intent["effect_id"] if intent["effect_id"].startswith("mcp.")
+                                else intent["human_request_id"])
+                decision = application.journal.read()["decisions"].get(decision_key)
                 diff = None
                 target_path = None
                 if not intent["effect_id"].startswith("mcp."):
@@ -447,6 +780,15 @@ class ExOpsWebBackend:
                     current_source = application.reference(intent["source_path"])
                 except AdmissionError:
                     current_source = None
+                source_text = None
+                source_truncated = False
+                if current_source is not None:
+                    application._mcp_source_policy(intent["source_path"])
+                    source_raw = read_regular(resolve_beneath(application.roots.vault, intent["source_path"]))
+                    if source_raw is None or digest(source_raw) != current_source["content_digest"]:
+                        raise AdmissionError("RESOURCE_STALE", "Source changed during proposal review")
+                    source_body = source_raw.decode("utf-8")
+                    source_text, source_truncated = source_body[:16384], len(source_body) > 16384
                 fields = None
                 if intent.get("template_request_id"):
                     changes = intent.get("metadata_changes", {})
@@ -458,6 +800,7 @@ class ExOpsWebBackend:
                         "source_reference": current_source,
                         "source_path": intent["source_path"],
                         "source_digest": intent["source_digest"],
+                        "source_text": source_text, "source_truncated": source_truncated,
                         "source_stale": current_source is None or current_source["content_digest"] != intent["source_digest"],
                         "target_path": target_path, "diff": diff, "field_evidence": fields,
                         "apply_allowed": not intent["effect_id"].startswith("mcp."),

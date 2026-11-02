@@ -13,7 +13,7 @@ from support.control_factory import (
 from vaultops.answer import answer
 from vaultops.blueprint import validate_blueprint
 from vaultops.note_engine import render_frontmatter
-from vaultops.projection import EXIT_CONFLICT, EXIT_OK, generate_projection
+from vaultops.projection import EXIT_CONFLICT, EXIT_OK, generate_projection, load_current_projection
 from vaultops.retrieval import (
     evaluate_frozen_baseline,
     retrieval_candidate_schema,
@@ -266,18 +266,19 @@ def test_c25_candidate_revalidation_rejects_pinned_identity_drift(tmp_path: Path
         )
 
 
-def test_c22_stale_projection_fails_closed_without_runtime_mutation(tmp_path: Path) -> None:
+def test_c22_changed_source_is_materialized_without_runtime_mutation(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root)
     source = (fixture_path(root, "vault") / "20_Projects/guestbook-horror/guestbook-horror.md")
-    source.write_bytes(source.read_bytes() + b"\n")
+    source.write_bytes(source.read_bytes() + b"\nDocument-local-current-marker.\n")
     before = _runtime_snapshot(root)
 
-    report, code = search(root, "방명록")
+    report, code = search(root, "Document-local-current-marker")
 
-    assert code == EXIT_CONFLICT
-    assert report["status"] == "FAIL"
-    assert report["errors"][0]["code"] == "RETRIEVAL_INDEX_STALE"
+    assert code == EXIT_OK, report
+    assert report["status"] == "PASS"
+    assert any(row["path"] == source.relative_to(fixture_path(root, "vault")).as_posix()
+               for row in report["candidates"])
     assert report["provider_called"] is False
     assert report["mutation_performed"] is False
     assert _runtime_snapshot(root) == before
@@ -293,7 +294,7 @@ def test_c22_retrieval_policy_digest_drift_fails_closed(tmp_path: Path) -> None:
 
     assert code == EXIT_CONFLICT
     assert report["status"] == "FAIL"
-    assert report["errors"][0]["code"] == "RETRIEVAL_INDEX_STALE"
+    assert report["errors"][0]["code"] == "RETRIEVAL_CONTRACT_INVALID"
     assert report["provider_called"] is False
     assert report["mutation_performed"] is False
 
@@ -321,11 +322,27 @@ def test_c22_frozen_baseline_pins_one_generation(tmp_path: Path) -> None:
     root = _fresh_control_copy(tmp_path)
     _build(root, generation_id="c22-pinned")
 
-    report, code = evaluate_frozen_baseline(root, expected_generation_id="c22-pinned")
+    generation = load_current_projection(root).manifest["generation_id"]
+    report, code = evaluate_frozen_baseline(root, expected_generation_id=generation)
 
     assert code == EXIT_OK, report
     assert report["status"] == "PASS"
-    assert report["index_generation_id"] == "c22-pinned"
+    assert report["index_generation_id"] == generation
     assert report["source_verified"] is True
     assert report["provider_called"] is False
     assert report["mutation_performed"] is False
+
+
+def test_source_scoped_retrieval_evidence_survives_unrelated_create_edit_and_move(tmp_path):
+    root = _fresh_control_copy(tmp_path)
+    path = "20_Projects/guestbook-horror/guestbook-horror.md"
+    first, code = retrieve(root, "방명록", path_prefix=path, hops=0)
+    assert code == EXIT_OK, first
+    note = fixture_path(root, "vault") / "40_Knowledge/Notes/Unrelated first use.md"
+    note.write_text("New unrelated source.\n")
+    created, code = retrieve(root, "방명록", path_prefix=path, hops=0)
+    assert code == EXIT_OK and created == first
+    note.write_text("Edited unrelated source.\n")
+    note.rename(note.with_name("Unrelated moved.md"))
+    moved, code = retrieve(root, "방명록", path_prefix=path, hops=0)
+    assert code == EXIT_OK and moved == first

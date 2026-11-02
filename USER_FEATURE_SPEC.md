@@ -8,6 +8,10 @@ KnowledgeOS는 AgentFabric 안에서 개발 중인 Operation입니다. 현재 �
 
 Home과 Mobile은 탐색 화면이고, Base와 Compass 뷰는 원문을 바꾸지 않는 투영입니다. 제목·alias의 미연결 언급은 연결 후보로만 봅니다. 관계를 정본에 추가할지, 할 일을 완료할지, 제안을 승인할지는 사용자가 결정합니다.
 
+문서 관리·조정, Work 요청·결과, Pending 결정·별도 적용과 일일 검토는 모두 Obsidian 내부에서 수행하는 것이 사용자 경계입니다. 외부 브라우저는 관리용으로만 남기며 터미널은 KnowledgeOS Operation 운영·유지보수 CLI에 한정합니다.
+
+macOS에서는 Thin Client의 **로컬 백엔드 시작** 버튼으로 미리 설치된 KnowledgeOS를 필요할 때 켭니다. 고정 host 도우미가 로그인 자동 시작 없는 LaunchAgent와 기존 실행 구성을 사용합니다. 화면 열기·상태 새로 조회는 시작이 아니며, Obsidian을 닫아도 접수한 작업과 백엔드는 유지됩니다. 설치·복구·모델 활성화나 임의 명령 실행을 사용자 문서 흐름에 추가하지 않습니다.
+
 ## 에이전트가 하는 일
 
 에이전트는 단일 `vaultmcp` v3로 허용된 자료를 읽고 결과를 제출합니다. 현재 도구는 검색·근거 조회와 구간 읽기, Base·링크·할 일 조회, Work·method 조회, Graph 제안, 산출물 제출, 독립 평가, 인용 확인, 관계·정렬·프로젝트 검토·교환 적응·복구 계획 제안을 포함합니다. 정확한 이름과 입력 스키마는 [MCP capability manifest](ops/schemas/mcp/capabilities.json)에 있습니다.
@@ -21,6 +25,8 @@ Home과 Mobile은 탐색 화면이고, Base와 Compass 뷰는 원문을 바꾸�
 에이전트의 변경안은 출처와 대상 preimage에 묶인 Pending 제안입니다. Obsidian Thin Client의 소스 계약은 owner Work 접수, 진행 상태, 인용된 결과, Pending 원문·출처·diff 표시를 제공합니다. 사용자가 승인 또는 거절을 누르면 owner가 그 결정을 기록합니다. 정본 적용은 별도 버튼과 owner의 재검증을 거칩니다. 승인만으로 파일이 바뀌지 않습니다.
 
 선택된 Obsidian 프로필의 사이드바 배치와 문서 대상 전환은 관측됐지만, Owner를 통한 실제 결과 표시는 별도 검증 대상입니다. Hermes Runner, 일곱 Team의 실동작, 외부 Gateway 교환과 기기별 사용 흐름도 각각 채택 증거가 필요합니다.
+
+Obsidian 안에서의 전체 기능 대응, 네이티브 명령, 설치 플러그인 통합 경계는 [Obsidian 클라이언트 가이드](docs/OBSIDIAN_CLIENT.md)에 있습니다. 실제 선택한 프로필에서의 후속 GUI 검증은 [Computer Use 프롬프트](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)를 사용하며, 소스·디스크 설치만으로 실행 중인 플러그인 채택을 판정하지 않습니다.
 
 ## 운영자가 하는 일
 

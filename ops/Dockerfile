@@ -42,6 +42,7 @@ COPY ops/src ./src
 RUN case "${KNOWLEDGEOS_RUNTIME_EXTRA}" in \
       '') uv sync --locked ;; \
       temporal) uv sync --locked --extra temporal ;; \
+      team) uv sync --locked --extra team ;; \
       *) echo 'Unsupported KNOWLEDGEOS_RUNTIME_EXTRA' >&2; exit 1 ;; \
     esac
 
