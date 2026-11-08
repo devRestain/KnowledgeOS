@@ -67,14 +67,28 @@ def test_expected_host_transport_failure_is_redacted_and_preserved(tmp_path, mon
     assert "private transport diagnostic" not in evidence.read_text()
 
 
-def test_unexpected_cleanup_error_cannot_skip_preservation_or_publish_pass(tmp_path, monkeypatch):
+@pytest.mark.parametrize("selected_core", [None, "/synthetic/exact-core"])
+def test_unexpected_cleanup_error_cannot_skip_preservation_or_publish_pass(
+    tmp_path, monkeypatch, selected_core,
+):
     observations, _ = isolated_host(monkeypatch)
+    if selected_core is None:
+        monkeypatch.delenv("KNOWLEDGEOS_CORE_SOURCE", raising=False)
+        expected_core = smoke.WORKSPACE / "Core"
+    else:
+        monkeypatch.setenv("KNOWLEDGEOS_CORE_SOURCE", selected_core)
+        expected_core = selected_core
     process = SimpleNamespace(
         stdin=io.StringIO(),
         stdout=io.StringIO(json.dumps({"kind": "result", "result": {"status": "PASS"}}) + "\n"),
         wait=lambda **kwargs: 0,
     )
-    monkeypatch.setattr(smoke.subprocess, "Popen", lambda *args, **kwargs: process)
+
+    def start(argv, **kwargs):
+        assert f"type=bind,src={expected_core},dst=/workspace/Core,readonly" in argv
+        return process
+
+    monkeypatch.setattr(smoke.subprocess, "Popen", start)
 
     def failed_cleanup(*args):
         raise TypeError("unexpected cleanup implementation error")

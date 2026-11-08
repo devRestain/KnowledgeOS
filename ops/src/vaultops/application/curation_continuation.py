@@ -13,13 +13,14 @@ from pathlib import Path
 
 from ..adapters.core import digest
 from ..adapters.owner_journal import read_regular, stamp
+from .agent_assessment import assess_result
+from .agent_decisions import admitted_director_context, source_context, validate_role_evidence
 from .curation_work import (
     CRITERION,
     CurationTeamExecutor,
     _artifact,
     _pins,
     _require,
-    _runner_binding,
     _source,
     curation_native_digest,
 )
@@ -27,6 +28,7 @@ from .curation_work import (
     _bundle as curation_bundle,
 )
 from .exops import OwnerActor
+from .native_team import agent_plan, validate_runner_binding
 from .team_catalog import TeamBinding, TeamCatalog
 from .temporal_work import WorkResult
 from .work import (
@@ -38,7 +40,6 @@ from .work import (
     work_spec_digest,
 )
 from .work_methods import WorkMethodCatalog
-from .work_tools import TeamToolSession
 
 METHOD_ID = "knowledgeos.capture_normalization_continuation_team"
 DEFAULT_CONTINUATION_POLICY = {
@@ -92,13 +93,12 @@ def curation_continuation_admission(
     admission_receipt_id, runner_binding, continuation_policy=None,
 ):
     """Construct the exact opt-in Work; Director admission remains independent."""
-    _runner_binding(runner_binding)
+    validate_runner_binding(runner_binding)
     _require(isinstance(binding, TeamBinding), "Continuation requires a TeamBinding")
     TeamCatalog.load(application.roots.control).validate_binding(binding)
     _require(
         binding.team_id == "knowledge-curation"
-        and [item.role_id for item in binding.specialists]
-        == ["knowledgeos.triage", "knowledgeos.normalizer"]
+        and {"knowledgeos.triage", "knowledgeos.normalizer"} <= {item.role_id for item in binding.specialists}
         and binding.native_binding_digest == curation_continuation_native_digest(runner_binding),
         "Continuation requires exact Team and native execution binding",
     )
@@ -115,7 +115,7 @@ def curation_continuation_admission(
         "criteria_revision": 1,
         "objective": "Read one Capture, independently assess its gap, then prepare one Pending normalization proposal",
         "constraints": "No canonical apply or source mutation; native runner "
-        + record_digest(_runner_binding(runner_binding))
+        + record_digest(validate_runner_binding(runner_binding))
         + "; selected source " + record_digest(source_reference),
         "acceptance_criteria": [dict(CRITERION)],
         "target_kind": "team",
@@ -159,7 +159,7 @@ def curation_continuation_admission(
 
 
 def _bundle(app, spec, run, source, *, index, predecessor=None, remaining=None):
-    """Each Graph has a distinct immutable identity and exactly one Profile."""
+    """Seed each immutable segment; the real Manager selects its final tasks."""
     bundle, artifacts = curation_bundle(app, spec, run, source)
     base = {
         "graph_id": bundle["graph_spec"]["graph_id"] + ".segment" + str(index),
@@ -205,9 +205,10 @@ def _bundle(app, spec, run, source, *, index, predecessor=None, remaining=None):
 
 class CurationContinuationExecutor(CurationTeamExecutor):
     """Reuse exact native trace/effect checks, not ordinary one-Graph assumptions."""
+    method_id = METHOD_ID
 
     def _current(self, work_run_id):
-        _require(_runner_binding(self.runner.binding) == self.runner_binding, "Continuation runner changed")
+        _require(validate_runner_binding(self.runner.binding) == self.runner_binding, "Continuation runner changed")
         self.exops._current_binding()
         record = self.exops.application.journal.read()["intents"].get("exops.work." + work_run_id)
         _require(
@@ -215,13 +216,13 @@ class CurationContinuationExecutor(CurationTeamExecutor):
             "Continuation has no active owner attempt",
         )
         spec, run = record["spec"], record["run"]
-        expected, _ = curation_continuation_admission(
-            self.exops.application, self.exops.teams.get(spec.get("team_id")),
-            record.get("method_source_reference"), work_id=spec["work_id"],
-            work_run_id=work_run_id, admission_receipt_id=spec["admission_receipt_id"],
-            runner_binding=self.runner_binding, continuation_policy=spec.get("continuation_policy"),
-        )
-        _require(spec == expected, "Continuation WorkSpec, criteria or Profile envelope changed")
+        binding = self.exops.team_for_spec(spec)
+        _require(binding.native_binding_digest == curation_continuation_native_digest(self.runner_binding),
+                 "Continuation native binding changed")
+        admitted_director_context(self.exops.application, record)
+        method = WorkMethodCatalog.load(self.exops.application.roots.control).admitted_method(spec, self.exops.contracts)
+        _require(method["method_id"] == METHOD_ID, "Continuation method changed")
+        _source(self.exops.application, record["method_source_reference"])
         self.exops._team_binding(spec, run)
         _require(
             self.exops.director_admitted(spec)
@@ -245,34 +246,32 @@ class CurationContinuationExecutor(CurationTeamExecutor):
     def _segment(self, record):
         spec, run = record["spec"], record["run"]
         admitted = record.get("admitted_method_segments", {})
-        count = len(admitted)
-        _require(
-            count in {1, 2} and run["graph_run_ids"] == list(admitted)
-            and run["segments_started"] == count and run["profile_invocations"] == count,
-            "Continuation requires exact immutable one-Profile segment inventory",
-        )
+        _require(len(admitted) == run["segments_started"] in {1, 2}
+                 and run["graph_run_ids"] == list(admitted),
+                 "Continuation segment inventory changed")
+        invocations = 0
         predecessor = None
-        retained = record.get("curation_initial_assessment", {})
         for index, graph_run_id in enumerate(run["graph_run_ids"], 1):
-            bundle, _ = _bundle(
-                self.exops.application, spec, run, record["method_source_reference"], index=index,
-                predecessor=predecessor, remaining=retained.get("remaining_work"),
-            )
+            plan = agent_plan(record, graph_run_id)
             selected = admitted[graph_run_id]
-            _require(
-                graph_run_id == bundle["segment"]["graph_run_id"]
-                and selected["segment"] == bundle["segment"]
-                and selected["assignments"] == bundle["assignments"]
-                and selected["source_reference"] == record["method_source_reference"]
-                and selected["method_contract_ref"] == spec["method_contract_ref"]
-                and selected["team_catalog_digest"] == self.exops.catalog.digest
-                and selected["native_binding_digest"] == curation_continuation_native_digest(self.runner_binding),
-                "Continuation immutable predecessor, trigger, assignment or native binding changed",
-            )
-            predecessor = selected["segment"]
-        active = run.get("active_graph_run_id")
-        _require(active in admitted, "Continuation has no selected active segment")
-        return admitted[active]["segment"]
+            segment = selected["segment"]
+            invocations += len(plan["steps"])
+            _require(segment["segment_index"] == index
+                     and selected["source_reference"] == record["method_source_reference"]
+                     and selected["method_contract_ref"] == spec["method_contract_ref"]
+                     and selected["team_catalog_digest"] == self.exops.catalog.digest
+                     and selected["native_binding_digest"] == curation_continuation_native_digest(self.runner_binding),
+                     "Continuation source, method or binding changed")
+            if predecessor is not None:
+                remaining = record["curation_initial_assessment"]["remaining_work"]
+                _require(segment["predecessor_graph_run_id"] == predecessor["graph_run_id"]
+                         and segment["trigger_kind"] == "remaining_work"
+                         and segment["trigger_digest"] == record_digest(remaining)
+                         and segment["trigger_reference_id"] == remaining["remaining_work_id"],
+                         "Continuation lineage changed")
+            predecessor = segment
+        _require(run["profile_invocations"] == invocations, "Continuation invocation accounting changed")
+        return admitted[run["active_graph_run_id"]]["segment"]
 
     def _triage(self, record):
         # Reconstruct the initial Graph context, including when the current Graph
@@ -291,9 +290,7 @@ class CurationContinuationExecutor(CurationTeamExecutor):
         bundle, artifacts = _bundle(
             self.exops.application, spec, run, record["method_source_reference"], index=1,
         )
-        TeamToolSession(
-            self.exops.application, run["work_run_id"], spec["manager_executor_id"], exops=self.exops,
-        ).propose_graph({"bundle": bundle, "artifacts": artifacts})
+        await self._compose(record, bundle, artifacts, required_stage_ids=["capture_evidence"])
 
     async def capture_evidence(self, work_run_id):
         record = self._current(work_run_id)
@@ -357,61 +354,57 @@ class CurationContinuationExecutor(CurationTeamExecutor):
 
     def _initial_admission(self, record):
         retained = record.get("curation_initial_assessment")
-        _require(isinstance(retained, dict) and isinstance(retained.get("assessment"), dict), "Initial assessment is unavailable")
-        initial = copy.deepcopy(record)
-        if record.get("control_checkpoint") is True:
-            closed_initial = record.get("curation_control_checkpoint", {}).get("initial_run", retained.get("run"))
-            _require(closed_initial == retained.get("run"), "Original closed control evidence changed")
-            initial["run"] = copy.deepcopy(closed_initial)
-            initial["run"]["active_graph_run_id"] = closed_initial["graph_run_ids"][0]
-            initial_id = closed_initial["graph_run_ids"][0]
-            initial["admitted_method_segments"] = {
-                initial_id: copy.deepcopy(record["admitted_method_segments"][initial_id]),
-            }
-        assessment, remaining, segments, evaluations, artifacts, checkpoints = self._initial_result(
-            initial, assessed_at=retained["assessment"].get("assessed_at"),
-        )
-        run, spec = record["run"], record["spec"]
-        if record.get("control_checkpoint") is True:
-            closed = copy.deepcopy(retained["run"])
+        semantic = record.get("curation_initial_semantic")
+        _require(isinstance(retained, dict) and isinstance(semantic, dict),
+                 "Initial independent semantic assessment is unavailable")
+        _require(all(retained[key] == semantic[key] for key in (
+            "assessment", "remaining_work", "evaluations", "checkpoints", "assessment_artifacts", "segments"
+        )), "Initial assessment differs from its actual EvalOfficer decision")
+        evidence = semantic["evidence"]
+        _require(evidence["content_digest"] == record_digest(evidence, ("content_digest",)),
+                 "Initial EvalOfficer evidence changed")
+        validate_role_evidence(self.exops.application.roots.control, "knowledgeos.eval_officer",
+                               evidence["response"], tools=[])
+        spec, run = record["spec"], record["run"]
+        assessment, remaining = retained["assessment"], retained["remaining_work"]
+        initial_id = run["graph_run_ids"][0]
+        _require(retained["segments"] == [record["admitted_method_segments"][initial_id]["segment"]]
+                 and retained["run"].get("latest_assessment_id") == assessment["assessment_id"]
+                 and retained["run"].get("latest_assessment_digest") == record_digest(assessment)
+                 and retained["run"].get("last_gap_signature") == remaining["gap_signature"],
+                 "Historical continuation trigger or original segment changed")
+        final = record.get("curation_semantic_assessment")
+        if final is None:
+            _require(record.get("remaining_work") == remaining and record.get("assessment") == assessment
+                     and run.get("latest_assessment_id") == assessment["assessment_id"]
+                     and run.get("latest_assessment_digest") == record_digest(assessment)
+                     and run.get("last_gap_signature") == remaining["gap_signature"],
+                     "Continuation trigger is not the current independent gap")
         else:
-            closed = copy.deepcopy(run)
-            closed.update(
-                revision=run["revision"] - (run["segments_started"] - 1),
-                control_revision=run["control_revision"] - (run["segments_started"] - 1),
-                graph_run_ids=run["graph_run_ids"][:1], segments_started=1, profile_invocations=1,
-            )
-            closed.pop("active_graph_run_id", None)
-        _require(retained == {
-            "assessment": assessment, "remaining_work": remaining, "evaluations": list(evaluations),
-            "checkpoints": checkpoints, "assessment_artifacts": artifacts,
-            "segments": list(segments), "run": closed,
-        }, "Initial independent assessment or RemainingWork evidence changed")
-        _require(
-            record.get("remaining_work") == remaining
-            and record.get("assessment") == assessment
-            and run.get("latest_assessment_id") == assessment["assessment_id"]
-            and run.get("latest_assessment_digest") == record_digest(assessment)
-            and run.get("last_gap_signature") == remaining["gap_signature"]
-            and run["repeated_gap_count"] == 1,
-            "Continuation trigger is not the exact current independent gap",
-        )
+            _require(record.get("remaining_work") == final["remaining_work"],
+                     "Current RemainingWork differs from the final semantic assessment")
+            if record["application_state"] == "recorded":
+                _require(record.get("assessment") == final["assessment"]
+                         and run.get("latest_assessment_digest") == record_digest(final["assessment"]),
+                         "Final semantic assessment does not bind the current result")
+        initial_view = copy.deepcopy(record)
+        initial_view["run"]["active_graph_run_id"] = initial_id
+        initial_view["run"]["state"] = "running"
+        self._evidence(initial_view)
         self.exops.contracts.assessment(
-            assessment, spec, run, segments=segments, evaluations=evaluations, artifacts=artifacts,
-            checkpoints=checkpoints, candidate_assessor_id=spec["eval_officer_executor_id"],
+            assessment, spec, retained["run"], segments=retained["segments"],
+            evaluations=retained["evaluations"], artifacts=retained["assessment_artifacts"],
+            checkpoints=retained["checkpoints"], candidate_assessor_id=spec["eval_officer_executor_id"],
         )
-        self.exops.contracts.remaining(remaining, assessment, spec, run)
-        _require(
-            self.exops.contracts.continuation(remaining, spec, closed, assessment=assessment) == "allowed",
-            "Initial continuation authorization exhausted its admitted budget",
-        )
+        self.exops.contracts.remaining(remaining, assessment, spec, retained["run"])
         return retained
 
     async def assess_initial(self, work_run_id):
         record = self._current(work_run_id)
         _require(
-            self._segment(record)["segment_index"] == 1
-            and "curation_initial_assessment" not in record
+            "curation_initial_assessment" not in record
+            and "curation_initial_semantic" not in record
+            and self._segment(record)["segment_index"] == 1
             and not any(key in record for key in ("curation_model_request", "curation_model_execution", "submitted_artifacts")),
             "Initial assessment requires an unassessed read-only segment",
         )
@@ -422,6 +415,27 @@ class CurationContinuationExecutor(CurationTeamExecutor):
             "Initial assessment cannot overlook an actual Work effect",
         )
         assessment, remaining, segments, evaluations, artifacts, checkpoints = self._initial_result(record)
+        structural = WorkResult(
+            {**copy.deepcopy(record["run"]), "revision": record["run"]["revision"] + 1,
+             "control_revision": record["run"]["control_revision"] + 1},
+            assessment, segments, evaluations, artifacts, checkpoints, record["spec"]["eval_officer_executor_id"],
+        )
+        assessed = await assess_result(self.exops, self.runner, record, structural, evidence={
+            "sources": [source_context(self.exops.application, record["method_source_reference"])],
+            "artifacts": [],
+            "observations": {"triage": record["curation_capture_evidence"],
+                             "normalization_proposal": "not_run"},
+        })
+        result, remaining = assessed["result"], assessed["remaining_work"]
+        _require(remaining is not None, "Read-only initial segment cannot certify the required Pending effect")
+        assessment, segments, evaluations = result.assessment, result.segments, result.evaluations
+        artifacts, checkpoints = result.artifacts, result.checkpoints
+        self._save(work_run_id, record, "curation_initial_semantic", {
+            "assessment": assessment, "remaining_work": remaining, "segments": list(segments),
+            "evaluations": list(evaluations), "assessment_artifacts": artifacts,
+            "checkpoints": checkpoints, "evidence": assessed["evidence"],
+        })
+        record = self._current(work_run_id)
         run = record["run"]
         next_run = {
             **copy.deepcopy(run), "revision": run["revision"] + 1,
@@ -462,17 +476,14 @@ class CurationContinuationExecutor(CurationTeamExecutor):
             self.exops.application, spec, run, record["method_source_reference"], index=2,
             predecessor=predecessor, remaining=retained["remaining_work"],
         )
-        TeamToolSession(
-            self.exops.application, work_run_id, spec["manager_executor_id"], exops=self.exops,
-        ).propose_graph({"bundle": bundle, "artifacts": artifacts})
+        await self._compose(record, bundle, artifacts, required_stage_ids=["normalization_proposal"])
 
     def _request(self, record):
         _require(self._segment(record)["segment_index"] == 2, "Normalizer requires the admitted successor")
         self._initial_admission(record)
         return super()._request(record)
 
-    async def assess(self, work_run_id):
-        record = self._current(work_run_id)
+    def _assess(self, record):
         retained = self._initial_admission(record)
         result = super()._assess(record)
         assessment = copy.deepcopy(result.assessment)
@@ -490,5 +501,4 @@ class CurationContinuationExecutor(CurationTeamExecutor):
             segments=combined.segments, evaluations=combined.evaluations, artifacts=combined.artifacts,
             checkpoints=combined.checkpoints, candidate_assessor_id=combined.candidate_assessor_id,
         )
-        self._current(work_run_id)
         return combined

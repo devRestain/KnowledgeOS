@@ -35,9 +35,15 @@ WORKDIR /opt/knowledgeos/ops
 COPY ops/pyproject.toml ops/uv.lock ops/vaultops.toml ./
 # Import-time Core pins are immutable package inputs, not private root bindings.
 COPY ops/config/core-adoption.json ./config/core-adoption.json
+# Owner role evidence and native binding validation consume these installed bytes.
+COPY ops/config/agent-profiles.json ./config/agent-profiles.json
+COPY ops/config/team-catalog.json ./config/team-catalog.json
+COPY ops/prompts/hermes ./prompts/hermes
+COPY ops/clients/hermes/*.py ./clients/hermes/
 # MCP loads its exact capability manifest and schemas from the installed package tree.
 COPY ops/schemas/mcp ./schemas/mcp
 COPY ops/src ./src
+COPY frontend /opt/knowledgeos/frontend
 
 RUN case "${KNOWLEDGEOS_RUNTIME_EXTRA}" in \
       '') uv sync --locked ;; \

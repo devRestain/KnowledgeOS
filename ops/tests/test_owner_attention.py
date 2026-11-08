@@ -12,7 +12,6 @@ from test_normalization_work import _execute, _finish, _started
 from vaultops.adapters.core import AdmissionError, digest
 from vaultops.application.owner_attention import (
     PREFIX,
-    SUMMARIES,
     AttentionOutcome,
     AttentionRoute,
     OwnerAttention,
@@ -21,7 +20,7 @@ from vaultops.application.owner_attention import (
 from vaultops.application.work import record_digest
 from vaultops.interfaces.attention_scanner import scan_committed_owner
 
-ROUTE = AttentionRoute("owner.attention", 1, 1, "https://knowledgeos.example.test/")
+ROUTE = AttentionRoute("owner.attention", 1, 1, "http://127.0.0.1:17900/console/")
 
 
 class Transport:
@@ -99,8 +98,8 @@ def test_wait_and_evaluated_outcome_are_separate_redacted_durable_notices(owner)
     for notice in transport.calls:
         assert "#work_run_id=" in notice.content and len(notice.content) < 800
         assert "@everyone" not in notice.content and "source_reference" not in notice.content
-        kind = after["intents"][PREFIX + notice.notice_id]["event"]["event_type"]
-        assert notice.content == SUMMARIES[kind] + "\nhttps://knowledgeos.example.test/#work_run_id=" + owner[1]["work_run_id"]
+        assert notice.content.endswith(
+            "\n" + ROUTE.console_url + "#work_run_id=" + owner[1]["work_run_id"])
 
 
 @pytest.mark.parametrize("change", ["destination", "audience", "revoked", "url"])
@@ -113,7 +112,7 @@ def test_current_export_and_route_generation_fence_create_and_attempt(owner, cha
         "destination": replace(ROUTE, destination_generation=2),
         "audience": replace(ROUTE, audience_generation=2),
         "revoked": None,
-        "url": replace(ROUTE, console_url="https://other.example.test/"),
+        "url": replace(ROUTE, console_url="http://127.0.0.1:17901/console/"),
     }[change]
     for key in ids:
         with pytest.raises(AdmissionError):
@@ -281,13 +280,30 @@ def test_owner_generation_change_fences_queued_content(owner):
         attention.attempt(key)
 
 
-@pytest.mark.parametrize("url", ["http://knowledgeos.example.test/", "https://token@knowledgeos.example.test/",
-                                  "https://knowledgeos.example.test/?token=secret",
-                                  "https://knowledgeos.example.test/#secret",
-                                  "https://knowledgeos.example.test/private-source"])
-def test_only_authorized_bounded_console_origin_can_be_exported(owner, url):
+@pytest.mark.parametrize("url", [
+    "http://knowledgeos.example.test/", "https://knowledgeos.example.test/",
+    "http://token@127.0.0.1:17900/console/",
+    "http://127.0.0.1:17900/console/?token=secret",
+    "http://127.0.0.1:17900/console/#secret", "http://127.0.0.1/private-source",
+    "http://127.0.0.1:0/console/", "http://127.0.0.1:65536/console/",
+    "http://127.0.0.1:invalid/console/", "http://[invalid/console/",
+])
+def test_only_authorized_bounded_local_console_can_be_exported(owner, url):
     attention = bind(owner, route=lambda _event: replace(ROUTE, console_url=url))
     assert attention.scan() == []
+
+
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1:17900/console/", "http://localhost:17900/console/",
+    "http://127.0.0.1/", "http://localhost:17900/console",
+])
+def test_local_attention_link_preserves_exact_work_target(owner, url):
+    transport = Transport()
+    attention = bind(owner, transport, route=lambda _event: replace(ROUTE, console_url=url))
+    key = ids_by_type(attention)["human_wait"]
+    attention.attempt(key)
+    assert transport.calls[0].content.endswith(
+        "\n" + url.rstrip("/") + "/#work_run_id=" + owner[1]["work_run_id"])
 
 
 def test_unexpected_transport_fault_propagates_and_keeps_durable_uncertainty(owner):

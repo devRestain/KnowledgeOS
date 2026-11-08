@@ -22,8 +22,10 @@ from vaultops.application.exops import OwnerActor
 from vaultops.application.temporal_contract import (
     CONTROL_APPLY_ACTIVITY,
     CONTROL_CHECKPOINT_ACTIVITY,
+    CONTROL_INITIAL_GRAPH_NAME,
     CONTROL_ROLLOVER_ADOPT_ACTIVITY,
     CONTROL_ROLLOVER_PREPARE_ACTIVITY,
+    CONTROL_SUCCESSOR_GRAPH_NAME,
     CONTROL_WORKFLOW_TYPE,
     curation_control_target,
 )
@@ -179,6 +181,8 @@ def test_control_initial_activity_requires_control_admission_flag(monkeypatch):
     activities, payload, _, info, calls, _ = continuation_adapter(monkeypatch)
     activities.workflow_type = CONTROL_WORKFLOW_TYPE
     info.workflow_type = CONTROL_WORKFLOW_TYPE
+    info.activity_type = CONTROL_INITIAL_GRAPH_NAME + ".capture_evidence"
+    info.workflow_run_id = "native-control-unit"
     with pytest.raises(AdmissionError):
         asyncio.run(activities.capture_evidence(payload))
     assert not calls
@@ -239,25 +243,41 @@ def test_transport_outage_without_owner_application_remains_pending(tmp_path, mo
 
 
 @pytest.mark.parametrize("node", ("manager_successor", "normalization_proposal", "assess"))
-def test_controlled_successor_requires_exact_owner_resume_release(monkeypatch, node):
+def test_controlled_successor_requires_owner_controller(monkeypatch, node):
     activities, payload, record, info, calls, _ = continuation_adapter(monkeypatch, node=node)
     activities.workflow_type = CONTROL_WORKFLOW_TYPE
     info.workflow_type = CONTROL_WORKFLOW_TYPE
+    info.activity_type = CONTROL_SUCCESSOR_GRAPH_NAME + "." + node
+    info.workflow_run_id = "native-control-unit"
     record["control_checkpoint"] = True
     with pytest.raises(AdmissionError):
-        activities.current_record(payload, node, started=True)
+        asyncio.run(getattr(activities, node)(payload))
     assert not calls
 
 
-def test_control_initial_activity_rejects_known_foreign_native_run(monkeypatch):
-    activities, payload, record, info, calls, _ = continuation_adapter(monkeypatch)
-    activities.workflow_type = CONTROL_WORKFLOW_TYPE
-    info.workflow_type = CONTROL_WORKFLOW_TYPE
+def test_control_initial_activity_rejects_known_foreign_native_run(tmp_path, monkeypatch):
+    from vaultops.application.curation_continuation_temporal import _ContinuationActivities
+
+    controller, target, exops, executor, *_ = checkpoint_ready(tmp_path, monkeypatch)
+    info = native_context(
+        monkeypatch, target, activity_type=CONTROL_INITIAL_GRAPH_NAME + ".capture_evidence",
+    )
     info.workflow_run_id = "foreign-native"
-    record.update(control_checkpoint=True, temporal_run_id="known-native")
+    record = exops.application.journal.read()["intents"]["exops.work." + target["work_run_id"]]
+    payload = {
+        "owner_operation_id": "knowledgeos", "work_run_id": target["work_run_id"],
+        "action_id": record["action_id"], "content_digest": record["content_digest"],
+        "work_spec_digest": record["spec"]["spec_digest"],
+    }
+    activities = _ContinuationActivities(
+        exops, executor, workflow_type=CONTROL_WORKFLOW_TYPE, controller=controller,
+    )
+    before = exops.application.journal.read()
+    calls = copy.deepcopy((executor.runner.requests, executor.runner.decisions))
     with pytest.raises(AdmissionError):
         asyncio.run(activities.capture_evidence(payload))
-    assert not calls
+    assert exops.application.journal.read() == before
+    assert (executor.runner.requests, executor.runner.decisions) == calls
 
 
 def test_worker_factory_rejects_mixed_owner_controller_before_loading_sdk(tmp_path, monkeypatch):
@@ -482,12 +502,11 @@ def test_successor_activity_rechecks_real_owner_release_and_native_identity(
     tmp_path, monkeypatch, node,
 ):
     from vaultops.application.curation_continuation_temporal import _ContinuationActivities
-    from vaultops.application.temporal_contract import CURATION_SUCCESSOR_GRAPH_NAME
 
     controller, pause, exops, executor = command_ready(tmp_path, monkeypatch, kind="pause")
     target = pause["target"]
     info = native_context(
-        monkeypatch, target, activity_type=CURATION_SUCCESSOR_GRAPH_NAME + "." + node,
+        monkeypatch, target, activity_type=CONTROL_SUCCESSOR_GRAPH_NAME + "." + node,
     )
     record = exops.application.journal.read()["intents"]["exops.work." + target["work_run_id"]]
     payload = {
@@ -499,14 +518,19 @@ def test_successor_activity_rechecks_real_owner_release_and_native_identity(
         exops, executor, workflow_type=CONTROL_WORKFLOW_TYPE, controller=controller,
     )
     before = exops.application.journal.read()
+    calls = copy.deepcopy((executor.runner.requests, executor.runner.decisions))
     with pytest.raises(AdmissionError):
-        activities.current_record(payload, node, started=True)
+        asyncio.run(getattr(activities, node)(payload))
     assert exops.application.journal.read() == before
+    assert (executor.runner.requests, executor.runner.decisions) == calls
     paused = controller.apply_control(
         target["work_run_id"], pause["command_id"], temporal_run_id=target["temporal_run_id"],
     )
+    before = exops.application.journal.read()
     with pytest.raises(AdmissionError):
-        activities.current_record(payload, node, started=True)
+        asyncio.run(getattr(activities, node)(payload))
+    assert exops.application.journal.read() == before
+    assert (executor.runner.requests, executor.runner.decisions) == calls
     resume = {"command_id": "command.runtime.resume", "kind": "resume", "target": paused["next_target"]}
     controller.request_control(
         target["work_run_id"], **resume, actor=OwnerActor("owner.user", "web"),
@@ -519,13 +543,15 @@ def test_successor_activity_rechecks_real_owner_release_and_native_identity(
     before = exops.application.journal.read()
     info.workflow_run_id = "foreign-run"
     with pytest.raises(AdmissionError):
-        activities.current_record(payload, node, started=True)
+        asyncio.run(getattr(activities, node)(payload))
     assert exops.application.journal.read() == before
+    assert (executor.runner.requests, executor.runner.decisions) == calls
     info.workflow_run_id = target["temporal_run_id"]
     exops.authorize_actor = lambda actor, action: False
     with pytest.raises(AdmissionError):
-        activities.current_record(payload, node, started=True)
+        asyncio.run(getattr(activities, node)(payload))
     assert exops.application.journal.read() == before
+    assert (executor.runner.requests, executor.runner.decisions) == calls
 
 
 def test_native_handler_cancel_while_paused_is_terminal_without_successor(tmp_path, monkeypatch):
@@ -717,7 +743,7 @@ def test_workflow_adoption_rejects_foreign_native_lineage_before_activity(
     else:
         info.workflow_id = "knowledgeos/foreign"
     before = exops.application.journal.read()
-    with pytest.raises(Exception, match="lineage"):
+    with pytest.raises(sys.modules["temporalio.exceptions"].ApplicationError):
         asyncio.run(selected._adopt(envelope))
     assert not applications and exops.application.journal.read() == before
     assert selected._commands == {}
@@ -745,7 +771,7 @@ def test_workflow_failed_rollover_activity_never_continues_or_restores_state(
     workflow.execute_activity = unavailable
     workflow.continue_as_new = forbidden_continue
     before = exops.application.journal.read()
-    with pytest.raises(ConnectionError, match="unavailable"):
+    with pytest.raises(ConnectionError):
         if boundary == "prepare":
             selected._dispatch = envelope["dispatch"]
             selected._rollover_requested = True
@@ -889,7 +915,6 @@ def test_replacement_control_and_successor_activities_authorize_new_not_original
     tmp_path, monkeypatch,
 ):
     from vaultops.application.curation_continuation_temporal import _ContinuationActivities
-    from vaultops.application.temporal_contract import CURATION_SUCCESSOR_GRAPH_NAME
 
     _, envelope, activities, info, exops, _ = prepared_rollover(tmp_path, monkeypatch, paused=True)
     info.activity_type = CONTROL_ROLLOVER_ADOPT_ACTIVITY
@@ -908,12 +933,14 @@ def test_replacement_control_and_successor_activities_authorize_new_not_original
         exops, activities.executor, workflow_type=CONTROL_WORKFLOW_TYPE,
         controller=activities.controller,
     )
-    info.activity_type = CURATION_SUCCESSOR_GRAPH_NAME + ".manager_successor"
+    info.activity_type = CONTROL_SUCCESSOR_GRAPH_NAME + ".manager_successor"
     assert successor.current_record(
         envelope["dispatch"], "manager_successor", started=True,
     )["run"]["state"] == "running"
     before = exops.application.journal.read()
+    calls = copy.deepcopy((activities.executor.runner.requests, activities.executor.runner.decisions))
     info.workflow_run_id = resume["target"]["temporal_run_id"]
     with pytest.raises(AdmissionError):
-        successor.current_record(envelope["dispatch"], "manager_successor", started=True)
+        asyncio.run(successor.manager_successor(envelope["dispatch"]))
     assert exops.application.journal.read() == before
+    assert (activities.executor.runner.requests, activities.executor.runner.decisions) == calls

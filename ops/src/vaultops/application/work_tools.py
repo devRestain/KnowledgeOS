@@ -167,16 +167,16 @@ class TeamToolSession:
             _require(arguments["resource_reference"] == source,
                      "SCOPE_DENIED", "Resource differs from the admitted Graph input")
         method_id = record["spec"].get("method_contract_ref", {}).get("method_id")
-        criteria = [item["criterion_id"] for item in record["spec"]["acceptance_criteria"]]
         native_metadata = {
             "knowledgeos.note_metadata_team": ("note_metadata", "coverage_evidence"),
             "knowledgeos.relation_ontology_team": ("relation_ontology", "relation_evidence"),
             "knowledgeos.daily_corpus_stewardship_team": ("daily_corpus", "coverage_evidence"),
         }.get(method_id)
-        if native_metadata is not None and criteria == ["criterion.native_" + native_metadata[0]]:
+        if native_metadata is not None:
             if tool_name == "semantic_registry_read":
-                _require(dict(arguments) == {"category": "relations"},
-                         "SCOPE_DENIED", "Native metadata requires the exact relation registry")
+                _require(set(arguments) == {"category"}
+                         and arguments["category"] in {"properties", "types", "relations"},
+                         "SCOPE_DENIED", "Registry read differs from the admitted metadata stage")
             elif tool_name == "link_context":
                 _require(dict(arguments) == {"resource_reference": source, "limit": 20},
                          "SCOPE_DENIED", "Native relation evidence requires exact selected link context")
@@ -200,31 +200,22 @@ class TeamToolSession:
                                  if native_metadata[0] == "relation_ontology" else None)
                 validate_candidate(self.application, source, candidate, method_id=method_id,
                                    link_evidence=link_evidence)
-        if ((method_id == "knowledgeos.cited_draft_team" and criteria == ["criterion.cited_draft"])
-                or (method_id == "knowledgeos.project_review_team" and criteria == ["criterion.project_review"])):
+        if method_id in {"knowledgeos.cited_draft_team", "knowledgeos.project_review_team"}:
             import json
 
+            from .agent_decisions import admitted_owner_parameters
             from .work import record_digest
 
-            try:
-                scope = json.loads(record["spec"]["objective"])
-            except (ValueError, TypeError) as error:
-                raise AdmissionError("SCOPE_DENIED", "Authoring scope pins are unavailable") from error
+            scope = admitted_owner_parameters(self.application, record)["scope"]
             path = self.application.resolve_reference(dict(source))
-            if tool_name == "task_query":
-                _require(dict(arguments) == {"path_prefix": path, "limit": 20},
-                         "SCOPE_DENIED", "Task query differs from the admitted project")
-            elif tool_name == "base_view_query":
-                _require(dict(arguments) == {"base": scope["base"], "view": scope["view"],
-                                            "filters": {}, "limit": 20},
-                         "SCOPE_DENIED", "Base query differs from admitted project pins")
-            elif tool_name == "knowledge_retrieve":
+            if method_id == "knowledgeos.project_review_team" and tool_name in {
+                    "task_query", "base_view_query", "knowledge_retrieve"}:
                 from ..projection import load_current_projection
+                from .authoring_work import validate_project_evidence_arguments
 
                 generation = load_current_projection(self.application.roots, verify_sources=True).manifest["generation_id"]
-                _require(dict(arguments) == {"query": scope["query"], "hops": 0,
-                                            "expected_generation_id": generation, "limit": 20},
-                         "SCOPE_DENIED", "Retrieval differs from admitted project pins")
+                validate_project_evidence_arguments(
+                    tool_name, arguments, scope=scope, source_path=path, index_generation_id=generation)
             elif tool_name in {"proposal_draft_note", "proposal_project_review"}:
                 key = ("cited_draft_source_evidence" if tool_name == "proposal_draft_note"
                        else "project_review_project_evidence")
@@ -263,12 +254,12 @@ class TeamToolSession:
             import json
 
             from .boundary_contract import (
+                admitted_exchange_receipt_id,
                 exchange_evidence,
-                exchange_receipt_id,
                 validate_boundary_plan,
             )
 
-            receipt_id = exchange_receipt_id(record["spec"]["objective"])
+            receipt_id = admitted_exchange_receipt_id(self.application, record)
             exchange_evidence(self.application, receipt_id)
             if tool_name == "gateway_evidence_read":
                 _require(arguments.get("receipt_id") == receipt_id,
@@ -289,7 +280,17 @@ class TeamToolSession:
             except (ValueError, TypeError) as error:
                 raise AdmissionError("INVALID_ARGUMENT", "Recovery content must be JSON") from error
             validate_boundary_plan(self.application, tool_name, source, payload)
-        if "proposal_reference" in arguments or "artifact_reference" in arguments:
+        if tool_name == "artifact_read" and "artifact_reference" in arguments:
+            reference = arguments["artifact_reference"]
+            core_reference = (record.get("artifact_references", {}).get(reference.get("logical_id"), {})
+                              if isinstance(reference, dict) else {})
+            bound = reference in record.get("submitted_artifacts", [])
+            bound = bound or (isinstance(reference, dict) and reference.get("resource_kind") == "artifact"
+                              and bool(core_reference) and all(reference.get(key) == core_reference.get(key)
+                              for key in ("owner_operation_id", "source_revision", "content_digest",
+                                          "classification", "availability")))
+            _require(bound, "SCOPE_DENIED", "Artifact is not an exact output of this Work")
+        elif "proposal_reference" in arguments or "artifact_reference" in arguments:
             raise AdmissionError("SCOPE_DENIED", "Profile artifact access needs an admitted artifact binding")
         self.application.resolve_reference(dict(source))
 

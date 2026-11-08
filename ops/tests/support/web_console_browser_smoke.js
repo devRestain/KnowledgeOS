@@ -5,6 +5,44 @@ const markerId = "knowledgeos-view-race-smoke";
 const cleanupEvent = "knowledgeos-view-race-cleanup";
 const selectors = ["#criteria", "#segments", "#gaps", "#profiles", "#work-summary", "#result-text", "#result-record"];
 
+export async function verifyAdministrativeWorkStatus(page, workRunId) {
+  const expected = await page.evaluate(async id => {
+    const observed = {};
+    for (const route of ["work/read", "work/result"]) {
+      const response = await fetch("/owner/" + route, {
+        method: "POST", cache: "no-store", credentials: "omit", redirect: "error",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify({work_run_id: id}),
+      });
+      if (!response.ok) throw new Error("Actual Owner observation failed with HTTP " + response.status);
+      observed[route] = await response.json();
+    }
+    if (document.getElementById("refresh-owner").disabled) throw new Error("Wait for the browser's current request to finish");
+    document.getElementById("work-id").value = id;
+    return observed;
+  }, workRunId);
+  await page.click("#open-work-form button[type=submit]");
+  await page.waitForSelector("#refresh-owner:not([disabled])", {timeout: 30000});
+  const rendered = await page.evaluate(() => ({
+    visible: !document.getElementById("work-detail").hidden,
+    facts: Array.from(document.querySelectorAll("#work-summary dd"), item => item.textContent),
+    result: JSON.parse(document.getElementById("result-record").textContent),
+    text: document.getElementById("result-text").textContent,
+    observed: document.getElementById("work-observed").dataset.observed,
+  }));
+  const work = expected["work/read"], result = expected["work/result"];
+  const outcome = `${work.receipt.receipt_state} / ${work.dispatch_state} / ${work.application_state}`;
+  if (!rendered.visible || !rendered.observed || !rendered.facts.includes(workRunId) ||
+      !rendered.facts.includes(work.run.state) || !rendered.facts.includes(outcome) ||
+      rendered.result.state !== result.state || rendered.result.source_stale !== result.source_stale ||
+      result.text && rendered.text !== result.text) {
+    throw new Error("Administrative view did not preserve the actual Owner observation");
+  }
+  return {work_run_id: workRunId, receipt_state: work.receipt.receipt_state,
+    dispatch_state: work.dispatch_state, application_state: work.application_state,
+    result_state: result.state, source_stale: result.source_stale,
+    scope: "actual browser read-only observation; no document intake or decision"};
+}
+
 export async function beginDisconnectedWorkRead(page, workRunId) {
   await page.evaluate(({watched, id, markerName, cleanupName}) => {
     if (document.getElementById("refresh-owner").disabled || document.getElementById("connection-state").textContent.includes("연결 안 됨")) {

@@ -2,11 +2,11 @@
 
 ## 역할과 증거의 경계
 
-KnowledgeHub의 문서 작업은 Obsidian 안에서 합니다. KnowledgeOS Thin Client는 오른쪽 사이드바의 네이티브 CommonJS `ItemView`이며, 브라우저 프레임·WebViewer·iframe·외부 브라우저 실행기나 터미널 문서 도구가 아닙니다. Markdown 본문과 YAML이 정본입니다. Work 접수, 독립 평가, 제안 결정, 일일 검토와 정본 변경의 권한은 Owner에만 있으며, 클라이언트는 표시와 제한된 요청을 담당합니다.
+KnowledgeHub의 문서 작업은 Obsidian 안에서 합니다. KnowledgeOS Thin Client는 오른쪽 사이드바의 네이티브 CommonJS `ItemView`이며 편집기·검토 화면을 브라우저 프레임이나 WebViewer로 대체하지 않습니다. 실행 관리 링크만 구성된 로컬 Owner의 외부 웹 콘솔을 엽니다. Markdown 본문과 YAML이 정본이며 Work 접수, 제안 결정, 일일 검토와 정본 변경의 권한은 Owner에만 있습니다.
 
 이 가이드는 구현 설계, 기존 기능과의 대응, 플러그인 통합 이유를 설명합니다. 진행 상황이나 실행 중인 플러그인의 채택 증거는 기록하지 않습니다. 소스·설치·런타임·기기별 증거는 [PROJECT_STATE.md](../PROJECT_STATE.md), 별도 승인된 GUI 검증 절차는 [Computer Use 프롬프트](OBSIDIAN_COMPUTER_USE_PROMPT.md)를 확인하세요. 문서 작성만으로 GUI 검증이 수행되지는 않습니다.
 
-현재 유지 소스의 대상은 **0.6.0**입니다. 이전 **0.5.1**의 설치·로드와 부분 GUI 관측은 과거 근거로 구분해 재사용합니다. 변경된 문서 처리·검토 동작은 그 과거 관측만으로 검증됐다고 하지 않습니다. 설치·런타임·GUI의 현재 상태와 정확한 근거는 `PROJECT_STATE.md`를 따릅니다.
+현재 유지 소스의 대상은 **0.8.0**(contract schema 11)입니다. 열한 Team Method의 입력·호출 시작점, 사용자 결과와 인용 근거, Pending 승인·별도 적용 및 daily 사람 검토를 네이티브로 제공합니다. 실행 이력·Manager Graph·역할별 모델과 프롬프트·독립평가·RemainingWork 추적은 기존 ExOps 웹 관리 화면으로 분리합니다. 구성·소스·디스크 설치·관리용 reload 후 로드·실제 GUI 관측은 서로 다른 증거이며 정확한 채택은 `PROJECT_STATE.md`를 따릅니다.
 
 ## 화면 구성·탐색·안전 규칙
 
@@ -15,13 +15,13 @@ KnowledgeHub의 문서 작업은 Obsidian 안에서 합니다. KnowledgeOS Thin 
 - Obsidian 네이티브 `setIcon`의 Lucide 아이콘과 테마·인터페이스 글꼴·글자 크기·색상·테두리·포커스 규칙을 상속합니다. 별도 앱 틀, 강제 밝은/어두운 색상, 원격 글꼴, 고정 데스크톱 너비를 사용하지 않습니다. 키보드 포커스, 선택/비활성 상태, 좁은 사이드바의 줄바꿈·스크롤을 유지합니다.
 - 노트·검색 결과·근거는 Obsidian의 네이티브 탐색으로 엽니다. 파일 통합은 `getLeaf("tab")`으로 루트 작업공간 탭을 열며, 사이드바 안에 문서 창을 중첩하지 않습니다. 기존 작성·포착·기간별 기록 흐름을 재사용하고 편집기를 복제하지 않습니다.
 - 자체 명령은 선택 플러그인과 리본 표시 여부에 의존하지 않습니다. 선택 통합은 공개 command ID와 플러그인 사용 가능 여부를 확인합니다. 노트 도구는 그룹별 **아이콘+짧은 이름의 간결한 그리드**로 표시하며 설명·사용 불가 이유는 tooltip과 펼침 상세에서 확인합니다. 긴 도움말을 버튼마다 반복하지 않으며, 사용할 수 없으면 이유와 Obsidian 기본 탐색 대안을 확인할 수 있어야 합니다. 플러그인 내부 렌더러·스크립트 주입을 사용하지 않습니다.
-- Owner 연결·mode 상태는 간결하게 표시하고 원래의 generation/revision/`observed_at`/개별 `bindings`/`runtime_observation`은 기본 접힘 **연결 상세**에서 확인합니다. binding 존재는 Worker 정상 동작 증거가 아니며 `runtime_observation: unavailable`은 관측 불가 그대로 유지합니다. 초기화·연결 해제 시 비공개 결과, 선택 참조와 실행 가능한 이전 관측을 무효화합니다.
-- method/Work ID, receipt와 원시 응답 등 기술 상세는 기본 접힘으로 두되 펼쳐 읽거나 필요한 ID를 입력할 수 있습니다. 긴 ID·digest·근거는 줄바꿈되거나 해당 영역 안에서 스크롤되어야 합니다. 접힘은 정책 거부·오래됨·결과 불명이나 승인/적용 구분을 숨기는 수단이 아닙니다.
-- 노트 대상 요청은 활성 Markdown 경로와 정확한 SHA-256에 묶습니다. 대상·질의·패널·연결·요청 ID가 바뀌면 이전 비동기 응답을 취소하거나 무시합니다. 노트 없이도 전체 자료 검색은 가능하지만, 노트 범위 요청 제출은 불가능합니다.
+- Owner 연결은 사용 가능한 모드와 실패 이유를 간결하게 표시합니다. generation/revision·bindings·원시 runtime 관측 등 운영 상세를 네이티브에 펼치지 않습니다. 연결 성공을 Worker나 모델 정상 동작으로 간주하지 않으며, 초기화·연결 해제 시 비공개 결과와 이전 실행 대상을 무효화합니다.
+- **실행 관리 · 브라우저**는 구성된 Owner origin의 `/console/`을 엽니다. **이 작업 관리 · 브라우저**는 `#work_run_id=<정확한 ID>`로 선택 작업을 지정합니다. 문서 결과·인용·제안은 계속 네이티브에서 사용하며 관리 링크가 새 Work나 모델 실행을 시작하지 않습니다. 정확한 요청 영수증·적용 대상은 필요한 사람 동작과 응답 대조에서만 확인합니다.
+- 노트 대상 요청은 활성 Markdown 경로와 정확한 SHA-256에 묶습니다. 대상·질의·검색 방식·패널·연결·요청 ID가 바뀌면 이전 비동기 응답을 취소하거나 무시합니다. 검색 입력을 바꾸면 기존 결과와 대기 표시를 지우며, 이전 성공·실패 응답이 새 조건 아래 표시되지 않습니다. 새 검색은 명시적으로 실행합니다. 노트 없이도 전체 자료 검색은 가능하지만, 노트 범위 요청 제출은 불가능합니다.
 - 검토에 60초가 지났다는 이유만으로 버튼을 잠그지 않습니다. Owner는 동작 시 해당 제안·문서·제어 대상의 실제 digest와 revision을 확인합니다. 원문 적용 시 충돌 방지는 선택 문서에만 적용되며 무관 문서 편집은 작업을 막지 않습니다.
 - 제출·결정·실행은 명시적으로 합니다. 메타데이터/문서 개선 명령은 양식만 준비합니다. 승인은 결정 기록이며 **적용은 별도의 확인을 거치는 Owner 동작**입니다. 일일 보강 거절은 정확한 추가분 복원 요청이지 일반 실행 취소가 아닙니다.
-- 변경 요청의 응답이 유실되면 **해당 문서의 요청만** 보류합니다. 다른 문서는 계속 편집·처리할 수 있습니다. `요청 응답 대조`는 원래 요청을 `mutation/receipt`로 읽기만 하고, 확인된 Owner 영수증에 한해 통신 불명 잠금을 해제합니다. 자동 재전송은 없습니다. Owner의 실행 결과 자체가 `unknown`인 경우는 별개로 유지합니다.
-- 요청은 구성된 신뢰 경계인 `127.0.0.1` loopback Owner로만 보냅니다. 로그인/세션 토큰, 클라우드·provider 호출, 외부 Gateway 전송, 자동 Git, 클라이언트의 직접 정본 쓰기를 추가하지 않습니다.
+- 변경 요청의 응답이 유실되면 **실제 대상 문서 또는 Work의 요청만** 보류합니다. 제안·일일 검토·Work 대상은 해당 요청 경로에 맞게 구분하며, 다른 패널에 남은 상세가 현재 문서의 잠금·경고로 섞이지 않습니다. 다른 문서는 계속 편집·처리할 수 있습니다. `요청 응답 대조`는 원래 요청을 `mutation/receipt`로 읽기만 하고, 확인된 Owner 영수증에 한해 통신 불명 잠금을 해제합니다. 자동 재전송은 없습니다. Owner의 실행 결과 자체가 `unknown`인 경우는 별개로 유지합니다.
+- 도메인 요청은 구성된 신뢰 경계인 `127.0.0.1` loopback Owner로만 보냅니다. 명시적인 같은 Owner의 관리 링크 외에 외부 브라우저 문서 흐름, iframe, 로그인/세션 토큰, 직접 provider 호출, 외부 Gateway 전송, 자동 Git이나 클라이언트의 정본 쓰기를 추가하지 않습니다.
 - 예전 세션 토큰 필드는 런타임 설정과 요청에서 사용하지 않습니다. 승인된 소스 설치 시 기존 설정 파일의 바이트는 보존하므로 사용하지 않는 토큰이 남아 있을 수 있습니다. 이는 인증이나 토큰 표시 권한을 뜻하지 않으며 유지 코드는 이를 무시합니다.
 
 ## 문서별 Projection과 자유로운 작성
@@ -108,7 +108,7 @@ Note Toolbar에는 기존 항목을 지우거나 스크립트를 켜지 않고 �
 | N03 | Home·Mobile·Base·Compass 탐색 | 네이티브 노트 링크, Homepage, Obsidian Bases | 원문을 다시 쓰지 않고 로컬 문서/뷰를 엽니다. Base·Compass는 별도 정본 저장소가 아닌 투영입니다. |
 | N04 | 링크·백링크·언급·타입 관계 | 네이티브 링크/Backlinks, 선택 Breadcrumbs 트리·행렬·이웃 선택 | 실제 대상 노트로 이동합니다. 미연결 언급과 추론된 edge는 후보이며 승인 관계가 아닙니다. 자동으로 메타데이터에 확정하지 않습니다. |
 | N05 | Tasks와 Properties | 기본 체크박스/Properties, Tasks 대시보드·명령, 선택 Meta Bind 입력 | 현재 `#task` 필터를 반영합니다. 노트 도구의 task 편집/전환은 Markdown 소스/라이브 미리보기의 `#task` 체크박스 줄에 커서가 있어야 하며 다른 줄은 거부합니다. 의도한 task/property 편집은 일반 문서 변경이지 Work·Pending 결정이 아닙니다. |
-| N06 | Owner 연결·기능 확인 | `owner/status`, 아이콘으로 갱신/해제, 연결 상세 | actor 권한에 따른 mode를 간결하게 표시하고 generation/revision/관측 시각, 개별 binding과 runtime 원시 관측은 기본 접힘 연결 상세에서 확인합니다. 불가 동작은 비활성화합니다. 초기화/해제하면 비공개 상세와 오래된 실행 대상을 지웁니다. |
+| N06 | Owner 연결·기능 확인 | `owner/status`, 아이콘으로 갱신/해제 | 사용 가능 모드와 실패 이유를 간결히 표시합니다. 내부 binding으로 동작 가능 여부를 판단하되 운영 원시 응답은 웹 관리로 분리합니다. 초기화/해제 시 결과와 오래된 실행 대상을 지웁니다. |
 | N07 | Lexical 전체 자료 검색 | 검색, `search/query`, `mode: lexical` | 활성 노트 없이 제한된 결과·경로·발췌·이유·원문/chunk 식별자·generation을 보거나 명시적인 빈 결과/오류를 확인합니다. |
 | N08 | Vector 검색 | 검색, `mode: vector` | 현재 구성된 vector generation을 사용하거나 불가/오래됨을 알립니다. Lexical 결과를 vector로 바꿔 표시하지 않습니다. |
 | N09 | Hybrid RRF 검색 | 검색, `mode: hybrid` | 실제 mode/generation과 근거 또는 거부 이유를 표시합니다. 통과를 위해 모델 설치·provider 실행을 시작하지 않습니다. |
@@ -118,10 +118,10 @@ Note Toolbar에는 기존 항목을 지우거나 스크립트를 켜지 않고 �
 | N13 | 단일 원문 자유 질문 Research | 작업 양식, `work/intake` | 명시적 질문과 정확한 선택 원문으로 접수 receipt를 받습니다. 즉시 실행/성공을 뜻하지 않습니다. 유지 런타임은 trim 후 1–512자 질문과 Research method를 지원합니다. |
 | N14 | 정형 메타데이터·관계 요청 | 작업 패널의 준비 양식, `work/intake-template`, `template_id: note_metadata` | 동일 request ID/원문 아래 독립 평가되는 두 Team을 접수합니다. 기존 채워진 값을 보존하며 통합 Pending 적용 전에 근거를 검토합니다. 명령으로 양식을 여는 것만으로 제출하지 않습니다. |
 | N15 | 정형 문서 개선 요청 | 작업 패널의 준비 양식, 같은 경로, `template_id: document_enhancement` | Research 기반 작업을 접수하고 인용된 개선점·불확실성·부족 자료를 봅니다. 정본 재작성이나 초안이 아닌 보고서입니다. |
-| N16 | 그 밖의 구성된 선택 method | `work/methods`, `work/intake-selected` | 각 catalog method의 현재 `available`/`reason`을 표시합니다. Owner에 등록된 실행 가능한 단일 원문 method만 고정 매개변수로 제출합니다. 불확실하면 UUID/원문 ID를 유지합니다. 사용자 임의 매개변수·Officer·Graph 선택은 없습니다. |
-| N17 | 노트별 작업 목록·임의 Work ID | 경로별 `work/list`, 입력 ID의 `work/read` | 노트 범위 이력과 입력한 유효 ID의 작업을 봅니다. 전역 작업함으로 오해하지 않으며 receipt·dispatch·application/run·독립 평가를 나눠 표시합니다. |
-| N18 | 전체 Work·기준·계보·미충족 항목 | `work/read`, `work/inspection` | 정확한 spec/run, 기준, 배정/segment/Profile, 원문 범위, 계보, 평가, RemainingWork/미충족 항목과 반환된 continuation을 봅니다. 전체 원시 반환값도 확인하며 runtime 관측 불가를 숨기지 않습니다. |
-| N19 | 독립 평가된 결과와 근거 | `work/result` | 독립 평가된 결과/text/report, 정확한 근거·인용·제안 참조·잘림·truth/apply flag를 봅니다. 대기/실패/오래된 결과를 평가 통과나 정본 변경으로 표시하지 않습니다. |
+| N16 | 열한 선택 method와 작업별 입력 | `work/methods`, `work/intake-selected` | 현재 `available`/`reason`과 `parameter_schema`/기본값을 표시합니다. 한국어 scope·목표·질문·Gateway 영수증 입력으로 mandatory `parameters` 객체를 제출합니다. 같은 원문·Method·입력은 in-flight UUID를 유지하고 입력 변경은 새 UUID를 사용합니다. 임의 actor·Officer·Graph 선택은 없습니다. |
+| N17 | 노트별 결과 목록·임의 Work ID | 경로별 `work/list`, 입력 ID의 `work/read` | 현재 노트의 작업과 입력한 ID의 결과를 엽니다. 사용자에게 필요한 상태·오래됨·결과 불명을 구분하며 전역 실행 이력으로 부르지 않습니다. |
+| N18 | 선택 작업의 실행 관리로 이동 | 명시적인 `/console/#work_run_id=...` 링크 | 외부 로컬 웹에서 실제 Graph·역할 모델/프롬프트·평가·RemainingWork를 조회합니다. 네이티브에서 `work/inspection`이나 raw Work 덤프를 렌더링하지 않으며 링크를 열기만 해서는 새 실행·변경이 발생하지 않습니다. |
+| N19 | 사용자 결과와 인용 근거 | `work/result` | 실제 결과/text/report와 근거·제안을 네이티브에서 사용합니다. 대기·실패·오래됨·결과 불명을 알리되 상세 평가·실행 추적은 웹에 둡니다. 의미적 완료나 정본 적용을 임의로 선언하지 않습니다. |
 | N20 | 통합 메타데이터 제안 준비 재시도 | 원래 `request_id`의 `work/prepare-metadata` | 적격한 독립 member 평가 뒤 Owner의 통합/조정을 명시적으로 요청합니다. 같은 그룹을 재사용하며 producer 재실행이나 정확한 원문/근거 검사 우회를 하지 않습니다. |
 | N21 | Pending 목록 | `proposal/list` | 반환된 완료 Pending artifact·동작·적용 가능 여부를 봅니다. 빈 목록을 예시로 채우지 않습니다. |
 | N22 | Pending 원문·내용·diff·이유 | `proposal/read` | 원문 텍스트, 묶인/current digest, 원문·잘림·오래됨, 제안 내용·정확한 diff·인용/값 근거·대상·기존 결정을 봅니다. 사용자 결정 이유를 입력합니다. |
@@ -129,11 +129,11 @@ Note Toolbar에는 기존 항목을 지우거나 스크립트를 켜지 않고 �
 | N24 | 승인된 제안 별도 적용 | `proposal/apply` | 최신의 승인된 비오래된 적격 상세와 별도 확인이 필요하며 Owner만 변경합니다. 적용 후 원문 범위를 갱신/무효화합니다. 결정 전용 MCP 계획은 `apply_allowed: false`입니다. |
 | N25 | 일일 잠정 추가분 목록·상세 | `daily/list`, `daily/read` | 정확한 original/added/current 필드, before/current digest, 근거·본문 발췌·검토/충돌 상태를 봅니다. 이미 Owner가 잠정 보강한 변경이며 Pending 초안 승인이 아닙니다. |
 | N26 | 정확한 일일 추가분 확인/거절 | `daily/decide` | 확인은 추가분을 유지하고, 거절은 그 추가분만 복원하도록 Owner에 요청합니다. 충돌 시 파괴적 선택을 막으며 다른 편집을 덮어쓰지 않습니다. |
-| N27 | 제한된 checkpoint·제어 대상 | `work/control/target` | `run_control`이 구성됐을 때만 정확한 checkpoint와 적격 상태를 봅니다. 조사된 쓰기 런타임에는 구성되지 않았으므로 현재 사용 불가로 표시합니다. |
-| N28 | 일시정지/재개/취소·수신/적용 | `work/control/{pause,resume,cancel}`, `work/control/command` | 최신의 정확한 대상·고정 command ID·만료와 확인을 사용하며 수신과 적용을 구분합니다. 제한된 Curation continuation 제어이지 일반 process/Activity 종료가 아닙니다. 한 번의 제한된 pause/resume 쌍과 적법한 checkpoint가 필요합니다. |
-| N29 | 제한된 사람 질문·steering 조회 | `work/steering/view` | steering binding이 있을 때만 실제 질문·대상·허용 종류·매개변수 범위·이전 receipt·successor 문맥을 봅니다. 조사된 쓰기 런타임에는 없어 사용 불가입니다. |
-| N30 | 지시 artifact 등록·steering 요청 | `work/steering/artifact`, `work/steering/request` | artifact 등록은 steering 접수/적용이 아닙니다. 실제 경계에서 허용한 `answer`, `parameter`, `cutover`, `amend_work`, `resume`만 정확한 대상/참조/ID로 제출합니다. 임의 Officer 재배정은 없습니다. |
-| N31 | 평가된 steering 결과 내보내기 | `work/steering/export` 또는 평가된 `work/result` | 정확한 artifact/참조·독립 평가를 표시합니다. 미평가 부분 보고서를 완료로 취급하지 않으며 반환 텍스트를 안전하게 표시하고 실행하지 않습니다. |
+| N27 | 제한된 checkpoint·제어 대상 | `work/control/target` | 현재 Owner가 구성한 `run_control`에서만 정확한 사람 제어 대상을 조회합니다. 미구성 상태를 가짜 대상으로 대체하지 않습니다. |
+| N28 | 일시정지/재개/취소·수신/적용 | `work/control/{pause,resume,cancel}`, `work/control/command` | 정확한 대상·고정 command ID·만료와 확인을 사용하며 접수와 적용을 구분합니다. 제한된 Curation continuation 제어이지 일반 process/Activity 종료가 아닙니다. |
+| N29 | 필요한 사람 질문·허용 매개변수 | `work/steering/view` | 현재 Owner가 허용한 질문과 `report.order` 등 경계 내 사람 입력을 확인합니다. Graph·Profile·successor 원시 문맥은 웹 관리로 분리합니다. |
+| N30 | 답변·허용 매개변수 제출 | `work/steering/artifact`, `work/steering/request` | `answer`와 bounded `parameter`만 실제 허용 범위·대상·참조·ID로 제출합니다. artifact 등록은 접수·적용이 아닙니다. raw WorkSpec 수정·Graph CUTOVER/구조적 successor 저작은 네이티브 기능이 아닙니다. |
+| N31 | steering 사용자 결과 확인 | 같은 `work/result` 사용자 결과 | 결과 본문과 근거를 안전하게 표시합니다. 별도 raw steering export나 미평가 부분 보고서를 완료로 제시하지 않으며 평가·계보는 웹 관리로 확인합니다. |
 | N32 | 긴 검토·선택 원문 변경 | 시간 잠금 없이 Owner의 대상별 재검증 | 60초가 지나도 변경되지 않은 제안을 결정할 수 있습니다. 실제 원문/대상 충돌은 Owner가 적용 시 거부하고 무관 문서 변경은 차단하지 않습니다. |
 | N33 | 불확실한 변경·응답 대조 | 문서별 원래 ID, `mutation/receipt` 읽기 | 해당 문서의 불명을 표시하되 다른 문서는 계속 사용합니다. 정확한 영수증을 읽어 통신 불명을 해소하며 요청 재전송·producer 재실행·낙관적 적용은 하지 않습니다. |
 | N34 | 아이콘·키보드·포커스·좁은 화면·테마 | 네이티브 아이콘 컨트롤, 다섯 패널, 접힘 상세, 명령 팔레트/메뉴 | tooltip·접근 가능한 이름과 선택 `aria-pressed`를 확인하고 키보드로 이동/실행/상세 열기·닫기를 합니다. 보이는 포커스·대비·상속된 외관을 유지하며, 좁은 너비의 그리드·긴 ID/근거도 확인합니다. 긴 상시 도움말이나 별도 브라우저는 필요하지 않습니다. |
@@ -142,31 +142,35 @@ Note Toolbar에는 기존 항목을 지우거나 스크립트를 켜지 않고 �
 
 ### 구성된 선택 method 연결
 
-`POST work/methods {}`는 `{methods: [{method_id, purpose, available, reason, parameters}], observed_at}`를 반환합니다. `parameters`는 비밀을 제외한 고정 Owner 선택 값이며 클라이언트가 binding·actor·Graph·root·비공개 경로를 편집할 수 없습니다. `owner/status`의 `bindings.selected_methods`가 연결 구성을 나타냅니다.
+`POST work/methods {}`는 `{methods: [{method_id, purpose, available, reason, parameters, parameter_schema}], observed_at}`를 반환합니다. `parameters`는 공개 가능한 Owner 기본값이고 `parameter_schema`는 해당 Method가 허용하는 작업 입력입니다. 기본값은 편집 가능한 필드에 채워지며, actor·binding·Graph·root·비공개 설치 경로는 입력 대상이 아닙니다. 읽기 전용 Owner도 schema와 명시적 불가 이유를 제공합니다.
 
-`POST work/intake-selected`의 입력은 `{method_id, scope: {path, content_sha256}, request_id: <UUID>}`뿐입니다. Owner는 현재 정책·executor·설정과 정확한 단일 원문 Director 권한을 다시 확인하고, 결정적 receipt 재전송으로 중복 dispatch를 막습니다. 목록 조회는 접수나 Director 미리보기가 아닙니다. 직전 조회에서 가능했던 method도 이후 정책에 따라 거부될 수 있습니다.
+`POST work/intake-selected`는 `{method_id, scope: {path, content_sha256}, request_id: <canonical UUID>, parameters: {...}}`를 필수로 받습니다. 추가 입력이 없는 Method도 `parameters: {}`를 보냅니다. Owner는 실제 schema·정책·binding·정확한 원문·Director 권한을 재검증합니다. 같은 in-flight 입력은 UUID를 유지하며, 값이 바뀌면 별도 요청이므로 UUID도 바뀝니다. 앞선 결과가 불명이면 새 값이나 UUID로 우회하지 않고 원래 영수증을 대조합니다.
 
-`ops/config/work-methods.json`에는 아래 열한 method가 있습니다. 표나 catalog 존재가 아니라 Owner가 반환한 현재 가능 여부를 사용합니다. 조사된 로컬 쓰기 런타임의 binding은 메타데이터·관계/ontology·Research였으며 모든 항목의 실행을 확인한 것은 아닙니다.
+초안은 `scope.target_path`/`target_type`/`title`, 프로젝트 검토는 `scope.period_start`/`period_end`/`query`/`base`/`view`, 교환은 이미 수락된 `gateway_receipt_id`를 한국어 labeled control로 입력합니다. Research의 `question`, 그 밖의 허용된 `objective`는 선택 입력이며 continuation 한도·checkpoint도 descriptor가 제공하는 범위만 표시합니다. 필수 범위가 비면 전송 전 해당 필드를 안내하고 최종 검증은 Owner가 합니다.
+
+`ops/config/work-methods.json`에는 아래 열한 method가 있습니다. catalog 존재나 과거 세 route 증거는 all11 실행 증명이 아닙니다. 반드시 실제 Owner의 현재 `available`/`reason`과 정확한 Work/평가를 확인합니다. 브라우저 관리 frontend는 같은 descriptor·한국어 입력 계약·기본값을 **전송하지 않는 미리보기**로만 표시하며, 실제 문서 제출·결정·적용·일일 검토는 Obsidian에서 합니다.
 
 | 정확한 method ID | 사용자 목적과 제한 |
 |---|---|
 | `knowledgeos.capture_normalization_team` | Capture 하나를 Pending 정규화로 변환합니다. 정확한 executor/접수가 등록되지 않으면 불가입니다. |
 | `knowledgeos.capture_normalization_continuation_team` | 독립 평가 후 기준에 연결된 불변 continuation입니다. 일반 재시도가 아닙니다. |
-| `knowledgeos.cited_draft_team` | 단일 원문에서 인용된 Pending 초안을 만듭니다. 접수 때 고정한 대상/제목/type을 쓰며 임의 대상 선택은 없습니다. |
+| `knowledgeos.cited_draft_team` | 단일 원문에서 인용된 Pending 초안을 만듭니다. scope의 대상 경로·문서 유형·제목을 명시적으로 입력하며 Owner가 실제 대상 범위를 검증합니다. |
 | `knowledgeos.cited_research_team` | 정본이 아닌 인용 답변입니다. 기존 자유 질문/문서 개선 또는 구성된 선택 접수를 사용합니다. |
 | `knowledgeos.relation_ontology_team` | 근거에 묶인 관계 후보입니다. 메타데이터 member 또는 구성된 선택 method이며 관계 진실성 확정은 아닙니다. |
 | `knowledgeos.project_review_team` | 원문 범위의 프로젝트 검토입니다. Owner가 `apply_allowed: false`로 반환한 계획은 결정만 가능합니다. |
 | `knowledgeos.knowledge_exchange_team` | 이미 Gateway가 수락한 근거를 읽고 로컬 적응을 제안합니다. 외부 전송을 허가하지 않습니다. |
 | `knowledgeos.note_metadata_team` | 누락 property/tag 후보입니다. 정형 메타데이터 member 또는 구성된 선택 method입니다. |
-| `knowledgeos.daily_corpus_stewardship_team` | 기존 Owner 잠정 변경 경계가 소비하는 빈 필드용 일일 후보입니다. scheduler 활성화가 아닙니다. |
+| `knowledgeos.daily_corpus_stewardship_team` | 선택 노트의 빈 필드용 후보를 명시적으로 요청합니다. Owner 잠정 추가분은 일일 검토로 따로 확인/거절합니다. 자동 daily·scheduler·Hermes Cron은 켜지 않습니다. |
 | `knowledgeos.capture_steering_team` | 제한된 질문/부분 cutover/label 보고서입니다. catalog 선택으로 없는 steering binding을 만들 수 없습니다. |
 | `knowledgeos.vault_maintenance_team` | 제한된 진단·복구 계획 제안입니다. 실제 복구는 운영자가 합니다. |
 
-steering은 실제 확인된 경계에 한정됩니다. 질문 경계는 `answer`, 부분 경계는 `parameter`/`cutover`, 종료 경계는 구현된 `amend_work`/`resume`이며 이후 revision에서는 resume만 가능할 수 있습니다. 구현된 유일한 매개변수는 `report.order`의 `source_order`/`alphabetical`입니다. 답변과 구조 변경 이유는 256자, steering 만료는 1시간, control 만료는 24시간 이내입니다. 현재 권한·quiescence·대기 명령 배제·Director 수정 접수도 필요합니다. 범용 에이전트 대화·프로세스 제어·복구 시스템이 아닙니다.
+네이티브 steering은 실제 Owner가 허용한 `answer`와 bounded `parameter` 사람 입력에 한정됩니다. `report.order` 값은 `source_order`/`alphabetical`이며 답변은 256자, steering 만료는 1시간, control 만료는 24시간 이내입니다. 구조적 `cutover`·`amend_work`·Graph successor 저작은 유지되는 Owner 계약의 운영자 기능이지 네이티브 WorkSpec JSON 입력 기능이 아닙니다. 기존 부분평가와 successor 계보는 웹 관리에서 조회하며 새 명령으로 재현하지 않습니다.
+
+웹 관리의 Work 상세는 각 `satisfied`/`unmet`/`not_run`, 현재 `remaining_work.gaps[].summary`, 승인된 Graph와 실제 역할 호출을 보여 줍니다. 현재 역할 정책과 과거 관측 모델·프롬프트 식별자는 구분합니다. 이전 continuation의 trigger를 현재 최종 gap으로 해석하지 않으며 `awaiting_human`·`human_required`·`unknown`을 완료로 바꾸지 않습니다. 참조·해시 검사, provider route smoke, 접수, Temporal 종료, 의미 평가와 정본 적용은 별도 증거입니다.
 
 ## 설치된 플러그인과 통합/비통합 이유
 
-아래는 업데이트 전 조사 증거이며 경로 기준은 `Vaults/KnowledgeHub/.obsidian-mac/`입니다. 열한 ID 모두 당시 활성 설정에 포함됐지만 현재 로드를 뜻하지 않습니다. 유지 소스 **0.6.0**, 과거 설치·부분 GUI 관측 **0.5.1**, 현재 로드 상태는 구분합니다. 제3자 코드는 조사 근거이지 수정하거나 의존할 내부 API 계약이 아닙니다.
+아래는 업데이트 전 조사 증거이며 경로 기준은 `Vaults/KnowledgeHub/.obsidian-mac/`입니다. 열한 ID 모두 당시 활성 설정에 포함됐지만 현재 로드를 뜻하지 않습니다. 이 설치 목록과 유지 소스·실제 로드의 버전 및 관측 범위는 구분하며 정확한 채택은 `PROJECT_STATE.md`를 따릅니다. 제3자 코드는 조사 근거이지 수정하거나 의존할 내부 API 계약이 아닙니다.
 
 | 플러그인 ID / 설치 버전 | 정확한 증거와 기존 공개 command ID | 통합 또는 비통합 이유 |
 |---|---|---|

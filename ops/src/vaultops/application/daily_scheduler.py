@@ -148,7 +148,75 @@ class DailyAdmissionScheduler:
             return {"status": "no_evidence", "path": record["path"]}
         return None
 
-    def _consumption_batch(self) -> list[tuple[str, dict]]:
+    def prepare_manual(self, source: dict, request: dict, work_run_id: str) -> str:
+        """Retain a selected request before Director inference or Work admission."""
+        self._guard()
+        path = self.app.resolve_reference(source)
+        key = _PREFIX + "manual." + request["request_id"]
+        existing = self._records().get(key)
+        if existing is not None:
+            if (existing.get("manual_request") != request
+                    or existing.get("request", {}).get("source_reference") != source
+                    or existing.get("expected_work_run_id") != work_run_id):
+                raise AdmissionError("IDEMPOTENCY_CONFLICT", "Daily request identity belongs to different content")
+            return key
+        coverage = self.steward.prepare_selected(source)
+        now = self.app.clock()
+        with self.app.journal.writer() as writer:
+            self._guard()
+            self.app.resolve_reference(source)
+            existing = writer.value["intents"].get(key)
+            if existing is not None:
+                if existing.get("manual_request") != request:
+                    raise AdmissionError("IDEMPOTENCY_CONFLICT", "Daily request identity belongs to different content")
+                return key
+            if any(item.get("path") == path and item.get("state") != "consumed"
+                   for old_key, item in writer.value["intents"].items()
+                   if old_key.startswith(_PREFIX) and isinstance(item, dict)):
+                raise AdmissionError("CONFLICT", "Another admitted daily request owns this source")
+            record = {
+                "state": "prepared", "recorded_at": stamp(now), "path": path,
+                "day": now.astimezone(self.steward.zone).date().isoformat(),
+                "request": coverage, "manual_request": copy.deepcopy(request),
+                "expected_work_run_id": work_run_id,
+                "registry_digest": self.steward._registry_digest(),
+                "policy_digest": self.steward._policy_digest(),
+            }
+            self._validate(record)
+            writer.value["intents"][key] = record
+            writer.commit(now)
+        return key
+
+    def _manual_receipt(self, key: str, record: dict) -> dict | None:
+        """Recover only an exact committed Work, including a lost admission reply."""
+        work = self.app.journal.read()["intents"].get("exops.work." + record["expected_work_run_id"])
+        if work is None:
+            return None
+        director = self.app.journal.read()["intents"].get(
+            "owner.director." + work.get("spec", {}).get("admission_receipt_id", ""), {})
+        receipt = work.get("receipt", {})
+        if (director.get("request") != record["manual_request"]
+                or work.get("method_source_reference") != record["request"]["source_reference"]
+                or work.get("spec", {}).get("method_contract_ref") != record["request"]["method_contract_ref"]
+                or receipt.get("work_run_id") != record["expected_work_run_id"]
+                or receipt.get("receipt_state") != "accepted"):
+            raise AdmissionError("OUTCOME_UNKNOWN", "Manual daily admission has no exact durable Work receipt")
+        now = self.app.clock()
+        with self.app.journal.writer() as writer:
+            current = writer.value["intents"][key]
+            if current["state"] != "prepared":
+                # Dispatch/application progress changes, but admission identity cannot.
+                if any((current.get("receipt") or {}).get(field) != receipt.get(field)
+                       for field in ("work_id", "work_run_id", "action_id", "content_digest", "receipt_state")):
+                    raise AdmissionError("OUTCOME_UNKNOWN", "Manual daily receipt changed")
+                return copy.deepcopy(current)
+            if current != record:
+                raise AdmissionError("OUTCOME_UNKNOWN", "Manual daily admission changed during receipt recovery")
+            current.update(state="admitted", receipt=copy.deepcopy(receipt), recorded_at=stamp(now))
+            writer.commit(now)
+            return copy.deepcopy(current)
+
+    def _consumption_batch(self, *, manual_only: bool = False) -> list[tuple[str, dict]]:
         # Advance before inspecting Work or applying effects. A process loss or
         # persistent blocker cannot pin the first batch after reconstruction;
         # revisiting a candidate still uses exact positive effect evidence.
@@ -156,7 +224,9 @@ class DailyAdmissionScheduler:
         with self.app.journal.writer() as writer:
             records = sorted((key, item) for key, item in writer.value["intents"].items()
                              if key.startswith(_PREFIX) and isinstance(item, dict)
-                             and item.get("state") in {"admitted", "consuming"})
+                             and (not manual_only or "manual_request" in item)
+                             and (item.get("state") in {"admitted", "consuming"}
+                                  or item.get("state") == "prepared" and "manual_request" in item))
             if not records:
                 return []
             self._guard()
@@ -172,11 +242,20 @@ class DailyAdmissionScheduler:
                 writer.commit(now)
             return copy.deepcopy(selected)
 
-    def consume_completed(self) -> dict:
+    def consume_completed(self, *, manual_only: bool = False) -> dict:
         """Consume a durable round-robin batch through existing owner effects."""
         self._guard()
         consumed, blockers = [], []
-        for key, record in self._consumption_batch():
+        for key, record in self._consumption_batch(manual_only=manual_only):
+            try:
+                if record["state"] == "prepared":
+                    recovered = self._manual_receipt(key, record)
+                    if recovered is None:
+                        continue
+                    record = recovered
+            except AdmissionError as error:
+                blockers.append(self._blocker(error, request_id=record["request"]["request_id"]))
+                continue
             work_id = record["receipt"]["work_run_id"]
             work = self.app.journal.read()["intents"].get("exops.work." + work_id, {})
             if (not work or work.get("dispatch_state") == "unknown"
@@ -200,7 +279,13 @@ class DailyAdmissionScheduler:
                 # The existing boundary owns independent assessment checks and
                 # the only provisional writer. Do not synthesize evaluations.
                 self.steward._work_artifact(work_id, candidate, record["request"]["source_reference"])
-                self._save(key, {"state": "consuming"})
+                now = self.app.clock()
+                with self.app.journal.writer() as writer:
+                    self._guard()
+                    if writer.value["intents"].get(key) != record:
+                        raise AdmissionError("OUTCOME_UNKNOWN", "Daily consumption was claimed or changed")
+                    writer.value["intents"][key].update(state="consuming", recorded_at=stamp(now))
+                    writer.commit(now)
                 result = (self.steward.record_candidate(work_id, candidate, authorize=self.authorize)
                           if candidate.get("fields") else
                           self.steward.record_no_evidence(work_id, candidate, authorize=self.authorize))

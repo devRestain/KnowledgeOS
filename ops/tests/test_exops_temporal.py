@@ -19,17 +19,24 @@ from vaultops.adapters.core import AdmissionError, canonical, digest
 from vaultops.application.exops import KnowledgeExOps, OwnerActor, TeamBinding
 from vaultops.application.knowledge import KnowledgeApplication
 from vaultops.application.team_catalog import OfficerBinding, SpecialistBinding, TeamCatalog
-from vaultops.application.temporal_contract import TEAM_WORKFLOW_TYPE, WORKFLOW_TYPE
+from vaultops.application.temporal_contract import (
+    CURATION_METHOD_ID,
+    TEAM_WORKFLOW_TYPE,
+    WORKFLOW_TYPE,
+)
 from vaultops.application.temporal_work import (
     connect_owner_temporal,
     dispatch_admitted_work,
     reconcile_unknown_dispatch,
 )
 from vaultops.application.work import work_spec_digest
+from vaultops.application.work_methods import WorkMethodCatalog
 from vaultops.interfaces.exops_web import ExOpsWebBackend
 
+CAPTURE = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
 
-def make_exops(tmp_path, *, with_officer=False):
+
+def make_exops(tmp_path, *, with_officer=False, with_method=False):
     roots = make_separate_portable_fixture_roots(
         tmp_path, extra_inputs=("ops/config/team-catalog.json",
                                 "ops/config/work-methods.json"), review_queues=True)
@@ -41,6 +48,15 @@ def make_exops(tmp_path, *, with_officer=False):
                         eval_officer_executor_id="knowledgeos.eval_officer.one",
                         allowed_executor_ids=["knowledgeos.normalizer.one"],
                         allowed_profiles=[catalog.profile("knowledgeos.normalizer")])
+    roles = ["knowledgeos.normalizer"]
+    if with_method:
+        methods = WorkMethodCatalog.load(roots.control)
+        method = methods.methods[CURATION_METHOD_ID]
+        roles = [stage["role_id"] for stage in method["required_stages"]]
+        fixture.spec.update(
+            method_contract_ref=methods.reference(CURATION_METHOD_ID),
+            allowed_executor_ids=[role + ".one" for role in roles],
+            allowed_profiles=[catalog.profile(role) for role in roles])
     fixture.spec["spec_digest"] = work_spec_digest(fixture.spec)
     fixture.run["work_spec_digest"] = fixture.spec["spec_digest"]
     candidate = TeamBinding(
@@ -49,8 +65,7 @@ def make_exops(tmp_path, *, with_officer=False):
         manager_profile=catalog.profile("knowledgeos.curation_manager"),
         eval_officer_executor_id=fixture.spec["eval_officer_executor_id"],
         eval_officer_profile=catalog.profile("knowledgeos.eval_officer"),
-        specialists=(SpecialistBinding("knowledgeos.normalizer", "knowledgeos.normalizer.one",
-                                       catalog.profile("knowledgeos.normalizer")),),
+        specialists=tuple(SpecialistBinding(role, role + ".one", catalog.profile(role)) for role in roles),
         catalog_digest=catalog.digest,
         native_binding_digest=digest(canonical({"synthetic_native_binding": "no Hermes"})),
         binding_reference={},
@@ -83,6 +98,11 @@ def make_exops(tmp_path, *, with_officer=False):
         current_officer_binding=lambda executor_id: officers.get(executor_id),
         officers=officers,
     )
+    if with_method:
+        source = app.reference(CAPTURE)
+        exops.director_method_source_admitted = (
+            lambda spec, selected: spec["admission_receipt_id"] == "admission.synthetic.one"
+            and dict(selected) == source)
     return exops, fixture
 
 
@@ -120,7 +140,9 @@ def test_standalone_officer_admission_uses_exact_owner_binding(tmp_path):
 def admit(exops, fixture):
     return exops.submit_work(fixture.spec, fixture.run, actor=OwnerActor("owner.user", "cli"),
                              action_id="action.synthetic.start",
-                             expires_at=datetime.now(UTC) + timedelta(hours=1))
+                             expires_at=datetime.now(UTC) + timedelta(hours=1),
+                             method_source_reference=(exops.application.reference(CAPTURE)
+                                 if "method_contract_ref" in fixture.spec else None))
 
 
 def test_work_admission_replay_and_owner_team_boundary(tmp_path):
@@ -302,7 +324,7 @@ def test_worker_start_preceding_lost_ack_returns_accepted_receipt(tmp_path):
 
 
 def test_uncertain_start_reconciles_only_exact_observed_history(tmp_path):
-    exops, fixture = make_exops(tmp_path)
+    exops, fixture = make_exops(tmp_path, with_method=True)
     receipt = admit(exops, fixture)
     run_id = fixture.run["work_run_id"]
     exops.record_dispatch(run_id, action_id=receipt["action_id"], outcome="unknown")
@@ -323,21 +345,27 @@ def test_uncertain_start_reconciles_only_exact_observed_history(tmp_path):
     observer = Observer()
     observer.observation = SimpleNamespace(**{**vars(observer.observation),
                                               "payload": {**payload, "content_digest": "wrong"}})
-    with pytest.raises(AdmissionError, match="Observed Workflow start"):
+    before = exops.application.journal.read()
+    with pytest.raises(AdmissionError) as error:
         asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert error.value.code == "PIN_MISMATCH"
+    assert exops.application.journal.read() == before
     assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
     observer.observation = SimpleNamespace(**{**vars(observer.observation), "payload": payload})
     observer.observation.workflow_type = WORKFLOW_TYPE
-    with pytest.raises(AdmissionError, match="Observed Workflow start"):
+    with pytest.raises(AdmissionError) as error:
         asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert error.value.code == "PIN_MISMATCH"
+    assert exops.application.journal.read() == before
     assert exops.read_work(run_id, actor=OwnerActor("owner.user", "cli"))["dispatch_state"] == "unknown"
     observer.observation.workflow_type = TEAM_WORKFLOW_TYPE
     reconciled = asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
     assert reconciled["dispatch_state"] == "accepted"
     record = exops.application.journal.read()["intents"]["exops.work." + run_id]
     assert record["temporal_run_id"] == "temporal-run-1"
-    with pytest.raises(AdmissionError, match="uncertain"):
+    with pytest.raises(AdmissionError) as error:
         asyncio.run(reconcile_unknown_dispatch(exops, observer, run_id))
+    assert error.value.code == "DISPATCH_DENIED"
 
 
 def test_actual_worker_callback_resolves_unknown_start_with_exact_pins(tmp_path):
@@ -361,7 +389,7 @@ def test_actual_worker_callback_resolves_unknown_start_with_exact_pins(tmp_path)
 
 
 def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch):
-    exops, fixture = make_exops(tmp_path)
+    exops, fixture = make_exops(tmp_path, with_method=True)
     receipt = admit(exops, fixture)
     run_id = fixture.run["work_run_id"]
     binding = SimpleNamespace(
@@ -371,8 +399,7 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     )
     captured = {}
 
-    async def fake_connect(selected, authorize, authorize_observation):
-        captured["binding"] = selected
+    async def fake_connect(_selected, authorize, authorize_observation):
         captured["observe"] = authorize_observation
         return authorize
 
@@ -386,7 +413,6 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     monkeypatch.setitem(sys.modules, "clients.temporal", temporal)
 
     authorize = asyncio.run(connect_owner_temporal(exops, binding))
-    assert captured["binding"] is binding
     payload = {
         "owner_operation_id": "knowledgeos", "work_run_id": run_id,
         "action_id": receipt["action_id"], "content_digest": receipt["content_digest"],
@@ -394,24 +420,32 @@ def test_native_client_binding_rechecks_exact_owner_intent(tmp_path, monkeypatch
     }
     dispatch = SimpleNamespace(workflow_id=f"knowledgeos/{run_id}",
                                action_id=receipt["action_id"], payload=payload)
+    before = exops.application.journal.read()
     asyncio.run(authorize(dispatch))
-    with pytest.raises(AdmissionError, match="uncertain"):
+    with pytest.raises(AdmissionError) as error:
         asyncio.run(captured["observe"](dispatch))
-    with pytest.raises(ValueError, match="WorkSpec"):
+    assert error.value.code == "DISPATCH_DENIED"
+    with pytest.raises(ValueError):
         asyncio.run(authorize(SimpleNamespace(
             workflow_id=dispatch.workflow_id, action_id=dispatch.action_id,
             payload={**payload, "work_spec_digest": "changed"})))
-    with pytest.raises(ValueError, match="intent shape"):
+    with pytest.raises(ValueError):
         asyncio.run(authorize(SimpleNamespace(
             workflow_id="knowledgeos/another-run", action_id=dispatch.action_id,
             payload=payload)))
     officer_authorize = asyncio.run(connect_owner_temporal(
         exops, SimpleNamespace(**{**vars(binding), "workflow_type": WORKFLOW_TYPE})))
-    with pytest.raises(ValueError, match="Workflow"):
+    with pytest.raises(ValueError):
         asyncio.run(officer_authorize(dispatch))
-    with pytest.raises(AdmissionError, match="selected owner route"):
+    with pytest.raises(AdmissionError) as error:
         asyncio.run(connect_owner_temporal(exops, SimpleNamespace(
             **{**vars(binding), "namespace": "other-operation"})))
+    assert error.value.code == "BINDING_INVALID"
+    exops.director_method_source_admitted = lambda _spec, _source: False
+    with pytest.raises(AdmissionError) as error:
+        asyncio.run(authorize(dispatch))
+    assert error.value.code == "ADMISSION_REQUIRED"
+    assert exops.application.journal.read() == before
 
 
 def test_web_backend_binds_startup_actor_and_rechecks_live_authority(tmp_path):

@@ -499,7 +499,7 @@ def resume(controller, target):
 def finish_successor(exops, executor, target):
     work_run_id = target["work_run_id"]
     asyncio.run(executor.manager_successor(work_run_id))
-    asyncio.run(executor.normalization_proposal(work_run_id))
+    asyncio.run(executor.execute_plan(work_run_id))
     result = asyncio.run(executor.assess(work_run_id))
     record = saved(exops, target)
     exops.worker_finished(
@@ -608,7 +608,8 @@ def test_resume_runs_real_fixture_successor_and_reconciles_historical_receipts(t
     assert final["run"]["segments_started"] == final["run"]["profile_invocations"] == 2
     assert final["run"]["repeated_gap_count"] == 1
     assert result.assessment["criterion_outcomes"][0]["outcome"] == "satisfied"
-    assert result.evaluations[0] == original["evaluations"][0]
+    assert result.evaluations[0]["run_id"] == original["evaluations"][0]["run_id"]
+    assert result.evaluations[0]["not_run_criterion_ids"] == original["evaluations"][0]["not_run_criterion_ids"]
     assert len(executor.runner.requests) == len(continuation.effects(exops, run)) == 1
     assert path.read_bytes() == source
     snapshot = exops.application.journal.read()

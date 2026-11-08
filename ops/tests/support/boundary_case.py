@@ -6,9 +6,11 @@ from dataclasses import replace
 from datetime import timedelta
 from uuid import uuid4
 
+from support.agent_fixture import install_agent_policy, retain_director_context
 from support.boundary_fixture import accepted_exchange
 from support.control_factory import make_separate_portable_fixture_roots
 from vaultops.adapters.core import canonical, digest
+from vaultops.adapters.owner_journal import utc_now
 from vaultops.application.boundary_work import (
     EXCHANGE_POLICY,
     MAINTENANCE_POLICY,
@@ -27,10 +29,11 @@ BASE = "00_Inbox/Captures/2026/09/20260909-090000-mac-deadbeef.md"
 SOURCE = "00_Inbox/Captures/2026/09/Native Boundary selected note.md"
 
 
-def make_case(root, runner_binding, runner_factory, kind, *, unresolved=False):
+def make_case(root, runner_binding, runner_factory, kind, *, unresolved=False, clock=utc_now):
     policy = EXCHANGE_POLICY if kind == "exchange" else MAINTENANCE_POLICY
     roots = make_separate_portable_fixture_roots(root,
         extra_inputs=("ops/config/team-catalog.json", "ops/config/work-methods.json"), review_queues=True)
+    install_agent_policy(roots.control)
     source_path = roots.vault / SOURCE
     text = (roots.vault / BASE).read_text().replace(
         "11111111-1111-4111-8111-111111111111", str(uuid4())).replace(
@@ -38,7 +41,7 @@ def make_case(root, runner_binding, runner_factory, kind, *, unresolved=False):
     source_path.write_text(text)
     report, code = generate_projection(roots)
     assert code == 0, report
-    app = KnowledgeApplication.from_roots(roots)
+    app = KnowledgeApplication.from_roots(roots, clock=clock)
     source = app.reference(SOURCE)
     canary = "synthetic." + uuid4().hex
     accepted = accepted_exchange(app, source, canary=canary) if kind == "exchange" else None
@@ -70,13 +73,15 @@ def make_case(root, runner_binding, runner_factory, kind, *, unresolved=False):
     admission = exchange_admission if kind == "exchange" else maintenance_admission
     spec, run = admission(app, binding, source,
                           **({"gateway_receipt_id": accepted[0]["receipt_id"]} if accepted else {}), **identities)
+    retain_director_context(app, spec, run, source,
+                            owner_scope={"gateway_receipt_id": accepted[0]["receipt_id"]} if accepted else {})
     exact = copy.deepcopy(spec)
     exops = KnowledgeExOps(app,
         authorize_actor=lambda actor, action: actor.actor_id == "owner.officer_smoke"
             and actor.ingress in {"cli", "web"} and action in {"submit_work", "read_work"},
         director_admitted=lambda selected: dict(selected) == exact and app.reference(SOURCE) == source,
-        teams={binding.team_id: binding},
-        current_team_binding=lambda team: binding if team == binding.team_id else None,
+        method_teams={policy.method_id: binding},
+        current_method_binding=lambda method: binding if method == policy.method_id else None,
         worker_identity="knowledgeos.worker.native_boundary",
         director_method_source_admitted=lambda selected, reference: dict(selected) == exact and dict(reference) == source)
     runner = runner_factory(runner_binding, app)

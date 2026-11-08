@@ -64,8 +64,9 @@ def test_exact_executor_profile_pair_and_changed_catalog_are_denied(tmp_path):
 def test_missing_current_registration_blocks_admission(tmp_path):
     exops, fixture = make_exops(tmp_path)
     exops.current_team_binding = lambda team_id: None
-    with pytest.raises(AdmissionError, match="Current Team"):
+    with pytest.raises(AdmissionError) as denied:
         exops._team_binding(fixture.spec, fixture.run)
+    assert denied.value.code == "SCOPE_DENIED"
 
 
 def test_native_mapping_digest_and_owner_export_are_required(tmp_path):

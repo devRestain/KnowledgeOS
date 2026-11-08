@@ -178,6 +178,8 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
         _fail("SCOPE_DENIED", "Ontology Team suggested an undeclared relation")
     if set(metadata["fields"]) & set(relations["fields"]):
         _fail("CONFLICT", "The two Team candidates overlap on one field")
+    from .metadata_work import candidate_values, evidence_key
+
     evidence = {**metadata["evidence"], **relations["evidence"]}
     changes = {**metadata["fields"], **relations["fields"]}
     if not changes:
@@ -188,16 +190,24 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
             live_group["metadata_promotion"] = {"state": "no_change", "code": None}
             writer.commit(app.clock())
         return {"status": "NO_CHANGE", "proposal_reference": None}
-    for field, values in changes.items():
-        if (not isinstance(values, list) or not 1 <= len(values) <= 10
-                or any(not isinstance(value, str) or not value for value in values)
-                or len(set(values)) != len(values)):
-            _fail("INVALID_ARGUMENT", "Candidate values must be bounded, unique text lists")
+    for field, proposed in changes.items():
+        values = candidate_values(proposed)
+        descriptor = engine.blueprint["property_registry"].get(
+            field, engine.blueprint["common_properties"]["required"].get(field))
+        if descriptor is None:
+            _fail("SCOPE_DENIED", "Candidate property has no authoritative definition")
+        if descriptor.get("obsidian_type") in {"list", "tags"}:
+            if (not isinstance(proposed, list) or not 1 <= len(proposed) <= 10
+                    or any(not isinstance(value, str) or not value for value in proposed)
+                    or len(set(proposed)) != len(proposed)):
+                _fail("INVALID_ARGUMENT", "Candidate lists must contain bounded, unique text")
+        elif type(proposed) not in (str, int, float, bool):
+            _fail("INVALID_ARGUMENT", "Candidate scalar must use its declared property type")
         value_evidence = evidence[field]
-        if (not isinstance(value_evidence, dict) or set(value_evidence) != set(values)):
+        if (not isinstance(value_evidence, dict) or set(value_evidence) != {evidence_key(value) for value in values}):
             _fail("EVIDENCE_REQUIRED", "Every candidate value needs its own evidence")
         for value in values:
-            quotes = value_evidence[value]
+            quotes = value_evidence[evidence_key(value)]
             if (not isinstance(quotes, list) or not quotes
                     or any(not isinstance(quote, str) or not quote.strip()
                            or quote not in document.body for quote in quotes)):
@@ -210,9 +220,9 @@ def prepare_metadata_proposal(exops: Any, request_id: str, *, actor: Any) -> dic
                 _fail("CONFLICT", "A populated list has an incompatible shape")
             if any(value in current for value in values):
                 _fail("CONFLICT", "Candidate repeats a populated value")
-            properties[field] = [*current, *values]
+            properties[field] = [*current, *proposed]
         else:
-            properties[field] = values
+            properties[field] = proposed
     properties["modified"] = stamp(app.clock())
     target_types = app.daily_stewardship()._target_types()
     validated = engine.validate_property_changes(properties, changes, source_path, target_types=target_types)

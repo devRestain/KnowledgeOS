@@ -7,7 +7,7 @@ from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
 
 from ..adapters.core import AdmissionError
-from .native_team import PACKAGES, require
+from .native_team import PACKAGES, agent_plan, require
 from .temporal_contract import CURATION_DISPATCH_FIELDS
 from .temporal_work import WorkResult
 
@@ -47,15 +47,22 @@ class NativeTeamActivities:
                                         work_spec_digest=payload["work_spec_digest"], workflow_id=activity.info().workflow_id)
         try:
             await self.executor.manager(record["spec"], run)
-            return payload
+            record = self.executor.current(payload["work_run_id"])
+            return {"dispatch": payload, "stage_ids": [s["stage_id"] for s in agent_plan(record)["steps"]],
+                    "stage_index": 0}
         except (Exception, asyncio.CancelledError):
             self.unknown(payload)
             raise
 
-    async def stage(self, payload, index):
+    async def stage(self, state):
         from temporalio import activity
 
-        self.record(payload, started=True)
+        payload = state["dispatch"]
+        record = self.record(payload, started=True)
+        expected = [step["stage_id"] for step in agent_plan(record)["steps"]]
+        index = state["stage_index"]
+        require(state["stage_ids"] == expected and 0 <= index < len(expected),
+                "Temporal Profile order differs from the admitted Manager plan")
 
         async def heartbeat():
             while True:
@@ -65,8 +72,8 @@ class NativeTeamActivities:
 
         task = asyncio.create_task(heartbeat())
         try:
-            await self.executor.execute_stage(payload["work_run_id"], self.executor.policy.stages[index])
-            return payload
+            await self.executor.execute_stage(payload["work_run_id"], expected[index])
+            return {**state, "stage_index": index + 1}
         except (Exception, asyncio.CancelledError):
             self.unknown(payload)
             raise
@@ -75,23 +82,19 @@ class NativeTeamActivities:
             with suppress(asyncio.CancelledError):
                 await task
 
-    async def first(self, payload):
-        return await self.stage(payload, 0)
 
-    async def second(self, payload):
-        return await self.stage(payload, 1)
-
-    async def assess(self, payload):
-        self.record(payload, started=True)
+    async def assess(self, state):
+        payload = state["dispatch"]
+        await asyncio.to_thread(self.record, payload, started=True)
         try:
             result = await self.executor.assess(payload["work_run_id"])
             require(isinstance(result, WorkResult), "Native assessor returned no WorkResult")
-            return self.exops.worker_finished(payload["work_run_id"], worker_identity=self.exops.worker_identity,
+            return await asyncio.to_thread(self.exops.worker_finished, payload["work_run_id"], worker_identity=self.exops.worker_identity,
                 action_id=payload["action_id"], next_run=result.next_run, assessment=result.assessment,
                 segments=result.segments, evaluations=result.evaluations, artifacts=result.artifacts,
                 checkpoints=result.checkpoints, candidate_assessor_id=result.candidate_assessor_id)
         except (Exception, asyncio.CancelledError):
-            self.unknown(payload)
+            await asyncio.to_thread(self.unknown, payload)
             raise
 
 
@@ -108,15 +111,18 @@ def native_team_graph(exops, executor, *, workflow_type):
 
     activities = NativeTeamActivities(exops, executor, workflow_type)
     graph = StateGraph(dict)
-    previous = START
-    for name, node in (("manager", activities.manager), (executor.policy.stages[0], activities.first),
-                       (executor.policy.stages[1], activities.second), ("assess", activities.assess)):
+    for name, node in (("manager", activities.manager), ("profile", activities.stage), ("assess", activities.assess)):
         graph.add_node(name, node, metadata={"execute_in": "activity", "start_to_close_timeout": timedelta(minutes=10),
                        "retry_policy": RetryPolicy(maximum_attempts=1),
-                       **({"heartbeat_timeout": timedelta(seconds=15)} if name in executor.policy.stages else {})})
-        graph.add_edge(previous, name)
-        previous = name
-    graph.add_edge(previous, END)
+                       **({"heartbeat_timeout": timedelta(seconds=15)} if name == "profile" else {})})
+
+    async def next_step(state):
+        return "profile" if state["stage_index"] < len(state["stage_ids"]) else "assess"
+
+    graph.add_edge(START, "manager")
+    graph.add_conditional_edges("manager", next_step, ["profile", "assess"])
+    graph.add_conditional_edges("profile", next_step, ["profile", "assess"])
+    graph.add_edge("assess", END)
     return graph
 
 

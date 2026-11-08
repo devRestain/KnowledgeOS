@@ -52,7 +52,7 @@ def effects(exops, run):
 
 async def initial(executor, spec, run):
     await executor.manager(spec, run)
-    await executor.capture_evidence(run["work_run_id"])
+    await executor.execute_plan(run["work_run_id"])
     return await executor.assess_initial(run["work_run_id"])
 
 
@@ -60,7 +60,7 @@ async def complete(executor, spec, run):
     result = await initial(executor, spec, run)
     assert result["continuation_state"] == "allowed"
     await executor.manager_successor(run["work_run_id"])
-    await executor.normalization_proposal(run["work_run_id"])
+    await executor.execute_plan(run["work_run_id"])
     return await executor.assess(run["work_run_id"])
 
 
@@ -141,6 +141,110 @@ def test_two_immutable_graphs_independent_gap_and_latest_success(tmp_path, monke
     assert final["curation_initial_assessment"] == initial_snapshot
     assert final["assessment"] == result.assessment
     assert final["admitted_method_segments"][initial_id] == first_segment
+    from vaultops.application.exops import OwnerActor
+
+    view = exops.read_work(run["work_run_id"], actor=OwnerActor("owner.user", "cli"))
+    assert "remaining_work" not in view
+    assert final["curation_initial_assessment"]["remaining_work"] == initial_snapshot["remaining_work"]
+
+
+def test_continuation_retains_long_historical_not_run_rationale(tmp_path, monkeypatch):
+    from support.agent_fixture import decision_response, synthetic_decision
+
+    from vaultops.adapters.core import digest
+    from vaultops.application.exops import OwnerActor
+
+    exops, executor, spec, run, path, receipt = started(tmp_path, monkeypatch)
+    original = path.read_bytes()
+    gap_summary = "Create the source-bound Pending normalization proposal."
+    segment_reason = " ".join(
+        f"Checkpoint observation {index}: triage read the exact admitted source, but no "
+        "normalization proposal or Owner Pending effect existed at this checkpoint."
+        for index in range(8)
+    )
+    assert len(segment_reason) > 512
+
+    class DetailedAssessor(ordinary.OwnerToolRunner):
+        async def __call__(self, request):
+            if request.get("stage_id") != "evaluator":
+                return await super().__call__(request)
+            self.decisions.append(copy.deepcopy(request))
+            evidence = request["agent_request"]["context"]["evidence"]
+            outcome = "satisfied" if evidence["artifacts"] else "not_run"
+            decision = synthetic_decision(request, outcome=outcome)
+            for judgment in decision["criterion_outcomes"]:
+                if judgment["outcome"] == "not_run":
+                    judgment["reason"] = gap_summary
+            for segment in decision["segment_outcomes"]:
+                for judgment in segment["criterion_outcomes"]:
+                    if judgment["outcome"] == "not_run":
+                        judgment["reason"] = segment_reason
+            return decision_response(request, decision, control_root=self.exops.application.roots.control)
+
+    executor.runner = DetailedAssessor(exops)
+    assert asyncio.run(initial(executor, spec, run))["continuation_state"] == "allowed"
+    first = record(exops, run)
+    initial_snapshot = copy.deepcopy(first["curation_initial_assessment"])
+    initial_semantic = copy.deepcopy(first["curation_initial_semantic"])
+    initial_id = first["run"]["graph_run_ids"][0]
+    first_segment = copy.deepcopy(first["admitted_method_segments"][initial_id])
+    remaining = copy.deepcopy(first["remaining_work"])
+    assert first["assessment"]["completion_state"] == "incomplete"
+    assert remaining["gaps"] == [{"criterion_id": CRITERION["criterion_id"], "summary": gap_summary}]
+    initial_decision = initial_semantic["evidence"]["decision"]
+    assert initial_decision["criterion_outcomes"][0]["reason"] == gap_summary
+    assert initial_decision["segment_outcomes"][0]["criterion_outcomes"][0]["reason"] == segment_reason
+    actor = OwnerActor("owner.user", "cli")
+    assert exops.read_work(run["work_run_id"], actor=actor)["remaining_work"] == remaining
+    assert effects(exops, run) == []
+
+    asyncio.run(executor.manager_successor(run["work_run_id"]))
+    successor_record = record(exops, run)
+    successor_id = successor_record["run"]["graph_run_ids"][1]
+    successor = successor_record["admitted_method_segments"][successor_id]["segment"]
+    assert successor_record["admitted_method_segments"][initial_id] == first_segment
+    assert successor["predecessor_graph_run_id"] == initial_id
+    assert successor["trigger_reference_id"] == remaining["remaining_work_id"]
+    assert successor["trigger_digest"] == record_digest(remaining)
+    assert successor["target_criterion_ids"] == remaining["not_run_criterion_ids"]
+    asyncio.run(executor.execute_plan(run["work_run_id"]))
+    result = asyncio.run(executor.assess(run["work_run_id"]))
+    assert result.next_run["state"] == "completed"
+    assert result.assessment["completion_state"] == "complete"
+    assert result.evaluations[0]["not_run_criterion_ids"] == [CRITERION["criterion_id"]]
+    assert result.evaluations[1]["passed_criterion_ids"] == [CRITERION["criterion_id"]]
+    assert result.assessment["criterion_outcomes"][0]["evaluation_ids"] == [
+        result.evaluations[1]["evaluation_id"]]
+    calls = copy.deepcopy((executor.runner.requests, executor.runner.decisions))
+    assert executor.final_result(record(exops, run)) == result
+    assert (executor.runner.requests, executor.runner.decisions) == calls
+    finished = exops.worker_finished(
+        run["work_run_id"], worker_identity=exops.worker_identity, action_id=receipt["action_id"],
+        next_run=result.next_run, assessment=result.assessment, segments=result.segments,
+        evaluations=result.evaluations, artifacts=result.artifacts, checkpoints=result.checkpoints,
+        candidate_assessor_id=result.candidate_assessor_id,
+    )
+    assert finished["application_state"] == "recorded"
+    final = record(exops, run)
+    assert final["curation_initial_assessment"] == initial_snapshot
+    assert final["curation_initial_semantic"] == initial_semantic
+    assert final["admitted_method_segments"][initial_id] == first_segment
+    assert final["admitted_method_segments"][successor_id] == successor_record["admitted_method_segments"][successor_id]
+    assert final["curation_initial_assessment"]["remaining_work"] == remaining
+    historical = final["curation_semantic_assessment"]["evidence"]["decision"]["segment_outcomes"][0]
+    assert historical["graph_run_id"] == initial_id
+    assert historical["criterion_outcomes"][0]["outcome"] == "not_run"
+    assert historical["criterion_outcomes"][0]["reason"] == segment_reason
+    view = exops.read_work(run["work_run_id"], actor=actor)
+    assert view["run"]["state"] == "completed"
+    assert "remaining_work" not in view
+    effect, = effects(exops, run)
+    assert effect["state"] == "completed"
+    pending = list((exops.application.roots.vault / "01_AI_Review/Pending").glob("*.md"))
+    assert pending == [exops.application.roots.vault / effect["artifact_path"]]
+    assert digest(pending[0].read_bytes()) == effect["content_digest"]
+    assert path.read_bytes() == original
+
 
 
 @pytest.mark.parametrize("budget", list(DEFAULT_CONTINUATION_POLICY))
@@ -385,11 +489,11 @@ def test_admission_requires_exact_source_runner_and_native_binding(tmp_path, mon
 
     exops, _executor, spec, run, _path, _receipt = started(tmp_path, monkeypatch)
     app = exops.application
-    binding = exops.teams[spec["team_id"]]
+    binding = exops.team_for_spec(spec)
     source = record(exops, run)["method_source_reference"]
     runner_binding = dict(MODEL_BINDING)
     if changed == "runner":
-        runner_binding["model"] = "unselected-model"
+        runner_binding["adapter_digest"] = "sha256:" + "b" * 64
     elif changed == "source":
         source = {**source, "content_digest": "sha256:" + "a" * 64}
     else:
@@ -406,22 +510,35 @@ def test_admission_requires_exact_source_runner_and_native_binding(tmp_path, mon
         )
 
 
-@pytest.mark.parametrize("changed", ["criteria", "pin", "profile"])
-def test_director_admission_cannot_change_the_selected_continuation_semantics(tmp_path, monkeypatch, changed):
-    def mutate(spec):
-        if changed == "criteria":
-            spec["acceptance_criteria"][0]["description"] = "Manager says complete"
-        elif changed == "profile":
-            spec["allowed_profiles"].reverse()
-        else:
-            spec["explicit_assignments"] = [{
-                "node_id": "node.capture_evidence", "executor_id": spec["allowed_executor_ids"][0],
-                **spec["allowed_profiles"][0], "criterion_ids": [CRITERION["criterion_id"]],
-            }]
-    exops, executor, spec, run, _path, _receipt = started(
-        tmp_path, monkeypatch, mutate_spec=mutate,
-    )
-    with pytest.raises(DENIED):
-        asyncio.run(executor.manager(spec, run))
-    assert not record(exops, run).get("admitted_method_segments")
-    assert executor.runner.requests == [] and effects(exops, run) == []
+
+
+def test_latest_semantic_gap_is_not_replaced_by_initial_trigger(tmp_path, monkeypatch):
+    from vaultops.application.exops import OwnerActor
+
+    exops, executor, spec, run, path, receipt = started(tmp_path, monkeypatch)
+    before = path.read_bytes()
+    asyncio.run(initial(executor, spec, run))
+    initial_snapshot = copy.deepcopy(record(exops, run)["curation_initial_assessment"])
+    asyncio.run(executor.manager_successor(run["work_run_id"]))
+    asyncio.run(executor.execute_plan(run["work_run_id"]))
+    executor.runner.evaluation_outcome = "unmet"
+    result = asyncio.run(executor.assess(run["work_run_id"]))
+    assert result.next_run["state"] == "awaiting_human"
+    assert result.evaluations[0]["not_run_criterion_ids"] == [CRITERION["criterion_id"]]
+    assert result.evaluations[1]["failed_criterion_ids"] == [CRITERION["criterion_id"]]
+    calls = copy.deepcopy((executor.runner.requests, executor.runner.decisions))
+    assert executor.final_result(record(exops, run)) == result
+    assert (executor.runner.requests, executor.runner.decisions) == calls
+    exops.worker_finished(
+        run["work_run_id"], worker_identity=exops.worker_identity, action_id=receipt["action_id"],
+        next_run=result.next_run, assessment=result.assessment, segments=result.segments,
+        evaluations=result.evaluations, artifacts=result.artifacts, checkpoints=result.checkpoints,
+        candidate_assessor_id=result.candidate_assessor_id)
+    saved = record(exops, run)
+    current = exops.read_work(run["work_run_id"], actor=OwnerActor("owner.user", "cli"))["remaining_work"]
+    assert current["assessment_id"] == result.assessment["assessment_id"]
+    assert current["assessment_digest"] == record_digest(result.assessment)
+    assert current["unmet_criterion_ids"] == [CRITERION["criterion_id"]]
+    assert current["not_run_criterion_ids"] == []
+    assert saved["curation_initial_assessment"] == initial_snapshot
+    assert len(effects(exops, run)) == 1 and path.read_bytes() == before

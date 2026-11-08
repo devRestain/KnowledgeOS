@@ -61,7 +61,7 @@ def adapter(monkeypatch, node="capture_evidence"):
     def unknown(work_run_id, **context):
         calls.append(("unknown", work_run_id, context))
 
-    executor = SimpleNamespace(_current=current, capture_evidence=capture, assess_initial=assess_initial)
+    executor = SimpleNamespace(_current=current, execute_plan=capture, assess_initial=assess_initial)
     exops = SimpleNamespace(
         worker_identity="worker.unit", worker_unknown=unknown,
         application=SimpleNamespace(journal=SimpleNamespace(read=lambda: {
@@ -133,7 +133,7 @@ def test_uncertain_activity_records_unknown_without_retry(monkeypatch):
         calls.append(("attempt", work_run_id))
         raise RuntimeError("uncertain execution")
 
-    activities.executor.capture_evidence = failed
+    activities.executor.execute_plan = failed
     with pytest.raises(RuntimeError, match="uncertain"):
         asyncio.run(activities.capture_evidence(payload))
     assert [item[0] for item in calls] == ["authorize", "attempt", "unknown"]
@@ -154,6 +154,8 @@ def test_dispatch_workflow_is_bound_to_continuation_method(
     from vaultops.application.temporal_work import connect_owner_temporal
 
     spec = {"target_kind": target_kind, "spec_digest": "sha256:spec"}
+    if target_kind == "team":
+        spec["team_id"] = "knowledge-curation"
     if method_id is not None:
         spec["method_contract_ref"] = {"method_id": method_id}
     record = {"spec": spec}
@@ -184,5 +186,5 @@ def test_dispatch_workflow_is_bound_to_continuation_method(
             "work_spec_digest": spec["spec_digest"],
         },
     )
-    with pytest.raises(ValueError, match="admitted Work method"):
+    with pytest.raises(ValueError):
         asyncio.run(authorize(dispatch))

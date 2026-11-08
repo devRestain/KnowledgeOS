@@ -115,6 +115,61 @@ class DailyStewardship:
         return {"request_id": key, "source_reference": reference,
                 "method_contract_ref": method, "empty_fields": empty_fields}
 
+    def prepare_selected(self, source: dict[str, Any]) -> dict[str, Any]:
+        """Stage coverage for one manually selected revision, without a Vault scan."""
+        self.app.guard("apply")
+        relative = self.app.resolve_reference(source)
+        if (relative in {"Home.md", "Mobile.md"}
+                or relative.startswith(("99_System/", "01_AI_Review/"))
+                or any(part.startswith(".") for part in Path(relative).parts)):
+            _fail("SCOPE_DENIED", "Selected source is outside daily enrichment")
+        self.app._mcp_source_policy(relative)
+        registry, policy = self._registry_digest(), self._policy_digest()
+        method = WorkMethodCatalog.load(self.app.roots.control).reference(METHOD_ID)
+        now = self.app.clock()
+        key = _PREFIX + hashlib.sha256(relative.encode()).hexdigest()
+        with self.app.journal.writer() as writer:
+            self.app.guard("apply")
+            self.app.resolve_reference(source)
+            raw = read_regular(resolve_vault_relative_path(self.app.roots.vault, relative))
+            if raw is None or digest(raw) != source["content_digest"]:
+                _fail("RESOURCE_STALE", "Selected daily source changed")
+            properties = source_properties(relative, raw, engine=self.engine)
+            if (properties.get("type") in _SKIP_TYPES
+                    or properties.get("sensitivity") == "confidential"
+                    or properties.get("ai_policy") not in {"ask", "remote_ok", "local_only"}
+                    or properties.get("ai_policy") == "local_only" and not self.app.identity.local_execution):
+                _fail("SCOPE_DENIED", "Document policy denies daily enrichment")
+            if any(item.get("path") == relative and (
+                    item.get("review_status") in {"pending", "conflict"} or item.get("state") == "unknown")
+                    for item in writer.value["intents"].values() if isinstance(item, dict)):
+                _fail("CONFLICT", "Selected note has an unresolved daily effect")
+            if any(item.get("path") == relative and item.get("state") != "consumed"
+                   for old_key, item in writer.value["intents"].items()
+                   if old_key.startswith("daily.admission.") and isinstance(item, dict)):
+                _fail("CONFLICT", "Another admitted daily request owns this source")
+            previous = writer.value["intents"].get(key, {})
+            unchanged = (previous.get("source_digest") == source["content_digest"]
+                         and previous.get("registry_digest") == registry
+                         and previous.get("policy_digest") == policy
+                         and previous.get("method_contract_ref") == method)
+            if unchanged and previous.get("state") in {"no_evidence", "completed"}:
+                _fail("CONFLICT", "This exact daily source revision is already covered")
+            empty = sorted(field for field in self._eligible_fields(properties["type"])
+                           if properties.get(field) in (None, [], ""))
+            if not empty:
+                _fail("CONFLICT", "Selected note has no eligible empty daily fields")
+            request = self._work_request(source, method, empty, registry, policy)
+            if not unchanged or previous.get("state") != "started":
+                writer.value["intents"][key] = {
+                    "state": "started", "recorded_at": stamp(now), "path": relative,
+                    "source_digest": source["content_digest"], "registry_digest": registry,
+                    "policy_digest": policy, "day": now.astimezone(self.zone).date().isoformat(),
+                    "empty_fields": empty, "method_contract_ref": method,
+                }
+                writer.commit(now)
+        return request
+
     def due_check(self, *, limit: int = 50,
                   exclude_request_ids: frozenset[str] = frozenset()) -> dict[str, Any]:
         """Record a local-day scan, excluding caller-owned durable admissions."""

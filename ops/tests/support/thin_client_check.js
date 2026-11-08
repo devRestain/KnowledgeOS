@@ -15,7 +15,7 @@ const test = (name, run) => tests.push({ name, run });
 const flush = async () => { for (let index = 0; index < 4; index++) await new Promise(resolve => setImmediate(resolve)); };
 const digest = text => createHash("sha256").update(text).digest("hex");
 const ref = { logical_id: "proposal.synthetic", content_digest: "sha256:" + "a".repeat(64), source_revision: "a".repeat(64) };
-const readRoutes = new Set(["owner/status", "mutation/receipt", "search/query", "work/list", "work/read", "work/inspection", "work/result", "work/methods", "proposal/list", "proposal/read", "daily/list", "daily/read", "work/control/target", "work/control/command", "work/steering/view", "work/steering/export"]);
+const readRoutes = new Set(["owner/status", "mutation/receipt", "search/query", "work/list", "work/read", "work/result", "work/methods", "proposal/list", "proposal/read", "daily/list", "daily/read", "work/control/target", "work/control/command", "work/steering/view"]);
 const mutations = h => h.calls.filter(call => !readRoutes.has(call.route));
 const buttons = view => view.contentEl.querySelectorAll("button");
 const button = (view, text) => buttons(view).find(element => element.getAttribute("title") === text || element.getAttribute("aria-label") === text || element.textContent === text);
@@ -27,7 +27,6 @@ function payload(route, marker = "Synthetic result") {
     case "search/query": return { mode: "lexical", results: [{ path: "Notes/Beta.md", title: marker, excerpt: marker, reason: "Synthetic lexical match", resource_reference: { source_revision: digest("# Beta\n\nSynthetic β evidence.\n") } }] };
     case "work/list": return { works: [work] };
     case "work/read": return { run: { ...work, state: "ACCEPTED" }, record: work, spec: { objective: marker }, receipt: {} };
-    case "work/inspection": return { work_run_id: work.work_run_id, observed_at: "2026-11-01T00:00:00Z", segments: [], assessment: null, evaluations: [], source_scope: { path: "Notes/Alpha.md", content_sha256: "a".repeat(64) }, runtime_observation: "unavailable" };
     case "work/result": return { ...work, state: "COMPLETED", text: marker, report: null, evidence: null, assessment: null, truth_evaluated: false };
     case "proposal/list": return { proposals: [{ action: marker, proposal_reference: ref, apply_allowed: true }] };
     case "proposal/read": return { proposal_reference: ref, text: marker, source_path: "Notes/Alpha.md", source_digest: "sha256:" + "a".repeat(64), source_reference: { content_digest: "sha256:" + "a".repeat(64) }, source_text: marker, source_stale: false, source_truncated: false, target_path: "Notes/Alpha.md", diff: marker, field_evidence: [], apply_allowed: true, decision: null, state: "completed" };
@@ -58,6 +57,205 @@ function backend(state = "owner_connected", changes = {}) {
     owner_http: state === "owner_connected" ? "reachable" : "unreachable", runtime_observation: "unavailable",
     error: ["owner_connected", "starting"].includes(state) ? null : { code: "SYNTHETIC_UNREACHABLE", message: "Synthetic Owner unavailable" }, ...changes };
 }
+
+test("unavailable methods remain inspectable while submission stays guarded", async () => {
+  const { h, view } = await viewFixture();
+  const unavailable = { method_id: "knowledgeos.capture_normalization_team", purpose: "Inspect a fixture", available: false, reason: "No owner-registered executable binding", parameters: {} };
+  const available = { ...unavailable, method_id: "knowledgeos.cited_research_team", available: true, reason: null };
+  let methods = [unavailable, available];
+  h.respond(async call => h.response(call.route === "work/methods" ? { methods } : payload(call.route)));
+  view.owner.bindings.selected_methods = true;
+  await view.showMethods();
+  const submit = button(view, "선택 Method에 요청");
+  assert.equal(submit.disabled, false);
+  assert.ok(view.methodInput.children.every(option => !option.disabled), "Every reason must be reachable through the selector");
+  view.methodInput.value = unavailable.method_id;
+  view.methodInput.onchange();
+  assert.match(view.methodInfo.textContent, /No owner-registered executable binding/);
+  assert.match(view.methodInfo.textContent, /수집 노트 정리/);
+  assert.equal(view.methodInfo.getAttribute("title"), unavailable.method_id);
+  assert.equal(submit.disabled, true);
+  await assert.rejects(() => view.submitSelected(), /현재 Owner/);
+  methods = [unavailable];
+  await view.showMethods();
+  assert.equal(view.methodInput.value, unavailable.method_id, "An all-unavailable catalog must still expose its explanations");
+  assert.equal(submit.disabled, true);
+  methods = [available];
+  await view.showMethods();
+  assert.equal(submit.disabled, false);
+  view.owner.read_only = true; view.sync();
+  assert.equal(submit.disabled, true, "Method availability cannot override Owner authority");
+  assert.equal(mutations(h).length, 0);
+  await view.onClose(); h.cleanup();
+});
+
+test("typed method controls submit scope, defaults and parameter-sensitive UUIDs", async () => {
+  const { h, view } = await viewFixture();
+  const text = { type: "string", minLength: 1, maxLength: 512 };
+  const ids = ["capture_normalization", "capture_normalization_continuation", "cited_draft", "cited_research",
+    "relation_ontology", "project_review", "knowledge_exchange", "note_metadata",
+    "daily_corpus_stewardship", "capture_steering", "vault_maintenance"];
+  const methods = ids.map(id => ({ method_id: `knowledgeos.${id}_team`, purpose: id, available: true,
+    parameters: {}, parameter_schema: { type: "object", properties: {}, required: [] } }));
+  const draft = methods[2];
+  draft.parameter_schema = { type: "object", required: ["scope"], properties: {
+    objective: text, scope: { type: "object", required: ["target_path", "target_type", "title"],
+      properties: { target_path: text, target_type: text, title: text } } } };
+  draft.parameters = { scope: { target_path: "Knowledge/Draft.md", target_type: "knowledge", title: "기본 제목" } };
+  methods[5].parameter_schema = { type: "object", required: ["scope"], properties: {
+    scope: { type: "object", required: ["period_start", "period_end", "query", "base", "view"],
+      properties: Object.fromEntries(["period_start", "period_end", "query", "base", "view"].map(key => [key, text])) } } };
+  methods[6].parameter_schema = { type: "object", required: ["gateway_receipt_id"], properties: { gateway_receipt_id: text } };
+  h.respond(async call => h.response(call.route === "work/methods" ? { methods } :
+    call.route === "work/intake-selected" ? { work_run_id: "workrun.synthetic" } : payload(call.route)));
+  view.owner.bindings.selected_methods = true;
+  await view.showMethods();
+  assert.equal(view.methodInput.children.length, 11);
+  assert.deepEqual(view.methodInput.children.map(option => option.textContent), [
+    "수집 노트 정리", "수집 노트 이어서 정리", "근거 기반 초안", "근거 기반 조사",
+    "문서 관계 정리", "프로젝트 검토", "받은 지식 검토", "메타데이터·태그 제안",
+    "일일 문서 보완", "질문하며 수집 노트 정리", "Vault 점검",
+  ]);
+  for (const [index, option] of view.methodInput.children.entries()) {
+    assert.equal(option.value, methods[index].method_id);
+    assert.equal(option.getAttribute("title"), methods[index].method_id);
+  }
+  assert.equal(mutations(h).length, 0, "Listing and selecting Team forms never submits a request");
+  view.methodInput.value = draft.method_id; view.methodInput.onchange();
+  assert.match(view.methodParameters.textContent, /초안 저장 경로|문서 유형|문서 제목/);
+  const title = view.methodParameters.querySelector('input[data-parameter="title"]');
+  assert.equal(title.value, "기본 제목");
+  await view.submitSelected(); await view.submitSelected();
+  let calls = h.calls.filter(call => call.route === "work/intake-selected");
+  assert.equal(calls[0].payload.request_id, calls[1].payload.request_id);
+  assert.deepEqual(calls[0].payload.parameters, draft.parameters);
+  assert.equal(calls[0].payload.scope.content_sha256, digest(h.files.get("Notes/Alpha.md")));
+  title.value = "변경 제목"; await view.submitSelected();
+  calls = h.calls.filter(call => call.route === "work/intake-selected");
+  assert.notEqual(calls[2].payload.request_id, calls[1].payload.request_id);
+  assert.equal(calls[2].payload.parameters.scope.title, "변경 제목");
+  view.methodInput.value = methods[5].method_id; view.methodInput.onchange();
+  assert.match(view.methodParameters.textContent, /검토 시작일|검토 종료일|검토 검색어|Base 경로|Base 보기/);
+  await assert.rejects(view.submitSelected(), /검토 시작일/);
+  view.methodInput.value = methods[6].method_id; view.methodInput.onchange();
+  await assert.rejects(view.submitSelected(), /Gateway 영수증/);
+  view.methodParameters.querySelector('input[data-parameter="gateway_receipt_id"]').value = "receipt.accepted";
+  await view.submitSelected();
+  assert.deepEqual(h.calls.filter(call => call.route === "work/intake-selected").at(-1).payload.parameters,
+    { gateway_receipt_id: "receipt.accepted" });
+  view.methodInput.value = methods[0].method_id; view.methodInput.onchange(); await view.submitSelected();
+  assert.deepEqual(h.calls.filter(call => call.route === "work/intake-selected").at(-1).payload.parameters, {});
+  for (const method of methods) {
+    view.methodInput.value = method.method_id; view.methodInput.onchange();
+    for (const input of view.methodParameters.querySelectorAll("input")) if (!input.value) input.value = "Synthetic required input";
+    await view.submitSelected();
+    assert.equal(h.calls.filter(call => call.route === "work/intake-selected").at(-1).payload.method_id, method.method_id);
+  }
+  await view.onClose(); h.cleanup();
+});
+
+test("native results retain user content and exact admin navigation without management tracking", async () => {
+  const { h, view } = await viewFixture();
+  const management = "MANAGEMENT-ONLY-DETAIL";
+  h.respond(async call => h.response(call.route === "work/read" ?
+    { ...payload(call.route), spec: { objective: "Useful objective", manager_executor_id: management,
+      acceptance_criteria: [{ description: management }] }, remaining_work: { gaps: [management] },
+      run: { ...payload(call.route).run, active_graph_run_id: management } } :
+    call.route === "work/result" ? { ...payload(call.route), reason: "Useful result reason",
+      text: "Useful result body", report: { improvements: [{ point: "Useful improvement", citation_indices: [0] }] },
+      evidence: [{ path: "Notes/Beta.md", chunk_locator: "chunk.1", excerpt: "Useful evidence excerpt" }],
+      assessment: { criterion_outcomes: [management] }, remaining_work: { gaps: [management] },
+      proposal_reference: ref, truncated: true } : payload(call.route)));
+  await view.showWorkResult("workrun.synthetic");
+  const section = view.contentEl.querySelector(".knowledgeos-work-result");
+  assert.match(section.textContent, /Useful objective/);
+  assert.match(section.textContent, /Useful result reason/);
+  assert.match(section.textContent, /Useful result body/);
+  assert.match(section.textContent, /Useful improvement/);
+  assert.match(section.textContent, /Useful evidence excerpt/);
+  assert.match(section.textContent, /truncated/);
+  assert.ok(!section.textContent.includes(management), "Management payloads must not leak into user-facing results");
+  assert.deepEqual(h.calls.filter(call => call.route.startsWith("work/") && call.route !== "work/list").map(call => call.route),
+    ["work/read", "work/result"], "Native results must not fetch administrative inspection or steering exports");
+  const link = section.querySelector("a.knowledgeos-admin-link");
+  assert.equal(link.getAttribute("href"), "http://127.0.0.1:17902/console/#work_run_id=workrun.synthetic");
+  assert.equal(link.getAttribute("target"), "_blank");
+  assert.equal(link.getAttribute("rel"), "noopener noreferrer");
+  assert.match(link.getAttribute("aria-label"), /관리.*브라우저/);
+  const before = h.calls.length;
+  await link.fire("click");
+  assert.equal(h.calls.length, before, "Admin navigation does not submit Work or a document mutation");
+  await button(view, "Notes/Beta.md").fire("click");
+  assert.equal(h.opened.at(-1), "Notes/Beta.md", "Evidence remains native Vault navigation");
+  await button(view, "결과 제안 검토").fire("click");
+  assert.equal(view.section, "pending", "Proposal review remains native");
+  assert.equal(mutations(h).length, 0);
+  assert.equal(h.helperCalls.length, 0);
+  await view.onClose(); h.cleanup();
+});
+
+test("stale and unknown results remain readable without implying current evidence or clearing uncertainty", async () => {
+  const { h, plugin, view } = await viewFixture();
+  const request = { route: "work/control/pause", path: "work:workrun.synthetic",
+    payload: { work_run_id: "workrun.synthetic", command_id: "obsidian.unknown" } };
+  plugin.unknownMutations.set(plugin.settings.ownerEndpoint + "\n" + request.path, request);
+  h.respond(async call => h.response(call.route === "work/read" ?
+    { ...payload(call.route), application_state: "unknown" } :
+    call.route === "work/result" ? { state: "unknown", reason: "Do not replay the producer",
+      source_stale: true, text: "Historical user result", evidence: { source_reference: ref,
+        criterion_outcomes: ["MANAGEMENT-ONLY-OUTCOME"] } } : payload(call.route)));
+  await view.showWorkResult("workrun.synthetic");
+  const section = view.contentEl.querySelector(".knowledgeos-work-result");
+  assert.match(section.textContent, /결과 미확인/);
+  assert.match(section.textContent, /Do not replay the producer/);
+  assert.match(section.textContent, /원문 변경됨.*과거 결과/);
+  assert.match(section.textContent, /Historical user result/);
+  assert.match(section.textContent, /source_reference/);
+  assert.ok(!section.textContent.includes("MANAGEMENT-ONLY-OUTCOME"));
+  assert.equal(view.unknownRequest, request, "Reading a result or admin destination is not receipt reconciliation");
+  await section.querySelector("a.knowledgeos-admin-link").fire("click");
+  assert.equal(view.uncertain, true);
+  assert.equal(button(view, "메타데이터·태그·관계 제안 요청").disabled, true);
+  assert.equal(mutations(h).length, 0);
+  await view.onClose(); h.cleanup();
+});
+
+test("admin links follow configured local Owner and discard obsolete Work destinations", async () => {
+  const { h, plugin, view } = await viewFixture();
+  const links = () => view.contentEl.querySelectorAll("a.knowledgeos-admin-link").map(link => link.getAttribute("href"));
+  assert.deepEqual(links(), ["http://127.0.0.1:17902/console/"]);
+  await view.showWorkResult("workrun.alpha");
+  assert.ok(links().includes("http://127.0.0.1:17902/console/#work_run_id=workrun.alpha"));
+  const held = deferred(), observed = deferred();
+  h.respond(async call => {
+    if (call.route === "work/read") { observed.resolve(); await held.promise; }
+    return h.response(payload(call.route));
+  });
+  const pending = view.run(() => view.showWorkResult("workrun.beta"));
+  await observed.promise;
+  assert.ok(links().every(link => !link.includes("#")), "A different selected Work immediately removes the previous destination");
+  plugin.settings.ownerEndpoint = "http://127.0.0.1:17903/owner"; view.sync();
+  held.resolve(); await pending;
+  assert.deepEqual(links(), ["http://127.0.0.1:17903/console/"], "An old Owner response cannot restore an obsolete Work destination");
+  assert.equal(mutations(h).length, 0);
+  await view.onClose(); h.cleanup();
+});
+
+test("connection state is concise while Owner authority remains internal", async () => {
+  const { h, view } = await viewFixture();
+  view.owner.generation = "ADMIN-CONNECTION-DETAIL";
+  view.owner.revision = "ADMIN-CONNECTION-DETAIL";
+  view.sync();
+  assert.equal(view.ownerEl.textContent, "Owner 연결됨");
+  assert.ok(!view.contentEl.textContent.includes("ADMIN-CONNECTION-DETAIL"));
+  view.owner.read_only = true; view.sync();
+  assert.match(view.ownerEl.textContent, /읽기 전용/);
+  assert.equal(button(view, "메타데이터·태그·관계 제안 요청").disabled, true);
+  view.disconnect();
+  assert.match(view.ownerEl.textContent, /미연결.*새로 조회/);
+  assert.equal(mutations(h).length, 0);
+  await view.onClose(); h.cleanup();
+});
 function backendReply(callback, result) {
   const error = ["owner_connected", "starting"].includes(result.state) ? null : Object.assign(new Error("Synthetic helper exit"), { code: 1 });
   callback(error, JSON.stringify(result), "");
@@ -78,7 +276,6 @@ test("only the explicit backend button starts; loading, tabs, targets and Owner 
     assert.deepEqual(call.options, { shell: false, encoding: "utf8", timeout: 65000, maxBuffer: 65536 });
   }
   assert.ok(view.owner);
-  assert.match(view.contentEl.textContent, /미관측/);
   assert.equal(mutations(h).length, 0, "Starting cannot admit Work, approve or apply");
   const beforeClose = h.helperCalls.length;
   await view.onClose();
@@ -242,7 +439,6 @@ test("starting can become connected through read-only status without claiming ru
   await button(view, "로컬 백엔드 시작").fire("click");
   assert.deepEqual(h.helperCalls.map(call => call.args[0]), ["status", "start", "status"]);
   assert.ok(view.owner);
-  assert.match(view.contentEl.textContent, /미관측/);
   await view.onClose(); h.cleanup();
 });
 test("endpoint permits only explicit trusted loopback /owner and denies before I/O", async () => {
@@ -307,6 +503,39 @@ test("all four search modes submit exact mode and open the returned exact Vault 
   assert.equal(h.opened.length, before + 1, "A missing result must not create a replacement file");
   await view.onClose(); h.cleanup();
 });
+
+for (const input of ["query", "mode"]) for (const failure of [false, true]) {
+  test(`editing search ${input} discards a held ${failure ? "error" : "result"}`, async () => {
+    const { h, view } = await viewFixture();
+    await view.openSection("search");
+    view.query = view.searchInput.value = "original query";
+    const held = deferred(), observed = deferred(), marker = "OBSOLETE SEARCH RESPONSE";
+    h.respond(async call => {
+      assert.deepEqual(call.payload, { query: "original query", mode: "lexical" });
+      observed.resolve(); await held.promise;
+      if (failure) throw new Error(marker);
+      return h.response(payload(call.route, marker));
+    });
+    const pending = button(view, "검색 실행").fire("click");
+    await observed.promise;
+    if (input === "query") {
+      view.searchInput.value = "changed query";
+      await view.searchInput.fire("input");
+    } else {
+      view.modeInput.value = "vector";
+      await view.modeInput.fire("change");
+    }
+    assert.equal(view.contentEl.querySelector(".knowledgeos-results").textContent, "", "Editing clears results and loading state for the old criteria");
+    held.resolve(); await pending;
+    assert.ok(!view.contentEl.textContent.includes(marker), "Obsolete success and failure must not publish under changed search criteria");
+    assert.ok(!h.notices.some(text => text.includes(marker)));
+    h.respond(async call => h.response({ ...payload(call.route, "CURRENT SEARCH RESPONSE"), mode: call.payload.mode }));
+    await button(view, "검색 실행").fire("click");
+    assert.deepEqual(h.calls.at(-1).payload, { query: input === "query" ? "changed query" : "original query", mode: input === "mode" ? "vector" : "lexical" });
+    assert.ok(view.contentEl.textContent.includes("CURRENT SEARCH RESPONSE"));
+    await view.onClose(); h.cleanup();
+  });
+}
 
 const reads = [
   { name: "search", section: "search", route: "search/query", run: view => { view.query = "synthetic"; return view.search(); } },
@@ -466,6 +695,55 @@ test("an unknown delivery only fences its document and can be resolved by an exa
   await view.onClose(); h.cleanup();
 });
 
+test("a lost daily decision follows its own document instead of a retained Pending source", async () => {
+  const { h, main, plugin, view } = await viewFixture();
+  let original, found = false;
+  h.respond(async call => {
+    if (call.route === "daily/read") return h.response({ ...payload(call.route), path: "Notes/Beta.md" });
+    if (call.route === "daily/decide") {
+      original = call.payload;
+      throw new Error("Synthetic lost daily decision acknowledgement");
+    }
+    if (call.route === "mutation/receipt") {
+      assert.deepEqual(call.payload, { route: "daily/decide", request: original });
+      return h.response({ found, receipt: found ? { effect_id: original.effect_id, decision: original.decision } : null, observation_only: true, mutation_retried: false });
+    }
+    if (call.route === "work/intake-template") return h.response({ request_id: call.payload.request_id, receipts: [] });
+    return h.response(payload(call.route));
+  });
+  await view.showProposal(ref);
+  await view.openSection("daily");
+  await view.showDailyItem("daily.synthetic");
+  const deciding = button(view, "잠정 변경 확정").fire("click");
+  await h.confirm(); await deciding;
+  assert.equal(plugin.unknownMutations.size, 1);
+  assert.equal(view.unknownRequest.path, "Notes/Beta.md", "A retained Alpha proposal cannot capture Beta's uncertainty");
+  assert.deepEqual(view.unknownRequest.payload, original);
+  await view.openSection("work");
+  assert.equal(view.uncertain, false, "A retained daily review cannot fence the unrelated selected note");
+  assert.equal(view.reconcileButton.hidden, true);
+  assert.equal(view.statusEl.classList.contains("knowledgeos-error"), false, "The old document's warning cannot remain attached to the unrelated context");
+  await view.openSection("pending");
+  assert.equal(view.uncertain, false, "Alpha Pending remains usable without refreshing the Owner");
+  await view.openSection("daily");
+  assert.equal(view.uncertain, true, "Returning to Beta review restores its exact fence");
+  await view.openSection("work");
+  await view.run(() => view.submitTemplate("note_metadata"));
+  assert.equal(h.calls.filter(call => call.route === "work/intake-template").length, 1, "The unrelated note remains usable");
+  await view.onClose();
+  h.active("Notes/Beta.md");
+  const reopened = new main.WorkReviewSidebar({}, plugin);
+  await reopened.onOpen();
+  assert.equal(reopened.uncertain, true, "The exact affected document restores its communication fence");
+  await reopened.reconcileMutation();
+  assert.equal(reopened.uncertain, true, "An absent receipt cannot clear uncertainty");
+  found = true;
+  await reopened.reconcileMutation();
+  assert.equal(reopened.uncertain, false);
+  assert.equal(h.calls.filter(call => call.route === "daily/decide").length, 1, "Receipt observation never replays the decision");
+  await reopened.onClose(); h.cleanup();
+});
+
 test("review duration does not lock an unchanged proposal after one minute", async () => {
   const { h, view } = await viewFixture();
   let detail = payload("proposal/read");
@@ -603,19 +881,23 @@ test("control snapshots bind exact targets, expose received separately from appl
   await view.onClose(); h.cleanup();
 });
 
-test("steering evidence registration is separate from command acceptance and never broadens Owner supported kinds", async () => {
+test("human steering retains questions and bounded inputs without structural administration", async () => {
   const { h, view } = await viewFixture();
   await view.showWorkResult("workrun.synthetic");
   const target = { work_run_id: "workrun.synthetic", revision: 5, control_revision: 2 };
   const reference = { artifact_id: "artifact.steering.synthetic", content_digest: "sha256:" + "c".repeat(64) };
   h.respond(async call => {
-    if (call.route === "work/steering/view") return h.response({ target, supported_kinds: ["answer"], parameter_bounds: {} });
+    if (call.route === "work/steering/view") return h.response({ target, supported_kinds: ["answer", "parameter", "cutover", "amend_work", "resume"],
+      question: { question: "What should the report be called?", lifecycle: "pending" },
+      run: { active_graph_run_id: "ADMIN-STEERING-DETAIL" }, parameter_bounds: { order: ["first", "last"] } });
     if (call.route === "work/steering/artifact") return h.response(reference);
     if (call.route === "work/steering/request") return h.response({ command_id: call.payload.command_id, application_state: "received" });
     return h.response(payload(call.route));
   });
   await view.showSteering();
-  assert.deepEqual(view.steeringKind.children.map(option => option.value), ["answer"]);
+  assert.deepEqual(view.steeringKind.children.map(option => option.value), ["answer", "parameter"]);
+  assert.match(view.contentEl.querySelector(".knowledgeos-steering-view").textContent, /What should the report be called/);
+  assert.ok(!view.contentEl.textContent.includes("ADMIN-STEERING-DETAIL"));
   view.steeringAnswer.value = "Synthetic bounded answer";
   await view.registerSteering();
   assert.equal(h.calls.filter(call => call.route === "work/steering/request").length, 0);
@@ -634,6 +916,17 @@ test("steering evidence registration is separate from command acceptance and nev
   view.steeringKind.value = "unadmitted-kind";
   await assert.rejects(view.registerSteering());
   assert.equal(h.calls.filter(call => call.route === "work/steering/request").length, 1);
+  view.steeringKind.value = "cutover"; view.renderSteeringFields();
+  await assert.rejects(view.registerSteering(), /질문 응답 또는 허용 입력/);
+  view.steeringKind.value = "parameter"; view.renderSteeringFields();
+  view.parameterValue.value = "last";
+  await view.registerSteering();
+  const changing = view.submitSteering();
+  await h.confirm(); await changing;
+  const parameter = h.calls.filter(call => call.route === "work/steering/request").at(-1);
+  assert.equal(parameter.payload.kind, "parameter");
+  assert.equal(parameter.payload.parameter_id, "order");
+  assert.deepEqual(parameter.payload.target, target);
   await view.onClose(); h.cleanup();
 });
 

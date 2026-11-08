@@ -14,11 +14,8 @@ from ..adapters.core import AdmissionError
 from .exops import KnowledgeExOps, ScopedTemporalClient, work_workflow_type
 from .temporal_contract import (
     ACTIVITY_TYPE,
-    CONTINUATION_WORKFLOW_TYPE,
     CONTROL_WORKFLOW_TYPE,
-    NATIVE_TEAM_ROUTES,
-    RESEARCH_WORKFLOW_TYPE,
-    TEAM_WORKFLOW_TYPE,
+    TEAM_METHOD_ROUTES,
     WORKFLOW_TYPE,
 )
 
@@ -58,9 +55,8 @@ async def connect_owner_temporal(exops: KnowledgeExOps, binding: Any) -> ScopedT
             or binding.namespace != "knowledgeos"
             or binding.task_queue != "knowledgeos.work.v1"
             or binding.workflow_type not in {
-                WORKFLOW_TYPE, TEAM_WORKFLOW_TYPE, CONTINUATION_WORKFLOW_TYPE,
-                CONTROL_WORKFLOW_TYPE, RESEARCH_WORKFLOW_TYPE,
-                *(route[1] for route in NATIVE_TEAM_ROUTES.values()),
+                WORKFLOW_TYPE, CONTROL_WORKFLOW_TYPE,
+                *(route[1] for route in TEAM_METHOD_ROUTES.values()),
             }
             or binding.workflow_id_prefix != "knowledgeos/"
             or binding.tls is not False):

@@ -17,6 +17,8 @@ from .exops import KnowledgeExOps
 from .temporal_contract import (
     CONTINUATION_METHOD_ID,
     CONTINUATION_WORKFLOW_TYPE,
+    CONTROL_INITIAL_GRAPH_NAME,
+    CONTROL_SUCCESSOR_GRAPH_NAME,
     CONTROL_WORKFLOW_TYPE,
     CURATION_DISPATCH_FIELDS,
     CURATION_INITIAL_GRAPH_NAME,
@@ -50,9 +52,9 @@ class _ContinuationActivities:
             raise AdmissionError("INVALID_PAYLOAD", "Continuation payload differs from dispatch")
         info = activity.info()
         graph_name = (
-            CURATION_INITIAL_GRAPH_NAME
+            (CONTROL_INITIAL_GRAPH_NAME if self.workflow_type == CONTROL_WORKFLOW_TYPE else CURATION_INITIAL_GRAPH_NAME)
             if node in {"manager", "capture_evidence", "assess_initial"}
-            else CURATION_SUCCESSOR_GRAPH_NAME
+            else (CONTROL_SUCCESSOR_GRAPH_NAME if self.workflow_type == CONTROL_WORKFLOW_TYPE else CURATION_SUCCESSOR_GRAPH_NAME)
         )
         record = self.exops.application.journal.read()["intents"].get(
             "exops.work." + payload["work_run_id"]
@@ -133,7 +135,7 @@ class _ContinuationActivities:
     async def capture_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
         self.current_record(payload, "capture_evidence", started=True)
         try:
-            await self.executor.capture_evidence(payload["work_run_id"])
+            await self.executor.execute_plan(payload["work_run_id"])
             return payload
         except Exception:
             self.unknown(payload)
@@ -174,7 +176,7 @@ class _ContinuationActivities:
 
         heartbeats = asyncio.create_task(heartbeat())
         try:
-            await self.executor.normalization_proposal(payload["work_run_id"])
+            await self.executor.execute_plan(payload["work_run_id"])
             return payload
         except (Exception, asyncio.CancelledError):
             self.unknown(payload)
@@ -207,7 +209,7 @@ class _ContinuationActivities:
             raise
 
 
-def continuation_worker_components(
+def continuation_graph_components(
     exops: KnowledgeExOps, executor: CurationContinuationExecutor, *,
     control_mode: bool = False, controller=None,
 ):
@@ -234,7 +236,6 @@ def continuation_worker_components(
 
     from langgraph.graph import END, START, StateGraph
     from temporalio.common import RetryPolicy
-    from temporalio.langgraph import LangGraphPlugin
 
     if control_mode:
         from .curation_control_workflow import KnowledgeOSCurationControlWorkflow
@@ -249,10 +250,12 @@ def continuation_worker_components(
     )
     graphs = {}
     selected_graphs = [
-        (CURATION_INITIAL_GRAPH_NAME, ("manager", "capture_evidence", "assess_initial")),
+        (CONTROL_INITIAL_GRAPH_NAME if control_mode else CURATION_INITIAL_GRAPH_NAME,
+         ("manager", "capture_evidence", "assess_initial")),
     ]
     selected_graphs.append(
-        (CURATION_SUCCESSOR_GRAPH_NAME, ("manager_successor", "normalization_proposal", "assess"))
+        (CONTROL_SUCCESSOR_GRAPH_NAME if control_mode else CURATION_SUCCESSOR_GRAPH_NAME,
+         ("manager_successor", "normalization_proposal", "assess"))
     )
     for graph_name, names in selected_graphs:
         selected_graph = StateGraph(dict)
@@ -276,4 +279,15 @@ def continuation_worker_components(
             previous = name
         selected_graph.add_edge(previous, END)
         graphs[graph_name] = selected_graph
-    return selected_workflow, LangGraphPlugin(graphs=graphs)
+    return selected_workflow, graphs, []
+
+
+def continuation_worker_components(exops, executor, *, control_mode=False, controller=None):
+    from temporalio.langgraph import LangGraphPlugin
+
+    workflow, graphs, activities = continuation_graph_components(
+        exops, executor, control_mode=control_mode, controller=controller,
+    )
+    plugin = LangGraphPlugin(graphs=graphs)
+    plugin.activities.extend(activities)
+    return workflow, plugin

@@ -61,8 +61,13 @@ def build_template_admissions(exops: Any, template_id: str, scope: Mapping[str, 
               "semantic_digest": pins["semantic_digest"]}
     admissions = []
     for team_id, method_id, objective, criteria in _TEMPLATES[template_id]:
-        binding = exops.teams.get(team_id)
-        if binding is None or exops.current_team_binding(team_id) != binding:
+        if exops.method_teams:
+            binding = exops.method_teams.get(method_id)
+            current = exops.current_method_binding(method_id) if binding is not None else None
+        else:
+            binding = exops.teams.get(team_id)
+            current = exops.current_team_binding(team_id) if binding is not None else None
+        if binding is None or current != binding:
             raise AdmissionError("BINDING_INVALID", "Template Team has no current owner registration")
         method = methods.methods[method_id]
         specialists = {item.role_id: item for item in binding.specialists}

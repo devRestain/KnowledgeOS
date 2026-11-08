@@ -14,6 +14,7 @@ KNOWLEDGEOS_UID ?= $(shell id -u)
 KNOWLEDGEOS_GID ?= $(shell id -g)
 KNOWLEDGEOS_CONTROL_SOURCE ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 KNOWLEDGEOS_CONTROL_SOURCE := $(abspath $(KNOWLEDGEOS_CONTROL_SOURCE))
+# Source verification selects workspace Core; private launchers retain their own pins.
 KNOWLEDGEOS_CORE_SOURCE ?= $(abspath $(KNOWLEDGEOS_CONTROL_SOURCE)/../../Core)
 KNOWLEDGEOS_DEV_IMAGE ?= agentfabric-knowledgeos-dev:py3.12.8-uv0.8.14
 KNOWLEDGEOS_OFFICER_IMAGE ?= agentfabric-knowledgeos-officer:py3.12.8-temporal1.34.0

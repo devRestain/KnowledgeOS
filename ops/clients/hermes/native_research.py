@@ -1,7 +1,7 @@
 """Fresh-process stage-scoped Hermes Research adapter; the Owner remains the effect authority.
 
 Only stdlib is imported until run_native_research executes. The selected profile
-supplies its existing refreshable credentials and read-only route, never execution context or MCP configuration.
+supplies credentials; maintained role policy and the admitted Manager step select the route.
 """
 from __future__ import annotations
 
@@ -27,19 +27,12 @@ STAGE_TOOLS = {
     "retrieve_evidence": ("knowledge_search", "knowledge_retrieve", "knowledge_read", "citation_verify"),
     "answer_artifact": ("artifact_submit",),
 }
-SERVER_NAME = "knowledgeosresearch"
-MODEL = "gpt-6.1-terra"
-PROVIDER = "openai-codex"
-BASE_URL = "https://chatgpt.com/backend-api/codex"
-REVISION = "bf0203a794a07aac3ff764972ab9087baa4e4f4e"
-VERSION = "0.22.5"
-MAX_ITERATIONS = 64
-DEADLINE_SECONDS = 240
 RESPONSE_MARKER = "KNOWLEDGEOS_MODEL_RESPONSE="
+METHOD_ID = "knowledgeos.cited_research_team"
 _REQUEST_FIELDS = frozenset({
     "request_digest", "runner_binding", "work_run_id", "work_spec_digest",
     "graph_run_id", "executor_id", "generation", "fencing_token",
-    "source_reference", "source_chunks", "control_root", "stage_id", "question", "index_generation_id", "evidence",
+    "source_reference", "source_chunks", "control_root", "stage_id", "question", "index_generation_id", "evidence", "agent_step", "agent_handoffs",
 })
 
 
@@ -54,15 +47,7 @@ def _canonical(value: Any) -> bytes:
 
 
 def runner_binding() -> dict[str, str]:
-    """Bind the maintained adapter's current raw bytes, not an imported code cache."""
-    return {
-        "runtime_kind": "hermes_native", "hermes_version": VERSION,
-        "hermes_revision": REVISION, "provider": PROVIDER, "model": MODEL,
-        "adapter_digest": "sha256:" + hashlib.sha256(_canonical({
-            "adapter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            "runtime_sha256": hashlib.sha256(Path(__file__).with_name("native_runtime.py").read_bytes()).hexdigest(),
-        })).hexdigest(),
-    }
+    return _runtime.binding_for(__file__)
 
 
 def _validate_request(request: dict[str, Any]) -> None:
@@ -95,64 +80,10 @@ def _validate_request(request: dict[str, Any]) -> None:
              and ".." not in control.split("/"), "Owner container control root is invalid")
 
 
-def _owner_result(raw: Any) -> dict[str, Any]:
-    """Decode only the native MCP handler's documented result/structuredContent wrapper."""
-    value = json.loads(raw) if isinstance(raw, str) else raw
-    _require(isinstance(value, dict), "Native tool callback result is not an object")
-    if "schema_version" not in value:
-        structured = value.get("structuredContent")
-        rendered = value.get("result")
-        rendered = json.loads(rendered) if isinstance(rendered, str) else rendered
-        if structured is not None and rendered:
-            _require(structured == rendered, "Native MCP callback contains conflicting result copies")
-        value = structured if structured is not None else rendered
-    _require(isinstance(value, dict) and value.get("schema_version") == 3,
-             "Native tool callback has no actual Owner v3 envelope")
-    _require(value.get("status") in {"ok", "empty", "created", "replayed"}
-             and value.get("error") is None, "Owner tool call did not succeed")
-    return value
 
 
-def _validate_trace(request: dict[str, Any], calls: list[dict[str, Any]]) -> None:
-    tools = STAGE_TOOLS[request["stage_id"]]
-    _require(bool(calls) and all(call["name"] in tools for call in calls),
-             "Research trace escaped its stage")
-    for call in calls:
-        _require(call["result"].get("operation") == call["name"], "Owner operation mismatch")
-    if request["stage_id"] == "answer_artifact":
-        _require(len(calls) == 1 and calls[0]["name"] == "artifact_submit",
-                 "Synthesis requires exactly one actual artifact effect")
-        return
-    sequence_ok = (
-        len(calls) >= 4 and calls[0]["name"] == "knowledge_search"
-        and calls[1]["name"] == "knowledge_retrieve" and calls[-1]["name"] == "citation_verify"
-    )
-    if not sequence_ok:
-        # Only fixed tool/status vocabulary is rendered. Never include arguments,
-        # excerpts, final model text, source references, provider errors or secrets.
-        observations = [
-            {
-                "name": call["name"] if call["name"] in tools else "ungranted",
-                "status": call["result"].get("status")
-                if call["result"].get("status") in {"ok", "empty", "created", "replayed"}
-                else "unrecognized",
-            }
-            for call in calls[:64]
-        ]
-        raise NativeOfficerError(
-            "Retrieval stage sequence is incomplete; observed="
-            + json.dumps(observations, separators=(",", ":"))
-        )
-    observed = set()
-    for call in calls[2:-1]:
-        _require(call["name"] == "knowledge_read"
-                 and call["arguments"].get("resource_reference") == request["source_reference"],
-                 "Retrieval escaped exact source")
-        if not call["result"]["data"].get("truncated"):
-            observed.add(call["arguments"].get("chunk_locator"))
-    _require(observed == set(request["source_chunks"]), "Retrieval omitted a source page")
-    _require(calls[-1]["result"]["data"].get("all_valid") is True,
-             "Actual Owner citations did not verify")
+
+
 
 
 def _prompt(request: dict[str, Any], raw_names: dict[str, str]) -> tuple[str, str]:
@@ -174,8 +105,8 @@ def _prompt(request: dict[str, Any], raw_names: dict[str, str]) -> tuple[str, st
             "start offset 0, max_chars 4096, continue each truncated chunk at the returned offset plus text length "
             "before reading the next chunk. Finally call citation_verify exactly once with one citation for "
             "each chunk, using resource_reference, chunk_locator and chunk_hash from actual reads. "
-            "No more tools afterward. Final concise response must include the exact source value labelled "
-            "Synthetic observation code if present, and explicitly say citation verification is not truth evaluation."
+            "No more tools afterward. Final concise response summarizes actual evidence and explicitly "
+            "says citation verification is not truth evaluation."
         )
     else:
         system += (
@@ -184,8 +115,7 @@ def _prompt(request: dict[str, Any], raw_names: dict[str, str]) -> tuple[str, st
             "STRING containing EXACTLY source_reference, index_generation_id, citations, improvements, uncertainty, "
             "missing_materials. Copy source_reference/index_generation_id/citations exactly from evidence. "
             "improvements must be 1-20 objects with point (bounded nonempty text) and citation_indices (nonempty "
-            "zero-based indices). Every point must be supported by its cited evidence. Include the exact observed "
-            "Synthetic observation code if present in a supported improvement; do not invent it. uncertainty and "
+            "zero-based indices). Every point must be supported by its cited evidence. uncertainty and "
             "missing_materials are arrays of bounded text; distinguish unknowns from facts. "
             "Make no tool calls after the artifact effect. Final response includes actual artifact receipt identity."
         )

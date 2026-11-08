@@ -1,7 +1,7 @@
-"""Operation-owned method definitions and exact Team Graph/tool grants.
+"""Operation-owned methods, ordered required stages, and bounded teammate grants.
 
-This module is transport neutral. A Manager can read a method, while the
-owning Operation validates the Graph and every Profile tool invocation.
+Optional tasks use admitted read-only Profiles and the existing MCP effect map;
+required stages retain their exact method-specific tool grants.
 """
 
 from __future__ import annotations
@@ -60,6 +60,13 @@ class WorkMethodCatalog:
                  "METHOD_INVALID", "Method catalog header is invalid")
         self.methods: dict[str, dict[str, Any]] = {}
         self.team_catalog = team_catalog
+        effects = load_json(resolve_beneath(
+            Path(__file__).resolve().parents[3], "schemas/mcp/capabilities.json"))["effects"]
+        self.read_only_tools = {
+            tool for tool, effect in effects.items()
+            if effect == "read_only" and tool in _TOOLS
+            and tool not in {"graph_segment_propose", "artifact_submit", "assessment_submit"}
+        }
         for method in document["methods"]:
             required = {
                 "method_id", "method_version", "purpose", "target_kind", "team_id",
@@ -140,10 +147,45 @@ class WorkMethodCatalog:
                  "SCOPE_DENIED", "WorkSpec omits a required method Profile")
         return method
 
+    def stages_for_segment(self, method: Mapping[str, Any], segment_index: int,
+                           required_stage_ids=None) -> list[Mapping[str, Any]]:
+        """Select an owner-authorized ordered subset, never a model-supplied one."""
+        stages = method["required_stages"]
+        if "segment_stages" in method:
+            _require(1 <= segment_index <= len(method["segment_stages"]),
+                     "METHOD_STAGE_DENIED", "Method has no further admitted stage group")
+            group = method["segment_stages"][segment_index - 1]
+            _require(required_stage_ids is None or list(required_stage_ids) == group,
+                     "METHOD_STAGE_DENIED", "Selected stages differ from the method segment")
+            required_stage_ids = group
+        if required_stage_ids is None:
+            return list(stages)
+        selected = list(required_stage_ids)
+        _require(bool(selected) and all(isinstance(item, str) for item in selected)
+                 and len(selected) == len(set(selected))
+                 and [stage["stage_id"] for stage in stages
+                      if stage["stage_id"] in selected] == selected,
+                 "METHOD_STAGE_DENIED", "Selected stages are not an ordered method subset")
+        return [stage for stage in stages if stage["stage_id"] in selected]
+
+    def optional_tools(self, spec: Mapping[str, Any], role_id: str) -> tuple[str, ...]:
+        """No proposal, Manager, or evaluator authority follows from extra tasks."""
+        role = self.team_catalog.roles.get(role_id)
+        _require(role is not None and role["kind"] == "specialist"
+                 and role["effect_class"] == "read_only"
+                 and self.team_catalog.profile(role_id) in spec["allowed_profiles"],
+                 "SCOPE_DENIED", "Optional task requires an admitted read-only specialist")
+        ports = set().union(*(_PORT_TO_TOOLS.get(port, {port})
+                             for port in role["required_owner_ports"]))
+        tools = tuple(sorted(ports & self.read_only_tools))
+        _require(bool(tools), "SCOPE_DENIED", "Optional Profile has no read-only tool grant")
+        return tools
+
     def validate_segment(self, *, spec: Mapping[str, Any], run: Mapping[str, Any],
                          bundle: Mapping[str, Any], contracts: WorkContracts,
                          artifacts: Mapping[str, Mapping[str, Any]],
-                         predecessor=None, trigger=None, assessment=None) -> None:
+                         predecessor=None, trigger=None, assessment=None,
+                         required_stage_ids=None) -> None:
         method = self.admitted_method(spec, contracts)
         contracts.segment(spec=spec, run=run, artifacts=artifacts,
                           predecessor=predecessor, trigger=trigger, assessment=assessment,
@@ -162,18 +204,23 @@ class WorkMethodCatalog:
             cursor = successors[cursor]
             if nodes[cursor]["node_kind"] == "task":
                 selected.append(assignments[cursor])
-        stages = method["required_stages"]
-        if "segment_stages" in method:
-            index = bundle["segment"]["segment_index"] - 1
-            _require(index < len(method["segment_stages"]),
-                     "METHOD_STAGE_DENIED", "Method has no further admitted stage group")
-            stage_ids = method["segment_stages"][index]
-            stages = [stage for stage in stages if stage["stage_id"] in stage_ids]
-        _require(len(selected) == len(stages),
-                 "METHOD_STAGE_DENIED", "Method Graph has unexpected task nodes")
-        _require([item["role_id"] for item in selected]
-                 == [stage["role_id"] for stage in stages],
-                 "METHOD_STAGE_DENIED", "Graph omits, reorders, or adds method stages")
+        stages = self.stages_for_segment(
+            method, bundle["segment"]["segment_index"], required_stage_ids)
+        position = 0
+        seen_roles = set()
+        for item in selected:
+            role_id = item["role_id"]
+            _require(role_id not in seen_roles, "METHOD_STAGE_DENIED",
+                     "Method path cannot duplicate a specialist invocation")
+            seen_roles.add(role_id)
+            if position < len(stages) and role_id == stages[position]["role_id"]:
+                position += 1
+            else:
+                self.optional_tools(spec, role_id)
+                _require(role_id not in {stage["role_id"] for stage in method["required_stages"]},
+                         "METHOD_STAGE_DENIED", "Required method stages cannot be reordered")
+        _require(position == len(stages), "METHOD_STAGE_DENIED",
+                 "Graph omits or reorders required method stages")
 
     def allowed_tools(self, spec: Mapping[str, Any], role_id: str,
                       contracts: WorkContracts) -> tuple[str, ...]:
@@ -183,4 +230,4 @@ class WorkMethodCatalog:
         for stage in method["required_stages"]:
             if role_id == stage["role_id"]:
                 return tuple(stage["tools"])
-        raise AdmissionError("SCOPE_DENIED", "Profile has no admitted method tool grant")
+        return self.optional_tools(spec, role_id)

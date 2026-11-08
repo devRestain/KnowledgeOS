@@ -39,11 +39,49 @@ ADAPTERS = {
     "knowledgeos.project_review_team": "native_authoring.py",
     "knowledgeos.knowledge_exchange_team": "native_boundary.py",
     "knowledgeos.vault_maintenance_team": "native_boundary.py",
+    "knowledgeos.capture_normalization_team": "native_officer.py",
+    "knowledgeos.capture_normalization_continuation_team": "native_officer.py",
+    "knowledgeos.capture_steering_team": "native_officer.py",
 }
 
 
 class NativeDriverError(ValueError):
     """An explicit host binding or native response contract was refused."""
+
+    def __init__(self, message, diagnostic=None):
+        super().__init__(message)
+        self.diagnostic = diagnostic or {"code": "NATIVE_DRIVER_REFUSED"}
+
+
+def callback_failure_diagnostic(stderr, allowed_tools):
+    """Accept only our fixed diagnostic vocabulary, never raw child stderr."""
+    prefix = "Native callback evidence is invalid; observed="
+    names = set(allowed_tools) | {"ungranted"}
+    reasons = {"callback_scope", "callback_type", "conflicting_copies",
+               "missing_owner_envelope", "owner_refusal", "invalid_callback",
+               "owner_invalid_argument", "owner_scope_denied", "owner_resource_stale",
+               "owner_resource_unavailable", "owner_not_found", "owner_unavailable", "owner_internal_error"}
+
+    for line in stderr.splitlines():
+        status_prefix = "Native provider HTTP request failed (status="
+        if line.startswith(status_prefix) and line.endswith(")"):
+            status = line[len(status_prefix):-1]
+            if len(status) == 3 and status.isdecimal():
+                return {"code": "NATIVE_ADAPTER_FAILED", "reason": "provider_http_refusal",
+                        "http_status": int(status)}
+        if not line.startswith(prefix) or len(line) > 16384:
+            continue
+        try:
+            observed = json.loads(line[len(prefix):])
+        except ValueError:
+            continue
+        if (isinstance(observed, list) and 0 < len(observed) <= 64
+                and all(isinstance(item, dict) and set(item) == {"name", "reason"}
+                        and isinstance(item["name"], str) and item["name"] in names
+                        and isinstance(item["reason"], str) and item["reason"] in reasons
+                        for item in observed)):
+            return {"code": "NATIVE_CALLBACK_EVIDENCE_INVALID", "observed": observed}
+    return {"code": "NATIVE_ADAPTER_FAILED"}
 
 
 def require(condition, message):
@@ -74,11 +112,18 @@ def policy_read(path):
     return value
 
 
+def current_adapter_binding(adapter):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "knowledgeos_host_role_binding", adapter.with_name("role_binding.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.binding_for(adapter)
+
+
 def adapter_binding_digest(adapter):
-    return "sha256:" + hashlib.sha256(canonical({
-        "adapter_sha256": hashlib.sha256(adapter.read_bytes()).hexdigest(),
-        "runtime_sha256": hashlib.sha256(adapter.with_name("native_runtime.py").read_bytes()).hexdigest(),
-    })).hexdigest()
+    return current_adapter_binding(adapter)["adapter_digest"]
 
 
 def native_once(envelope, arguments, initial, docker):
@@ -92,24 +137,38 @@ def native_once(envelope, arguments, initial, docker):
             and method in initial["methods"] and current["methods"].get(method) == initial["methods"][method],
             "Current host native authority was revoked")
     registration = initial["methods"][method]
-    require(request.get("runner_binding") == registration["runner_binding"], "Native Runner identity differs")
+    binding = request.get("runner_binding")
+    require(binding == registration["runner_binding"], "Native Runner identity differs")
     adapter = (arguments.adapters_directory / ADAPTERS[method]).resolve(strict=True)
-    require(request["runner_binding"]["adapter_digest"] == adapter_binding_digest(adapter), "Native adapter bytes changed")
-    # Preserve the venv launcher path: resolving its Python symlink would select
-    # the standalone interpreter and discard the committed dependency prefix.
+    require(binding == current_adapter_binding(adapter), "Native adapter or role policy bytes changed")
     interpreter = arguments.hermes_python.absolute()
     require(interpreter.is_file() and os.access(interpreter, os.X_OK), "Selected native interpreter is unavailable")
-    command = [str(interpreter), "-I", str(adapter),
-        "--hermes-root", str(arguments.hermes_root.resolve(strict=True)),
+    payload = request
+    if request.get("request_kind") in {"agent_decision", "role_invocation"}:
+        require(request.get("request_digest") == "sha256:" + hashlib.sha256(canonical(
+            {key: value for key, value in request.items() if key != "request_digest"})).hexdigest(),
+            "Role request digest differs")
+        payload = request["agent_request"]
+        require(isinstance(payload, dict) and payload.get("method_id") == method,
+                "Role request differs from the selected method")
+        adapter = arguments.adapters_directory / "agent_runtime.py"
+        control = arguments.adapters_directory.resolve(strict=True).parents[2]
+        command = [str(interpreter), "-I", str(adapter), "--control-root", str(control)]
+    else:
+        command = [str(interpreter), "-I", str(adapter)]
+    command.extend(["--hermes-root", str(arguments.hermes_root.resolve(strict=True)),
         "--profile-home", str(arguments.profile_home.resolve(strict=True)),
-        "--docker-command", docker, "--container-name", arguments.container_name]
+        "--docker-command", docker, "--container-name", arguments.container_name])
     with tempfile.TemporaryDirectory(prefix="knowledgeos-owner-native-") as temporary:
         child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, start_new_session=True,
             env={**os.environ, "TMPDIR": temporary})
         try:
-            output, _errors = child.communicate(json.dumps(request, ensure_ascii=False), timeout=330)
-            require(child.returncode == 0, "Native result is uncertain; it will not be retried")
+            output, errors = child.communicate(json.dumps(payload, ensure_ascii=False), timeout=330)
+            if child.returncode != 0:
+                raise NativeDriverError("Native result is uncertain; it will not be retried",
+                                        callback_failure_diagnostic(errors, request.get(
+                                            "agent_request", request.get("agent_step", {})).get("tools", [])))
             values = [line[len(RESPONSE):] for line in output.splitlines() if line.startswith(RESPONSE)]
             require(len(values) == 1, "Native adapter returned no unique actual response")
             return json.loads(values[0])
@@ -216,15 +275,20 @@ def drive(arguments):
                     envelope = json.loads(line[len(REQUEST):])
                     event = {"method_id": envelope["method_id"],
                         "work_run_id": envelope["request"]["work_run_id"],
-                        "stage_id": envelope["request"]["stage_id"],
+                        "stage_id": envelope["request"].get(
+                            "stage_id", envelope["request"].get("agent_step", {}).get("stage_id")),
                         "request_digest": envelope["request"]["request_digest"]}
                     try:
                         require(not arguments.publish_index, "Index publication cannot execute native Work")
                         response = {"response": native_once(envelope, arguments, initial, docker)}
                         event["outcome"] = "response_received"
-                    except (NativeDriverError, json.JSONDecodeError, OSError, subprocess.SubprocessError):
-                        response = {"error": "NATIVE_RESULT_UNKNOWN"}
+                    except (NativeDriverError, json.JSONDecodeError, OSError, subprocess.SubprocessError) as error:
+                        diagnostic = (error.diagnostic if isinstance(error, NativeDriverError)
+                                      else {"code": "NATIVE_DRIVER_REFUSED"})
+                        response = {"error": "NATIVE_RESULT_UNKNOWN", "diagnostic_code": diagnostic["code"]}
                         event["outcome"] = "unknown"
+                        event["diagnostic"] = diagnostic
+                        print("KNOWLEDGEOS_NATIVE_FAILURE=" + json.dumps(event), file=sys.stderr, flush=True)
                     if events:
                         events.write(json.dumps(event) + "\n")
                         events.flush()
@@ -248,7 +312,10 @@ def drive(arguments):
                 elif line.startswith("KnowledgeOS Owner index published="):
                     print(line.rstrip("\n"), flush=True)
             process.wait(timeout=30)
-            require(process.returncode == 0, "Installed Owner stopped unsuccessfully")
+            if process.returncode != 0:
+                errors.seek(0)
+                shutil.copyfileobj(errors, sys.stderr.buffer)
+            require(process.returncode == 0, f"Installed Owner stopped unsuccessfully (exit {process.returncode})")
     except KeyboardInterrupt:
         pass
     finally:
@@ -293,6 +360,9 @@ def main():
     os.umask(0o077)
     try:
         return drive(arguments)
+    except NativeDriverError as error:
+        print(f"KnowledgeOS native Owner driver refused: {error}", file=sys.stderr)
+        return 1
     except (ValueError, OSError, subprocess.SubprocessError):
         print("KnowledgeOS native Owner driver refused", file=sys.stderr)
         return 1

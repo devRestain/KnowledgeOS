@@ -47,6 +47,8 @@
 .knowledgeos-button-label { min-width: 0; }
 .knowledgeos-button-icon { display: inline-flex; flex: 0 0 auto; }
 .knowledgeos-button-icon svg { width: 16px; height: 16px; }
+.knowledgeos-admin-link { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; max-width: 100%; overflow-wrap: anywhere; }
+.knowledgeos-admin-link:hover { color: var(--text-accent-hover); }
 .knowledgeos-sidebar .knowledgeos-icon-button {
   display: inline-flex;
   align-items: center;
@@ -76,8 +78,12 @@
   font: inherit;
 }
 .knowledgeos-field textarea { resize: vertical; }
+.knowledgeos-field input[type="checkbox"] { width: auto; align-self: flex-start; }
+.knowledgeos-parameter-group { min-width: 0; margin: 12px 0; padding: 0 10px; border: 1px solid var(--background-modifier-border); }
+.knowledgeos-parameter-group legend { padding: 0 4px; color: var(--text-muted); }
 
 .knowledgeos-sidebar button:focus-visible,
+.knowledgeos-sidebar a:focus-visible,
 .knowledgeos-sidebar input:focus-visible,
 .knowledgeos-sidebar textarea:focus-visible,
 .knowledgeos-sidebar select:focus-visible,
@@ -89,7 +95,6 @@
 .knowledgeos-notice { overflow-wrap: anywhere; color: var(--text-muted); }
 .knowledgeos-notice:empty, .knowledgeos-sidebar pre:empty, .knowledgeos-work-result:empty { display: none; }
 .knowledgeos-connection { color: var(--text-muted); }
-.knowledgeos-connection pre { color: var(--text-normal); }
 .knowledgeos-error { color: var(--text-error); }
 .knowledgeos-result-card, .knowledgeos-work-card {
   border-bottom: 1px solid var(--background-modifier-border);
@@ -123,6 +128,6 @@
 }
 
 @media (pointer: coarse) {
-  .knowledgeos-sidebar button, .knowledgeos-field input, .knowledgeos-field select { min-height: 44px; }
+  .knowledgeos-sidebar button, .knowledgeos-admin-link, .knowledgeos-field input, .knowledgeos-field select { min-height: 44px; }
   .knowledgeos-sidebar .knowledgeos-icon-button { min-width: 44px; }
 }

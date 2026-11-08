@@ -30,7 +30,7 @@ _MODULES = ("metadata_work.py", "metadata_temporal.py", "metadata_workflow.py", 
 def _policy(namespace, method, team, roles, stages, tools):
     return NativeTeamPolicy(namespace, method, team, roles,
         {"criterion_id": "criterion.native_" + namespace,
-         "description": "Two exact native stages read the admitted source and registry before a receipt-bound candidate artifact; independent assessment checks each new value and source-body quote, declared fields, registry and target types without overwriting populated values or asserting uncertain relation truth."},
+         "description": "Required source and candidate stages use authoritative property, type and relation meanings before a receipt-bound candidate artifact; independent semantic assessment checks each new value and exact source-body quote, declared fields, registry and target types without overwriting populated values or asserting uncertain relation truth. An explicit empty candidate is the valid no-evidence result."},
         stages, tools, _MODULES)
 
 
@@ -73,6 +73,27 @@ def relation_link_evidence(record):
     return calls[-1]["result"]["data"]
 
 
+def permitted_fields(app, engine, properties, *, method_id):
+    registry = engine.blueprint["relation_registry"]
+    relations = set(registry["canonical_predicates"]) | set(registry.get("context_predicates", {}))
+    if method_id == RELATION_METHOD_ID:
+        return relations
+    if method_id == DAILY_METHOD_ID:
+        return app.daily_stewardship()._eligible_fields(properties.get("type", "knowledge"))
+    fields = set(engine.blueprint["property_registry"]) - relations | {"tags"}
+    return fields - {"id", "type", "title", "created", "modified", "schema_version",
+                     "ai_policy", "sensitivity", "status"}
+
+
+def candidate_values(value):
+    """Evidence keys preserve exact text or the JSON spelling of typed scalars."""
+    return value if isinstance(value, list) else [value]
+
+
+def evidence_key(value):
+    return value if isinstance(value, str) else json.dumps(value, allow_nan=False, separators=(",", ":"))
+
+
 def validate_candidate(app, source, candidate, *, method_id, link_evidence=None):
     """Pure exact candidate validation shared by native assessment and owner promotion."""
     require(method_id in POLICIES, "Unknown candidate method")
@@ -87,21 +108,24 @@ def validate_candidate(app, source, candidate, *, method_id, link_evidence=None)
     document = parse_source_document(raw.decode("utf-8"))
     properties = dict(document.properties)
     relations = set(registry["canonical_predicates"]) | set(registry.get("context_predicates", {}))
-    if method_id == RELATION_METHOD_ID:
-        permitted = relations
-    elif method_id == DAILY_METHOD_ID:
-        permitted = app.daily_stewardship()._eligible_fields(properties.get("type", "knowledge"))
-    else:
-        permitted = set(engine.blueprint["property_registry"]) - relations | {"tags"}
-        # Identity, ownership/privacy, timestamps and schema/control fields are not enrichment.
-        permitted -= {"id", "type", "title", "created", "modified", "schema_version", "ai_policy", "sensitivity", "status"}
+    permitted = permitted_fields(app, engine, properties, method_id=method_id)
     require(set(candidate["fields"]) <= permitted, "Candidate uses undeclared or protected fields")
-    for field, values in candidate["fields"].items():
-        require(isinstance(values, list) and 1 <= len(values) <= 10
-                and all(isinstance(v, str) and 0 < len(v) <= 256 for v in values)
-                and len(set(values)) == len(values), "Candidate values must be bounded unique text")
+    for field, proposed in candidate["fields"].items():
+        descriptor = engine.blueprint["property_registry"].get(
+            field, engine.blueprint["common_properties"]["required"].get(field))
+        is_list = descriptor is not None and descriptor.get("obsidian_type") in {"list", "tags"}
+        if is_list:
+            require(isinstance(proposed, list) and 1 <= len(proposed) <= 10
+                    and all(isinstance(v, str) and 0 < len(v) <= 256 for v in proposed)
+                    and len(set(proposed)) == len(proposed), "Candidate lists must contain bounded unique text")
+        else:
+            require(method_id == METADATA_METHOD_ID and type(proposed) in (str, int, float, bool)
+                    and (not isinstance(proposed, str) or 0 < len(proposed) <= 256),
+                    "Candidate scalar must use its declared property type")
+        values = candidate_values(proposed)
+        keys = [evidence_key(value) for value in values]
         evidence = candidate["evidence"][field]
-        require(isinstance(evidence, dict) and set(evidence) == set(values), "Every new value needs exact evidence")
+        require(isinstance(evidence, dict) and set(evidence) == set(keys), "Every new value needs exact evidence")
         old = properties.get(field)
         if method_id == DAILY_METHOD_ID:
             require(old in (None, "", []), "Daily enrichment cannot modify any populated field")
@@ -109,11 +133,11 @@ def validate_candidate(app, source, candidate, *, method_id, link_evidence=None)
             require(field == "tags" or field in relations, "Populated properties cannot be overwritten")
             require(isinstance(old, list) and not set(old) & set(values), "Candidate conflicts with populated list")
         for value in values:
-            quotes = evidence[value]
+            quotes = evidence[evidence_key(value)]
             require(isinstance(quotes, list) and 1 <= len(quotes) <= 10
                     and all(isinstance(q, str) and q.strip() and q in document.body for q in quotes),
                     "Each new value needs a nonempty exact source-body quote")
-            token = value.removeprefix("[[").removesuffix("]]").split("|", 1)[0]
+            token = evidence_key(value).removeprefix("[[").removesuffix("]]").split("|", 1)[0]
             require(any(token.casefold() in q.casefold() for q in quotes), "Quote does not identify its proposed value")
             if field in relations:
                 require(value.startswith("[[") and value.endswith("]]"), "Relations require exact wikilink values")
@@ -123,7 +147,7 @@ def validate_candidate(app, source, candidate, *, method_id, link_evidence=None)
                                for row in link_evidence.get("outgoing", []) if isinstance(row.get("target_reference"), dict)}
                     targets |= {target.rsplit("/", 1)[-1] for target in tuple(targets)}
                     require(token in targets, "Unresolved mentions remain candidates, not relation assertions")
-        properties[field] = [*old, *values] if isinstance(old, list) else values
+        properties[field] = [*old, *proposed] if isinstance(old, list) else proposed
     validated = engine.validate_property_changes(
         properties, candidate["fields"], path, target_types=app.daily_stewardship()._target_types())
     require(validated.passed, "Candidate violates declared property, predicate or target-type semantics")
@@ -144,19 +168,66 @@ class MetadataTeamExecutor(NativeTeamExecutor):
         chunks = [chunk.locator for chunk in _chunks_for_note(reader._note(source, notes))]
         require(0 < len(chunks) <= 20, "Metadata source exceeds native read bound")
         engine = NoteEngine.from_root(app.roots)
-        registry_digest = digest(canonical(engine.blueprint["relation_registry"]))
+        registry_digests = {category: digest(canonical(reader.semantic_registry_read(category=category)["definitions"]))
+                            for category in ("properties", "types", "relations")}
         document = parse_source_document(raw.decode("utf-8"))
-        return {"source_chunks": chunks, "registry_digest": registry_digest,
+        return {"source_chunks": chunks, "registry_digest": registry_digests["relations"],
+                "semantic_registry_digests": registry_digests,
+                "permitted_fields": sorted(permitted_fields(
+                    app, engine, document.properties, method_id=self.policy.method_id)),
                 "artifact_kind": KINDS[self.policy.method_id],
                 "existing_properties": document.properties,
                 "evidence": None if stage == self.policy.stages[0] else self.evidence(record, self.policy.stages[0])}
 
-    def fresh_read(self, record, call):
+    def assessment_observations(self, record):
         app = self.exops.application
-        run, spec = record["run"], record["spec"]
-        index = 0 if call["name"] in {"knowledge_read", "link_context"} else self.policy.stages.index(
-            "ontology_alignment") if self.policy.method_id == RELATION_METHOD_ID else 0
-        session = TeamToolSession(app, run["work_run_id"], spec["allowed_executor_ids"][index], run["active_graph_run_id"], self.exops)
+        _, raw = source_bytes(app, record["method_source_reference"])
+        properties = parse_source_document(raw.decode("utf-8")).properties
+        engine = NoteEngine.from_root(app.roots)
+        reader = KnowledgeReadTools(app)
+        candidate = self.evidence(record, self.policy.stages[-1])
+        execution = record[self.policy.namespace + "_" + self.policy.stages[-1]]
+        artifact, _ = self.result_artifact(record, execution)
+        submission = self.result_call(execution)["result"]["data"]
+        candidate_digest = record_digest(candidate)
+        effect = app.journal.read()["intents"].get(submission["effect_id"], {})
+        require(submission.get("candidate_digest") == effect.get("candidate_digest") == candidate_digest,
+                "Candidate identity differs from the authoritative submission receipt")
+        registries = {category: reader.semantic_registry_read(category=category)
+                      for category in ("properties", "types", "relations")}
+        return {"semantic_registries": registries,
+                "candidate_identity": {
+                    "candidate_digest": candidate_digest,
+                    "source_digest": record["method_source_reference"]["content_digest"],
+                    "registry_digest": candidate["registry_digest"],
+                    "semantic_registry_digests": {
+                        category: digest(canonical(registry["definitions"]))
+                        for category, registry in registries.items()},
+                    "effect_id": submission["effect_id"],
+                    "work_artifact_reference": artifact},
+                "independent_assessment_scope": (
+                    "This EvalOfficer invocation is the independent semantic assessment of this exact candidate, "
+                    "not a consumer waiting for an earlier metadata assessment. Owner validation has checked "
+                    "source, field types, exact quotes, registry and receipt identity, not semantic acceptance. "
+                    "Assess the candidate's metadata and any proposed relations against the supplied source and "
+                    "registries now; specialist relation analysis is evidence, not an independent acceptance verdict. "
+                    "A note_metadata candidate excludes relation fields. Combining it with a separately completed "
+                    "note_relations Work requires both independent assessments at the later Owner Pending-promotion "
+                    "boundary; this Work neither performs nor certifies that promotion."),
+                "permitted_fields": sorted(permitted_fields(
+                    app, engine, properties, method_id=self.policy.method_id)),
+                "existing_properties": properties,
+                "artifact_kind": KINDS[self.policy.method_id],
+                "effect_contract": (
+                    "Candidate artifact only. Empty fields and evidence explicitly mean no source-supported additions. "
+                    "Daily provisional application and human review, or metadata Pending approval and separate apply, "
+                    "are subsequent Owner operations, not effects of this Work.")}
+
+    def fresh_read(self, record, call, *, stage):
+        app = self.exops.application
+        run = record["run"]
+        step = self.step(record, stage)
+        session = TeamToolSession(app, run["work_run_id"], step["executor_id"], run["active_graph_run_id"], self.exops)
         actual, error = _convert_report(SimpleNamespace(services=app), call["name"], call["arguments"],
                                         _operation(app, call["name"], call["arguments"], session=session)())
         require(not error and {k: v for k, v in actual.items() if k != "request_id"}
@@ -167,35 +238,58 @@ class MetadataTeamExecutor(NativeTeamExecutor):
     def validate_stage(self, record, request, response):
         calls = response["tool_calls"]
         if request["stage_id"] == self.policy.stages[0]:
-            last = "link_context" if self.policy.method_id == RELATION_METHOD_ID else "semantic_registry_read"
-            require(calls[-1]["name"] == last and all(c["name"] == "knowledge_read" for c in calls[:-1]),
-                    "Evidence stage must read all source pages before exact registry/link context")
+            relation = self.policy.method_id == RELATION_METHOD_ID
+            source_end = next((index for index, call in enumerate(calls)
+                               if call["name"] != "knowledge_read"), len(calls))
+            reads = calls[source_end:]
+            require(source_end > 0 and bool(reads)
+                    and ([c["name"] for c in reads] == ["link_context"] if relation
+                         else all(c["name"] == "semantic_registry_read" for c in reads)),
+                    "Evidence stage must read all source pages before authoritative meanings or link context")
             position, offset, pages = 0, 0, []
-            for call in calls[:-1]:
+            for call in calls[:source_end]:
                 args = call["arguments"]
                 require(position < len(request["source_chunks"]) and args.get("resource_reference") == request["source_reference"]
                         and args.get("chunk_locator") == request["source_chunks"][position] and args.get("offset", 0) == offset,
                         "Native source pages skipped, repeated or escaped")
-                data = self.fresh_read(record, call)
+                data = self.fresh_read(record, call, stage=request["stage_id"])
                 require(bool(data["text"]), "Empty source page")
                 pages.append(data)
                 offset += len(data["text"])
                 if not data["truncated"]:
                     position, offset = position + 1, 0
             require(position == len(request["source_chunks"]), "Not every exact source page was read")
-            args = calls[-1]["arguments"]
-            require(args == ({"resource_reference": request["source_reference"], "limit": 20} if last == "link_context"
-                             else {"category": "relations"}), "Wrong registry or link scope")
-            data = self.fresh_read(record, calls[-1])
-            if last == "semantic_registry_read":
-                require(digest(canonical(data["definitions"])) == request["registry_digest"], "Read registry differs")
-            return {"pages": pages, last: data}
-        expected = ["semantic_registry_read", "artifact_submit"] if self.policy.method_id == RELATION_METHOD_ID else ["artifact_submit"]
-        require([c["name"] for c in calls] == expected, "Candidate stage tool sequence differs")
-        if len(calls) == 2:
-            require(calls[0]["arguments"] == {"category": "relations"}, "Wrong ontology registry")
-            data = self.fresh_read(record, calls[0])
-            require(digest(canonical(data["definitions"])) == request["registry_digest"], "Ontology registry differs")
+            if relation:
+                require(calls[-1]["arguments"] == {"resource_reference": request["source_reference"], "limit": 20},
+                        "Wrong relation link scope")
+                return {"pages": pages, "link_context": self.fresh_read(record, calls[-1], stage=request["stage_id"])}
+            registries = {}
+            for call in reads:
+                category = call["arguments"].get("category")
+                require(call["arguments"] == {"category": category}
+                        and category in request["semantic_registry_digests"],
+                        "Wrong property, type or relation registry scope")
+                data = self.fresh_read(record, call, stage=request["stage_id"])
+                require(digest(canonical(data["definitions"])) == request["semantic_registry_digests"][category],
+                        "Read authoritative registry differs")
+                registries[category] = data
+            require(set(registries) == {"properties", "types", "relations"},
+                    "Evidence stage lacks authoritative property, type or relation meanings")
+            return {"pages": pages, "semantic_registries": registries}
+        relation = self.policy.method_id == RELATION_METHOD_ID
+        require(bool(calls) and calls[-1]["name"] == "artifact_submit"
+                and (all(c["name"] == "semantic_registry_read" for c in calls[:-1]) if relation
+                     else len(calls) == 1), "Candidate stage tool sequence differs")
+        registries = set()
+        for call in calls[:-1]:
+            category = call["arguments"].get("category")
+            require(call["arguments"] == {"category": category}
+                    and category in request["semantic_registry_digests"], "Wrong ontology registry scope")
+            data = self.fresh_read(record, call, stage=request["stage_id"])
+            require(digest(canonical(data["definitions"])) == request["semantic_registry_digests"][category],
+                    "Ontology registry differs")
+            registries.add(category)
+        require(not relation or "relations" in registries, "Candidate stage lacks authoritative relation meanings")
         call = calls[-1]
         args, envelope = call["arguments"], call["result"]
         require(set(args) <= {"artifact_kind", "content", "idempotency_key"}
@@ -205,6 +299,8 @@ class MetadataTeamExecutor(NativeTeamExecutor):
                 "Candidate has no exact noncanonical artifact effect")
         candidate = json.loads(args["content"])
         self.validate_result(record, candidate)
+        require(envelope["data"].get("candidate_digest") == record_digest(candidate),
+                "Candidate lacks its exact Owner-computed submission identity")
         return candidate
 
     def result_call(self, execution):

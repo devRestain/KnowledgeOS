@@ -226,6 +226,8 @@ class KnowledgeReadTools:
         blueprint = load_yaml_file(self.application.roots.control / "blueprint/blueprint.yaml")
         if category == "types":
             data = blueprint["note_types"]
+        elif category == "properties":
+            data = {**blueprint["common_properties"]["required"], **blueprint["property_registry"]}
         elif category == "relations":
             data = blueprint["relation_registry"]
         else:

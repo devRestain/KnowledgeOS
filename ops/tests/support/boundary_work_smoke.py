@@ -127,8 +127,10 @@ def owner_http(case, artifact):
         assert status == 200 and result["text"].encode() == artifact and result["apply_allowed"] is False, result
         assert result["assessment"]["completion_state"] == "complete" and result["evidence"]
         case["source_path"].write_bytes(original + b"\nStale selected source.\n")
-        stale_status, _ = call({"work_run_id": run_id})
-        assert stale_status >= 400
+        stale_status, historical = call({"work_run_id": run_id})
+        assert stale_status == 200 and historical["text"].encode() == artifact, historical
+        assert historical["source_stale"] is True and historical["historical"] is True
+        assert historical["current_evidence_valid"] is False and historical["apply_allowed"] is False
         return {"status": status, "body_actor_status": injected,
                 "stale_source_status": stale_status, "report": result["report"], "evidence": result["evidence"]}
     finally:

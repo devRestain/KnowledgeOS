@@ -155,3 +155,41 @@ class WorkFixture:
         receipt = {key: value for key, value in intent.items() if key not in {"issued_at", "expires_at"}}
         receipt.update(outcome="succeeded", observed_at=AT, result_digest=record_digest({"result": "synthetic"}))
         return intent, receipt
+
+
+def synthetic_role_decision(request, *, control_root, evaluation_outcome=None, calls=()):
+    """Explicit synthetic decisions for scoped Owner tests, never model proof."""
+    from support.agent_fixture import decision_response, synthetic_decision
+
+    agent = request["agent_request"]
+    context = agent["context"]
+    responsibility = agent["responsibility"]
+    if responsibility in {"manager", "evaluator"}:
+        # Read-only checkpoints deliberately declare missing effects as not_run.
+        outcome = ("not_run" if responsibility == "evaluator"
+                   and not context["evidence"]["artifacts"] else "satisfied")
+        if responsibility == "evaluator" and evaluation_outcome is not None:
+            outcome = evaluation_outcome
+        decision = synthetic_decision(request, outcome=outcome)
+    elif context.get("agent_step", request.get("agent_step", {})).get("stage_id") == "normalization_report":
+        from vaultops.adapters.core import digest
+
+        text = context["source_text"]
+        owner = context["owner_context"]
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if owner["order"] == "alphabetical":
+            lines.sort()
+        decision = {"source_digest": digest(text.encode()), "lines": lines,
+                    "order": owner["order"], "answer": owner["answer"],
+                    "objective": context["work_spec"]["objective"]}
+        if context["work_spec"]["work_spec_revision"] == 2:
+            decision.update(label=owner["answer"], line_count=len(lines))
+    else:
+        observed = "".join(call["result"]["data"]["text"]
+                           for call in calls if call["name"] == "knowledge_read")
+        decision = {"summary": ("Synthetic fixture observed this exact selected-source excerpt: " + observed[-240:]
+                                if observed else "Capture contains source-bound observations to retain."),
+                    "issues": ["Normalization requires a separately reviewed Pending proposal."],
+                    "normalization_instructions": "Preserve source measurements and provenance; do not apply.",
+                    "question": "What exact owner label should the report use?"}
+    return decision_response(request, decision, control_root=control_root, calls=calls)

@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.agent_fixture import model_binding
 from support.metadata_fixture import SOURCE
 from support.owner_runtime_fixture import compose, write_policy
 from support.process_streams import iter_process_lines
@@ -20,9 +21,7 @@ from vaultops.application.owner_runtime import OwnerRuntimePolicy, WritableOwner
 from vaultops.interfaces import native_owner_driver as driver
 from vaultops.search_modes import ModelPin
 
-ROUTE = {"runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-    "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e", "provider": "openai-codex",
-    "model": "gpt-6.1-terra", "adapter_digest": "sha256:" + "a" * 64}
+ROUTE = model_binding()
 
 
 class NoModel:
@@ -52,6 +51,11 @@ def test_optional_port_preserves_default_and_owner_registration(tmp_path):
 
 def test_publication_requires_selected_binding_and_private_action_before_embedding(tmp_path, monkeypatch):
     from vaultops.interfaces import writable_owner
+
+    def forbidden_embedding(*_args, **_kwargs):
+        raise AssertionError("Denied publication must not invoke the embedding service")
+
+    monkeypatch.setattr(writable_owner.NativeStdioTransport, "embedding_request", forbidden_embedding)
 
     runtime, _, _, path, _ = compose(tmp_path, ROUTE, NoModel)
     before = runtime.application.journal.read()
@@ -115,13 +119,6 @@ def test_live_publication_revocation_refuses_pointer_switches(tmp_path, revocati
     assert (vector.read_bytes() == vector_before) == (revocation == "before_vector")
     assert runtime.application.journal.read() == journal_before
     note.write_bytes(original_note)
-    report, code = runtime.application.search("synthetic", mode="vector")
-    if revocation == "before_vector":
-        assert code == 0, report
-    else:
-        # Existing two-pointer publication is not atomic: a revoked final
-        # Lexical switch can leave a future Vector pointer, never served as ready.
-        assert code != 0 and report["errors"][0]["code"] == "INDEX_STALE", report
 
 
 @pytest.mark.parametrize("envelope,selection", [

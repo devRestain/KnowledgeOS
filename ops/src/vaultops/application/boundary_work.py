@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from ..adapters.core import canonical, digest
 from ..interfaces.mcp_server import _convert_report, _operation
 from .boundary_contract import (
-    EXCHANGE_PREFIX,
+    admitted_exchange_receipt_id,
     disclosure,
     exchange_evidence,
     exchange_receipt_id,
@@ -52,17 +52,23 @@ def maintenance_native_digest(binding):
 
 
 def exchange_admission(app, binding, source_reference, *, gateway_receipt_id=None, objective=None, **identities):
-    if objective is not None:
-        selected = exchange_receipt_id(objective)
-        require(gateway_receipt_id is None or gateway_receipt_id == selected, "Exchange receipt selection changed")
-        gateway_receipt_id = selected
+    gateway_receipt_id = exchange_receipt_id(gateway_receipt_id)
     exchange_evidence(app, gateway_receipt_id)
     return native_admission(app, binding, source_reference, policy=EXCHANGE_POLICY,
-                            objective=EXCHANGE_PREFIX + gateway_receipt_id, **identities)
+                            objective=objective, **identities)
 
 
 def maintenance_admission(app, binding, source_reference, **identities):
     return native_admission(app, binding, source_reference, policy=MAINTENANCE_POLICY, **identities)
+
+
+def _maintenance_evidence(source, diagnostic):
+    require(diagnostic["resource_reference"] == source
+            and "sha256:" + diagnostic["content_hash"] == source["content_digest"],
+            "Maintenance diagnostic differs from the selected source preimage")
+    return {"diagnostic": diagnostic, "diagnostic_digest": digest(canonical(diagnostic)),
+            "preimage_reference": diagnostic["resource_reference"],
+            "preimage_digest": source["content_digest"]}
 
 
 class _BoundaryExecutor(NativeTeamExecutor):
@@ -70,8 +76,14 @@ class _BoundaryExecutor(NativeTeamExecutor):
         first = self.policy.stages[0]
         exchange = self.policy is EXCHANGE_POLICY
         return {"boundary_kind": "exchange" if exchange else "maintenance",
-                "gateway_receipt_id": exchange_receipt_id(record["spec"]["objective"]) if exchange else None,
+                "gateway_receipt_id": admitted_exchange_receipt_id(self.exops.application, record) if exchange else None,
                 "evidence": None if stage == first else self.evidence(record, first)}
+
+    def assessment_observations(self, record):
+        if self.policy is EXCHANGE_POLICY:
+            return {"source_role": "local_anchor_not_foreign_disclosure",
+                    "gateway_evidence": self.evidence(record, "gateway_evidence")}
+        return {}
 
     def validate_stage(self, record, request, response):
         calls = response["tool_calls"]
@@ -100,7 +112,7 @@ class _BoundaryExecutor(NativeTeamExecutor):
             diagnostic = result["data"]
             require(diagnostic["diagnosis_complete"] is False and bool(diagnostic["unexamined"]),
                     "Maintenance cannot claim a complete diagnosis")
-            return {"diagnostic": diagnostic, "diagnostic_digest": digest(canonical(diagnostic))}
+            return _maintenance_evidence(request["source_reference"], diagnostic)
         require(set(arguments) <= {"source_reference", "content", "idempotency_key"}
                 and arguments.get("source_reference") == request["source_reference"]
                 and result.get("status") == "created" and result.get("execution_outcome") == "completed"
@@ -114,7 +126,7 @@ class _BoundaryExecutor(NativeTeamExecutor):
             require(request["evidence"] == evidence and payload["disclosure_scope"] == disclosure(evidence),
                     "Adaptation did not preserve actual accepted Gateway evidence")
         else:
-            require(request["evidence"] == {"diagnostic": evidence, "diagnostic_digest": digest(canonical(evidence))},
+            require(request["evidence"] == _maintenance_evidence(request["source_reference"], evidence),
                     "Recovery plan did not preserve its actual diagnostic")
         return payload
 
@@ -130,7 +142,7 @@ class _BoundaryExecutor(NativeTeamExecutor):
     def validate_result(self, record, candidate):
         validate_boundary_plan(self.exops.application, self.policy.tools[self.policy.stages[-1]][0],
                                record["method_source_reference"], candidate,
-                               receipt_id=exchange_receipt_id(record["spec"]["objective"])
+                               receipt_id=admitted_exchange_receipt_id(self.exops.application, record)
                                if self.policy is EXCHANGE_POLICY else None)
 
 
@@ -144,7 +156,11 @@ class ExchangeTeamExecutor(_BoundaryExecutor):
 
     def bundle(self, spec, run, source):
         bundle, artifacts = super().bundle(spec, run, source)
-        receipt_id = exchange_receipt_id(spec["objective"])
+        app = self.exops.application
+        record = app.journal.read()["intents"].get("exops.work." + run["work_run_id"])
+        require(isinstance(record, dict) and record["spec"] == dict(spec),
+                "Gateway Graph has no exact admitted Director Work")
+        receipt_id = admitted_exchange_receipt_id(app, record)
         evidence = exchange_evidence(self.exops.application, receipt_id)
         raw = canonical(evidence)
         reference = {

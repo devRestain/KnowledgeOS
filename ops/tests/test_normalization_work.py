@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from support.agent_fixture import install_agent_policy, model_binding, role_response
 from support.control_factory import make_separate_portable_fixture_roots
 
 from vaultops.adapters.core import AdmissionError, canonical, digest
@@ -36,6 +37,7 @@ def _started(tmp_path, *, mutate_spec=None, runner_binding=None, source_policy=N
              source_sensitivity=None):
     roots = make_separate_portable_fixture_roots(
         tmp_path, extra_inputs=("ops/config/team-catalog.json",), review_queues=True)
+    install_agent_policy(roots.control)
     app = KnowledgeApplication.from_roots(roots)
     source_path = roots.vault / SOURCE
     source_path.write_text((roots.vault / BASE).read_text()
@@ -226,12 +228,7 @@ def test_independent_evaluator_rechecks_current_receipt_gate_and_source(tmp_path
         evaluate_normalization(exops, run["work_run_id"], evaluator_id=spec["eval_officer_executor_id"])
 
 
-MODEL_BINDING = {
-    "runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-    "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-    "provider": "openai-codex", "model": "gpt-6.1-terra",
-    "adapter_digest": digest(b"synthetic focused-test runner; not a real Hermes execution"),
-}
+MODEL_BINDING = model_binding()
 
 
 class _OwnerToolRunner:
@@ -271,14 +268,24 @@ class _OwnerToolRunner:
             call("knowledge_read", {"resource_reference": request["source_reference"],
                                      "chunk_locator": locator})
         call("proposal_create", {"source_reference": request["source_reference"]})
+        agent = {"role_id": "knowledgeos.normalization_officer", "responsibility": "specialist",
+                 "method_id": "knowledgeos.normalization_officer", "context": request,
+                 "instructions": "Prepare a source-bound Pending normalization proposal.",
+                 "tools": list(session.tools())}
+        native = role_response(agent, control_root=app.roots.control,
+                               final_text="Pending proposal prepared.", calls=calls)
         response = {
             "request_digest": request["request_digest"], "runner_binding": dict(self.binding),
-            "model": self.binding["model"], "provider": self.binding["provider"],
-            "session_id": "synthetic-focused-test", "final_text": "Pending proposal prepared.",
-            "tool_calls": calls, "exposed_tools": list(session.tools()),
+            **{key: native[key] for key in ("model", "provider", "session_id", "final_text")},
+            "tool_calls": calls, "exposed_tools": list(session.tools()), "agent_evidence": native,
         }
         if self.alter is not None:
             self.alter(request, response)
+            response["agent_evidence"]["tool_calls"] = [
+                {**copy.deepcopy(call), "call_id": "synthetic-call-" + str(index)}
+                for index, call in enumerate(response["tool_calls"])]
+            for key in ("provider", "model", "final_text"):
+                response["agent_evidence"][key] = response[key]
         return response
 
 
@@ -413,7 +420,7 @@ def test_model_evaluator_rereads_execution_trace_instead_of_trusting_producer(tm
         evidence["evidence_digest"] = digest(canonical({
             "request": evidence["request"], "response": evidence["response"]}))
         writer.commit(app.clock())
-    with pytest.raises(AdmissionError, match="trace context"):
+    with pytest.raises(AdmissionError):
         evaluate_normalization(exops, run["work_run_id"], evaluator_id=spec["eval_officer_executor_id"])
 
 

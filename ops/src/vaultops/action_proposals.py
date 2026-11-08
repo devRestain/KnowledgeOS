@@ -967,7 +967,7 @@ def _write_pending_artifact(
     source_locator = payload["source"].get("locator")
     locator_text = f" ({source_locator})" if source_locator else ""
     summary = (
-        f"Provider-free {action} proposal bound to `{source_path}`{locator_text}. "
+        f"{action} proposal bound to `{source_path}`{locator_text}. "
         "The canonical target remains unchanged until a human approves the C19 proposal."
     )
     payload_text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)

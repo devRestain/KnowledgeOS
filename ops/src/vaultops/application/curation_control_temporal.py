@@ -12,7 +12,7 @@ from functools import partial
 from typing import Any
 
 from ..adapters.core import AdmissionError
-from .curation_continuation_temporal import continuation_worker_components
+from .curation_continuation_temporal import continuation_graph_components
 from .temporal_contract import (
     CONTINUATION_METHOD_ID,
     CONTROL_APPLY_ACTIVITY,
@@ -163,7 +163,7 @@ class _ControlActivities:
         return state
 
 
-def control_worker_components(exops, executor, controller):
+def control_graph_components(exops, executor, controller):
     """Return module-level Workflow and owner-gated official continuation graphs."""
     from .curation_control import CurationRunControl
 
@@ -174,16 +174,25 @@ def control_worker_components(exops, executor, controller):
         raise AdmissionError("BINDING_INVALID", "Control Worker requires its exact owner controller")
     from temporalio import activity
 
-    workflow, plugin = continuation_worker_components(
+    workflow, graphs, extra_activities = continuation_graph_components(
         exops, executor, control_mode=True, controller=controller,
     )
     activities = _ControlActivities(exops, executor, controller)
-    plugin.activities.extend((
+    extra_activities.extend((
         activity.defn(name=CONTROL_CHECKPOINT_ACTIVITY)(partial(activities.checkpoint)),
         activity.defn(name=CONTROL_APPLY_ACTIVITY)(partial(activities.apply)),
         activity.defn(name=CONTROL_ROLLOVER_PREPARE_ACTIVITY)(partial(activities.prepare_rollover)),
         activity.defn(name=CONTROL_ROLLOVER_ADOPT_ACTIVITY)(partial(activities.adopt_rollover)),
     ))
+    return workflow, graphs, extra_activities
+
+
+def control_worker_components(exops, executor, controller):
+    workflow, graphs, activities = control_graph_components(exops, executor, controller)
+    from temporalio.langgraph import LangGraphPlugin
+
+    plugin = LangGraphPlugin(graphs=graphs)
+    plugin.activities.extend(activities)
     return workflow, plugin
 
 

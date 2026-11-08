@@ -1,12 +1,13 @@
 """Selected, effect-safe Curation steering at a real partial Profile boundary.
 
-This route is deliberately deterministic: exact Capture reads and an atomic
-owner-journal normalization report, not a model answer or a canonical Vault edit.
-The initial two-task Graph is interrupted after triage, before report dispatch.
+The selected model reads exact Capture evidence and produces a report, published
+only by the atomic owner-journal boundary, never through a model MCP effect.
+The initial Graph is interrupted after triage, before report dispatch.
 Only that boundary supports CUTOVER; arbitrary running reassignment is denied.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import copy
 import json
@@ -17,11 +18,40 @@ from pathlib import Path
 
 from ..adapters.core import canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
+from ..retrieval import _chunks_for_note
+from .agent_assessment import assess_result
+from .agent_decisions import (
+    admitted_director_context,
+    decision_from_response,
+    decision_request,
+    source_context,
+    validate_role_evidence,
+)
+from .agent_graph import compose_graph
 from .curation_control import CurationRunControl
 from .curation_steering_contract import METHOD_ID
-from .curation_work import _artifact, _bundle, _pins, _require, _source
+from .curation_work import (
+    _artifact,
+    _bundle,
+    _pins,
+    _require,
+    _source,
+    _validate_capture_agent,
+    _validate_triage_decision,
+)
 from .exops import OwnerActor
+from .native_team import (
+    agent_plan,
+    invoke_readonly_step,
+    readonly_step_request,
+    retain_agent_plan,
+    stage_step,
+    validate_readonly_response,
+    validate_runner_binding,
+)
+from .read_tools import KnowledgeReadTools
 from .team_catalog import TeamCatalog
+from .temporal_work import WorkResult
 from .work import (
     directive_digest,
     graph_content_digest,
@@ -35,33 +65,36 @@ from .work_methods import WorkMethodCatalog
 
 PARAMETER = "report.order"
 ORDERS = ("source_order", "alphabetical")
-OBJECTIVE = "Produce a deterministic source-bound Capture normalization report"
-AMENDED_OBJECTIVE = "Produce a labeled deterministic source-bound Capture normalization report"
+OBJECTIVE = "Produce a source-bound Capture normalization report using the owner's answer"
+AMENDED_OBJECTIVE = "Produce a labeled source-bound Capture normalization report using the owner's answer"
 DESCRIPTION = "Report exactly the nonempty stripped source lines, selected ordering, source digest and owner answer; no canonical write."
 AMENDED_DESCRIPTION = DESCRIPTION + " Also includes the owner's nonempty label and an exact nonempty-source-line count."
 
 
-def curation_steering_native_digest():
+def curation_steering_native_digest(runner_binding):
     modules = {}
-    for name in ("curation_steering.py", "curation_steering_contract.py", "curation_steering_temporal.py", "curation_steering_workflow.py", "curation_work.py", "curation_control.py", "work.py"):
+    for name in ("curation_steering.py", "curation_steering_contract.py", "curation_steering_temporal.py",
+                 "curation_steering_workflow.py", "curation_work.py", "curation_control.py", "work.py",
+                 "native_team.py", "agent_graph.py", "agent_assessment.py", "agent_decisions.py", "temporal_contract.py"):
         raw = read_regular(Path(__file__).with_name(name))
         _require(raw is not None, "Steering execution module is unavailable")
         modules[name] = digest(raw)
-    return record_digest({"modules": modules, "temporalio": "1.34.0", "temporalio-langgraph": "0.1.0", "langgraph": "1.2.0"})
+    return record_digest({"modules": modules, "temporalio": "1.34.0", "temporalio-langgraph": "0.1.0", "langgraph": "1.2.0",
+                          "runner_binding": validate_runner_binding(runner_binding)})
 
 
-def steering_admission(application, binding, source, *, work_id, work_run_id, admission_receipt_id):
+def steering_admission(application, binding, source, *, work_id, work_run_id, admission_receipt_id, runner_binding):
     TeamCatalog.load(application.roots.control).validate_binding(binding)
     _require(binding.team_id == "knowledge-curation"
-             and [item.role_id for item in binding.specialists] == ["knowledgeos.triage", "knowledgeos.draft_writer"]
-             and binding.native_binding_digest == curation_steering_native_digest(),
-             "Steering requires the exact deterministic native Team binding")
+             and {"knowledgeos.triage", "knowledgeos.draft_writer"} <= {item.role_id for item in binding.specialists}
+             and binding.native_binding_digest == curation_steering_native_digest(runner_binding),
+             "Steering requires the exact role-capable native Team binding")
     path, _raw = _source(application, source)
     _require(path.startswith("00_Inbox/Captures/"), "Steering requires a selected Capture")
     pins = _pins(application)
     spec = {
         "owner_operation_id": "knowledgeos", "work_id": work_id, "work_spec_revision": 1, "criteria_revision": 1,
-        "objective": OBJECTIVE, "constraints": "Read exact source " + record_digest(source) + "; report only; order in source_order,alphabetical; no canonical or external writes",
+        "objective": OBJECTIVE, "constraints": "Read exact source " + path + " at " + source["content_digest"] + "; report only; order in source_order,alphabetical; no canonical or external writes",
         "acceptance_criteria": [{"criterion_id": "criterion.proposal", "description": DESCRIPTION}],
         "target_kind": "team", "team_id": binding.team_id, "manager_executor_id": binding.manager_executor_id,
         "eval_officer_executor_id": binding.eval_officer_executor_id,
@@ -104,10 +137,11 @@ def _context(run):
 
 
 class SafeCurationSteering:
-    def __init__(self, exops, *, director_amendment_admitted):
+    def __init__(self, exops, *, runner, director_amendment_admitted):
         _require(callable(director_amendment_admitted), "Major amendments require an explicit trusted Director callback")
-        self.exops = exops
+        self.exops, self.runner = exops, runner
         self.director_amendment_admitted = director_amendment_admitted
+        self.runner_binding = validate_runner_binding(runner.binding)
         exops.curation_steering = self
 
     @property
@@ -128,14 +162,11 @@ class SafeCurationSteering:
         if actor is not None:
             _require(actor.actor_id == record["actor_id"], "Steering belongs to the admitted human actor")
         self.exops._team_binding(spec, run)
-        _require(self.exops.teams[spec["team_id"]].native_binding_digest == curation_steering_native_digest(),
+        _require(validate_runner_binding(self.runner.binding) == self.runner_binding
+                 and self.exops.team_for_spec(spec).native_binding_digest == curation_steering_native_digest(self.runner_binding),
                  "Native steering implementation changed")
         original = record.get("steering_spec_history", [spec])[0]
-        expected, _initial = steering_admission(
-            self.app, self.exops.teams[spec["team_id"]], record["method_source_reference"],
-            work_id=spec["work_id"], work_run_id=run["work_run_id"],
-            admission_receipt_id=original["admission_receipt_id"])
-        _require(original == expected, "Steering Work differs from its supported initial envelope")
+        admitted_director_context(self.app, {**record, "spec": original})
         if spec != original:
             self._amendment({**record, "spec": original, "run": record["steering_amendment_run"]}, spec)
         WorkMethodCatalog.load(self.app.roots.control).admitted_method(spec, self.exops.contracts)
@@ -196,18 +227,26 @@ class SafeCurationSteering:
                  and partial["artifacts"] == {
                      retained["source_reference"]["logical_id"]: _artifact(retained["source_reference"], source_raw)},
                  "Completed lineage lost its independently evaluated partial source evidence")
-        admission = {**record, "run": copy.deepcopy(retained["admission_run"])}
-        bundle, _artifacts = self._make_bundle(admission, successor=True)
-        _require(bundle == retained["bundle"], "Completed Graph differs from its bounded Manager admission")
+        agent_plan(record, graph_id)
+        _require(record["agent_plans"][graph_id]["bundle"] == retained["bundle"],
+                 "Completed Graph differs from its actual Manager admission")
         self.exops.contracts.run(original, spec, previous=retained["admission_run"])
         evaluated = {**record, "run": copy.deepcopy(original)}
         fresh = self._evaluation(evaluated, complete=True, reference=report["reference"])
-        fresh["assessment"]["assessed_at"] = result["assessment"]["assessed_at"]
-        _require(fresh == result and record["assessment"] == result["assessment"]
+        semantic = record.get("steering_final_semantic", {})
+        _require(semantic.get("assessment") == result["assessment"]
+                 and all(fresh[key] == result[key] for key in ("checkpoints", "artifacts", "segment", "spec", "run"))
+                 and record["assessment"] == result["assessment"]
                  and record["evaluations"] == result["evaluations"]
                  and record["checkpoints"] == result["checkpoints"]
                  and record["assessment_artifacts"] == result["artifacts"],
                  "Completed assessment or checkpoint differs from independently reconstructed evidence")
+        evidence = semantic["evidence"]
+        _require(evidence["content_digest"] == record_digest(evidence, ("content_digest",))
+                 and evidence["request"]["agent_request"]["context"]["evidence"]["observations"]["report_agent"]
+                     == record["steering_report_agent"],
+                 "Completed semantic result changed its actual model decision or producing specialist")
+        validate_role_evidence(self.app.roots.control, "knowledgeos.eval_officer", semantic["evidence"]["response"], tools=[])
         self.exops.contracts.run(run, spec, previous=original, assessment=result["assessment"],
             segments=[result["segment"]], evaluations=result["evaluations"], artifacts=result["artifacts"],
             checkpoints=result["checkpoints"], candidate_assessor_id=spec["eval_officer_executor_id"])
@@ -309,9 +348,9 @@ class SafeCurationSteering:
         _require(old["work_spec_revision"] == 1 and successor["work_spec_revision"] == 2
                  and successor["criteria_revision"] == old["criteria_revision"] + 1
                  and successor["admission_receipt_id"] != old["admission_receipt_id"]
-                 and successor["objective"] == AMENDED_OBJECTIVE
-                 and successor["acceptance_criteria"] == [{"criterion_id": "criterion.proposal", "description": AMENDED_DESCRIPTION}],
-                 "Only the labeled-report major revision is implemented by this evaluator")
+                 and [item["criterion_id"] for item in successor["acceptance_criteria"]]
+                     == [item["criterion_id"] for item in old["acceptance_criteria"]],
+                 "Major revision changed unsupported criterion identities or revision lineage")
         _require(self.director_amendment_admitted(copy.deepcopy(old), copy.deepcopy(successor), copy.deepcopy(record["run"])) is True
                  and self.exops.director_admitted(successor)
                  and self.exops.director_method_source_admitted(successor, record["method_source_reference"]),
@@ -439,8 +478,9 @@ class SafeCurationSteering:
     def dispatch(self, work_run_id):
         record = self._record(self.app.journal.read(), work_run_id)
         self._authority(record)
-        return {"work_run_id": work_run_id, "action_id": record["action_id"], "content_digest": record["content_digest"],
-                "work_spec_digest": record["spec"]["spec_digest"]}
+        return {"owner_operation_id": record["spec"]["owner_operation_id"],
+                "work_run_id": work_run_id, "action_id": record["action_id"],
+                "content_digest": record["content_digest"], "work_spec_digest": record["spec"]["spec_digest"]}
 
     def command_dispatch(self, work_run_id, command_id):
         record = self._record(self.app.journal.read(), work_run_id)
@@ -583,31 +623,151 @@ class SafeCurationSteering:
             current_method_ref=WorkMethodCatalog.load(self.app.roots.control).reference(METHOD_ID), **bundle)
         return bundle, artifacts
 
-    def start(self, dispatch, *, temporal_run_id):
+    async def start(self, dispatch, *, temporal_run_id):
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, dispatch["work_run_id"])
             self._authority(record)
-            _require(dispatch == {"work_run_id": record["run"]["work_run_id"], "action_id": record["action_id"],
-                                 "content_digest": record["content_digest"], "work_spec_digest": record["spec"]["spec_digest"]}, "Native start differs from exact dispatch")
+            _require(dispatch == {"owner_operation_id": record["spec"]["owner_operation_id"],
+                                 "work_run_id": record["run"]["work_run_id"], "action_id": record["action_id"],
+                                 "content_digest": record["content_digest"], "work_spec_digest": record["spec"]["spec_digest"]},
+                     "Native start differs from exact dispatch")
             if record.get("temporal_run_id"):
                 self._native(record, temporal_run_id)
+            if record["application_state"] != "not_started":
                 _require(record.get("steering_bundles"), "Native start is incomplete")
                 return copy.deepcopy(record["run"])
             _require(record["run"]["state"] == "admitted", "Steering can start only once")
             record["temporal_run_id"] = temporal_run_id
             self._advance(record, state="running")
-            bundle, artifacts = self._make_bundle(record)
-            graph_id = bundle["segment"]["graph_run_id"]
-            self._advance(record, active_graph_run_id=graph_id, graph_run_ids=[graph_id], segments_started=1, profile_invocations=2)
-            record.update(application_state="started", dispatch_state="dispatched", steering_bundles={graph_id: bundle},
-                          steering_context={"order": "source_order"}, steering_boundary="triage",
-                          admitted_method_segments={graph_id: {"segment": bundle["segment"], "assignments": bundle["assignments"]}},
-                          artifact_references=artifacts)
+            record.update(application_state="started", dispatch_state="dispatched",
+                          steering_context={"order": "source_order"}, steering_boundary="triage")
             record["receipt"].update(application_state="started", dispatch_state="dispatched")
             writer.commit(self.app.clock())
-            return copy.deepcopy(record["run"])
+        record = self._record(self.app.journal.read(), dispatch["work_run_id"])
+        await self._compose(record, successor=False)
+        return copy.deepcopy(self._record(self.app.journal.read(), dispatch["work_run_id"])["run"])
 
-    def triage(self, work_run_id, *, temporal_run_id):
+    async def _compose(self, record, *, successor):
+        bundle, artifacts = self._make_bundle(record, successor=successor)
+        composed = await compose_graph(
+            self.exops, self.runner, record, method_id=METHOD_ID, bundle=bundle, artifacts=artifacts,
+            required_stage_ids=["normalization_report"] if successor else ["capture_evidence", "normalization_report"],
+        )
+        record = retain_agent_plan(self.exops, record, composed)
+        graph_id = composed["bundle"]["segment"]["graph_run_id"]
+        with self.app.journal.writer() as writer:
+            current = self._record(writer.value, record["run"]["work_run_id"])
+            _require(current == record, "Steering changed during Manager admission")
+            run = current["run"]
+            if successor:
+                current["steering_successor_admission_run"] = copy.deepcopy(run)
+            self._advance(current, active_graph_run_id=graph_id, graph_run_ids=[*run["graph_run_ids"], graph_id],
+                          segments_started=run["segments_started"] + 1,
+                          profile_invocations=run["profile_invocations"] + len(composed["plan"]["steps"]))
+            current.setdefault("steering_bundles", {})[graph_id] = composed["bundle"]
+            current.setdefault("admitted_method_segments", {})[graph_id] = {
+                "segment": composed["bundle"]["segment"], "assignments": composed["bundle"]["assignments"],
+                "method_contract_ref": current["spec"]["method_contract_ref"],
+                "source_reference": current["method_source_reference"],
+                "team_catalog_digest": self.exops.catalog.digest,
+                "native_binding_digest": curation_steering_native_digest(self.runner_binding),
+            }
+            current.setdefault("artifact_references", {}).update(composed["artifacts"])
+            if successor:
+                current.update(steering_successor_context=copy.deepcopy(current["steering_context"]),
+                               steering_boundary="normalization")
+            writer.commit(self.app.clock())
+
+    def _save_specialist(self, record, key, value):
+        _require(len(canonical(value)) <= 256 * 1024, "Steering role evidence exceeds its bound")
+        with self.app.journal.writer() as writer:
+            live = self._record(writer.value, record["run"]["work_run_id"])
+            _require(live == record and key not in live, "Steering role changed or outcome cannot be replayed")
+            live[key] = copy.deepcopy(value)
+            writer.commit(self.app.clock())
+        return self._record(self.app.journal.read(), record["run"]["work_run_id"])
+
+    async def _specialist(self, record, step, instructions):
+        triage = step["stage_id"] == "capture_evidence"
+        context = {"agent_step": step,
+                   "owner_context": record.get("steering_successor_context", record.get("steering_context", {})),
+                   "triage": record.get("steering_triage"),
+                   "agent_handoffs": record.get("steering_optional", [])}
+        if triage:
+            request = readonly_step_request(self.exops, self.runner, record, step)
+            request["agent_request"]["context"].update(context)
+            reader = KnowledgeReadTools(self.app)
+            source = record["method_source_reference"]
+            _, notes = reader._eligible(selected_path=self.app.resolve_reference(source))
+            request["agent_request"]["context"]["source_chunks"] = [
+                chunk.locator for chunk in _chunks_for_note(reader._note(source, notes))
+            ]
+            request["agent_request"]["instructions"] += "\n" + instructions
+            request["request_digest"] = record_digest(request, ("request_digest",))
+        else:
+            _require(step["tools"] == [], "Owner-published report has no model MCP capability")
+            request = decision_request(
+                self.runner, role_id=step["role_id"], responsibility="specialist", method_id=METHOD_ID,
+                record=record, route=step["route"], instructions=step["instruction"] + "\n" + instructions,
+                context={"work_spec": record["spec"],
+                         **source_context(self.app, record["method_source_reference"]), **context},
+            )
+        prefix = "steering_triage" if triage else "steering_report"
+        record = self._save_specialist(record, prefix + "_request", request)
+        response = await self.runner(request)
+        record = self._save_specialist(record, prefix + "_attempt", {"request": request, "response": response})
+        if triage:
+            await asyncio.to_thread(validate_readonly_response, self.exops, record, step, request, response)
+        decision, evidence = decision_from_response(request, response)
+        self._save_specialist(record, prefix + "_decision", evidence)
+        validate_role_evidence(self.app.roots.control, step["role_id"], response,
+                               tools=step["tools"], route=step["route"])
+        return decision, evidence
+
+    async def _optional(self, record, step, *, handoffs=()):
+        request = readonly_step_request(self.exops, self.runner, record, step)
+        request["agent_request"]["context"]["agent_handoffs"] = [
+            *record.get("steering_optional", []), *handoffs,
+        ]
+        if record.get("steering_triage") is not None:
+            request["agent_request"]["context"]["agent_handoffs"].append(record["steering_triage"]["decision"])
+        request["request_digest"] = record_digest(request, ("request_digest",))
+        with self.app.journal.writer() as writer:
+            live = self._record(writer.value, record["run"]["work_run_id"])
+            _require(live == record, "Steering optional dispatch raced with control")
+            requests = live.setdefault("steering_optional_requests", {})
+            key = record["run"]["active_graph_run_id"] + "." + step["stage_id"]
+            _require(key not in requests, "Optional model outcome cannot be replayed")
+            requests[key] = request
+            writer.commit(self.app.clock())
+        record = self._record(self.app.journal.read(), record["run"]["work_run_id"])
+        response = await invoke_readonly_step(self.exops, self.runner, record, step, request=request)
+        with self.app.journal.writer() as writer:
+            live = self._record(writer.value, record["run"]["work_run_id"])
+            _require(live == record, "Steering optional task raced with control")
+            live.setdefault("steering_optional", []).append(response)
+            writer.commit(self.app.clock())
+
+    async def triage(self, work_run_id, *, temporal_run_id):
+        record = self._record(self.app.journal.read(), work_run_id)
+        self._authority(record)
+        self._native(record, temporal_run_id)
+        if record.get("steering_question"):
+            return copy.deepcopy(record["steering_question"])
+        decision = evidence = None
+        steps = agent_plan(record)["steps"]
+        boundary_index = next(index for index, step in enumerate(steps) if step["stage_id"] == "normalization_report")
+        for step in steps[:boundary_index]:
+            if step["stage_id"] == "capture_evidence":
+                decision, evidence = await self._specialist(
+                    record, step, "Call knowledge_read for every page of every exact source chunk before triage. Return one JSON object with nonempty string summary, issues (concrete issue strings, empty only when none), nonempty string normalization_instructions, and question (a concrete clarification asking for the owner's report label). Ground all analysis in the actual reads. Do not produce the report or claim an effect.",
+                )
+                record = self._record(self.app.journal.read(), work_run_id)
+                _validate_capture_agent(self.app, record, step, evidence, self.runner_binding)
+                _validate_triage_decision(decision, question=True)
+            else:
+                await self._optional(record, step, handoffs=() if decision is None else (decision,))
+                record = self._record(self.app.journal.read(), work_run_id)
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, work_run_id)
             self._authority(record)
@@ -618,13 +778,15 @@ class SafeCurationSteering:
             _path, raw = _source(self.app, record["method_source_reference"])
             record["steering_triage"] = {"source_digest": digest(raw), "size_bytes": len(raw),
                 "generation": record["run"]["generation"], "graph_run_id": record["run"]["active_graph_run_id"],
-                "executed_nodes": ["node.capture_evidence"], "not_run_nodes": ["node.normalization_proposal"]}
+                "executed_nodes": [step["node_id"] for step in steps[:boundary_index]],
+                "not_run_nodes": [step["node_id"] for step in steps[boundary_index:]],
+                "decision": decision, "agent_evidence": evidence}
             run = self._advance(record, state="awaiting_human")
             record["steering_boundary"] = "question"
             target_digest = record_digest(self.target(record))
             from datetime import timedelta
             question = {"owner_operation_id": "knowledgeos", "request_id": "request.steering.question." + record_digest({"id": work_run_id})[7:39],
-                        "request_revision": 1, "question": "What nonempty label should the later normalization report retain?",
+                        "request_revision": 1, "question": decision["question"],
                         "impact": "The answer changes future context only; triage and the partial Graph remain immutable.",
                         "allowed_actions": ["approve"], "evidence_reference_ids": [record["method_source_reference"]["logical_id"]],
                         "expires_at": stamp(self.app.clock() + timedelta(hours=1)), "lifecycle": "pending",
@@ -656,8 +818,28 @@ class SafeCurationSteering:
             writer.commit(self.app.clock())
             return copy.deepcopy(proof)
 
+    def _validate_triage(self, record):
+        triage = record["steering_triage"]
+        evidence = triage["agent_evidence"]
+        initial_id = record["run"]["graph_run_ids"][0]
+        step = stage_step(record, "capture_evidence", initial_id)
+        _path, raw = _source(self.app, record["method_source_reference"])
+        _require(triage["source_digest"] == digest(raw) and triage["size_bytes"] == len(raw)
+                 and triage["graph_run_id"] == initial_id
+                 and evidence["request"]["agent_request"]["graph_run_id"] == initial_id
+                 and triage["decision"] == evidence["decision"]
+                 and record.get("steering_triage_request") == evidence["request"]
+                 and record.get("steering_triage_attempt") == {
+                     "request": evidence["request"], "response": evidence["response"]}
+                 and record.get("steering_triage_decision") == evidence,
+                 "Triage is not the exact retained source/model decision")
+        _validate_capture_agent(self.app, record, step, evidence, self.runner_binding,
+                                spec=record.get("steering_spec_history", [record["spec"]])[0])
+        _validate_triage_decision(triage["decision"], question=True)
+
     def _evaluation(self, record, *, complete, reference):
         spec, run = record["spec"], record["run"]
+        self._validate_triage(record)
         evaluator = spec["eval_officer_executor_id"]
         _require(evaluator not in [spec["manager_executor_id"], *spec["allowed_executor_ids"]], "Evaluation must be independent")
         graph_id = run["active_graph_run_id"]
@@ -686,7 +868,16 @@ class SafeCurationSteering:
         return {"assessment": assessment, "evaluations": [evaluation], "checkpoints": {graph_id: checkpoint},
                 "artifacts": artifacts, "segment": copy.deepcopy(segment), "spec": copy.deepcopy(spec), "run": copy.deepcopy(run)}
 
-    def partial(self, payload, *, temporal_run_id):
+    async def partial(self, payload, *, temporal_run_id):
+        record = self._record(self.app.journal.read(), payload["work_run_id"])
+        self._authority(record)
+        self._native(record, temporal_run_id)
+        if record.get("steering_partial") is not None:
+            self._check_partial(record)
+            return {"assessment_digest": record_digest(record["steering_partial"]["assessment"]), "outcome": "not_run"}
+        _path, raw = _source(self.app, record["method_source_reference"])
+        structural = self._evaluation(record, complete=False, reference=_artifact(record["method_source_reference"], raw))
+        result = await self._semantic(record, structural, pending_control_id=payload["command_id"])
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, payload["work_run_id"])
             self._authority(record)
@@ -701,11 +892,13 @@ class SafeCurationSteering:
                      and proof.get("generation") == record["run"]["generation"]
                      and proof.get("fencing_token") == record["run"]["fencing_token"],
                      "CUTOVER did not use the actual interrupted native Graph")
-            _require(record["steering_triage"]["not_run_nodes"] == ["node.normalization_proposal"]
+            pending_steps = agent_plan(record)["steps"]
+            report_index = next(index for index, step in enumerate(pending_steps) if step["stage_id"] == "normalization_report")
+            _require(record["steering_triage"]["not_run_nodes"] == [step["node_id"] for step in pending_steps[report_index:]]
                      and "steering_report" not in record, "Partial Graph already dispatched the replacement effect")
             _path, raw = _source(self.app, record["method_source_reference"])
             _require(record["steering_triage"]["source_digest"] == digest(raw), "Triage source evidence changed")
-            result = self._evaluation(record, complete=False, reference=_artifact(record["method_source_reference"], raw))
+            _require(result["run"] == record["run"], "Work changed during partial semantic assessment")
             previous = record.get("steering_partial")
             if previous is not None:
                 result["assessment"]["assessed_at"] = previous["assessment"]["assessed_at"]
@@ -720,8 +913,12 @@ class SafeCurationSteering:
         self.exops.contracts.assessment(retained["assessment"], retained["spec"], retained["run"], segments=[retained["segment"]],
             evaluations=retained["evaluations"], artifacts=retained["artifacts"], checkpoints=retained["checkpoints"],
             candidate_assessor_id=record["spec"]["eval_officer_executor_id"])
+        evidence = retained["agent_evidence"]
+        _require(evidence["content_digest"] == record_digest(evidence, ("content_digest",)),
+                 "Partial semantic evidence changed")
+        validate_role_evidence(self.app.roots.control, "knowledgeos.eval_officer", evidence["response"], tools=[])
 
-    def successor(self, work_run_id, *, temporal_run_id):
+    async def successor(self, work_run_id, *, temporal_run_id):
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, work_run_id)
             self._authority(record)
@@ -733,18 +930,12 @@ class SafeCurationSteering:
                         and value["target"]["work_run_id"] == work_run_id and value["body"]["kind"] == "cutover"]
             _require(len(commands) == 1 and commands[0]["state"] == "applied", "Successor requires exactly one safely applied CUTOVER")
             record["steering_cutover"] = copy.deepcopy(commands[0]["directive"])
-            bundle, artifacts = self._make_bundle(record, successor=True)
-            graph_id = bundle["segment"]["graph_run_id"]
-            run = record["run"]
-            record["steering_successor_admission_run"] = copy.deepcopy(run)
-            self._advance(record, active_graph_run_id=graph_id, graph_run_ids=[*run["graph_run_ids"], graph_id],
-                          segments_started=run["segments_started"] + 1, profile_invocations=run["profile_invocations"] + 1)
-            record["steering_bundles"][graph_id] = bundle
-            record["admitted_method_segments"][graph_id] = {"segment": bundle["segment"], "assignments": bundle["assignments"]}
-            record["artifact_references"].update(artifacts)
-            record.update(steering_successor_context=copy.deepcopy(record["steering_context"]), steering_boundary="normalization")
             writer.commit(self.app.clock())
-            return {"work_run_id": work_run_id, "generation": record["run"]["generation"], "fencing_token": record["run"]["fencing_token"], "graph_run_id": graph_id}
+        record = self._record(self.app.journal.read(), work_run_id)
+        await self._compose(record, successor=True)
+        run = self._record(self.app.journal.read(), work_run_id)["run"]
+        return {"work_run_id": work_run_id, "generation": run["generation"],
+                "fencing_token": run["fencing_token"], "graph_run_id": run["active_graph_run_id"]}
 
     @staticmethod
     def _report_reference(raw, *, prefix="artifact.steering.report."):
@@ -765,7 +956,26 @@ class SafeCurationSteering:
             report.update(label=context["answer"], line_count=len(lines))
         return canonical(report)
 
-    def normalize(self, token, *, temporal_run_id):
+    async def normalize(self, token, *, temporal_run_id):
+        record = self._record(self.app.journal.read(), token["work_run_id"])
+        self._authority(record)
+        self._native(record, temporal_run_id)
+        run = record["run"]
+        _require(token == {"work_run_id": run["work_run_id"], "generation": run["generation"], "fencing_token": run["fencing_token"],
+                           "graph_run_id": run.get("active_graph_run_id")}, "Late old-generation Profile cannot execute")
+        _require(record.get("steering_boundary") == "normalization" and run["state"] == "running"
+                 and not run["pending_action_ids"], "Report cannot run before safely admitted CUTOVER and successor release")
+        decision = evidence = None
+        for step in agent_plan(record)["steps"]:
+            if step["stage_id"] == "normalization_report":
+                decision, evidence = await self._specialist(
+                    record, step, "Produce the actual report as one JSON object, not code or explanation. Include exactly source_digest, lines (every nonempty stripped source line, alphabetical if owner_context.order is alphabetical, otherwise source order), order, answer (exact owner answer), and objective (exact admitted objective). For work_spec_revision 2 also include label (exact answer) and line_count. No canonical writes.",
+                )
+            else:
+                await self._optional(record, step, handoffs=() if decision is None else (decision,))
+                record = self._record(self.app.journal.read(), token["work_run_id"])
+        _require(decision is not None, "Successor has no actual report specialist")
+        model_raw = canonical(decision)
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, token["work_run_id"])
             self._authority(record)
@@ -774,9 +984,11 @@ class SafeCurationSteering:
             _require(token == {"work_run_id": run["work_run_id"], "generation": run["generation"], "fencing_token": run["fencing_token"],
                                "graph_run_id": run.get("active_graph_run_id")}, "Late old-generation Profile cannot commit")
             _require(run["state"] == "running" and not run["pending_action_ids"] and record["steering_boundary"] == "normalization", "Normalization is not scheduled")
-            raw = self._normalized(record)
+            raw = model_raw
+            _require(raw == self._normalized(record), "Model report differs from exact source, ordering or owner answer")
             reference = self._report_reference(raw)
             value = {"reference": reference, "bytes": base64.b64encode(raw).decode(), "token": token}
+            record["steering_report_agent"] = evidence
             _require(record.get("steering_report", value) == value, "Report publication conflicts with prior effect")
             # Sole effect boundary: bytes and successful effect receipt share this
             # writer transaction. No filesystem/provider effect precedes the commit.
@@ -795,7 +1007,14 @@ class SafeCurationSteering:
             writer.commit(self.app.clock())
             return {"work_run_id": run["work_run_id"], "reference": reference}
 
-    def finish(self, work_run_id, *, temporal_run_id):
+    async def finish(self, work_run_id, *, temporal_run_id):
+        record = self._record(self.app.journal.read(), work_run_id)
+        self._authority(record)
+        self._native(record, temporal_run_id)
+        if record.get("application_state") == "recorded":
+            return copy.deepcopy(record["receipt"])
+        structural = self._evaluation(record, complete=True, reference=record["steering_report"]["reference"])
+        result = await self._semantic(record, structural)
         with self.app.journal.writer() as writer:
             record = self._record(writer.value, work_run_id)
             self._authority(record)
@@ -808,17 +1027,29 @@ class SafeCurationSteering:
             receipt = writer.value["receipts"].get(_receipt_key(record["steering_report_intent"]["effect_id"]), {})
             _require(receipt.get("unresolved") is False and receipt.get("receipt", {}).get("result_digest") == digest(raw), "Report effect is unresolved")
             self.exops.contracts.effect(record["steering_report_intent"], record["run"], receipt=receipt["receipt"])
-            result = self._evaluation(record, complete=True, reference=report["reference"])
+            _require(result["run"] == record["run"], "Work changed during final semantic assessment")
+            record["steering_final_semantic"] = {"evidence": result.pop("agent_evidence"),
+                                                "remaining_work": result.pop("remaining_work"),
+                                                "assessment": result["assessment"]}
             previous = copy.deepcopy(record["run"])
             run = {**previous, "revision": previous["revision"] + 1, "control_revision": previous["control_revision"] + 1,
-                   "state": "completed", "active_graph_run_id": None, "latest_assessment_id": result["assessment"]["assessment_id"],
+                   "state": "completed" if result["assessment"]["completion_state"] == "complete" else "awaiting_human",
+                   "latest_assessment_id": result["assessment"]["assessment_id"],
                    "latest_assessment_digest": record_digest(result["assessment"]), "result_reference": report["reference"]}
             run.pop("active_graph_run_id")
+            remaining = record["steering_final_semantic"]["remaining_work"]
+            if remaining is not None:
+                run.pop("result_reference", None)
+                record["remaining_work"] = copy.deepcopy(remaining)
+            else:
+                record.pop("remaining_work", None)
+            record["continuation_state"] = "completed" if remaining is None else "human_required"
             self.exops.contracts.run(run, record["spec"], previous=previous, assessment=result["assessment"], segments=[result["segment"]],
                 evaluations=result["evaluations"], artifacts=result["artifacts"], checkpoints=result["checkpoints"],
                 candidate_assessor_id=record["spec"]["eval_officer_executor_id"])
             record.update(run=run, assessment=result["assessment"], evaluations=result["evaluations"], checkpoints=result["checkpoints"],
-                          assessment_artifacts=result["artifacts"], application_state="recorded", state="recorded", steering_boundary="completed")
+                          assessment_artifacts=result["artifacts"], application_state="recorded", state="recorded",
+                          steering_boundary="completed" if run["state"] == "completed" else "human_required")
             record["receipt"].update(application_state="recorded", dispatch_state="dispatched")
             execution = {key: record["execution_intent"][key] for key in (
                 "owner_operation_id", "effect_id", "content_digest", "generation", "fencing_token", "work_run_id")}
@@ -835,6 +1066,62 @@ class SafeCurationSteering:
             })
             writer.commit(self.app.clock())
             return copy.deepcopy(record["receipt"])
+
+    async def _semantic(self, record, structural, *, pending_control_id=None):
+        source = record["method_source_reference"]
+        path, raw = _source(self.app, source)
+        self._validate_triage(record)
+        artifacts = []
+        report = record.get("steering_report")
+        if report is not None:
+            content = base64.b64decode(report["bytes"], validate=True)
+            _require(content == self._normalized(record) and report["reference"] == self._report_reference(content),
+                     "Report bytes or context changed before independent assessment")
+            report_evidence = record["steering_report_agent"]
+            report_step = stage_step(record, "normalization_report")
+            _, parsed = decision_from_response(report_evidence["request"], report_evidence["response"])
+            _require(report_step["tools"] == [] and report_evidence == parsed
+                     and report_evidence["content_digest"] == record_digest(report_evidence, ("content_digest",))
+                     and report_evidence["request"]["request_digest"] == record_digest(
+                         report_evidence["request"], ("request_digest",))
+                     and record.get("steering_report_request") == report_evidence["request"]
+                     and record.get("steering_report_attempt") == {
+                         "request": report_evidence["request"], "response": report_evidence["response"]}
+                     and record.get("steering_report_decision") == report_evidence
+                     and canonical(report_evidence["decision"]) == content
+                     and report_evidence["request"]["agent_request"]["context"]["agent_step"] == report_step,
+                     "Report was not produced by its actual admitted specialist")
+            validate_role_evidence(self.app.roots.control, report_step["role_id"], report_evidence["response"],
+                                   tools=[], route=report_step["route"])
+            receipt = self.app.journal.read()["receipts"].get(
+                _receipt_key(record["steering_report_intent"]["effect_id"]), {})
+            _require(receipt.get("unresolved") is False
+                     and receipt.get("receipt", {}).get("result_digest") == digest(content),
+                     "Semantic assessment cannot overlook an unresolved report effect")
+            self.exops.contracts.effect(record["steering_report_intent"], record["run"], receipt=receipt["receipt"])
+            artifacts.append({"artifact_reference": report["reference"], "content_text": content.decode("utf-8")})
+        next_run = {**copy.deepcopy(record["run"]), "revision": record["run"]["revision"] + 1,
+                    "control_revision": record["run"]["control_revision"] + 1}
+        if report is not None:
+            next_run["result_reference"] = report["reference"]
+        candidate = WorkResult(next_run, structural["assessment"], (structural["segment"],),
+                               tuple(structural["evaluations"]), structural["artifacts"], structural["checkpoints"],
+                               record["spec"]["eval_officer_executor_id"])
+        assessed = await assess_result(self.exops, self.runner, record, candidate, evidence={
+            "sources": [{"source_reference": source, "source_path": path, "source_text": raw.decode("utf-8")}],
+            "artifacts": artifacts,
+            "observations": {"triage": record["steering_triage"],
+                             "owner_context": record.get("steering_successor_context", record.get("steering_context")),
+                             "partial": record.get("steering_partial"), "report_agent": record.get("steering_report_agent"),
+                             "optional": record.get("steering_optional", [])},
+        }, **({"pending_control_id": pending_control_id} if pending_control_id is not None else {}))
+        result = assessed["result"]
+        _require(report is not None or assessed["remaining_work"] is not None,
+                 "Partial read-only Graph cannot certify the required report effect")
+        return {**structural, "assessment": result.assessment, "evaluations": list(result.evaluations),
+                "checkpoints": result.checkpoints, "artifacts": result.artifacts,
+                "agent_evidence": assessed["evidence"], "remaining_work": assessed["remaining_work"]}
+
 
     def export(self, work_run_id, *, actor):
         record = self._record(self.app.journal.read(), work_run_id)

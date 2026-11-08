@@ -30,9 +30,10 @@
 ## AgentFabric target model
 
 - Use the adopted Core environment model in source: Operation canonical and durable control State, host reconstructable Runtime and shared service execution, independently governed Vault knowledge.
-- Keep `States/Operations/knowledgeos/` as the detachable owner State root and `Runtimes/KnowledgeOS-runtime/` as reconstructable host Runtime. Retire predeployment archives only through an exact-reference, owner-locked transition; the current owner State has its own Core 0.18.1 pins and journal.
-- Treat Core 0.19.0 source adoption as separate from those owner State pins and reject incompatible State until an explicitly admitted transition or old-binding reconstruction.
-- Keep Operation routing/export policy, durable delivery intent, outcomes, and decisions when using a shared host transport.
+- Keep `States/Operations/knowledgeos/` as detachable owner State and `Runtimes/KnowledgeOS-runtime/` as reconstructable host Runtime; preserve exact retained pins and unresolved effects during any separately authorized transition.
+- Treat Core 0.20.1 / semantic 0.7.1 source adoption as separate from owner State and installed runtime pins; reject incompatible State without fallback or automatic migration.
+- Keep the administrative HTML/JavaScript surface in Operation-owned `frontend/`, served by the same ExOps backend; retain all human document workflows in native Obsidian.
+- Bind a distinct KnowledgeOS outbound Discord bot through host-owned credentials and transport; keep export/routing policy, durable notices and uncertain delivery outcomes owner-owned.
 - Assign one dedicated Manager to each of seven KnowledgeOS Team definitions: CurationManager, StewardshipManager, ResearchManager, OntologyManager, ReviewManager, ExchangeManager and MaintenanceManager. A Team exists only with its Manager identity and selects needed teammate calls per admitted Work; use docs/TEAMS_AND_ROADMAP.md for exact routes.
 - Bind admitted Team work to its selected Manager through team_id and manager_executor_id, preserve that binding through immutable continuation, and require explicit Director amendment and owner validation for changes. A bounded Officer task has no Team or Manager binding. Reuse immutable teammate definitions across Teams and compatible Operations only through separate local authority bindings. Keep EvalOfficer independent from the selected Manager, teammates and producing Officer.
 - Use `ops/config/core-adoption.json` and current Work, method, policy, and MCP contracts for implementation.

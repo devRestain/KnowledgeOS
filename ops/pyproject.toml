@@ -35,6 +35,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vaultops"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"../frontend/index.html" = "vaultops/frontend/index.html"
+"../frontend/app.js" = "vaultops/frontend/app.js"
+"../frontend/style.css" = "vaultops/frontend/style.css"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"

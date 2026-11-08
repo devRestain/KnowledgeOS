@@ -35,5 +35,5 @@
 ## Apply target definitions
 
 - Remove withdrawn predeployment commands, paths, tests, and claims from maintained contracts.
-- Distinguish Core 0.19.0 source adoption from independently pinned owner State and separately evidenced native activation.
+- Distinguish exact Core source adoption from independently pinned owner State and separately evidenced installed runtime and device activation.
 - Keep maintained indexes and domain authoring plans with KnowledgeOS while placing intermediate review tooling in workspace Tmp.

@@ -22,11 +22,10 @@ from .knowledge import KnowledgeApplication
 from .team_catalog import OfficerBinding, TeamBinding, TeamCatalog
 from .temporal_contract import (
     CONTINUATION_METHOD_ID,
-    CONTINUATION_WORKFLOW_TYPE,
     CONTROL_WORKFLOW_TYPE,
+    CURATION_METHOD_ID,
     RESEARCH_METHOD_ID,
-    RESEARCH_WORKFLOW_TYPE,
-    TEAM_WORKFLOW_TYPE,
+    TEAM_METHOD_ROUTES,
     WORKFLOW_TYPE,
     native_team_route,
 )
@@ -59,32 +58,23 @@ def _require(condition: bool, code: str, message: str) -> None:
 
 
 def work_workflow_type(record: Mapping[str, Any]) -> str:
-    """Select the native route already bound into the owner admission."""
+    """Select only the concrete native route bound into the Owner admission."""
     spec = record["spec"]
-    continuation = spec.get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID
-    if record.get("control_checkpoint") is True or continuation:
-        _require(spec["target_kind"] == "team" and continuation,
-                 "BINDING_INVALID", "Temporal Workflow type differs from the admitted Work method")
-        return CONTROL_WORKFLOW_TYPE if record.get("control_checkpoint") is True else CONTINUATION_WORKFLOW_TYPE
     if spec["target_kind"] == "officer":
+        _require(not record.get("control_checkpoint"), "BINDING_INVALID",
+                 "Standalone Officer cannot select a Team control checkpoint")
+        _require(not spec.get("method_contract_ref"), "BINDING_INVALID",
+                 "Standalone Officer cannot select a Team method")
         return WORKFLOW_TYPE
     method_id = spec.get("method_contract_ref", {}).get("method_id")
-    native_route = native_team_route(spec)
-    if native_route is not None:
-        _require(spec.get("team_id") == native_route[0] and not record.get("control_checkpoint"),
-                 "BINDING_INVALID", "Native method requires its exact selected Team")
-        return native_route[1]
-    if method_id == "knowledgeos.capture_steering_team":
-        _require(spec.get("team_id") == "knowledge-curation",
-                 "BINDING_INVALID", "Steering method requires its exact Curation Team")
-        return "KnowledgeOSCurationSteeringWorkflow"
-    if method_id == RESEARCH_METHOD_ID:
-        _require(spec.get("team_id") == "evidence-research" and not record.get("control_checkpoint"),
-                 "BINDING_INVALID", "Research method requires its exact Team")
-        return RESEARCH_WORKFLOW_TYPE
-    _require(spec.get("team_id") != "evidence-research",
-             "BINDING_INVALID", "Research Team cannot run another method")
-    return TEAM_WORKFLOW_TYPE
+    route = TEAM_METHOD_ROUTES.get(method_id)
+    _require(route is not None and spec.get("team_id") == route[0], "BINDING_INVALID",
+             "Team Work requires its exact implemented catalog method")
+    if record.get("control_checkpoint") is True:
+        _require(method_id == CONTINUATION_METHOD_ID, "BINDING_INVALID",
+                 "Control checkpoint requires the continuation method")
+        return CONTROL_WORKFLOW_TYPE
+    return route[1]
 
 
 class KnowledgeExOps:
@@ -103,6 +93,8 @@ class KnowledgeExOps:
         director_admitted: Callable[[Mapping[str, Any]], bool] | None = None,
         current_team_binding: Callable[[str], TeamBinding | None] | None = None,
         teams: Mapping[str, TeamBinding] | None = None,
+        method_teams: Mapping[str, TeamBinding] | None = None,
+        current_method_binding: Callable[[str], TeamBinding | None] | None = None,
         worker_identity: str | None = None,
         current_officer_binding: Callable[[str], OfficerBinding | None] | None = None,
         officers: Mapping[str, OfficerBinding] | None = None,
@@ -114,11 +106,12 @@ class KnowledgeExOps:
                  "ExOps requires live owner actor authorization")
         if read_only:
             _require(not any((director_admitted, current_team_binding, teams, worker_identity,
-                              current_officer_binding, officers, director_method_source_admitted,
-                              director_officer_source_admitted)),
+                              method_teams, current_method_binding, current_officer_binding, officers,
+                              director_method_source_admitted, director_officer_source_admitted)),
                      "BINDING_INVALID", "Read-only ExOps cannot bind execution authorities")
         else:
-            _require(callable(director_admitted) and callable(current_team_binding),
+            _require(callable(director_admitted)
+                     and (callable(current_team_binding) or callable(current_method_binding)),
                      "BINDING_INVALID", "ExOps requires live owner authority callbacks")
             _require(bool(worker_identity), "BINDING_INVALID", "Worker identity is required")
         self.read_only = read_only
@@ -127,8 +120,11 @@ class KnowledgeExOps:
         self.director_admitted = director_admitted
         self.current_team_binding = current_team_binding
         self.teams = dict(teams or {})
+        self.method_teams = dict(method_teams or {})
+        self.current_method_binding = current_method_binding
         self.current_officer_binding = current_officer_binding
         self.officers = dict(officers or {})
+        self.method_executors = {}
         self.director_method_source_admitted = director_method_source_admitted
         self.director_officer_source_admitted = director_officer_source_admitted
         self.worker_identity = worker_identity
@@ -139,6 +135,26 @@ class KnowledgeExOps:
                      "Team registry key differs from its owner registration")
             self.catalog.validate_binding(binding)
             self.contracts.record("ArtifactReference", binding.binding_reference)
+        _require(not self.method_teams or callable(current_method_binding), "BINDING_INVALID",
+                 "Method registrations require current method-specific authority")
+        managers = {}
+        manager_teams = {}
+        methods = WorkMethodCatalog.load(application.roots.control) if self.method_teams else None
+        for method_id, binding in (*self.teams.items(), *self.method_teams.items()):
+            self.catalog.validate_binding(binding)
+            self.contracts.record("ArtifactReference", binding.binding_reference)
+            if method_id in self.method_teams:
+                _require(method_id in methods.methods
+                         and methods.methods[method_id]["team_id"] == binding.team_id,
+                         "BINDING_INVALID", "Method registration selects another Team")
+            identity = (binding.manager_executor_id, dict(binding.manager_profile))
+            _require(binding.team_id not in managers or managers[binding.team_id] == identity,
+                     "BINDING_INVALID", "Methods must retain their Team's dedicated Manager")
+            _require(binding.manager_executor_id not in manager_teams
+                     or manager_teams[binding.manager_executor_id] == binding.team_id,
+                     "BINDING_INVALID", "A dedicated Manager cannot serve another Team")
+            managers[binding.team_id] = identity
+            manager_teams[binding.manager_executor_id] = binding.team_id
         _require(not self.officers or callable(self.current_officer_binding),
                  "BINDING_INVALID", "Officer registration needs a current owner binding check")
         for executor_id, binding in self.officers.items():
@@ -171,6 +187,23 @@ class KnowledgeExOps:
             _require(load_json(transition).get("phase") == "complete", "STORAGE_TRANSITION_PENDING",
                      "Finish exact State preservation before ExOps writes")
 
+    def team_for_spec(self, spec: Mapping[str, Any]) -> TeamBinding:
+        """Resolve this Work's exact currently authorized method registration."""
+        _require(spec.get("target_kind") == "team", "SCOPE_DENIED", "Work does not target a Team")
+        method_id = spec.get("method_contract_ref", {}).get("method_id")
+        if self.method_teams:
+            registered = self.method_teams.get(method_id)
+            current = (self.current_method_binding(method_id)
+                       if registered is not None else None)
+        else:
+            registered = self.teams.get(spec.get("team_id"))
+            current = (self.current_team_binding(spec.get("team_id"))
+                       if registered is not None and self.current_team_binding is not None else None)
+        _require(registered is not None and current == registered, "SCOPE_DENIED",
+                 "Current method Team and dedicated Manager/EvalOfficer binding differ")
+        self.catalog.validate_spec(spec, registered)
+        return registered
+
     def _team_binding(self, spec: Mapping[str, Any], run: Mapping[str, Any]) -> None:
         if "method_contract_ref" in spec:
             WorkMethodCatalog.load(self.application.roots.control).admitted_method(spec, self.contracts)
@@ -183,12 +216,9 @@ class KnowledgeExOps:
                      "SCOPE_DENIED", "Current standalone Officer/EvalOfficer binding differs")
             self.catalog.validate_officer_spec(spec, registered)
             return
-        registered = self.teams.get(spec["team_id"])
-        current = self.current_team_binding(spec["team_id"])
-        _require(registered is not None and current == registered
-                 and dict(run["binding_reference"]) == dict(registered.binding_reference),
-                 "SCOPE_DENIED", "Current Team and dedicated Manager/EvalOfficer binding differ")
-        self.catalog.validate_spec(spec, registered)
+        registered = self.team_for_spec(spec)
+        _require(dict(run["binding_reference"]) == dict(registered.binding_reference),
+                 "SCOPE_DENIED", "Work binding differs from its exact current method registration")
 
     def admit_method_segment(self, work_run_id: str, *, manager_executor_id: str,
                              bundle: Mapping[str, Any],
@@ -226,7 +256,7 @@ class KnowledgeExOps:
             methods.validate_segment(spec=spec, run=run, bundle=bundle,
                                      contracts=self.contracts, artifacts=artifacts, **lineage)
             self.catalog.validate_assignments(
-                bundle["assignments"], self.teams[spec["team_id"]], spec)
+                bundle["assignments"], self.team_for_spec(spec), spec)
             segment = bundle["segment"]
             self.application.resolve_reference(dict(source_reference))
             _require(dict(source_reference) == record.get("method_source_reference"),
@@ -254,7 +284,7 @@ class KnowledgeExOps:
                 "method_contract_ref": copy.deepcopy(spec["method_contract_ref"]),
                 "source_reference": copy.deepcopy(dict(source_reference)),
                 "team_catalog_digest": self.catalog.digest,
-                "native_binding_digest": self.teams[spec["team_id"]].native_binding_digest,
+                "native_binding_digest": self.team_for_spec(spec).native_binding_digest,
             }
             session.value["history"].append({"event": "exops_method_graph_admitted",
                                              "work_run_id": work_run_id,
@@ -459,8 +489,10 @@ class KnowledgeExOps:
                   "observed_at": self.application.journal.read()["observed_at"]}
         if "continuation_state" in record:
             result["continuation_state"] = record["continuation_state"]
-            remaining = record["remaining_work"]
-            if remaining["assessment_digest"] == record["run"].get("latest_assessment_digest"):
+            remaining = record.get("remaining_work")
+            if (isinstance(remaining, dict)
+                    and remaining["assessment_digest"] == record["run"].get("latest_assessment_digest")
+                    and remaining["assessment_id"] == record["run"].get("latest_assessment_id")):
                 result["remaining_work"] = copy.deepcopy(remaining)
         return result
 
@@ -947,33 +979,17 @@ class KnowledgeExOps:
             record = session.value["intents"].get(_key(work_run_id))
             _require(record is not None and record["action_id"] == action_id,
                      "STALE_REVISION", "Worker result target changed")
+            method_id = record["spec"].get("method_contract_ref", {}).get("method_id")
             native_route = native_team_route(record["spec"])
-            if native_route is not None:
-                executor = getattr(self, native_route[2] + "_executor", None)
+            fresh = None
+            if native_route is not None or method_id == RESEARCH_METHOD_ID:
+                executor = self.method_executors.get(method_id)
                 _require(executor is not None and executor.exops is self,
-                         "BINDING_INVALID", "Native result requires its independent owner executor")
-                current = executor.current(work_run_id)
+                         "BINDING_INVALID", "Native result requires its independent method executor")
+                current = (executor._current(work_run_id) if method_id == RESEARCH_METHOD_ID
+                           else executor.current(work_run_id))
                 _require(current == record, "STALE_REVISION", "Native Work changed before result commit")
-                fresh = executor.assess_record(record)
-                _require(dict(fresh.next_run) == dict(next_run)
-                         and fresh.artifacts == artifacts and fresh.checkpoints == checkpoints
-                         and dict(fresh.assessment) == dict(assessment)
-                         and tuple(fresh.evaluations) == tuple(evaluations)
-                         and fresh.candidate_assessor_id == candidate_assessor_id,
-                         "EVIDENCE_REQUIRED", "Native result differs from fresh independent assessment")
-            if (record["spec"].get("method_contract_ref", {}).get("method_id") == RESEARCH_METHOD_ID
-                    and any(item["criterion_id"] == "criterion.cited_report"
-                            for item in record["spec"]["acceptance_criteria"])):
-                executor = getattr(self, "research_executor", None)
-                _require(executor is not None and executor.exops is self,
-                         "BINDING_INVALID", "Research result requires its exact independent owner executor")
-                current = executor._current(work_run_id)
-                _require(current == record, "STALE_REVISION", "Research changed before result commit")
-                fresh = executor._assess(record)
-                _require(dict(fresh.next_run) == dict(next_run)
-                         and fresh.artifacts == artifacts and fresh.checkpoints == checkpoints
-                         and fresh.assessment["criterion_outcomes"] == assessment["criterion_outcomes"],
-                         "EVIDENCE_REQUIRED", "Research result differs from fresh independent assessment")
+                fresh = executor.final_result(record)
             if record["spec"].get("method_contract_ref", {}).get("method_id") == CONTINUATION_METHOD_ID:
                 if record.get("control_checkpoint") is True:
                     controller = getattr(self, "curation_control", None)
@@ -1007,7 +1023,7 @@ class KnowledgeExOps:
                          and record["spec"]["target_kind"] == "team"
                          and record["spec"].get("method_contract_ref", {}).get("method_id")
                              == "knowledgeos.capture_normalization_team"
-                         and next_run["state"] == "completed"
+                         and next_run["state"] in {"completed", "awaiting_human"}
                          and isinstance(recovery, dict) and recovery.get("state") == "applying"
                          and recovery.get("actor_id") == record.get("actor_id")
                          and recovery.get("work_record_digest") == record_digest(record)
@@ -1038,12 +1054,28 @@ class KnowledgeExOps:
                              == evidence.get("source_digest")
                          and self.application.reference(effect["artifact_path"], proposal=True)[
                              "content_digest"] == evidence.get("proposal_digest")
-                         and next_run["result_reference"]["content_digest"]
-                             == evidence.get("proposal_digest"),
+                         and (next_run["state"] != "completed"
+                              or next_run["result_reference"]["content_digest"]
+                                  == evidence.get("proposal_digest")),
                          "DIGEST_MISMATCH", "Recovery source or Pending bytes changed before commit")
             else:
                 _require(record["application_state"] == "started", "STALE_REVISION",
                          "Worker result has no active owner attempt")
+            if method_id in {CURATION_METHOD_ID, CONTINUATION_METHOD_ID}:
+                executor = self.method_executors.get(method_id)
+                _require(executor is not None or not record["spec"]["admission_receipt_id"].startswith("admission.owner."),
+                         "BINDING_INVALID", "Owner Curation result lacks its independent method executor")
+                if executor is not None:
+                    fresh = executor.final_result(record, semantic_assessment=(
+                        recovery["semantic_assessment"] if recovery is not None else None))
+            if fresh is not None:
+                _require(dict(fresh.next_run) == dict(next_run)
+                         and tuple(fresh.segments) == tuple(segments)
+                         and fresh.artifacts == artifacts and fresh.checkpoints == checkpoints
+                         and dict(fresh.assessment) == dict(assessment)
+                         and tuple(fresh.evaluations) == tuple(evaluations)
+                         and fresh.candidate_assessor_id == candidate_assessor_id,
+                         "EVIDENCE_REQUIRED", "Worker result differs from its actual independent semantic judgment")
             if "method_contract_ref" in record["spec"]:
                 admitted = record.get("admitted_method_segments", {})
                 _require(admitted and {item["graph_run_id"] for item in segments} == set(admitted)
@@ -1130,7 +1162,13 @@ class KnowledgeExOps:
                 record["evaluations"] = copy.deepcopy(list(evaluations))
                 record["checkpoints"] = copy.deepcopy(dict(checkpoints or {}))
                 record["assessment_artifacts"] = copy.deepcopy(dict(artifacts or {}))
-            if "continuation_state" in record:
+            if recovery is not None:
+                remaining = recovery["semantic_assessment"]["remaining_work"]
+                if remaining is None:
+                    record.pop("remaining_work", None)
+                else:
+                    record["remaining_work"] = copy.deepcopy(remaining)
+            if "continuation_state" in record or recovery is not None:
                 record["continuation_state"] = "completed" if next_run["state"] == "completed" else "human_required"
             record["application_state"] = "recorded"
             record["receipt"]["application_state"] = "recorded"

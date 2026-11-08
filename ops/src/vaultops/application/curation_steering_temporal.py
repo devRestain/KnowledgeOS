@@ -1,6 +1,7 @@
 """Opt-in official Temporal/LangGraph Activities with exact native owner pins."""
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from functools import partial
 from importlib.metadata import version
@@ -27,12 +28,29 @@ class _SteeringActivities:
                  "Steering Activity has a foreign native Workflow binding")
         return info.workflow_run_id
 
+    async def _profile(self, work_run_id, invocation):
+        try:
+            return await invocation
+        except (Exception, asyncio.CancelledError):
+            def uncertain():
+                exops = self.controller.exops
+                record = self.controller._record(self.controller.app.journal.read(), work_run_id)
+                if (record["application_state"] == "started"
+                        and record.get("temporal_run_id") == self.native(work_run_id)):
+                    exops.worker_unknown(work_run_id, worker_identity=exops.worker_identity,
+                                         action_id=record["action_id"])
+
+            await asyncio.to_thread(uncertain)
+            raise
+
     async def manager(self, dispatch: dict) -> dict:
-        self.controller.start(dispatch, temporal_run_id=self.native(dispatch["work_run_id"]))
+        await self._profile(dispatch["work_run_id"],
+            self.controller.start(dispatch, temporal_run_id=self.native(dispatch["work_run_id"])))
         return dispatch
 
     async def triage(self, dispatch: dict) -> dict:
-        self.controller.triage(dispatch["work_run_id"], temporal_run_id=self.native(dispatch["work_run_id"]))
+        await self._profile(dispatch["work_run_id"],
+            self.controller.triage(dispatch["work_run_id"], temporal_run_id=self.native(dispatch["work_run_id"])))
         return {"work_run_id": dispatch["work_run_id"]}
 
     async def boundary(self, payload: dict) -> dict:
@@ -48,16 +66,20 @@ class _SteeringActivities:
         run = record["run"]
         token = {"work_run_id": run["work_run_id"], "generation": run["generation"],
                  "fencing_token": run["fencing_token"], "graph_run_id": run.get("active_graph_run_id")}
-        return self.controller.normalize(token, temporal_run_id=self.native(state["work_run_id"]))
+        return await self._profile(state["work_run_id"],
+            self.controller.normalize(token, temporal_run_id=self.native(state["work_run_id"])))
 
     async def successor(self, state: dict) -> dict:
-        return self.controller.successor(state["work_run_id"], temporal_run_id=self.native(state["work_run_id"]))
+        return await self._profile(state["work_run_id"],
+            self.controller.successor(state["work_run_id"], temporal_run_id=self.native(state["work_run_id"])))
 
     async def normalize(self, state: dict) -> dict:
-        return self.controller.normalize(state, temporal_run_id=self.native(state["work_run_id"]))
+        return await self._profile(state["work_run_id"],
+            self.controller.normalize(state, temporal_run_id=self.native(state["work_run_id"])))
 
     async def finish(self, state: dict) -> dict:
-        return self.controller.finish(state["work_run_id"], temporal_run_id=self.native(state["work_run_id"]))
+        return await self._profile(state["work_run_id"],
+            self.controller.finish(state["work_run_id"], temporal_run_id=self.native(state["work_run_id"])))
 
     async def apply(self, payload: dict) -> dict:
         from temporalio import activity
@@ -78,14 +100,13 @@ class _SteeringActivities:
     async def partial(self, dispatch: dict) -> dict:
         from temporalio import activity
         _require(activity.info().activity_type == PARTIAL_ACTIVITY, "Wrong partial evaluation Activity")
-        return self.controller.partial(dispatch, temporal_run_id=self.native(dispatch["work_run_id"]))
+        return await self.controller.partial(dispatch, temporal_run_id=self.native(dispatch["work_run_id"]))
 
 
-def steering_worker_components(controller):
+def steering_graph_components(controller):
     from langgraph.graph import END, START, StateGraph
     from temporalio import activity
     from temporalio.common import RetryPolicy
-    from temporalio.langgraph import LangGraphPlugin
 
     from .curation_steering import SafeCurationSteering
     from .curation_steering_workflow import KnowledgeOSCurationSteeringWorkflow
@@ -103,17 +124,27 @@ def steering_worker_components(controller):
         selected = StateGraph(dict)
         previous = START
         for node_name, node in nodes:
-            selected.add_node(node_name, node, metadata={"execute_in": "activity", "start_to_close_timeout": timedelta(seconds=30),
+            selected.add_node(node_name, node, metadata={"execute_in": "activity", "start_to_close_timeout": timedelta(minutes=10),
                                                         "retry_policy": RetryPolicy(maximum_attempts=1)})
             selected.add_edge(previous, node_name)
             previous = node_name
         selected.add_edge(previous, END)
         graphs[name] = selected
+    extra_activities = [
+        activity.defn(name=APPLY_ACTIVITY)(partial(owner.apply)),
+        activity.defn(name=PARTIAL_ACTIVITY)(partial(owner.partial)),
+        activity.defn(name=BOUNDARY_ACTIVITY)(partial(owner.boundary)),
+    ]
+    return KnowledgeOSCurationSteeringWorkflow, graphs, extra_activities
+
+
+def steering_worker_components(controller):
+    from temporalio.langgraph import LangGraphPlugin
+
+    workflow, graphs, activities = steering_graph_components(controller)
     plugin = LangGraphPlugin(graphs=graphs)
-    plugin.activities.extend((activity.defn(name=APPLY_ACTIVITY)(partial(owner.apply)),
-                              activity.defn(name=PARTIAL_ACTIVITY)(partial(owner.partial)),
-                              activity.defn(name=BOUNDARY_ACTIVITY)(partial(owner.boundary))))
-    return KnowledgeOSCurationSteeringWorkflow, plugin
+    plugin.activities.extend(activities)
+    return workflow, plugin
 
 
 async def deliver_steering(controller, client, work_run_id, command_id):

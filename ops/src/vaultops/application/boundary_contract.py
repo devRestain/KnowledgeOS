@@ -5,9 +5,8 @@ import base64
 import json
 
 from ..adapters.core import AdmissionError, canonical, digest
+from .agent_decisions import admitted_owner_parameters
 from .read_tools import KnowledgeReadTools
-
-EXCHANGE_PREFIX = "Adapt accepted Gateway receipt "
 
 
 def require(condition, message):
@@ -15,13 +14,14 @@ def require(condition, message):
         raise AdmissionError("SCOPE_DENIED", message)
 
 
-def exchange_receipt_id(objective):
-    require(isinstance(objective, str) and objective.startswith(EXCHANGE_PREFIX),
-            "Exchange objective must bind one accepted Gateway receipt")
-    value = objective[len(EXCHANGE_PREFIX):]
-    require(value.startswith("admission.") and len(value) == 42,
+def exchange_receipt_id(value):
+    require(isinstance(value, str) and value.startswith("admission.") and len(value) == 42,
             "Exchange receipt identity is invalid")
     return value
+
+
+def admitted_exchange_receipt_id(app, record):
+    return exchange_receipt_id(admitted_owner_parameters(app, record).get("gateway_receipt_id"))
 
 
 def exchange_evidence(app, receipt_id):
@@ -49,7 +49,8 @@ def disclosure(evidence):
         "scope", "classification", "purpose", "sender_operation_id", "recipient_operation_id")}
 
 
-def validate_boundary_plan(app, action, source, payload, *, receipt_id=None):
+def validate_boundary_plan(app, action, source, payload, *, receipt_id=None, retained_evidence=None):
+    """Use current evidence for admission, or the completed export's retained snapshot."""
     fields = ({"gateway_receipt_id", "disclosure_scope", "adaptation", "citations"}
               if action == "proposal_adaptation" else {"preimage_digest", "unresolved_effect_ids", "steps"})
     require(isinstance(payload, dict) and set(payload) == fields,
@@ -57,16 +58,21 @@ def validate_boundary_plan(app, action, source, payload, *, receipt_id=None):
     if action == "proposal_adaptation":
         require(receipt_id is None or payload["gateway_receipt_id"] == receipt_id,
                 "Adaptation changed the Director-selected exchange receipt")
-        evidence = exchange_evidence(app, payload["gateway_receipt_id"])
-        require(payload["disclosure_scope"] == disclosure(evidence)
+        evidence = (exchange_evidence(app, payload["gateway_receipt_id"])
+                    if retained_evidence is None else retained_evidence)
+        require(evidence["receipt"]["receipt_id"] == payload["gateway_receipt_id"]
+                and payload["disclosure_scope"] == disclosure(evidence)
                 and payload["citations"] == evidence["payload"]["resources"]
                 and isinstance(payload["adaptation"], str)
                 and 0 < len(payload["adaptation"].strip()) <= 12000,
                 "Adaptation changed exact Gateway disclosure, provenance or evidence")
         return evidence
     require(action == "proposal_recovery_plan", "Unsupported boundary plan")
-    diagnostic = KnowledgeReadTools(app).vault_diagnose(source)
-    require(payload["preimage_digest"] == source["content_digest"]
+    diagnostic = (KnowledgeReadTools(app).vault_diagnose(source)
+                  if retained_evidence is None else retained_evidence)
+    require(diagnostic["resource_reference"] == source
+            and "sha256:" + diagnostic["content_hash"] == source["content_digest"]
+            and payload["preimage_digest"] == source["content_digest"]
             and payload["unresolved_effect_ids"] == diagnostic["unresolved_effect_ids"],
             "Recovery plan changed source preimage or unresolved owner outcomes")
     steps = payload["steps"]
@@ -86,6 +92,8 @@ def validate_boundary_plan(app, action, source, payload, *, receipt_id=None):
 
 def validate_boundary_export(app, record, plan, raw):
     """Reconcile exact exported bytes with the independently assessed owner effect."""
+    from .native_team import stage_step
+
     exchange = record["spec"]["method_contract_ref"]["method_id"] == "knowledgeos.knowledge_exchange_team"
     namespace, stage, action = (("exchange", "adaptation", "proposal_adaptation") if exchange else
                                 ("maintenance", "recovery_plan", "proposal_recovery_plan"))
@@ -96,6 +104,11 @@ def validate_boundary_export(app, record, plan, raw):
     calls = execution["response"]["tool_calls"]
     require(len(calls) == 1 and calls[0]["name"] == action, "Boundary export effect changed")
     call = calls[0]
+    step = stage_step(record, stage, execution["request"]["graph_run_id"])
+    require(execution["request"]["stage_id"] == stage
+            and execution["request"]["executor_id"] == step["executor_id"]
+            and execution["request"]["agent_step"] == step,
+            "Boundary export differs from its admitted Manager stage")
     arguments, data = call["arguments"], call["result"]["data"]
     require(json.loads(arguments["content"]) == plan
             and arguments["source_reference"] == record["method_source_reference"]
@@ -108,7 +121,7 @@ def validate_boundary_export(app, record, plan, raw):
                 "idempotency_key": arguments.get("idempotency_key") or digest(canonical(plan)),
                 "work_run_id": record["run"]["work_run_id"],
                 "graph_run_id": execution["request"]["graph_run_id"],
-                "executor_id": record["spec"]["allowed_executor_ids"][-1]}
+                "executor_id": step["executor_id"]}
     require(effect.get("state") == "completed" and effect.get("action") == action
             and effect.get("identity") == expected
             and effect.get("content_digest") == digest(raw)
@@ -117,6 +130,8 @@ def validate_boundary_export(app, record, plan, raw):
             and all(receipt.get(key) == effect.get(key) for key in (
                 "effect_id", "owner_operation_id", "content_digest", "generation", "fencing_token")),
             "Boundary export lacks its exact successful owner effect receipt")
+    retained = execution["request"]["evidence"]
     return validate_boundary_plan(
         app, action, record["method_source_reference"], plan,
-        receipt_id=exchange_receipt_id(record["spec"]["objective"]) if exchange else None)
+        receipt_id=admitted_exchange_receipt_id(app, record) if exchange else None,
+        retained_evidence=retained if exchange else retained["diagnostic"])

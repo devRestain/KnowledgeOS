@@ -65,15 +65,22 @@ class AttentionRoute:
     console_url: str
 
     def validate(self) -> None:
-        url = urlsplit(self.console_url)
+        try:
+            url = urlsplit(self.console_url)
+            port = url.port
+        except ValueError as error:
+            raise AdmissionError("ATTENTION_DENIED", "Route needs a valid local console URL") from error
         _require(_id(self.logical_destination_id)
                  and type(self.destination_generation) is int and self.destination_generation > 0
                  and type(self.audience_generation) is int and self.audience_generation > 0
-                 and len(self.console_url) <= 384 and url.scheme == "https"
-                 and bool(url.hostname) and url.username is None and url.password is None
+                 and len(self.console_url) <= 384 and url.scheme == "http"
+                 and url.hostname in {"127.0.0.1", "localhost"}
+                 and (port is None or port > 0)
+                 and url.username is None and url.password is None
                  and not url.query and not url.fragment
                  and not any(char.isspace() or ord(char) < 32 for char in self.console_url)
-                 and url.path in {"", "/"}, "Route must be an admitted bounded HTTPS console origin")
+                 and url.path in {"", "/", "/console", "/console/"},
+                 "Route must be an admitted loopback HTTP console URL")
 
 
 @dataclass(frozen=True)

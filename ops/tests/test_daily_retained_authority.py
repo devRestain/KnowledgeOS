@@ -1,47 +1,51 @@
-"""Completed-result fixtures retain the real Director's immutable private grant.
+"""Daily consumption retains the admitted Director grant and semantic assessment.
 
-These tests exercise actual daily admission and owner effect boundaries without
-calling a model or Worker. Completed artifact/assessment records are explicit
-fixtures for the consumption boundary, not native execution evidence.
+Synthetic role judgments drive real Owner admission, scoped tool effects and
+WorkResult validation in disposable roots. No provider or Temporal call is made.
 """
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
 import json
 from uuid import uuid4
 
 import pytest
+from support.agent_fixture import model_binding
 from support.daily_scheduler_smoke import fixture, scheduler
-from support.metadata_fixture import SOURCE
+from support.metadata_fixture import SOURCE, MetadataToolRunner
 
 from vaultops.adapters.core import AdmissionError
-from vaultops.adapters.owner_journal import stamp
 from vaultops.application.metadata_work import DAILY_METHOD_ID, validate_candidate
-from vaultops.application.owner_runtime import OwnerRuntimePolicy, WritableOwnerRuntime
-from vaultops.application.work import record_digest
-from vaultops.note_engine import render_frontmatter
+from vaultops.application.owner_runtime import (
+    DispatchSupervisor,
+    OwnerRuntimePolicy,
+    WritableOwnerRuntime,
+)
+from vaultops.interfaces.exops_web import ExOpsWebBackend
+from vaultops.interfaces.loopback_owner import LoopbackIngress
+from vaultops.note_engine import parse_frontmatter, render_frontmatter
 from vaultops.projection import generate_projection
 
-ROUTE = {"runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-         "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-         "provider": "openai-codex", "model": "gpt-6.1-terra", "adapter_digest": "sha256:" + "1" * 64}
+ROUTE = model_binding()
 
 
-class NoModel:
-    binding = ROUTE
-
-    async def __call__(self, _request):
-        raise AssertionError("Retained-authority regression must not call a model")
-
-
-def completed_daily_fixture(tmp_path, kind):
-    runner = NoModel()
+def completed_daily_fixture(tmp_path, kind, *, semantic_outcome="satisfied", manual=False):
+    runner = MetadataToolRunner(binding=ROUTE, semantic_outcome=semantic_outcome)
     runtime, canary, policy_path = fixture(tmp_path, ROUTE, runner)
     app = runtime.application
-    admitted = scheduler(runtime).tick()
-    assert admitted["admitted"] == 1 and not admitted["blockers"], admitted
-    receipt = admitted["work_receipts"][0]
+    runner.application, runner.exops = app, runtime.exops
+    if manual:
+        source = app.reference(SOURCE)
+        receipt = runtime.admit_selected_request(runtime.actor, {
+            "method_id": DAILY_METHOD_ID, "request_id": str(uuid4()), "parameters": {},
+            "scope": {"path": SOURCE, "content_sha256": source["source_revision"]}})
+        assert not any(key.startswith("daily.scan.") for key in app.journal.read()["intents"])
+    else:
+        admitted = scheduler(runtime).tick()
+        assert admitted["admitted"] == 1 and not admitted["blockers"], admitted
+        receipt = admitted["work_receipts"][0]
     run_id = receipt["work_run_id"]
     selected = app.journal.read()["intents"]["exops.work." + run_id]
     source = selected["method_source_reference"]
@@ -51,45 +55,61 @@ def completed_daily_fixture(tmp_path, kind):
     # The candidate itself passes the production deterministic method check;
     # the changed private grant is the only later refusal condition.
     assert validate_candidate(app, source, candidate, method_id=DAILY_METHOD_ID) == candidate
-    proposal_id = str(uuid4())
-    relative = "01_AI_Review/Pending/daily-authority-fixture.md"
-    properties = {"schema_version": 1, "id": "proposal-" + proposal_id, "type": "proposal",
-                  "title": "daily-authority-fixture", "status": "pending", "created": stamp(app.clock()),
-                  "modified": stamp(app.clock()), "aliases": [], "tags": ["ai/review"],
-                  "sensitivity": "personal", "ai_policy": "ask", "ai_status": "proposed",
-                  "proposal_id": proposal_id, "source_hashes": [SOURCE + "|" + source["content_digest"]]}
-    payload = {"artifact_kind": "daily_enrichment", "content": json.dumps(candidate, ensure_ascii=False)}
-    path = app.roots.vault / relative
-    path.write_text(render_frontmatter(properties, "```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```\n"))
-    reference = app.reference(relative, proposal=True)
-    artifact = {"owner_operation_id": "knowledgeos", "artifact_id": "artifact.daily.authority.fixture",
-                "source_revision": reference["source_revision"], "content_digest": reference["content_digest"],
-                "media_type": "text/markdown", "size_bytes": len(path.read_bytes()), "classification": "internal",
-                "availability": "available_by_owner_export", "export_capability_id": "knowledgeos.mcp.artifact_read"}
-    app.core.validate("ArtifactReference", artifact)
-    spec, run = selected["spec"], selected["run"]
-    assessment = {"owner_operation_id": "knowledgeos", "work_id": run["work_id"], "work_run_id": run_id,
-                  "work_spec_revision": spec["work_spec_revision"], "work_spec_digest": spec["spec_digest"],
-                  "assessment_id": "assessment.daily.authority.fixture", "criteria_revision": spec["criteria_revision"],
-                  "assessor_id": spec["eval_officer_executor_id"], "assessed_at": stamp(app.clock()),
-                  "graph_run_ids": [], "completion_state": "complete", "criterion_outcomes": [
-                      {"criterion_id": spec["acceptance_criteria"][0]["criterion_id"], "outcome": "satisfied",
-                       "evaluation_ids": [], "evidence_references": [artifact]}]}
-    with app.journal.writer() as writer:
-        record = writer.value["intents"]["exops.work." + run_id]
-        record.update(state="completed", dispatch_state="accepted", application_state="recorded",
-                      assessment=assessment, artifact_references={artifact["artifact_id"]: artifact},
-                      submitted_artifacts=[reference])
-        record["run"].update(state="completed", result_reference=artifact,
-                             latest_assessment_id=assessment["assessment_id"],
-                             latest_assessment_digest=record_digest(assessment))
-        writer.commit(app.clock())
-    # No source edit or owner provisional/no-evidence effect has occurred.
-    app.daily_stewardship()._work_artifact(run_id, candidate, source)
+    runner.candidate = copy.deepcopy(candidate)
+    executor = runtime.executors[DAILY_METHOD_ID]
+    original = (app.roots.vault / SOURCE).read_bytes()
+    started = runtime.exops.worker_started(
+        run_id, worker_identity=runtime.exops.worker_identity,
+        action_id=receipt["action_id"], content_digest=receipt["content_digest"],
+        work_spec_digest=selected["spec"]["spec_digest"], workflow_id="knowledgeos/" + run_id)
+
+    async def produce():
+        await executor.manager(selected["spec"], started)
+        for stage in executor.policy.stages:
+            await executor.execute_stage(run_id, stage)
+        return await executor.assess(run_id)
+
+    result = asyncio.run(produce())
+    finished = runtime.exops.worker_finished(
+        run_id, worker_identity=runtime.exops.worker_identity,
+        action_id=receipt["action_id"], next_run=result.next_run,
+        assessment=result.assessment, segments=result.segments,
+        evaluations=result.evaluations, artifacts=result.artifacts,
+        checkpoints=result.checkpoints, candidate_assessor_id=result.candidate_assessor_id)
+    assert finished["application_state"] == "recorded"
+    assert (app.roots.vault / SOURCE).read_bytes() == original
+    assert app.daily_stewardship().pending() == []
+    if semantic_outcome == "satisfied":
+        app.daily_stewardship()._work_artifact(run_id, candidate, source)
     report, code = generate_projection(app.roots)
     assert code == 0, report
     request_key = next(key for key in app.journal.read()["intents"] if key.startswith("daily.admission."))
     return runtime, runner, policy_path, run_id, request_key, candidate
+
+
+@pytest.mark.parametrize("kind", ["candidate", "no_evidence"])
+@pytest.mark.parametrize("outcome", ["unmet", "not_run"])
+def test_semantic_gap_cannot_be_consumed_as_completed_daily_work(tmp_path, kind, outcome):
+    runtime, runner, _policy_path, run_id, _request_key, candidate = completed_daily_fixture(
+        tmp_path, kind, semantic_outcome=outcome)
+    app = runtime.application
+    before = app.journal.read()
+    record = before["intents"]["exops.work." + run_id]
+    assert record["run"]["state"] == "awaiting_human"
+    assert record["assessment"]["completion_state"] == "incomplete"
+    assert {item["outcome"] for item in record["assessment"]["criterion_outcomes"]} == {outcome}
+    assert record["remaining_work"] and record["continuation_state"] == "human_required"
+    assert [item["agent_request"]["responsibility"] for item in runner.decisions] == [
+        "director", "manager", "evaluator"]
+    original = (app.roots.vault / SOURCE).read_bytes()
+    coverage_key = "daily.enrichment." + hashlib.sha256(SOURCE.encode()).hexdigest()
+    consume = (app.daily_stewardship().record_candidate if kind == "candidate"
+               else app.daily_stewardship().record_no_evidence)
+    with pytest.raises(AdmissionError) as denied:
+        consume(run_id, candidate)
+    assert denied.value.code == "SCOPE_DENIED"
+    assert app.journal.read() == before
+    assert_no_daily_effect(app, run_id, original, before["intents"][coverage_key])
 
 
 def exclude_source(path):
@@ -163,7 +183,7 @@ def test_retained_work_source_scope_rechecked_under_final_daily_writer(tmp_path,
 
 
 def test_unexpected_authorization_bug_propagates_without_scheduler_writes(tmp_path):
-    runtime, _canary, _policy_path = fixture(tmp_path, ROUTE, NoModel())
+    runtime, _canary, _policy_path = fixture(tmp_path, ROUTE, MetadataToolRunner(binding=ROUTE))
     schedule = scheduler(runtime)
     before = runtime.application.journal.path.read_bytes()
     def broken_authorization():
@@ -191,7 +211,7 @@ def test_unexpected_consumption_bug_propagates_before_provisional_effect(tmp_pat
 
 
 def test_unexpected_admission_bug_propagates_but_retains_unknown_no_retry_fence(tmp_path):
-    runtime, _canary, _policy_path = fixture(tmp_path, ROUTE, NoModel())
+    runtime, _canary, _policy_path = fixture(tmp_path, ROUTE, MetadataToolRunner(binding=ROUTE))
     schedule = scheduler(runtime)
     calls = []
     def committed_then_bug(request):
@@ -209,3 +229,136 @@ def test_unexpected_admission_bug_propagates_but_retains_unknown_no_retry_fence(
     assert observed["admitted"] == 0
     assert any(item["code"] == "OUTCOME_UNKNOWN" for item in observed["blockers"])
     assert len([key for key in runtime.application.journal.read()["intents"] if key.startswith("exops.work.")]) == 1
+
+
+def daily_call(runtime, route, payload):
+    backend = ExOpsWebBackend(runtime.exops, runtime.actor)
+    return backend(LoopbackIngress("knowledgeos", "POST", route, json.dumps(payload).encode()))
+
+
+@pytest.mark.parametrize("decision", ["confirm", "reject"])
+def test_manual_daily_completion_reaches_review_and_retains_historical_result(tmp_path, decision):
+    runtime, _runner, _path, run_id, request_key, candidate = completed_daily_fixture(
+        tmp_path, "candidate", manual=True)
+    app = runtime.application
+    original = (app.roots.vault / SOURCE).read_bytes()
+    before = daily_call(runtime, "work/result", {"work_run_id": run_id})
+    assert before["report"] == candidate and before["state"] == "completed"
+    consumed = asyncio.run(DispatchSupervisor(runtime, {}).tick())
+    assert not any("daily_blocker" in item for item in consumed["outcomes"]), consumed
+    assert app.journal.read()["intents"][request_key]["state"] == "consumed"
+    pending = daily_call(runtime, "daily/list", {})["pending"]
+    assert len(pending) == 1
+    detail = daily_call(runtime, "daily/read", {"effect_id": pending[0]["effect_id"]})
+    assert detail["added_fields"] == candidate["fields"] and detail["evidence"] == candidate["evidence"]
+    after = daily_call(runtime, "work/result", {"work_run_id": run_id})
+    assert after["text"] == before["text"] and after["report"] == candidate
+    assert after["historical"] is True and after["current_evidence_valid"] is False
+    assert after["apply_allowed"] is False
+    provisional = (app.roots.vault / SOURCE).read_bytes()
+    assert provisional != original
+    assert asyncio.run(DispatchSupervisor(runtime, {}).tick()) == {"outcomes": []}
+    assert (app.roots.vault / SOURCE).read_bytes() == provisional
+    reviewed = daily_call(runtime, "daily/decide", {"effect_id": pending[0]["effect_id"], "decision": decision})
+    assert reviewed["decision"] == decision and not daily_call(runtime, "daily/list", {})["pending"]
+    properties = parse_frontmatter((app.roots.vault / SOURCE).read_text()).properties
+    assert properties["tags"] == (candidate["fields"]["tags"] if decision == "confirm" else [])
+    assert daily_call(runtime, "work/result", {"work_run_id": run_id})["text"] == before["text"]
+    assert len([key for key in app.journal.read()["intents"] if key.startswith("exops.work.")]) == 1
+
+
+def test_manual_empty_candidate_covers_only_selected_revision_without_review(tmp_path):
+    runtime, _runner, _path, _run_id, request_key, _candidate = completed_daily_fixture(
+        tmp_path, "no_evidence", manual=True)
+    app = runtime.application
+    original = (app.roots.vault / SOURCE).read_bytes()
+    consumed = asyncio.run(DispatchSupervisor(runtime, {}).tick())
+    assert [item["daily_consumption"]["status"] for item in consumed["outcomes"]] == ["no_evidence"]
+    assert app.journal.read()["intents"][request_key]["state"] == "consumed"
+    assert app.daily_stewardship().pending() == [] and (app.roots.vault / SOURCE).read_bytes() == original
+    with pytest.raises(AdmissionError, match="already covered"):
+        runtime.admit_selected_request(runtime.actor, {
+            "method_id": DAILY_METHOD_ID, "request_id": str(uuid4()), "parameters": {},
+            "scope": {"path": SOURCE, "content_sha256": app.reference(SOURCE)["source_revision"]}})
+
+
+@pytest.mark.parametrize("boundary", ["disabled", "unknown_work", "interrupted", "populated"])
+def test_manual_daily_consumption_holds_revoked_unknown_and_changed_sources(tmp_path, boundary):
+    runtime, _runner, policy_path, run_id, request_key, _candidate = completed_daily_fixture(
+        tmp_path, "candidate", manual=True)
+    app = runtime.application
+    coverage_key = "daily.enrichment." + hashlib.sha256(SOURCE.encode()).hexdigest()
+    coverage = copy.deepcopy(app.journal.read()["intents"][coverage_key])
+    if boundary == "disabled":
+        document = json.loads(policy_path.read_text())
+        document["daily_enabled"] = False
+        policy_path.write_text(json.dumps(document))
+    elif boundary == "populated":
+        path = app.roots.vault / SOURCE
+        document = parse_frontmatter(path.read_text())
+        properties = {**document.properties, "tags": ["human-value"]}
+        path.write_text(render_frontmatter(properties, document.body))
+    else:
+        with app.journal.writer() as writer:
+            if boundary == "unknown_work":
+                writer.value["intents"]["exops.work." + run_id]["dispatch_state"] = "unknown"
+            else:
+                writer.value["intents"][request_key]["state"] = "consuming"
+            writer.commit(app.clock())
+    if boundary == "interrupted":
+        request = app.journal.read()["intents"][request_key]["manual_request"]
+        receipt = runtime.admit_selected_request(runtime.actor, request)
+        assert receipt["replayed"] is True
+        assert app.journal.read()["intents"][request_key]["state"] == "consuming"
+    original = (app.roots.vault / SOURCE).read_bytes()
+    for _ in range(2):
+        observed = asyncio.run(DispatchSupervisor(runtime, {}).tick())
+        assert any("daily_blocker" in item for item in observed["outcomes"]), observed
+        assert_no_daily_effect(app, run_id, original, coverage)
+
+
+@pytest.mark.parametrize("outcome", ["unmet", "not_run"])
+def test_manual_semantic_gap_never_consumes_or_exports_success(tmp_path, outcome):
+    runtime, _runner, _path, run_id, request_key, _candidate = completed_daily_fixture(
+        tmp_path, "candidate", semantic_outcome=outcome, manual=True)
+    assert asyncio.run(DispatchSupervisor(runtime, {}).tick()) == {"outcomes": []}
+    app = runtime.application
+    assert app.journal.read()["intents"][request_key]["state"] == "admitted"
+    assert app.daily_stewardship().pending() == []
+    result = daily_call(runtime, "work/result", {"work_run_id": run_id})
+    assert result["state"] == "awaiting_human" and result["text"] is None
+    assert result["assessment"]["completion_state"] == "incomplete"
+
+
+def test_manual_lost_admission_reply_recovers_only_exact_committed_work(tmp_path):
+    runtime, runner, policy_path, _run_id, request_key, _candidate = completed_daily_fixture(
+        tmp_path, "candidate", manual=True)
+    app = runtime.application
+    with app.journal.writer() as writer:
+        record = writer.value["intents"][request_key]
+        record["state"] = "prepared"
+        record.pop("receipt")
+        writer.commit(app.clock())
+    restored = WritableOwnerRuntime(app.roots, policy=OwnerRuntimePolicy(policy_path), runners={DAILY_METHOD_ID: runner})
+    observed = asyncio.run(DispatchSupervisor(restored, {}).tick())
+    assert len([item for item in observed["outcomes"] if "daily_consumption" in item]) == 1
+    assert restored.application.journal.read()["intents"][request_key]["state"] == "consumed"
+    assert len(restored.application.daily_stewardship().pending()) == 1
+
+
+def test_manual_admission_does_not_scan_unrelated_notes(tmp_path, monkeypatch):
+    runtime, _canary, _policy_path = fixture(tmp_path, ROUTE, MetadataToolRunner(binding=ROUTE))
+    app = runtime.application
+    source = app.reference(SOURCE)
+    from vaultops.application.daily_stewardship import DailyStewardship
+    def forbidden_scan(_self):
+        raise AssertionError("Manual source preparation must not scan the Vault")
+    monkeypatch.setattr(DailyStewardship, "_notes", forbidden_scan)
+    monkeypatch.setattr(DailyStewardship, "_held_paths", forbidden_scan)
+    receipt = runtime.admit_selected_request(runtime.actor, {
+        "method_id": DAILY_METHOD_ID, "request_id": str(uuid4()), "parameters": {},
+        "scope": {"path": SOURCE, "content_sha256": source["source_revision"]}})
+    assert receipt["receipt_state"] == "accepted"
+    coverage = [item for key, item in app.journal.read()["intents"].items()
+                if key.startswith("daily.enrichment.")]
+    assert len(coverage) == 1 and coverage[0]["path"] == SOURCE and coverage[0]["empty_fields"]

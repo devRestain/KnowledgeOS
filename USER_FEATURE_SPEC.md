@@ -8,7 +8,7 @@ KnowledgeOS는 AgentFabric 안에서 개발 중인 Operation입니다. 현재 �
 
 Home과 Mobile은 탐색 화면이고, Base와 Compass 뷰는 원문을 바꾸지 않는 투영입니다. 제목·alias의 미연결 언급은 연결 후보로만 봅니다. 관계를 정본에 추가할지, 할 일을 완료할지, 제안을 승인할지는 사용자가 결정합니다.
 
-문서 관리·조정, Work 요청·결과, Pending 결정·별도 적용과 일일 검토는 모두 Obsidian 내부에서 수행하는 것이 사용자 경계입니다. 외부 브라우저는 관리용으로만 남기며 터미널은 KnowledgeOS Operation 운영·유지보수 CLI에 한정합니다.
+문서 관리·조정, Team 호출 시작점과 작업 입력, 사용자 산출물·인용 근거, Pending 결정·별도 적용과 일일 사람 검토는 Obsidian 내부에서 수행합니다. 실행 이력·Graph·역할별 모델/프롬프트·독립평가·RemainingWork 같은 관리 정보는 외부 브라우저의 기존 ExOps 콘솔에 둡니다. 네이티브의 관리 링크는 선택 Work를 열 뿐 새 실행이나 문서 변경을 요청하지 않습니다. 터미널은 KnowledgeOS Operation 운영·유지보수 CLI에 한정합니다.
 
 macOS에서는 Thin Client의 **로컬 백엔드 시작** 버튼으로 미리 설치된 KnowledgeOS를 필요할 때 켭니다. 고정 host 도우미가 로그인 자동 시작 없는 LaunchAgent와 기존 실행 구성을 사용합니다. 화면 열기·상태 새로 조회는 시작이 아니며, Obsidian을 닫아도 접수한 작업과 백엔드는 유지됩니다. 설치·복구·모델 활성화나 임의 명령 실행을 사용자 문서 흐름에 추가하지 않습니다.
 
@@ -24,11 +24,13 @@ macOS에서는 Thin Client의 **로컬 백엔드 시작** 버튼으로 미리 �
 
 에이전트의 변경안은 출처와 대상 preimage에 묶인 Pending 제안입니다. Obsidian Thin Client의 소스 계약은 owner Work 접수, 진행 상태, 인용된 결과, Pending 원문·출처·diff 표시를 제공합니다. 사용자가 승인 또는 거절을 누르면 owner가 그 결정을 기록합니다. 정본 적용은 별도 버튼과 owner의 재검증을 거칩니다. 승인만으로 파일이 바뀌지 않습니다.
 
-선택된 Obsidian 프로필의 사이드바 배치와 문서 대상 전환은 관측됐지만, Owner를 통한 실제 결과 표시는 별도 검증 대상입니다. Hermes Runner, 일곱 Team의 실동작, 외부 Gateway 교환과 기기별 사용 흐름도 각각 채택 증거가 필요합니다.
+소스, 디스크 설치, 관리용 reload 후 로드 버전, 실제 Owner 실행 및 기기별 GUI 관측은 각각 별도 증거가 필요합니다. 과거 실패·결과 불명 Work를 새 성공으로 바꾸거나 화면 검증을 위해 재실행하지 않으며 현재 채택과 완료 근거는 `PROJECT_STATE.md`를 따릅니다.
 
 Obsidian 안에서의 전체 기능 대응, 네이티브 명령, 설치 플러그인 통합 경계는 [Obsidian 클라이언트 가이드](docs/OBSIDIAN_CLIENT.md)에 있습니다. 실제 선택한 프로필에서의 후속 GUI 검증은 [Computer Use 프롬프트](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)를 사용하며, 소스·디스크 설치만으로 실행 중인 플러그인 채택을 판정하지 않습니다.
 
 ## 운영자가 하는 일
+
+기본 로컬 웹 관리 화면은 `http://127.0.0.1:17900/console/`입니다. 이미 기록된 Work를 목록이나 정확한 ID로 열어 Manager의 Graph, 역할 호출과 관측된 모델·추론 강도·프롬프트 식별자, 독립평가와 남은 작업을 확인합니다. 현재 역할 설정·COMMON/SOUL 전문은 과거 실제 실행 관측과 구분합니다. 웹은 문서 검색·Work 접수·Pending 승인/적용·daily 결정을 대신하지 않으며 새 로그인이나 수동 토큰 입력을 요구하지 않습니다.
 
 `vaultctl`은 운영·유지보수 전용입니다. `operation check/status/recover`, `index build/verify/export`, `note validate`, `doctor`, `receipts verify`, `repair plan/apply`, `work validate`, `foundation`, `blueprint validate`, `schema export`, 초기 설정과 정확한 storage 전환을 제공합니다. 전체 명령은 [CLI 소스](ops/src/vaultops/interfaces/cli.py)의 parser를 기준으로 확인합니다.
 

@@ -382,7 +382,7 @@
         ],
         "properties": {
           "resource_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -517,9 +517,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -558,7 +558,7 @@
         ],
         "properties": {
           "artifact_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -693,9 +693,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -775,7 +775,7 @@
         ],
         "properties": {
           "resource_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -910,9 +910,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -1109,7 +1109,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -1244,9 +1244,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -1303,7 +1303,7 @@
               "additionalProperties": false,
               "properties": {
                 "resource_reference": {
-                  "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+                  "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
                   "additionalProperties": false,
                   "allOf": [
@@ -1438,9 +1438,9 @@
                   "type": "object",
                   "x-agentfabric-contract": {
                     "catalog_id": "agentfabric.core.contract-catalog",
-                    "catalog_version": "0.18.1",
+                    "catalog_version": "0.20.1",
                     "owner": "Operation",
-                    "release_version": "0.18.1",
+                    "release_version": "0.20.1",
                     "source_of_truth": "contracts/catalog.json",
                     "unknown_field_policy": "reject"
                   }
@@ -1477,7 +1477,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -1612,9 +1612,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -1622,7 +1622,7 @@
           "candidate_references": {
             "type": "array",
             "items": {
-              "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+              "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "additionalProperties": false,
               "allOf": [
@@ -1757,9 +1757,9 @@
               "type": "object",
               "x-agentfabric-contract": {
                 "catalog_id": "agentfabric.core.contract-catalog",
-                "catalog_version": "0.18.1",
+                "catalog_version": "0.20.1",
                 "owner": "Operation",
-                "release_version": "0.18.1",
+                "release_version": "0.20.1",
                 "source_of_truth": "contracts/catalog.json",
                 "unknown_field_policy": "reject"
               }
@@ -1774,7 +1774,7 @@
     },
     {
       "name": "semantic_registry_read",
-      "description": "Read authoritative type or relation definitions",
+      "description": "Read authoritative property, type or relation definitions",
       "input_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://local.invalid/knowledgeos/mcp/semantic_registry_read.input.schema.json",
@@ -1787,8 +1787,7 @@
         "properties": {
           "category": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 500
+            "enum": ["properties", "types", "relations"]
           }
         }
       },
@@ -1811,7 +1810,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -1946,9 +1945,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -1984,7 +1983,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -2119,9 +2118,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -2180,7 +2179,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -2315,9 +2314,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -2351,7 +2350,7 @@
         ],
         "properties": {
           "resource_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -2486,9 +2485,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -2514,7 +2513,7 @@
         ],
         "properties": {
           "source_reference": {
-            "$id": "urn:agentfabric:core:schema:ResourceReference:0.18.1",
+            "$id": "urn:agentfabric:core:schema:ResourceReference:0.20.1",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
             "allOf": [
@@ -2649,9 +2648,9 @@
             "type": "object",
             "x-agentfabric-contract": {
               "catalog_id": "agentfabric.core.contract-catalog",
-              "catalog_version": "0.18.1",
+              "catalog_version": "0.20.1",
               "owner": "Operation",
-              "release_version": "0.18.1",
+              "release_version": "0.20.1",
               "source_of_truth": "contracts/catalog.json",
               "unknown_field_policy": "reject"
             }
@@ -2702,11 +2701,11 @@
     "operation_id": "knowledgeos",
     "fabric_id": "agentfabric",
     "instance_id": "knowledgeos.local",
-    "core_version": "0.18.1",
-    "core_digest": "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676",
-    "schema_version_pin": "0.18.1",
-    "semantic_version": "0.7.0",
-    "semantic_digest": "sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
+    "core_version": "0.20.1",
+    "core_digest": "sha256:d79104d89c643e29701e3e4c47aabe59b0915bce152f6b4459b199501f941616",
+    "schema_version_pin": "0.20.1",
+    "semantic_version": "0.7.1",
+    "semantic_digest": "sha256:73fe9df29be7720d87486b2a91511f96b831c6dfa7558a38746647a70704d54e",
     "capsule_version": "2.0.0",
     "resource_binding_api": "0.3.0",
     "host_binding_api": "0.3.0"

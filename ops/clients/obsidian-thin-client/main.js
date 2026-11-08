@@ -184,7 +184,7 @@ function endpoint(value) {
 }
 
 function backendResult(stdout) {
-  const invalid = () => new Error("로컬 백엔드 helper의 응답 규약이 올바르지 않습니다. Runtime/Worker 상태는 미관측입니다.");
+  const invalid = () => new Error("로컬 백엔드 helper의 응답 규약이 올바르지 않습니다. 실행 관리를 확인한 뒤 Owner를 다시 조회하세요.");
   if (typeof stdout !== "string" || new TextEncoder().encode(stdout).length > 65536) throw invalid();
   let result;
   try { result = JSON.parse(stdout); } catch (_) { throw invalid(); }
@@ -272,6 +272,78 @@ function confirmAction(app, text) {
 
 class StaleView extends Error {}
 
+const METHOD_LABELS = {
+  "knowledgeos.capture_normalization_team": "수집 노트 정리",
+  "knowledgeos.capture_normalization_continuation_team": "수집 노트 이어서 정리",
+  "knowledgeos.cited_draft_team": "근거 기반 초안",
+  "knowledgeos.cited_research_team": "근거 기반 조사",
+  "knowledgeos.relation_ontology_team": "문서 관계 정리",
+  "knowledgeos.project_review_team": "프로젝트 검토",
+  "knowledgeos.knowledge_exchange_team": "받은 지식 검토",
+  "knowledgeos.note_metadata_team": "메타데이터·태그 제안",
+  "knowledgeos.daily_corpus_stewardship_team": "일일 문서 보완",
+  "knowledgeos.capture_steering_team": "질문하며 수집 노트 정리",
+  "knowledgeos.vault_maintenance_team": "Vault 점검",
+};
+
+const PARAMETER_LABELS = {
+  objective: "작업 목표", question: "질문", scope: "작업 범위",
+  target_path: "초안 저장 경로 (Vault 내부 .md)", target_type: "문서 유형", title: "문서 제목",
+  period_start: "검토 시작일", period_end: "검토 종료일", query: "검토 검색어",
+  base: "Base 경로", view: "Base 보기", gateway_receipt_id: "수락된 Gateway 영수증 ID",
+  control_checkpoint: "사용자 제어를 위해 대기",
+  continuation_policy: "계속 실행 한도", max_segments: "최대 실행 구간",
+  max_repeated_gap_assessments: "같은 미완료 사유 최대 확인 횟수", max_profile_invocations: "최대 역할 실행 횟수",
+};
+
+function parameterFields(parent, schema, defaults = {}) {
+  const readers = [];
+  for (const [name, field] of Object.entries(schema?.properties || {})) {
+    const required = (schema.required || []).includes(name);
+    const label = PARAMETER_LABELS[name] || name;
+    const initial = defaults[name] ?? field.default;
+    if (field.type === "object") {
+      const group = parent.createEl("fieldset", { cls: "knowledgeos-parameter-group" });
+      group.createEl("legend", { text: label + (required ? " · 필수" : " · 선택") });
+      const read = parameterFields(group, field, initial || {});
+      readers.push(() => {
+        const value = read(false);
+        if (!required && !Object.keys(value).length) return null;
+        return [name, read(true)];
+      });
+      continue;
+    }
+    const wrapper = parent.createEl("label", { cls: "knowledgeos-field" });
+    wrapper.createSpan({ text: label + (required ? " · 필수" : " · 선택") });
+    const input = wrapper.createEl("input", { attr: {
+      type: field.type === "boolean" ? "checkbox" : field.type === "integer" ? "number" :
+        name.startsWith("period_") ? "date" : "text",
+      ...(field.maxLength ? { maxlength: String(field.maxLength) } : {}),
+      ...(field.minimum !== undefined ? { min: String(field.minimum) } : {}),
+      ...(field.maximum !== undefined ? { max: String(field.maximum) } : {}),
+    } });
+    input.dataset.parameter = name;
+    if (field.type === "boolean") input.checked = initial === true;
+    else input.value = initial == null ? "" : String(initial);
+    readers.push(validate => {
+      if (field.type === "boolean") return [name, !!input.checked];
+      const text = input.value.trim();
+      if (!text) {
+        if (validate && required) throw new Error(`${label}을(를) 입력하세요.`);
+        return null;
+      }
+      if (field.type === "integer") {
+        const value = Number(text);
+        if (!Number.isInteger(value) || value < field.minimum || value > field.maximum) throw new Error(`${label}: ${field.minimum}–${field.maximum} 정수를 입력하세요.`);
+        return [name, value];
+      }
+      if (text.length < (field.minLength || 0) || text.length > (field.maxLength || Infinity)) throw new Error(`${label}의 입력 길이를 확인하세요.`);
+      return [name, text];
+    });
+  }
+  return (validate = true) => Object.fromEntries(readers.map(read => read(validate)).filter(Boolean));
+}
+
 class WorkReviewSidebar extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -295,8 +367,10 @@ class WorkReviewSidebar extends ItemView {
   }
   get unknownRequest() {
     const prefix = this.plugin.settings.ownerEndpoint + "\n";
-    const targets = [this.proposal?.source_path, this.currentDaily?.path, this.selectedPath,
-      this.work?.run?.work_run_id ? "work:" + this.work.run.work_run_id : null].filter(Boolean);
+    const targets = this.section === "pending" && this.proposal?.source_path ? [this.proposal.source_path] :
+      this.section === "daily" && this.currentDaily?.path ? [this.currentDaily.path] :
+      [this.selectedPath, this.section === "work" && this.work?.run?.work_run_id ?
+        "work:" + this.work.run.work_run_id : null].filter(Boolean);
     return [...this.plugin.unknownMutations.entries()].find(([key, request]) =>
       key.startsWith(prefix) && targets.includes(request.path))?.[1];
   }
@@ -336,8 +410,9 @@ class WorkReviewSidebar extends ItemView {
     };
     current();
     if (!this.owner && route !== "owner/status") throw new Error("Owner 새로 조회로 로컬 연결을 확인하세요.");
-    const affectedPath = payload.scope?.path || this.proposal?.source_path || this.currentDaily?.path ||
-      (payload.work_run_id ? "work:" + payload.work_run_id : this.selectedPath);
+    const affectedPath = payload.scope?.path || (payload.work_run_id ? "work:" + payload.work_run_id :
+      route.startsWith("proposal/") ? this.proposal?.source_path :
+      route.startsWith("daily/") ? this.currentDaily?.path : this.selectedPath);
     if (mutation && [...this.plugin.unknownMutations.entries()].some(([key, request]) =>
       key.startsWith(selectedEndpoint + "\n") && request.path === affectedPath)) {
       throw new Error("이 문서의 앞선 요청 응답이 불명입니다. 요청 응답 대조로 같은 ID를 조회하세요.");
@@ -383,6 +458,7 @@ class WorkReviewSidebar extends ItemView {
   }
   message(text, error = false) {
     if (!this.statusEl) return;
+    this.showingUncertainty = false;
     this.statusEl.textContent = text;
     this.statusEl.classList.toggle("knowledgeos-error", error);
   }
@@ -427,6 +503,16 @@ class WorkReviewSidebar extends ItemView {
       list.createEl("dd", { text: value == null ? "미제공" : String(value) });
     }
   }
+  adminLink(parent, id = null) {
+    const url = new URL(endpoint(this.plugin.settings.ownerEndpoint));
+    url.pathname = "/console/";
+    url.hash = id ? "work_run_id=" + encodeURIComponent(id) : "";
+    const label = id ? "이 작업 관리 · 브라우저" : "실행 관리 · 브라우저";
+    const link = parent.createEl("a", { cls: "knowledgeos-admin-link external-link", text: label,
+      attr: { href: url.href, target: "_blank", rel: "noopener noreferrer", "aria-label": label, title: "실행 이력·Graph·역할 설정·평가 관리는 로컬 관리 콘솔에서 확인합니다. 문서 작업은 Obsidian에 유지됩니다." } });
+    const icon = link.createSpan({ cls: "knowledgeos-button-icon", attr: { "aria-hidden": "true" } });
+    setIcon(icon, "arrow-up-right");
+  }
   writeAllowed(binding) { return !!this.owner && !this.owner.read_only && !this.uncertain && !!this.owner.bindings?.[binding]; }
   requireWrite(binding) {
     if (!this.writeAllowed(binding)) throw new Error("이 Owner의 현재 바인딩·권한 또는 응답 불명 상태 때문에 요청할 수 없습니다.");
@@ -447,6 +533,7 @@ class WorkReviewSidebar extends ItemView {
       if (button.dataset.fresh === "daily") button.disabled ||= !this.currentDaily;
       if (button.dataset.fresh === "target") button.disabled ||= !this.target || !!this.work?.run?.pending_action_ids?.length;
       if (button.dataset.fresh === "steering") button.disabled ||= !this.steering;
+      if (button.dataset.fresh === "method") button.disabled ||= !this.methods.find(item => item.method_id === this.methodInput.value)?.available;
       if (button.dataset.choice === "approve") button.disabled ||= !!this.proposal?.decision || !!this.proposal?.source_stale;
       if (button.dataset.choice === "reject") button.disabled ||= !!this.proposal?.decision;
       if (button.dataset.choice === "apply") button.disabled ||= !this.proposal?.apply_allowed || this.proposal?.source_stale || decisionValue(this.proposal?.decision) !== "approve";
@@ -454,9 +541,12 @@ class WorkReviewSidebar extends ItemView {
       if (button.dataset.choice === "steer") button.disabled ||= !this.steeringArtifact;
     }
     if (this.reconcileButton) this.reconcileButton.hidden = !this.uncertain;
-    if (this.uncertain && this.statusEl) this.message("이 문서의 요청 응답 불명 · 요청 응답 대조로 확인하세요. 다른 문서는 계속 사용할 수 있습니다.", true);
-    if (this.ownerEl && this.owner) this.ownerEl.textContent = `${this.owner.read_only ? "읽기 전용" : "Owner 연결됨"} · Worker 미관측`;
-    if (this.ownerDetails) this.ownerDetails.textContent = this.owner ? json(this.owner) : "Owner 미연결";
+    if (this.showingUncertainty && !this.uncertain) this.message("");
+    if (this.uncertain && this.statusEl) {
+      this.message("이 문서의 요청 응답 불명 · 요청 응답 대조로 확인하세요. 다른 문서는 계속 사용할 수 있습니다.", true);
+      this.showingUncertainty = true;
+    }
+    if (this.ownerEl && this.owner) this.ownerEl.textContent = this.owner.read_only ? "Owner 연결됨 · 읽기 전용" : "Owner 연결됨";
     if (this.section === "library") for (const action of integrationActions(this.app)) {
       const button = this.contentEl.querySelector(`button[data-integration="${action.id}"]`);
       if (!button) continue;
@@ -472,7 +562,7 @@ class WorkReviewSidebar extends ItemView {
     const header = root.createDiv({ cls: "knowledgeos-header" });
     const identity = header.createDiv({ cls: "knowledgeos-identity" });
     identity.createEl("h2", { text: "KnowledgeOS" });
-    identity.createEl("small", { cls: "knowledgeos-version", text: this.plugin.manifest?.version || "0.5.1" });
+    identity.createEl("small", { cls: "knowledgeos-version", text: this.plugin.manifest?.version || "0.8.0" });
     const connection = header.createDiv({ cls: "knowledgeos-actions" });
     this.button(connection, "Owner 새로 조회", () => this.refreshOwner(), null, false, { icon: "refresh-cw", label: "" });
     this.startButton = this.button(connection, "로컬 백엔드 시작", () => this.startLocalBackend(), null, false, { icon: "power", label: "" });
@@ -480,11 +570,7 @@ class WorkReviewSidebar extends ItemView {
     clear.onclick = () => this.disconnect();
     this.reconcileButton = this.button(connection, "요청 응답 대조", () => this.reconcileMutation(), null, false, { icon: "receipt-text", label: "" });
     root.createEl("p", { cls: "knowledgeos-target", text: this.selectedPath || "활성 노트 없음" });
-    const details = root.createEl("details", { cls: "knowledgeos-connection" });
-    const summary = details.createEl("summary", { attr: { "aria-label": "연결 상세", title: "연결 상세" } });
-    this.ownerEl = summary.createSpan({ text: "Owner 미연결" });
-    details.createEl("h4", { text: "연결 상세" });
-    this.ownerDetails = details.createEl("pre");
+    this.ownerEl = root.createEl("p", { cls: "knowledgeos-connection", text: "Owner 미연결 · Owner 새로 조회로 연결을 확인하세요." });
     this.statusEl = root.createEl("p", { cls: "knowledgeos-notice", attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" } });
     const nav = root.createEl("nav", { cls: "knowledgeos-tabs", attr: { "aria-label": "KnowledgeOS 작업실 보기" } });
     for (const [id, label, icon] of [["search", "검색", "search"], ["work", "작업", "workflow"], ["pending", "Pending", "inbox"], ["daily", "일일 검토", "calendar-check"], ["library", "노트 도구", "panels-top-left"]]) {
@@ -506,12 +592,20 @@ class WorkReviewSidebar extends ItemView {
   renderSearch(section) {
     this.searchInput = this.field(section, "검색어", "input", { type: "search", maxlength: "512", placeholder: "검색" });
     this.searchInput.value = this.query;
-    this.searchInput.oninput = () => { this.query = this.searchInput.value; };
+    this.searchInput.oninput = () => {
+      this.query = this.searchInput.value;
+      this.searchRequest++;
+      this.output(section, "knowledgeos-results");
+    };
     this.searchInput.onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); void this.run(() => this.search()); } };
     this.modeInput = this.field(section, "검색 방식", "select");
     for (const [value, label] of [["lexical", "Lexical"], ["vector", "Vector"], ["hybrid", "Hybrid RRF"], ["ontology", "Ontology"]]) this.modeInput.createEl("option", { value, text: label });
     this.modeInput.value = this.mode;
-    this.modeInput.onchange = () => { this.mode = this.modeInput.value; };
+    this.modeInput.onchange = () => {
+      this.mode = this.modeInput.value;
+      this.searchRequest++;
+      this.output(section, "knowledgeos-results");
+    };
     this.button(section, "검색 실행", () => this.search(), null, false, { icon: "search", label: "검색" });
     section.createDiv({ cls: "knowledgeos-results" });
   }
@@ -526,9 +620,11 @@ class WorkReviewSidebar extends ItemView {
     this.methodInput = this.field(selected, "Method", "select");
     this.methodInfo = selected.createEl("pre", { cls: "knowledgeos-method-info" });
     this.methodInfo.textContent = "목록을 조회하세요.";
+    this.methodParameters = selected.createDiv({ cls: "knowledgeos-method-parameters" });
     this.methodInput.onchange = () => this.renderMethodInfo();
     this.button(selected, "Method 목록 새로 조회", () => this.showMethods(), null, false, { icon: "refresh-cw", label: "목록" });
-    this.button(selected, "선택 Method에 요청", () => this.submitSelected(), "selected_methods", true, { icon: "play", label: "요청" });
+    this.button(selected, "선택 Method에 요청", () => this.submitSelected(), "selected_methods", true, { icon: "play", label: "요청" }).dataset.fresh = "method";
+    if (this.methods.length) this.populateMethods();
     const receipt = section.createEl("details");
     receipt.createEl("summary", { text: "접수 영수증" });
     receipt.createEl("pre", { cls: "knowledgeos-intake-receipt", text: "접수 없음" });
@@ -539,6 +635,7 @@ class WorkReviewSidebar extends ItemView {
     this.workIdInput = this.field(lookup, "WorkRun ID", "input", { maxlength: "160", placeholder: "workrun.…" });
     this.workIdInput.value = this.plugin.settings.lastWorkRunId || "";
     this.button(lookup, "작업 ID로 열기", () => this.showWorkResult(this.workIdInput.value.trim()), null, false, { icon: "arrow-up-right", label: "열기" });
+    this.adminLink(section);
     section.createDiv({ cls: "knowledgeos-work-result" });
   }
   renderLibrary(section) {
@@ -635,12 +732,12 @@ class WorkReviewSidebar extends ItemView {
       let result = await localBackend("status");
       check(result);
       if (result.state !== "owner_connected") {
-        this.message("로컬 백엔드 시작을 요청합니다. Runtime/Worker 실시간 상태는 미관측입니다.");
+        this.message("로컬 백엔드 시작을 요청합니다.");
         result = await localBackend("start");
         check(result);
       }
       for (let attempt = 0; result.state === "starting" && attempt < 3; attempt++) {
-        this.message("로컬 백엔드 시작 중 · Owner HTTP만 제한적으로 다시 조회합니다. Runtime/Worker 상태는 미관측입니다.");
+        this.message("로컬 백엔드 시작 중 · Owner 연결을 확인합니다.");
         await new Promise(resolve => setTimeout(resolve, 1000));
         current();
         result = await localBackend("status");
@@ -705,26 +802,38 @@ class WorkReviewSidebar extends ItemView {
   async showMethods() {
     const result = await this.call("work/methods");
     this.methods = result.methods;
+    this.populateMethods();
+  }
+  populateMethods() {
     this.methodInput.empty();
     for (const method of this.methods) {
-      const option = this.methodInput.createEl("option", { text: `${method.method_id}${method.available ? "" : " · 사용 불가"}`, value: method.method_id });
-      option.disabled = !method.available;
+      this.methodInput.createEl("option", { text: `${METHOD_LABELS[method.method_id] || method.purpose || "기타 작업"}${method.available ? "" : " · 사용 불가"}`,
+        value: method.method_id, attr: { title: method.method_id } });
     }
-    this.methodInput.value = this.methods.find(item => item.available)?.method_id || "";
+    this.methodInput.value = this.methods.find(item => item.available)?.method_id || this.methods[0]?.method_id || "";
     this.renderMethodInfo();
   }
   renderMethodInfo() {
     const method = this.methods.find(item => item.method_id === this.methodInput.value);
-    this.methodInfo.textContent = method ? json({ purpose: method.purpose, available: method.available, reason: method.reason, owner_selected_parameters: method.parameters }) : "실행 가능한 Method 바인딩이 없습니다.";
+    this.methodInfo.textContent = method ? `${METHOD_LABELS[method.method_id] || method.purpose || "기타 작업"}\n${method.available ? "요청 가능" : "사용 불가"}${method.reason ? " · " + method.reason : ""}` : "실행 가능한 작업 바인딩이 없습니다.";
+    this.methodInfo.setAttribute("title", method?.method_id || "");
+    this.methodParameters.empty();
+    this.readMethodParameters = parameterFields(this.methodParameters, method?.parameter_schema, method?.parameters);
+    if (method && !Object.keys(method.parameter_schema?.properties || {}).length) {
+      this.methodParameters.createEl("p", { text: "추가 입력 없이 현재 노트로 요청합니다." });
+    }
+    this.sync();
   }
   async submitSelected() {
     this.requireWrite("selected_methods");
     const method = this.methods.find(item => item.method_id === this.methodInput.value && item.available);
     if (!method) throw new Error("현재 Owner가 실행 가능하다고 반환한 Method를 선택하세요.");
+    const parameters = this.readMethodParameters();
     const scope = await this.scope();
-    const key = `${method.method_id}:${scope.path}:${scope.content_sha256}`;
+    if (this.methodInput.value !== method.method_id || json(this.readMethodParameters()) !== json(parameters)) throw new StaleView("작업 또는 입력이 변경되어 이전 요청을 보내지 않았습니다.");
+    const key = `${method.method_id}:${scope.path}:${scope.content_sha256}:${json(parameters)}`;
     if (!this.requestIds.has(key)) this.requestIds.set(key, globalThis.crypto.randomUUID());
-    const result = await this.call("work/intake-selected", { method_id: method.method_id, scope, request_id: this.requestIds.get(key) }, true);
+    const result = await this.call("work/intake-selected", { method_id: method.method_id, scope, request_id: this.requestIds.get(key), parameters }, true);
     await this.acceptReceipt(result);
   }
   async submitTemplate(templateId) {
@@ -748,7 +857,7 @@ class WorkReviewSidebar extends ItemView {
     if (id) { this.plugin.settings.lastWorkRunId = id; this.workIdInput.value = id; await this.plugin.saveSettings(); }
     this.current(epoch);
     this.contentEl.querySelector(".knowledgeos-intake-receipt").textContent = json(result);
-    this.message(result.reconciliation_required ? "이전 전달 결과 대조가 필요합니다. 새 요청으로 우회하지 마세요." : "Owner 접수 영수증을 받았습니다. 실행 완료·독립 평가와 원본 적용은 별도입니다.");
+    this.message(result.reconciliation_required ? "이전 전달 결과 대조가 필요합니다. 새 요청으로 우회하지 마세요." : "Owner 접수 영수증을 받았습니다. 결과 확인과 원본 적용은 별도입니다.");
     await this.showWorkList();
   }
   async showWorkList() {
@@ -768,7 +877,7 @@ class WorkReviewSidebar extends ItemView {
     for (const item of result.works || []) {
       const card = section.createDiv({ cls: "knowledgeos-work-card" });
       this.button(card, item.work_run_id, () => this.showWorkResult(item.work_run_id));
-      card.createEl("p", { text: `${item.team_id || "Officer"} · 접수 ${item.receipt_state} / 전달 ${item.dispatch_state} / 적용 ${item.application_state} · 실행 ${item.run_state} · 평가 ${item.evaluation_state}` });
+      card.createEl("p", { text: `${item.team_id || "작업"} · ${item.application_state === "unknown" ? "결과 미확인 · 재요청하지 마세요" : item.run_state}` });
       if (item.source_stale) card.createEl("p", { text: "원문 변경됨 · 이 Work의 과거 결과를 현재 제안으로 적용하지 않습니다." });
       if (item.proposal_reference) this.button(card, "제안 검토", () => this.showProposal(item.proposal_reference), "proposal_review", false, { icon: "inbox", label: "제안" });
       if (item.template_id === "note_metadata") {
@@ -800,24 +909,15 @@ class WorkReviewSidebar extends ItemView {
     this.current(epoch);
     if (serial !== this.workResultRequest) return;
     this.work = work;
-    const section = this.output(this.panels.work, "knowledgeos-work-result", "작업·완료 기준·독립 평가");
-    this.facts(section, [["WorkRun", id], ["목표", work.spec.objective], ["실행", work.application_state === "unknown" ? "결과 미확인 (과거 실행 상태: " + work.run.state + ")" : work.run.state], ["접수 / 전달 / 적용", `${work.receipt.receipt_state} / ${work.dispatch_state} / ${work.application_state}`], ["담당", work.spec.manager_executor_id || work.spec.officer_executor_id], ["독립 EvalOfficer", work.spec.eval_officer_executor_id], ["현재 GraphRun", work.run.active_graph_run_id], ["revision / control", `${work.run.revision} / ${work.run.control_revision}`], ["대기 명령", (work.run.pending_action_ids || []).join(", ") || "없음"], ["미해결 효과", (work.run.unresolved_effect_ids || []).join(", ") || "없음"]]);
-    let inspection;
-    try { inspection = await this.call("work/inspection", { work_run_id: id }); }
-    catch (error) { if (error instanceof StaleView) throw error; section.createEl("p", { text: "계보·평가 조회 사용 불가: " + error.message }); }
-    if (serial !== this.workResultRequest) return;
-    for (const criterion of work.spec.acceptance_criteria || []) {
-      const outcome = inspection?.assessment?.criterion_outcomes?.find(item => item.criterion_id === criterion.criterion_id);
-      section.createEl("p", { text: `${criterion.description} · ${outcome?.outcome || "독립 평가 미제공"}` });
-      if (outcome?.evidence_references) section.createEl("pre", { text: json(outcome.evidence_references) });
-    }
-    const lineage = section.createEl("details"); lineage.createEl("summary", { text: "세그먼트·Profile pin·사용 한도·평가 gap" });
-    lineage.createEl("pre", { text: json({ work, inspection }) });
+    const section = this.output(this.panels.work, "knowledgeos-work-result", "작업 결과");
+    this.facts(section, [["WorkRun", id], ["목표", work.spec.objective], ["실행", work.application_state === "unknown" ? "결과 미확인 · 재요청하지 마세요" : work.run.state]]);
+    this.adminLink(section, id);
     try {
       const result = await this.call("work/result", { work_run_id: id });
       if (serial !== this.workResultRequest) return;
-      section.createEl("h4", { text: "독립 평가된 결과와 근거" });
-      section.createEl("p", { text: result.reason || result.state });
+      section.createEl("h4", { text: "결과와 근거" });
+      section.createEl("p", { text: `${result.state}${result.reason ? " · " + result.reason : ""}` });
+      if (result.source_stale) section.createEl("p", { cls: "knowledgeos-error", text: "원문 변경됨 · 과거 결과입니다. 현재 근거로 사용하거나 원본에 적용하지 마세요." });
       if (result.text) section.createEl("pre", { text: result.text });
       if (result.report) section.createEl("pre", { text: json(result.report) });
       if (Array.isArray(result.evidence)) for (const item of result.evidence) {
@@ -825,10 +925,13 @@ class WorkReviewSidebar extends ItemView {
         if (item.path) this.button(article, item.path, () => this.openPath(item.path, item.resource_reference?.source_revision));
         article.createEl("small", { text: item.chunk_locator || "" });
         article.createEl("p", { text: item.excerpt || "" });
-      } else if (result.evidence != null) section.createEl("pre", { text: json(result.evidence) });
+      } else if (result.evidence != null) {
+        const evidence = { ...result.evidence };
+        delete evidence.criterion_outcomes;
+        if (Object.keys(evidence).length) section.createEl("pre", { text: json(evidence) });
+      }
       if (result.truth_evaluated === false) section.createEl("p", { text: "근거의 참조·해시를 검증한 결과이며 내용의 진실성 평가는 아닙니다." });
       if (result.truncated) section.createEl("p", { text: "Owner가 반환한 본문은 일부만 표시됩니다 (truncated)." });
-      const raw = section.createEl("details"); raw.createEl("summary", { text: "정확한 평가·참조 원본" }); raw.createEl("pre", { text: json(result) });
       if (result.proposal_reference) this.button(section, "결과 제안 검토", () => this.showProposal(result.proposal_reference), "proposal_review", false, { icon: "inbox", label: "제안" });
     } catch (error) { if (error instanceof StaleView) throw error; section.createEl("p", { text: "결과 사용 불가: " + error.message }); }
     if (serial !== this.workResultRequest) return;
@@ -856,7 +959,7 @@ class WorkReviewSidebar extends ItemView {
   async showControlTarget() {
     this.target = null;
     this.target = await this.call("work/control/target", { work_run_id: this.work.run.work_run_id });
-    this.contentEl.querySelector(".knowledgeos-control-target").textContent = json(this.target);
+    this.contentEl.querySelector(".knowledgeos-control-target").textContent = "현재 제어 대상을 확인했습니다. 요청 시 Owner가 정확한 대상을 다시 검증합니다.";
     this.sync();
   }
   async control(kind) {
@@ -891,16 +994,16 @@ class WorkReviewSidebar extends ItemView {
     this.button(section, "조정 근거 등록", () => this.registerSteering(), "control_write", true, { icon: "file-plus", label: "근거 등록" }).dataset.fresh = "steering";
     const send = this.button(section, "조정 명령 접수", () => this.submitSteering(), "control_write", true, { icon: "send", label: "접수" }); send.dataset.fresh = "steering"; send.dataset.choice = "steer";
     section.createEl("pre", { cls: "knowledgeos-steering-receipt" });
-    this.button(section, "조정 Work 결과 조회", () => this.exportSteering(), "safe_steering", false, { icon: "file-check", label: "결과" });
-    section.createEl("pre", { cls: "knowledgeos-steering-export" });
   }
   async showSteering() {
     this.steering = this.steeringArtifact = null;
     const view = await this.call("work/steering/view", { work_run_id: this.work.run.work_run_id });
     this.steering = view;
-    this.contentEl.querySelector(".knowledgeos-steering-view").textContent = json(view);
+    this.contentEl.querySelector(".knowledgeos-steering-view").textContent = view.question ?
+      `${view.question.question}\n${view.question.lifecycle || ""}${view.question.expires_at ? " · 응답 기한 " + view.question.expires_at : ""}` :
+      "현재 Owner가 허용한 질문 응답·입력 변경만 요청할 수 있습니다.";
     this.steeringKind.empty();
-    const labels = { answer: "질문 응답", parameter: "허용 parameter 변경", cutover: "부분 Graph 교체", amend_work: "Director 승인 WorkSpec 개정", resume: "닫힌 Graph에서 계속 실행" };
+    const labels = { answer: "질문 응답", parameter: "허용 입력 변경" };
     for (const kind of view.supported_kinds || []) if (labels[kind]) this.steeringKind.createEl("option", { text: labels[kind], value: kind });
     this.renderSteeringFields();
   }
@@ -910,13 +1013,12 @@ class WorkReviewSidebar extends ItemView {
     const kind = this.steeringKind.value;
     if (kind === "answer") this.steeringAnswer = this.field(this.steeringFields, "질문에 대한 응답", "textarea", { maxlength: "256", rows: "3" });
     else if (kind === "parameter") {
-      this.parameterId = this.field(this.steeringFields, "허용 parameter", "select");
+      this.parameterId = this.field(this.steeringFields, "허용 입력", "select");
       this.parameterValue = this.field(this.steeringFields, "허용 값", "select");
       const values = () => { this.parameterValue.empty(); for (const value of this.steering.parameter_bounds?.[this.parameterId.value] || []) this.parameterValue.createEl("option", { text: value, value }); };
       for (const id of Object.keys(this.steering?.parameter_bounds || {})) this.parameterId.createEl("option", { text: id, value: id });
       this.parameterId.onchange = values; values();
-    } else if (kind === "amend_work") this.successorSpec = this.field(this.steeringFields, "별도 Director가 승인한 successor WorkSpec JSON", "textarea", { rows: "6" });
-    else if (["cutover", "resume"].includes(kind)) this.steeringReason = this.field(this.steeringFields, "구조 조정 사유", "textarea", { maxlength: "256", rows: "3" });
+    }
     this.steeringFields.oninput = () => { this.steeringArtifact = null; this.sync(); };
     this.sync();
   }
@@ -929,11 +1031,7 @@ class WorkReviewSidebar extends ItemView {
       if (!this.steering.parameter_bounds?.[parameter_id]?.includes(value)) throw new Error("허용된 parameter와 값만 선택하세요.");
       return { kind, parameter_id, content: { value } };
     }
-    if (kind === "amend_work") {
-      const successor_spec = JSON.parse(this.successorSpec.value);
-      return { kind, successor_spec, content: { successor_spec_digest: successor_spec.spec_digest } };
-    }
-    return { kind, content: { reason: this.steeringReason.value } };
+    throw new Error("질문 응답 또는 허용 입력 변경을 선택하세요. 실행 구조 관리는 브라우저 관리 콘솔에서 확인하세요.");
   }
   async registerSteering() {
     this.requireWrite("control_write");
@@ -956,16 +1054,10 @@ class WorkReviewSidebar extends ItemView {
     if (json(this.steeringInput()) !== json(selected)) throw new Error("현재 입력과 등록된 근거가 다릅니다. 현재 입력으로 근거를 다시 등록하세요.");
     const payload = { work_run_id, command_id: "obsidian.steer." + globalThis.crypto.randomUUID(), kind: selected.kind, target: steering.target, expires_at: new Date(Date.now() + 300000).toISOString(), directive_reference: reference };
     if (selected.parameter_id !== undefined) payload.parameter_id = selected.parameter_id;
-    if (selected.successor_spec !== undefined) payload.successor_spec = selected.successor_spec;
     this.steeringArtifact = null;
     this.contentEl.querySelector(".knowledgeos-steering-receipt").textContent = json({ command_id: payload.command_id, application_state: "응답 대기" });
     const receipt = await this.call("work/steering/request", payload, true);
     this.contentEl.querySelector(".knowledgeos-steering-receipt").textContent = json(receipt);
-  }
-  async exportSteering() {
-    const result = await this.call("work/steering/export", { work_run_id: this.work.run.work_run_id });
-    const bytes = Uint8Array.from(atob(result.content_base64), char => char.charCodeAt(0));
-    this.contentEl.querySelector(".knowledgeos-steering-export").textContent = new TextDecoder("utf-8", { fatal: true }).decode(bytes) + "\n\n" + json({ reference: result.reference, assessment: result.assessment });
   }
   async showProposals() {
     const result = await this.call("proposal/list");

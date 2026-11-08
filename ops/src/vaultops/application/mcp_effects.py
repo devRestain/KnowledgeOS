@@ -66,6 +66,30 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         raise AdmissionError("RESOURCE_UNAVAILABLE", "Selected source is unavailable")
     note = parse_source_document(source_raw.decode("utf-8"))
     payload = _payload(action, arguments)
+    candidate_identity = {}
+    if action == "artifact_submit" and session is not None and getattr(session, "graph_run_id", None) is not None:
+        from .metadata_work import (
+            KINDS,
+            POLICIES,
+            RELATION_METHOD_ID,
+            relation_link_evidence,
+            validate_candidate,
+        )
+        from .temporal_contract import native_team_route
+        from .work import record_digest
+
+        record = app.journal.read()["intents"].get("exops.work." + session.work_run_id)
+        method_id = record["spec"].get("method_contract_ref", {}).get("method_id") if isinstance(record, dict) else None
+        if method_id in POLICIES and native_team_route(record["spec"]) is not None:
+            if payload["artifact_kind"] != KINDS[method_id]:
+                raise AdmissionError("INVALID_ARGUMENT", "Metadata artifact kind differs from its admitted method")
+            try:
+                candidate = json.loads(payload["content"])
+            except (TypeError, ValueError) as error:
+                raise AdmissionError("INVALID_ARGUMENT", "Metadata candidate must be JSON") from error
+            links = relation_link_evidence(record) if method_id == RELATION_METHOD_ID else None
+            validate_candidate(app, source, candidate, method_id=method_id, link_evidence=links)
+            candidate_identity = {"candidate_digest": record_digest(candidate)}
     if action == "proposal_link_suggestions":
         for candidate in payload["candidate_references"]:
             candidate_path = app.resolve_reference(dict(candidate))
@@ -126,9 +150,11 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
                 raise AdmissionError("OUTCOME_UNKNOWN", "Owner must reconcile the existing effect")
             if read_regular(resolve_beneath(app.roots.vault, proposal_path)) != base64.b64decode(prior["frozen_artifact"]):
                 raise AdmissionError("ARTIFACT_CONFLICT", "Pending bytes differ from owner receipt")
+            if any(prior.get(field) != value for field, value in candidate_identity.items()):
+                raise AdmissionError("ARTIFACT_CONFLICT", "Candidate identity differs from its owner receipt")
             return {"status": "NO_OP", "data": {"effect_id": effect_id,
                     "artifact_reference": app.reference(proposal_path, proposal=True),
-                    "apply_allowed": False, "replayed": True},
+                    "apply_allowed": False, "replayed": True, **candidate_identity},
                     "execution_outcome": "completed", "acceptance_state": "not_evaluated"}, 0
         intent = {"effect_id": effect_id, "owner_operation_id": "knowledgeos",
                   "content_digest": digest(artifact), "generation": writer.generation,
@@ -137,7 +163,8 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
                   "state": "pending", "recorded_at": stamp(now), "source_path": source_path,
                   "source_digest": source["content_digest"], "artifact_path": proposal_path,
                   "frozen_artifact": base64.b64encode(artifact).decode(),
-                  "identity": identity, "action": action, "acceptance_state": "not_evaluated"}
+                  "identity": identity, "action": action, "acceptance_state": "not_evaluated",
+                  **candidate_identity}
         app.core.validate("ExecutionIntent", {key: intent[key] for key in (
             "effect_id", "owner_operation_id", "content_digest", "generation",
             "fencing_token", "issued_at", "expires_at")})
@@ -189,5 +216,5 @@ def submit_pending(application: Any, action: str, arguments: Mapping[str, Any],
         return {"status": "PASS", "data": {"effect_id": effect_id,
                 "artifact_reference": artifact_reference,
                 "work_artifact_reference": formal_reference if session is not None and getattr(session, "graph_run_id", None) is not None else None,
-                "apply_allowed": False, "created": created_artifact},
+                "apply_allowed": False, "created": created_artifact, **candidate_identity},
                 "execution_outcome": "completed", "acceptance_state": "not_evaluated"}, 0

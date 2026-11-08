@@ -1,9 +1,20 @@
 """Fresh exact-source fixtures for metadata native admission and pure validation."""
 from __future__ import annotations
 
+import copy
+import json
 from dataclasses import replace
+from types import SimpleNamespace
 from uuid import uuid4
 
+from support.agent_fixture import (
+    CONTROL,
+    decision_response,
+    install_agent_policy,
+    model_binding,
+    specialist_response,
+    synthetic_decision,
+)
 from support.control_factory import make_separate_portable_fixture_roots
 from vaultops.adapters.core import canonical, digest
 from vaultops.application.knowledge import KnowledgeApplication
@@ -19,6 +30,7 @@ TARGET = "플레이어가 텍스트 공포 게임에 다시 돌아올 이유는 
 def application(root, *, no_evidence=False, daily=False):
     roots = make_separate_portable_fixture_roots(root,
         extra_inputs=("ops/config/team-catalog.json", "ops/config/work-methods.json"), review_queues=True)
+    install_agent_policy(roots.control)
     path = roots.vault / SOURCE
     document = parse_frontmatter(path.read_text())
     properties = dict(document.properties)
@@ -49,3 +61,69 @@ def binding(app, route, method_id):
     return replace(candidate, binding_reference={"owner_operation_id": "knowledgeos", "artifact_id": "artifact.binding." + policy.namespace,
         "source_revision": digest(raw)[7:], "content_digest": digest(raw), "media_type": "application/json", "size_bytes": len(raw),
         "classification": "internal", "availability": "available_by_owner_export", "export_capability_id": "knowledgeos.team_binding.export"})
+
+
+class MetadataToolRunner:
+    """Synthetic role decisions with real Owner tool receipts, never provider proof."""
+
+    def __init__(self, *, binding=None, application=None, candidate=None, semantic_outcome="not_run",
+                 registry_categories=("properties", "types", "relations")):
+        self.binding = copy.deepcopy(binding if binding is not None else model_binding())
+        self.application = application
+        self.candidate = copy.deepcopy(candidate)
+        self.semantic_outcome = semantic_outcome
+        self.registry_categories = registry_categories
+        self.decisions = []
+        self.requests = []
+        self.exops = None
+
+    def call_sync(self, request):
+        self.decisions.append(copy.deepcopy(request))
+        control = self.application.roots.control if self.application is not None else CONTROL
+        return decision_response(
+            request, synthetic_decision(request, outcome=self.semantic_outcome), control_root=control)
+
+    async def __call__(self, request):
+        if request.get("request_kind") == "agent_decision":
+            return self.call_sync(request)
+        from vaultops.application.work_tools import TeamToolSession
+        from vaultops.interfaces.mcp_server import _convert_report, _operation
+
+        self.requests.append(copy.deepcopy(request))
+        app = self.application
+        session = TeamToolSession(
+            app, request["work_run_id"], request["executor_id"], request["graph_run_id"], self.exops)
+        calls = []
+
+        def call(name, arguments):
+            session.authorize(name, arguments)
+            result, error = _convert_report(
+                SimpleNamespace(services=app), name, arguments,
+                _operation(app, name, arguments, session=session)())
+            assert not error, result
+            calls.append({"name": name, "arguments": arguments, "result": result})
+            return result["data"]
+
+        if request["stage_id"] in {"coverage_evidence", "relation_evidence"}:
+            for locator in request["source_chunks"]:
+                offset = 0
+                while True:
+                    page = call("knowledge_read", {
+                        "resource_reference": request["source_reference"],
+                        "chunk_locator": locator, "offset": offset})
+                    offset += len(page["text"])
+                    if not page["truncated"]:
+                        break
+            if request["stage_id"] == "relation_evidence":
+                call("link_context", {"resource_reference": request["source_reference"], "limit": 20})
+            else:
+                for category in self.registry_categories:
+                    call("semantic_registry_read", {"category": category})
+        else:
+            if request["stage_id"] == "ontology_alignment":
+                for category in self.registry_categories:
+                    call("semantic_registry_read", {"category": category})
+            call("artifact_submit", {
+                "artifact_kind": request["artifact_kind"],
+                "content": json.dumps(self.candidate, ensure_ascii=False)})
+        return specialist_response(request, calls, control_root=app.roots.control)

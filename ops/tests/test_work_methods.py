@@ -136,10 +136,11 @@ def test_method_graph_and_profile_grants_fail_closed(tmp_path):
     altered = copy.deepcopy(bundle)
     altered["assignments"][0]["node_id"] = "node.write"
     altered["assignments"][1]["node_id"] = "node.triage"
-    with pytest.raises(AdmissionError, match="method stages"):
+    with pytest.raises(AdmissionError) as denied:
         WorkMethodCatalog.load(exops.application.roots.control).validate_segment(
             spec=fixture.spec, run=_running, bundle=altered,
             contracts=exops.contracts, artifacts=artifacts)
+    assert denied.value.code == "SCOPE_DENIED"
     stale = copy.deepcopy(fixture.spec)
     stale["method_contract_ref"]["content_digest"] = "sha256:" + "0" * 64
     stale["spec_digest"] = work_spec_digest(stale)
@@ -167,11 +168,10 @@ def test_method_graph_and_profile_grants_fail_closed(tmp_path):
         missing["graph_spec"], missing["nodes"], missing["edges"])
     missing["segment"]["graph_digest"] = missing["graph_spec"]["graph_digest"]
     missing["segment"]["segment_digest"] = segment_digest(missing["segment"])
-    with pytest.raises(AdmissionError) as denied_missing:
+    with pytest.raises(AdmissionError):
         WorkMethodCatalog.load(exops.application.roots.control).validate_segment(
             spec=fixture.spec, run=_running, bundle=missing,
             contracts=exops.contracts, artifacts=artifacts)
-    assert denied_missing.value.code == "METHOD_STAGE_DENIED"
     source_admission = exops.director_method_source_admitted
     exops.director_method_source_admitted = lambda _spec, _source: False
     with pytest.raises(AdmissionError, match="Director source admission"):

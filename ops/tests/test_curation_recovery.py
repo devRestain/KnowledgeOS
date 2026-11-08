@@ -22,9 +22,9 @@ ACTIVITY = "native.activity.normalization"
 class CountingRecoveryExecutor(CurationTeamExecutor):
     assessments = 0
 
-    def _assess(self, record):
+    async def _semantic(self, record, structural, **kwargs):
         self.assessments += 1
-        return super()._assess(record)
+        return await super()._semantic(record, structural, **kwargs)
 
 
 def failed_effect(tmp_path, *, lose_model_response=False, prior_unknown=False, failure_kind=None):
@@ -127,6 +127,51 @@ def test_committed_effect_response_loss_reconciles_once_with_exact_applied_repla
     assert admit(executor, run, target) == payload
     assert executor.assessments == 1 and len(executor.runner.requests) == 1
     assert exops.application.journal.read()["revision"] == snapshot["revision"]
+
+
+@pytest.mark.parametrize("outcome,state", [("satisfied", "completed"), ("unmet", "awaiting_human")])
+def test_recovery_reuses_retained_semantic_decision_after_result_report_loss(tmp_path, outcome, state):
+    exops, executor, _spec, run, source, target, _proof = failed_effect(tmp_path)
+    before = source.read_bytes()
+    executor.runner.evaluation_outcome = outcome
+    admit(executor, run, target)
+    finish = exops.worker_finished
+
+    def lost_report(*args, **kwargs):
+        raise ConnectionError("Result report lost before Owner application")
+
+    exops.worker_finished = lost_report
+    with pytest.raises(ConnectionError):
+        reconcile(executor, run)
+    snapshot = exops.application.journal.read()
+    retained = copy.deepcopy(snapshot["intents"]["curation.recovery." + RECOVERY]["semantic_assessment"])
+    assert work_record(exops, run)["application_state"] == "unknown"
+    assert retained["result"]["assessment"]["criterion_outcomes"][0]["outcome"] == outcome
+    calls = copy.deepcopy((executor.runner.requests, executor.runner.decisions))
+    exops.worker_finished = finish
+    reconciled = reconcile(executor, run)
+    saved = work_record(exops, run)
+    assert saved["run"]["state"] == state
+    assert saved["assessment"] == retained["result"]["assessment"]
+    assert saved.get("remaining_work") == retained["remaining_work"]
+    assert saved["run"] == retained["result"]["next_run"]
+    assert saved["continuation_state"] == ("completed" if outcome == "satisfied" else "human_required")
+    if outcome == "unmet":
+        assert saved["assessment"]["completion_state"] == "incomplete"
+        assert "result_reference" not in saved["run"]
+        assert saved["remaining_work"]["unmet_criterion_ids"] == [
+            saved["assessment"]["criterion_outcomes"][0]["criterion_id"],
+        ]
+    assert reconcile(executor, run) == reconciled
+    assert (executor.runner.requests, executor.runner.decisions) == calls
+    assert executor.assessments == 1
+    recovered = exops.application.journal.read()
+    assert recovered["intents"]["curation.recovery." + RECOVERY]["semantic_assessment"] == retained
+    assert recovered["human_requests"] == snapshot["human_requests"]
+    assert recovered["decisions"] == snapshot["decisions"]
+    assert len([effect for effect in exops.application.journal.read()["intents"].values()
+                if effect.get("work_binding")]) == 1
+    assert source.read_bytes() == before
 
 
 @pytest.mark.parametrize(

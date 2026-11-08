@@ -12,7 +12,17 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from support.agent_fixture import (
+    decision_response,
+    install_agent_policy,
+    model_binding,
+    retain_director_context,
+    role_response,
+    specialist_response,
+    synthetic_decision,
+)
 from support.control_factory import make_separate_portable_fixture_roots
+from support.work_factory import synthetic_role_decision
 from test_normalization_work import BASE, MODEL_BINDING, SOURCE
 
 from vaultops.adapters.core import AdmissionError, canonical, digest
@@ -37,8 +47,18 @@ class ResearchToolRunner:
 
     def __init__(self, exops, alter=None):
         self.exops, self.alter, self.requests = exops, alter, []
+        self.decisions = []
+        self.binding = model_binding(exops.application.roots.control)
+        self.plan_decision = None
+        self.query_options = {}
 
     async def __call__(self, request):
+        if request.get("request_kind") == "agent_decision":
+            self.decisions.append(copy.deepcopy(request))
+            if self.plan_decision and request["agent_request"]["responsibility"] == "manager":
+                return decision_response(request, self.plan_decision(request),
+                                         control_root=self.exops.application.roots.control)
+            return synthetic_role_decision(request, control_root=self.exops.application.roots.control)
         import json
         self.requests.append(copy.deepcopy(request))
         app = self.exops.application
@@ -52,9 +72,16 @@ class ResearchToolRunner:
             assert not error, result
             calls.append({"name": name, "arguments": arguments, "result": result})
             return result["data"]
+        if request.get("request_kind") == "role_invocation":
+            call("knowledge_search", {"query": request["question"], "mode": "lexical",
+                                      "expected_generation_id": request["index_generation_id"]})
+            return role_response(
+                request["agent_request"], control_root=app.roots.control, calls=calls,
+                final_text="Synthetic query plan: search the exact admitted question; corroboration remains absent.")
 
         if request["stage_id"] == "retrieve_evidence":
-            query = {"query": request["question"], "expected_generation_id": request["index_generation_id"]}
+            query = {"query": request["question"], "expected_generation_id": request["index_generation_id"],
+                     **self.query_options}
             call("knowledge_search", {**query, "mode": "lexical"})
             call("knowledge_retrieve", {**query, "hops": 0})
             citations = []
@@ -76,21 +103,21 @@ class ResearchToolRunner:
                                         "citation_indices": [0]}],
                       "uncertainty": ["No external corroboration was admitted."], "missing_materials": []}
             call("artifact_submit", {"artifact_kind": "document_enhancement_report", "content": json.dumps(report)})
-        response = {"request_digest": request["request_digest"], "runner_binding": dict(self.binding),
-                    "provider": self.binding["provider"], "model": self.binding["model"],
-                    "session_id": "boundary-test-" + request["stage_id"], "final_text": "Test evidence only.",
-                    "tool_calls": calls, "exposed_tools": list(session.tools())}
+        response = specialist_response(
+            {**request, "method_id": "knowledgeos.cited_research_team"}, calls,
+            control_root=app.roots.control, final_text="Synthetic cited report fixture; no provider call.")
         if self.alter:
             self.alter(response)
         return response
 
 
-def started(tmp_path, *, alter=None, policy=None, mutate_spec=None, source_suffix=""):
+def started(tmp_path, *, alter=None, policy=None, mutate_spec=None, source_suffix="", extra_roles=()):
     roots = make_separate_portable_fixture_roots(
         tmp_path,
         extra_inputs=("ops/config/team-catalog.json", "ops/config/work-methods.json"),
         review_queues=True,
     )
+    install_agent_policy(roots.control)
     app = KnowledgeApplication.from_roots(roots)
     path = roots.vault / SOURCE
     text = (
@@ -114,7 +141,7 @@ def started(tmp_path, *, alter=None, policy=None, mutate_spec=None, source_suffi
         catalog.profile("knowledgeos.eval_officer"),
         tuple(
             SpecialistBinding(role, role + ".unit", catalog.profile(role))
-            for role in ("knowledgeos.retriever", "knowledgeos.synthesizer")
+            for role in ("knowledgeos.retriever", "knowledgeos.synthesizer", *extra_roles)
         ),
         catalog.digest,
         research_native_digest(MODEL_BINDING),
@@ -145,11 +172,14 @@ def started(tmp_path, *, alter=None, policy=None, mutate_spec=None, source_suffi
         runner_binding=MODEL_BINDING,
         question="Capture",
     )
+    spec["delegation_mode"] = "manager_bounded"
+    spec["explicit_assignments"] = []
     if mutate_spec:
         mutate_spec(spec)
-        spec["spec_digest"] = work_spec_digest(spec)
-        run["work_spec_digest"] = spec["spec_digest"]
+    spec["spec_digest"] = work_spec_digest(spec)
+    run["work_spec_digest"] = spec["spec_digest"]
     admitted = copy.deepcopy(spec)
+    retain_director_context(app, spec, run, source, owner_scope={"question": "Capture"})
     exops = KnowledgeExOps(
         app,
         authorize_actor=lambda actor, action: actor.actor_id == "owner.user",
@@ -190,12 +220,12 @@ def started(tmp_path, *, alter=None, policy=None, mutate_spec=None, source_suffi
 
 async def produce(executor, spec, run):
     await executor.manager(spec, run)
-    await executor.retrieve_evidence(run["work_run_id"])
-    await executor.answer_artifact(run["work_run_id"])
+    await executor.execute_plan(run["work_run_id"])
 
 
 def test_research_ordered_pages_receipt_independent_assessment(tmp_path):
     exops, executor, spec, run, source_path, receipt = started(tmp_path, source_suffix="\n" + "measured sample " * 700)
+    executor.runner.query_options = {"path_prefix": SOURCE, "limit": 1}
     before = source_path.read_bytes()
     asyncio.run(produce(executor, spec, run))
     result = asyncio.run(executor.assess(run["work_run_id"]))
@@ -211,6 +241,116 @@ def test_research_ordered_pages_receipt_independent_assessment(tmp_path):
         segments=result.segments, evaluations=result.evaluations, artifacts=result.artifacts,
         checkpoints=result.checkpoints, candidate_assessor_id=result.candidate_assessor_id)
     assert finished["application_state"] == "recorded" and source_path.read_bytes() == before
+
+
+def test_owner_evidence_audit_keeps_async_activity_loop_responsive(tmp_path):
+    _exops, executor, spec, run, _path, _receipt = started(tmp_path)
+    asyncio.run(executor.manager(spec, run))
+    entered, release = threading.Event(), threading.Event()
+    original = executor._response
+
+    def audit(*args):
+        entered.set()
+        assert release.wait(2), "Owner audit blocked the activity heartbeat loop"
+        return original(*args)
+
+    executor._response = audit
+
+    async def execute():
+        task = asyncio.create_task(executor.retrieve_evidence(run["work_run_id"]))
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            release.set()
+            await task
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(execute())
+
+
+def test_profile_reads_only_exact_outputs_submitted_to_its_work(tmp_path):
+    def admitted(spec):
+        spec["continuation_policy"]["max_profile_invocations"] = 3
+
+    exops, executor, spec, run, _path, _receipt = started(
+        tmp_path, mutate_spec=admitted, extra_roles=("knowledgeos.evidence_checker",))
+
+    def plan(request):
+        decision = synthetic_decision(request)
+        context = request["agent_request"]["context"]
+        teammate = next(item for item in context["allowed_teammates"]
+                        if item["role_id"] == "knowledgeos.evidence_checker")
+        decision["steps"].append({
+            "stage_id": "artifact_check", "node_id": "node.artifact_check",
+            "role_id": teammate["role_id"], "instruction": "Read the exact report submitted by this Work.",
+            "route": teammate["default_route"], "criterion_ids": context["target_criterion_ids"],
+        })
+        return decision
+
+    executor.runner.plan_decision = plan
+    asyncio.run(executor.manager(spec, run))
+    asyncio.run(executor.retrieve_evidence(run["work_run_id"]))
+    asyncio.run(executor.answer_artifact(run["work_run_id"]))
+    record = exops.application.journal.read()["intents"]["exops.work." + run["work_run_id"]]
+    reference = record["submitted_artifacts"][0]
+    assignment = next(item for item in record["admitted_method_segments"][record["run"]["active_graph_run_id"]]["assignments"]
+                      if item["role_id"] == "knowledgeos.evidence_checker")
+    session = TeamToolSession(exops.application, run["work_run_id"], assignment["executor_id"],
+                              record["run"]["active_graph_run_id"], exops)
+    arguments = {"artifact_reference": reference}
+    session.authorize("artifact_read", arguments)
+    result, error = _convert_report(
+        SimpleNamespace(services=exops.application), "artifact_read", arguments,
+        _operation(exops.application, "artifact_read", arguments, session=session)())
+    assert not error and result["effect"] == "read_only"
+    assert record["method_source_reference"]["content_digest"] in json.dumps(result["data"])
+    for changed in ({**reference, "content_digest": "sha256:" + "0" * 64},
+                    {**reference, "logical_id": "proposal.unbound"}):
+        with pytest.raises(AdmissionError):
+            session.authorize("artifact_read", {"artifact_reference": changed})
+
+
+def test_research_executes_optional_plan_step_and_keeps_original_question(tmp_path):
+    def admitted(spec):
+        spec["objective"] = "Strengthen the measurements without inventing corroboration."
+        spec["delegation_mode"] = "manager_bounded"
+        spec["explicit_assignments"] = []
+        spec["continuation_policy"]["max_profile_invocations"] = 3
+
+    exops, executor, spec, run, path, receipt = started(
+        tmp_path, mutate_spec=admitted, extra_roles=("knowledgeos.query_planner",))
+    before = path.read_bytes()
+
+    def plan(request):
+        decision = synthetic_decision(request)
+        context = request["agent_request"]["context"]
+        teammate = next(item for item in context["allowed_teammates"]
+                        if item["role_id"] == "knowledgeos.query_planner")
+        decision["steps"].insert(0, {
+            "stage_id": "query_plan", "node_id": "node.query_plan",
+            "role_id": teammate["role_id"], "instruction": "Search the admitted question before source extraction.",
+            "route": teammate["default_route"], "criterion_ids": context["target_criterion_ids"],
+        })
+        return decision
+
+    executor.runner.plan_decision = plan
+    asyncio.run(produce(executor, spec, run))
+    assert [request["stage_id"] for request in executor.runner.requests] == [
+        "query_plan", "retrieve_evidence", "answer_artifact"]
+    assert all(request["question"] == "Capture" for request in executor.runner.requests)
+    assert executor.runner.requests[1]["agent_handoffs"][0]["agent_step"]["stage_id"] == "query_plan"
+    result = asyncio.run(executor.assess(run["work_run_id"]))
+    assert result.next_run["profile_invocations"] == 3
+    assert result.assessment["completion_state"] == "complete"
+    exops.worker_finished(
+        run["work_run_id"], worker_identity=exops.worker_identity, action_id=receipt["action_id"],
+        next_run=result.next_run, assessment=result.assessment, segments=result.segments,
+        evaluations=result.evaluations, artifacts=result.artifacts, checkpoints=result.checkpoints,
+        candidate_assessor_id=result.candidate_assessor_id)
+    assert path.read_bytes() == before
 
 
 @pytest.mark.parametrize("change", ["edit", "move"])
@@ -315,72 +455,3 @@ def test_native_research_dispatch_never_accepts_curation_team(tmp_path):
     wrong["method_contract_ref"]["method_id"] = "knowledgeos.capture_normalization_team"
     with pytest.raises(AdmissionError):
         work_workflow_type({"spec": wrong})
-
-
-def test_document_enhancement_native_cutover_uses_exact_research_constructor(tmp_path):
-    from vaultops.application.intake_templates import build_template_admissions
-
-    exops, executor, _, _, source_path, _ = started(tmp_path)
-    source = exops.application.reference(source_path.relative_to(exops.application.roots.vault).as_posix())
-    scope = {"path": SOURCE, "content_sha256": source["source_revision"]}
-    admissions = build_template_admissions(
-        exops, "document_enhancement", scope, "native.research.template",
-        issue_director_receipt=lambda template, team, selected, request: "admission.template.research",
-        native_research_runner_binding=executor.runner_binding,
-    )
-    spec, run, _, _, selected = admissions[0]
-    expected, expected_run = research_admission(
-        exops.application, exops.teams["evidence-research"], source,
-        work_id=spec["work_id"], work_run_id=run["work_run_id"],
-        admission_receipt_id=spec["admission_receipt_id"], runner_binding=executor.runner_binding,
-        question=spec["objective"],
-    )
-    assert spec == expected and run == expected_run and selected == source
-    assert spec["continuation_policy"] == {
-        "max_segments": 1, "max_repeated_gap_assessments": 1, "max_profile_invocations": 2,
-    }
-
-
-def test_native_retrieval_sequence_diagnostic_never_contains_source_or_arguments():
-    import runpy
-    from pathlib import Path
-
-    adapter = runpy.run_path(
-        str(Path(__file__).resolve().parents[1] / "clients/hermes/native_research.py")
-    )
-    calls = [{
-        "name": "knowledge_search",
-        "arguments": {"query": "private-source-question"},
-        "result": {"operation": "knowledge_search", "status": "empty",
-                   "data": {"text": "private-source-excerpt"}},
-    }]
-    with pytest.raises(adapter["NativeOfficerError"]) as raised:
-        adapter["_validate_trace"]({"stage_id": "retrieve_evidence"}, calls)
-    message = str(raised.value)
-    assert '"name":"knowledge_search","status":"empty"' in message
-    assert "private-source" not in message
-
-
-def test_native_retrieval_empty_query_observations_still_require_exact_reads_and_citations():
-    import runpy
-    from pathlib import Path
-
-    adapter = runpy.run_path(
-        str(Path(__file__).resolve().parents[1] / "clients/hermes/native_research.py")
-    )
-    source = {"owner": "exact-source"}
-    request = {"stage_id": "retrieve_evidence", "source_reference": source,
-               "source_chunks": ["/body"]}
-    calls = [
-        {"name": "knowledge_search", "arguments": {},
-         "result": {"operation": "knowledge_search", "status": "empty", "data": {}}},
-        {"name": "knowledge_retrieve", "arguments": {},
-         "result": {"operation": "knowledge_retrieve", "status": "empty", "data": {}}},
-        {"name": "knowledge_read", "arguments": {"resource_reference": source, "chunk_locator": "/body"},
-         "result": {"operation": "knowledge_read", "data": {"truncated": False}}},
-        {"name": "citation_verify", "arguments": {},
-         "result": {"operation": "citation_verify", "data": {"all_valid": True}}},
-    ]
-    adapter["_validate_trace"](request, calls)
-    with pytest.raises(adapter["NativeOfficerError"]):
-        adapter["_validate_trace"](request, calls[:2])

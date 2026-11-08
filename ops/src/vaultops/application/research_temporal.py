@@ -86,7 +86,7 @@ class _ResearchActivities:
             self.unknown(payload)
             raise
 
-    async def retrieve_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def execute_plan(self, payload: dict[str, Any]) -> dict[str, Any]:
         from temporalio import activity
 
         self.current_record(payload, started=True)
@@ -104,35 +104,7 @@ class _ResearchActivities:
 
         heartbeats = asyncio.create_task(heartbeat())
         try:
-            await self.executor.retrieve_evidence(payload["work_run_id"])
-            return payload
-        except (Exception, asyncio.CancelledError):
-            self.unknown(payload)
-            raise
-        finally:
-            heartbeats.cancel()
-            with suppress(asyncio.CancelledError):
-                await heartbeats
-
-    async def answer_artifact(self, payload: dict[str, Any]) -> dict[str, Any]:
-        from temporalio import activity
-
-        self.current_record(payload, started=True)
-
-        async def heartbeat() -> None:
-            while True:
-                activity.heartbeat(
-                    {
-                        "work_run_id": payload["work_run_id"],
-                        "action_id": payload["action_id"],
-                        "activity_id": activity.info().activity_id,
-                    }
-                )
-                await asyncio.sleep(5)
-
-        heartbeats = asyncio.create_task(heartbeat())
-        try:
-            await self.executor.answer_artifact(payload["work_run_id"])
+            await self.executor.execute_plan(payload["work_run_id"])
             return payload
         except (Exception, asyncio.CancelledError):
             self.unknown(payload)
@@ -143,14 +115,15 @@ class _ResearchActivities:
                 await heartbeats
 
     async def assess(self, payload: dict[str, Any]) -> dict[str, Any]:
-        self.current_record(payload, started=True)
+        await asyncio.to_thread(self.current_record, payload, started=True)
         try:
             result = await self.executor.assess(payload["work_run_id"])
             if not isinstance(result, WorkResult):
                 raise AdmissionError(
                     "INVALID_PAYLOAD", "Team executor returned no owner WorkResult"
                 )
-            return self.exops.worker_finished(
+            return await asyncio.to_thread(
+                self.exops.worker_finished,
                 payload["work_run_id"],
                 worker_identity=self.exops.worker_identity,
                 action_id=payload["action_id"],
@@ -163,7 +136,7 @@ class _ResearchActivities:
                 candidate_assessor_id=result.candidate_assessor_id,
             )
         except Exception:
-            self.unknown(payload)
+            await asyncio.to_thread(self.unknown, payload)
             raise
 
 
@@ -184,7 +157,7 @@ def research_team_graph(exops: KnowledgeExOps, executor: ResearchTeamExecutor):
             raise AdmissionError("BINDING_INVALID", f"Team Worker requires {package}=={selected}")
     if not all(
         callable(getattr(executor, name, None))
-        for name in ("manager", "retrieve_evidence", "answer_artifact", "assess")
+        for name in ("manager", "execute_plan", "assess")
     ):
         raise AdmissionError("BINDING_INVALID", "Team Worker requires its owner Research executor")
 
@@ -195,8 +168,7 @@ def research_team_graph(exops: KnowledgeExOps, executor: ResearchTeamExecutor):
     team_graph = StateGraph(dict)
     nodes = (
         ("manager", activities.manager),
-        ("retrieve_evidence", activities.retrieve_evidence),
-        ("answer_artifact", activities.answer_artifact),
+        ("execute_plan", activities.execute_plan),
         ("assess", activities.assess),
     )
     previous = START
@@ -211,7 +183,7 @@ def research_team_graph(exops: KnowledgeExOps, executor: ResearchTeamExecutor):
                 "retry_policy": RetryPolicy(maximum_attempts=1),
                 **(
                     {"heartbeat_timeout": timedelta(seconds=15)}
-                    if name in {"retrieve_evidence", "answer_artifact"}
+                    if name == "execute_plan"
                     else {}
                 ),
             },

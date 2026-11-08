@@ -84,8 +84,11 @@ def test_read_only_owner_over_relay_preserves_sources_and_denies_all_effects(tmp
         source = roots.vault / SOURCE
         source.write_bytes(source.read_bytes() + b"\nChanged fixture source.\n")
         changed = _snapshot(roots)
-        status, denial = call("search/query", query)
-        assert status in {403, 409} and denial["status"] == "FAIL"
+        status, refreshed = call("search/query", query)
+        assert status == 200
+        current = next(item for item in refreshed["results"] if item["path"] == SOURCE)
+        assert current["resource_reference"] == exops.application.reference(SOURCE)
+        assert current["resource_reference"] != result["resource_reference"]
         assert _snapshot(roots) == changed
     finally:
         for item in (relay, server):
@@ -136,9 +139,9 @@ def test_read_only_routes_deny_before_parsing_or_admission_and_bind_startup_acto
 
 
 @pytest.mark.parametrize("damage", [
-    "missing_runtime", "missing_journal", "state_pins", "core_pins", "source",
+    "missing_runtime", "missing_journal", "state_pins", "core_pins",
 ])
-def test_read_only_startup_refuses_missing_roots_stale_state_and_sources(tmp_path, damage):
+def test_read_only_startup_refuses_missing_roots_and_mismatched_pins(tmp_path, damage):
     roots = _roots(tmp_path)
     if damage == "missing_runtime":
         roots = replace(roots, runtime=tmp_path / "absent")
@@ -154,9 +157,6 @@ def test_read_only_startup_refuses_missing_roots_stale_state_and_sources(tmp_pat
         binding = json.loads(path.read_bytes())
         binding["core_digest"] = "sha256:" + "0" * 64
         path.write_text(json.dumps(binding))
-    else:
-        path = roots.vault / SOURCE
-        path.write_bytes(path.read_bytes() + b"\nChanged source.\n")
     before = _snapshot(roots)
     with pytest.raises(AdmissionError):
         compose_read_only_owner(roots, actor_id="owner.user")

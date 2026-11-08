@@ -6,10 +6,12 @@ runner; its model answer is never authority for a proposal or assessment.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import copy
 import re
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 from itertools import pairwise
 from pathlib import Path
@@ -19,7 +21,24 @@ from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
 from ..projection import source_properties
 from ..retrieval import _chunks_for_note
+from .agent_assessment import assess_result, compile_assessment
+from .agent_decisions import (
+    admitted_director_context,
+    decision_from_response,
+    source_context,
+    validate_role_evidence,
+)
+from .agent_graph import compose_graph
 from .exops import KnowledgeExOps, OwnerActor
+from .native_team import (
+    agent_plan,
+    invoke_readonly_step,
+    readonly_step_request,
+    retain_agent_plan,
+    stage_step,
+    validate_readonly_response,
+    validate_runner_binding,
+)
 from .read_tools import KnowledgeReadTools
 from .team_catalog import TeamBinding, TeamCatalog
 from .temporal_work import WorkResult
@@ -41,13 +60,6 @@ CRITERION = {
     "description": "Exact triage evidence precedes one source-bound Pending normalization proposal with independently verified bytes, receipt and live human gate; no canonical apply.",
 }
 PACKAGES = {"temporalio": "1.34.0", "temporalio-langgraph": "0.1.0", "langgraph": "1.2.0"}
-_ROUTE = {
-    "runtime_kind": "hermes_native",
-    "hermes_version": "0.22.5",
-    "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-    "provider": "openai-codex",
-    "model": "gpt-6.1-terra",
-}
 _TOOLS = ("work_context_read", "knowledge_read", "proposal_create")
 _ROLES = ("knowledgeos.triage", "knowledgeos.normalizer")
 
@@ -57,16 +69,6 @@ def _require(condition, message):
         raise AdmissionError("SCOPE_DENIED", message)
 
 
-def _runner_binding(value):
-    _require(
-        isinstance(value, Mapping)
-        and set(value) == {*_ROUTE, "adapter_digest"}
-        and all(value.get(k) == v for k, v in _ROUTE.items())
-        and isinstance(value.get("adapter_digest"), str)
-        and re.fullmatch(r"sha256:[0-9a-f]{64}", value["adapter_digest"]) is not None,
-        "Curation requires the exact native Hermes runtime binding",
-    )
-    return dict(value)
 
 
 def curation_native_digest(runner_binding):
@@ -76,6 +78,10 @@ def curation_native_digest(runner_binding):
         "curation_temporal.py",
         "curation_workflow.py",
         "temporal_contract.py",
+        "native_team.py",
+        "agent_graph.py",
+        "agent_assessment.py",
+        "agent_decisions.py",
     ):
         raw = read_regular(Path(__file__).with_name(name))
         _require(raw is not None, "Curation execution module is unavailable")
@@ -86,7 +92,7 @@ def curation_native_digest(runner_binding):
             "engine_id": ENGINE_ID,
             "engine_version": ENGINE_VERSION,
             "packages": PACKAGES,
-            "runner_binding": _runner_binding(runner_binding),
+            "runner_binding": validate_runner_binding(runner_binding),
         }
     )
 
@@ -108,7 +114,7 @@ def _binding(app, binding, runner_binding):
     catalog.validate_binding(binding)
     _require(
         binding.team_id == "knowledge-curation"
-        and [s.role_id for s in binding.specialists] == list(_ROLES)
+        and set(_ROLES) <= {s.role_id for s in binding.specialists}
         and binding.native_binding_digest == curation_native_digest(runner_binding),
         "Curation requires exact selected Team and native runtime binding",
     )
@@ -137,7 +143,7 @@ def curation_admission(
         "criteria_revision": 1,
         "objective": "Triage one Capture and prepare one Pending normalization proposal",
         "constraints": "No canonical apply or source mutation; native runner "
-        + record_digest(_runner_binding(runner_binding))
+        + record_digest(validate_runner_binding(runner_binding))
         + "; selected source "
         + record_digest(source_reference),
         "acceptance_criteria": [dict(CRITERION)],
@@ -205,18 +211,13 @@ def _current(exops, work_run_id, runner_binding, *, application_states=("started
         "Curation has no active owner attempt",
     )
     spec, run = record["spec"], record["run"]
-    binding = exops.teams.get(spec.get("team_id"))
+    binding = exops.team_for_spec(spec)
     source = record.get("method_source_reference")
-    expected, _ = curation_admission(
-        exops.application,
-        binding,
-        source,
-        work_id=spec["work_id"],
-        work_run_id=work_run_id,
-        admission_receipt_id=spec["admission_receipt_id"],
-        runner_binding=runner_binding,
-    )
-    _require(spec == expected, "Unsupported curation WorkSpec or criterion semantics")
+    _binding(exops.application, binding, runner_binding)
+    admitted_director_context(exops.application, record)
+    method = WorkMethodCatalog.load(exops.application.roots.control).admitted_method(spec, exops.contracts)
+    _require(method["method_id"] == METHOD_ID, "Unsupported curation method")
+    _source(exops.application, source)
     exops._team_binding(spec, run)
     _require(
         exops.director_admitted(spec)
@@ -263,6 +264,89 @@ def _source(app, reference):
         "Native curation cannot receive a local-only or private source",
     )
     return path, raw
+
+
+def _validate_capture_agent(app, record, step, evidence, runner_binding, *, context=None, spec=None):
+    """Re-read the exact source and compare the retained model's actual callbacks."""
+    request, response = evidence["request"], evidence["response"]
+    agent = request["agent_request"]
+    spec = record["spec"] if spec is None else spec
+    graph_id = request["agent_request"]["graph_run_id"]
+    _require(
+        evidence["content_digest"] == record_digest(evidence, ("content_digest",))
+        and request["request_digest"] == record_digest(request, ("request_digest",))
+        and request["request_kind"] == "role_invocation"
+        and request["runner_binding"] == runner_binding
+        and request["work_run_id"] == record["run"]["work_run_id"]
+        and request["stage_id"] == step["stage_id"]
+        and request["agent_step"] == step
+        and agent["role_id"] == step["role_id"]
+        and agent["responsibility"] == "specialist"
+        and agent["method_id"] == spec["method_contract_ref"]["method_id"]
+        and agent["route"] == step["route"]
+        and agent["tools"] == step["tools"]
+        and agent["executor_id"] == step["executor_id"]
+        and agent["work_run_id"] == record["run"]["work_run_id"]
+        and agent["control_root"] == str(app.roots.control)
+        and graph_id in record["run"]["graph_run_ids"]
+        and agent["context"]["agent_step"] == step
+        and agent["context"]["work_spec"] == spec
+        and all(agent["context"].get(key) == value for key, value in
+                source_context(app, record["method_source_reference"]).items())
+        and response["request_digest"] == record_digest(agent),
+        "Triage request or actual response changed its admitted identity/source",
+    )
+    validate_role_evidence(app.roots.control, step["role_id"], response,
+                           tools=step["tools"], route=step["route"])
+    _, parsed = decision_from_response(request, response)
+    _require(evidence == parsed, "Triage decision differs from its actual model response")
+    source = record["method_source_reference"]
+    reader = KnowledgeReadTools(app, allowed_path=app.resolve_reference(source))
+    _, notes = reader._eligible(selected_path=app.resolve_reference(source))
+    chunks = [chunk.locator for chunk in _chunks_for_note(reader._note(source, notes))]
+    _require("source_chunks" not in agent["context"] or agent["context"]["source_chunks"] == chunks,
+             "Triage request changed its exact source locators")
+    offsets, seen = dict.fromkeys(chunks, 0), set()
+    calls = response["tool_calls"]
+    _require(isinstance(calls, list) and bool(calls), "Triage lacks actual source reads")
+    needs_context = "work_context_read" in step["tools"]
+    for index, call in enumerate(calls):
+        name, args, result = call["name"], call["arguments"], call["result"]
+        _require(name in step["tools"] and isinstance(args, dict) and isinstance(result, dict)
+                 and result.get("schema_version") == 3 and result.get("operation") == name
+                 and result.get("status") == "ok" and result.get("error") is None
+                 and result.get("effect") == "read_only"
+                 and result.get("canonical_target_changed") is False,
+                 "Triage trace lacks an exact successful read-only Owner result")
+        if name == "work_context_read":
+            _require(index == 0 and not args and context is not None and result["data"] == context,
+                     "Triage context differs from its exact admitted Profile")
+            continue
+        _require(name == "knowledge_read" and (not needs_context or index > 0)
+                 and {"resource_reference", "chunk_locator"} <= set(args)
+                 and set(args) <= {"resource_reference", "chunk_locator", "offset", "max_chars"}
+                 and args["resource_reference"] == source
+                 and args["chunk_locator"] in offsets and args["chunk_locator"] not in seen
+                 and args.get("offset", 0) == offsets[args["chunk_locator"]],
+                 "Triage read changed its source, locator or page order")
+        actual = reader.knowledge_read(source, args["chunk_locator"],
+            offset=args.get("offset", 0), max_chars=args.get("max_chars", 4096))
+        _require(result["data"] == actual and bool(actual["text"]),
+                 "Triage read differs from fresh source evidence")
+        offsets[args["chunk_locator"]] += len(actual["text"])
+        if not actual["truncated"]:
+            seen.add(args["chunk_locator"])
+    _require(seen == set(chunks) and (not needs_context or calls[0]["name"] == "work_context_read"),
+             "Triage did not read every exact source page")
+
+
+def _validate_triage_decision(decision, *, question=False):
+    required = ("summary", "normalization_instructions", "question") if question else (
+        "summary", "normalization_instructions")
+    _require(all(isinstance(decision.get(key), str) and decision[key].strip() for key in required)
+             and isinstance(decision.get("issues"), list)
+             and all(isinstance(issue, str) and issue.strip() for issue in decision["issues"]),
+             "Triage lacks substantive source analysis")
 
 
 def _bundle(app, spec, run, source):
@@ -343,13 +427,14 @@ def _bundle(app, spec, run, source):
             "work_run_id": run["work_run_id"],
             "work_spec_revision": spec["work_spec_revision"],
             "work_spec_digest": spec["spec_digest"],
-            "selection_authority": "explicit_user",
+            "selection_authority": "explicit_user" if spec["delegation_mode"] == "explicit_assignments" else "bounded_manager",
             "semantic_version": pins["semantic_version"],
             "semantic_digest": pins["semantic_digest"],
         }
-        for node, executor, profile in zip(
-            ids[1:3], spec["allowed_executor_ids"], spec["allowed_profiles"]
-        )
+        for node, role in zip(ids[1:3], ("knowledgeos.triage", "knowledgeos.draft_writer")
+                              if spec["method_contract_ref"]["method_id"] == "knowledgeos.capture_steering_team" else _ROLES)
+        for executor, profile in zip(spec["allowed_executor_ids"], spec["allowed_profiles"])
+        if profile["role_id"] == role
     ]
     return {
         "segment": segment,
@@ -361,14 +446,17 @@ def _bundle(app, spec, run, source):
 
 
 class CurationTeamExecutor:
+    method_id = METHOD_ID
+
     def __init__(self, exops: KnowledgeExOps, *, runner, recovery_quiesced=None):
         self.exops, self.runner = exops, runner
         self.recovery_quiesced = recovery_quiesced
-        self.runner_binding = _runner_binding(runner.binding)
+        self.runner_binding = validate_runner_binding(runner.binding)
+        exops.method_executors[self.method_id] = self
 
     def _current(self, work_run_id):
         _require(
-            _runner_binding(self.runner.binding) == self.runner_binding,
+            validate_runner_binding(self.runner.binding) == self.runner_binding,
             "Curation runner binding changed",
         )
         return _current(self.exops, work_run_id, self.runner_binding)
@@ -552,19 +640,11 @@ class CurationTeamExecutor:
         _require(isinstance(record, dict), "Applied recovery Work is unavailable")
         spec = record["spec"]
         source = record["method_source_reference"]
-        expected, _ = curation_admission(
-            app,
-            self.exops.teams.get(spec.get("team_id")),
-            source,
-            work_id=spec["work_id"],
-            work_run_id=record["run"]["work_run_id"],
-            admission_receipt_id=spec["admission_receipt_id"],
-            runner_binding=self.runner_binding,
-        )
+        _binding(app, self.exops.team_for_spec(spec), self.runner_binding)
+        admitted_director_context(app, record)
         self.exops._team_binding(spec, record["run"])
         _require(
-            spec == expected
-            and self.exops.director_admitted(spec)
+            self.exops.director_admitted(spec)
             and self.exops.director_method_source_admitted is not None
             and self.exops.director_method_source_admitted(spec, source),
             "Applied recovery admission changed",
@@ -578,7 +658,7 @@ class CurationTeamExecutor:
             .get("receipt", {})
         )
         _require(
-            _runner_binding(self.runner.binding) == self.runner_binding == intent["runner_binding"]
+            validate_runner_binding(self.runner.binding) == self.runner_binding == intent["runner_binding"]
             and record.get("actor_id") == intent["actor_id"]
             and record.get("spec") == intent["spec"]
             and record.get("method_source_reference") == intent["source_reference"]
@@ -620,7 +700,7 @@ class CurationTeamExecutor:
                 self._applied_recovery(record, previous)
                 return payload
         _require(
-            _runner_binding(self.runner.binding) == self.runner_binding,
+            validate_runner_binding(self.runner.binding) == self.runner_binding,
             "Curation runner binding changed",
         )
         record = _current(
@@ -650,7 +730,8 @@ class CurationTeamExecutor:
             existing = writer.value["intents"].get(key)
             if existing is not None:
                 _require(
-                    existing == {**intent, "state": existing["state"]}
+                    {name: value for name, value in existing.items() if name != "semantic_assessment"}
+                        == {**intent, "state": existing["state"]}
                     and existing["state"] in {"received", "applying"},
                     "Recovery intent changed",
                 )
@@ -675,7 +756,7 @@ class CurationTeamExecutor:
                 writer.commit(app.clock())
         return payload
 
-    async def reconcile(self, work_run_id, recovery_id, *, temporal_run_id, activity_id):
+    def _prepare_reconciliation(self, work_run_id, recovery_id, *, temporal_run_id, activity_id):
         app = self.exops.application
         key = "curation.recovery." + recovery_id
         snapshot = app.journal.read()
@@ -692,10 +773,10 @@ class CurationTeamExecutor:
         self._quiesced(target)
         record = snapshot["intents"].get("exops.work." + work_run_id)
         if intent["state"] == "applied":
-            return self._applied_recovery(record, intent)
+            return record, intent, None, None
         _require(intent["state"] in {"received", "applying"}, "Recovery is not applicable")
         _require(
-            _runner_binding(self.runner.binding) == self.runner_binding == intent["runner_binding"],
+            validate_runner_binding(self.runner.binding) == self.runner_binding == intent["runner_binding"],
             "Recovery runtime binding changed",
         )
         record = _current(
@@ -710,7 +791,32 @@ class CurationTeamExecutor:
             and record_digest(pins) == intent["evidence_digest"],
             "Recovery pinned evidence changed",
         )
-        result = self._assess(record)
+        structural = self._assess(record)
+        return record, intent, pins, structural
+
+    async def reconcile(self, work_run_id, recovery_id, *, temporal_run_id, activity_id):
+        record, intent, pins, structural = await asyncio.to_thread(
+            self._prepare_reconciliation, work_run_id, recovery_id,
+            temporal_run_id=temporal_run_id, activity_id=activity_id)
+        if intent["state"] == "applied":
+            return await asyncio.to_thread(self._applied_recovery, record, intent)
+        semantic = intent.get("semantic_assessment")
+        if semantic is None:
+            assessed = await self._semantic(record, structural, retain=False, full=True)
+            result = assessed["result"]
+            semantic = {"evidence": assessed["evidence"], "remaining_work": assessed["remaining_work"],
+                        "result": {field: getattr(result, field) for field in (
+                            "next_run", "assessment", "segments", "evaluations", "artifacts",
+                            "checkpoints", "candidate_assessor_id")}}
+        else:
+            result = await asyncio.to_thread(self._compile_semantic, record, structural, semantic)
+        return await asyncio.to_thread(
+            self._retain_reconciliation, work_run_id, recovery_id, record, intent, pins, semantic, result)
+
+    def _retain_reconciliation(self, work_run_id, recovery_id, record, intent, pins, semantic, result):
+        app = self.exops.application
+        key = "curation.recovery." + recovery_id
+        target = intent["target"]
         self._quiesced(target)
         with app.journal.writer() as writer:
             _require(
@@ -723,6 +829,7 @@ class CurationTeamExecutor:
                 "Recovery effect evidence changed before application",
             )
             writer.value["intents"][key]["state"] = "applying"
+            writer.value["intents"][key]["semantic_assessment"] = copy.deepcopy(semantic)
             writer.commit(app.clock())
         return self.exops.worker_finished(
             work_run_id,
@@ -755,39 +862,32 @@ class CurationTeamExecutor:
             writer.commit(self.exops.application.clock())
 
     def _segment(self, record):
-        spec, run = record["spec"], record["run"]
+        run = record["run"]
         admitted = record.get("admitted_method_segments", {})
-        _require(
-            len(admitted) == 1
-            and run["graph_run_ids"] == list(admitted)
-            and run["segments_started"] == 1
-            and run["profile_invocations"] == 2,
-            "Curation requires one Manager Graph and two Profile invocations",
-        )
-        bundle, _ = _bundle(self.exops.application, spec, run, record["method_source_reference"])
-        selected = admitted.get(run["active_graph_run_id"])
-        _require(
-            selected is not None
-            and selected["segment"] == bundle["segment"]
-            and selected["assignments"] == bundle["assignments"]
-            and selected["source_reference"] == record["method_source_reference"]
-            and selected["native_binding_digest"] == curation_native_digest(self.runner_binding),
-            "Curation immutable segment or assignments changed",
-        )
-        return bundle["segment"]
+        _require(len(admitted) == run["segments_started"] == 1
+                 and run["graph_run_ids"] == list(admitted),
+                 "Curation requires its exact admitted Manager Graph")
+        plan = agent_plan(record)
+        selected = admitted[run["active_graph_run_id"]]
+        _require(run["profile_invocations"] == len(plan["steps"])
+                 and selected["source_reference"] == record["method_source_reference"]
+                 and selected["native_binding_digest"] == curation_native_digest(self.runner_binding),
+                 "Curation source, native binding or invocation accounting changed")
+        return selected["segment"]
 
     def _view(self, record, index):
         """Read-only evidence reconstruction, never a grant for Profile tools."""
         spec, run = record["spec"], record["run"]
         methods = WorkMethodCatalog.load(self.exops.application.roots.control)
         method = methods.admitted_method(spec, self.exops.contracts)
-        role = _ROLES[index]
+        step = stage_step(record, ("capture_evidence", "normalization_proposal")[index])
+        role = step["role_id"]
         allowed = methods.allowed_tools(spec, role, self.exops.contracts)
         selected = record["admitted_method_segments"][run["active_graph_run_id"]]
         assignment = [
             a
             for a in selected["assignments"]
-            if a["executor_id"] == spec["allowed_executor_ids"][index]
+            if a["executor_id"] == step["executor_id"] and a["node_id"] == step["node_id"]
         ]
         _require(
             len(assignment) == 1
@@ -810,7 +910,7 @@ class CurationTeamExecutor:
             "method_contract_ref": spec["method_contract_ref"],
             "source_reference": source,
             "source_chunks": chunks,
-            "executor_id": spec["allowed_executor_ids"][index],
+            "executor_id": step["executor_id"],
             "generation": run["generation"],
             "fencing_token": run["fencing_token"],
             "graph_run_id": run["active_graph_run_id"],
@@ -853,7 +953,70 @@ class CurationTeamExecutor:
         bundle, artifacts = _bundle(
             self.exops.application, spec, run, record["method_source_reference"]
         )
-        session.propose_graph({"bundle": bundle, "artifacts": artifacts})
+        await self._compose(record, bundle, artifacts)
+
+    async def _compose(self, record, bundle, artifacts, *, required_stage_ids=None):
+        composed = await compose_graph(
+            self.exops, self.runner, record,
+            method_id=record["spec"]["method_contract_ref"]["method_id"],
+            bundle=bundle, artifacts=artifacts, required_stage_ids=required_stage_ids,
+        )
+        retain_agent_plan(self.exops, record, composed)
+        TeamToolSession(
+            self.exops.application, record["run"]["work_run_id"],
+            record["spec"]["manager_executor_id"], exops=self.exops,
+        ).propose_graph({"bundle": composed["bundle"], "artifacts": composed["artifacts"]})
+
+    async def _specialist(self, record, step, *, instructions):
+        request = readonly_step_request(self.exops, self.runner, record, step)
+        request["agent_request"]["instructions"] += "\n" + instructions
+        request["agent_request"]["context"].update(
+            agent_step=step,
+            agent_handoffs=[value for key, value in record.items() if key.startswith("curation_optional.")],
+        )
+        request["request_digest"] = record_digest(request, ("request_digest",))
+        work_run_id = record["run"]["work_run_id"]
+        self._save(work_run_id, record, "curation_capture_request", request)
+        record = self._current(work_run_id)
+        response = await self.runner(request)
+        self._save(work_run_id, record, "curation_capture_attempt", {"request": request, "response": response})
+        await asyncio.to_thread(validate_readonly_response, self.exops, record, step, request, response)
+        decision, evidence = decision_from_response(request, response)
+        record = self._current(work_run_id)
+        self._save(work_run_id, record, "curation_capture_agent", evidence)
+        return decision, evidence
+
+    async def execute_plan(self, work_run_id, *, before_normalization=False, from_normalization=False):
+        record = self._current(work_run_id)
+        reached_normalization = False
+        for step in agent_plan(record)["steps"]:
+            stage = step["stage_id"]
+            if stage == "normalization_proposal":
+                reached_normalization = True
+            if before_normalization and reached_normalization:
+                break
+            if from_normalization and not reached_normalization:
+                continue
+            if stage == "capture_evidence":
+                await self.capture_evidence(work_run_id)
+            elif stage == "normalization_proposal":
+                await self.normalization_proposal(work_run_id)
+            else:
+                record = self._current(work_run_id)
+                request = readonly_step_request(self.exops, self.runner, record, step)
+                request["agent_request"]["context"]["agent_handoffs"] = [
+                    value for key, value in record.items() if key.startswith("curation_optional.")
+                ]
+                if "curation_capture_evidence" in record:
+                    request["agent_request"]["context"]["agent_handoffs"].append(record["curation_capture_evidence"]["decision"])
+                if "curation_model_execution" in record:
+                    request["agent_request"]["context"]["agent_handoffs"].append(record["curation_model_execution"]["response"])
+                request["request_digest"] = record_digest(request, ("request_digest",))
+                key = record["run"]["active_graph_run_id"] + "." + stage
+                self._save(work_run_id, record, "curation_optional_request." + key, request)
+                record = self._current(work_run_id)
+                response = await invoke_readonly_step(self.exops, self.runner, record, step, request=request)
+                self._save(work_run_id, record, "curation_optional." + key, response)
 
     def _triage(self, record):
         self._segment(record)
@@ -885,20 +1048,55 @@ class CurationTeamExecutor:
         return {**evidence, "evidence_digest": record_digest(evidence)}
 
     def _evidence(self, record):
-        _require(
-            record.get("curation_capture_evidence") == self._triage(record),
-            "Triage evidence is missing or changed",
-        )
+        retained = record.get("curation_capture_evidence")
+        _require(isinstance(retained, dict) and set(retained) == {
+            "context", "reads", "evidence_digest", "decision", "agent_evidence"
+        } and {key: retained[key] for key in ("context", "reads", "evidence_digest")} == self._triage(record),
+                 "Triage source evidence is missing or changed")
+        evidence = retained["agent_evidence"]
+        step = stage_step(record, "capture_evidence", retained["context"]["graph_run_id"])
+        _require(retained["decision"] == evidence["decision"]
+                 and record.get("curation_capture_request") == evidence["request"]
+                 and record.get("curation_capture_attempt") == {
+                     "request": evidence["request"], "response": evidence["response"]}
+                 and record.get("curation_capture_agent") == evidence
+                 and evidence["request"]["agent_request"]["graph_run_id"] == retained["context"]["graph_run_id"],
+                 "Actual triage decision changed")
+        _validate_capture_agent(self.exops.application, record, step, evidence, self.runner_binding,
+                                context=retained["context"])
+        _validate_triage_decision(retained["decision"])
 
     async def capture_evidence(self, work_run_id):
         record = self._current(work_run_id)
         _require("curation_model_execution" not in record, "Triage cannot follow normalization")
-        self._save(work_run_id, record, "curation_capture_evidence", self._triage(record))
+        triage = self._triage(record)
+        decision, evidence = await self._specialist(
+            record, stage_step(record, "capture_evidence"),
+            instructions="First call work_context_read, then knowledge_read for every page of every exact source chunk. Triage the actual Capture for the admitted criteria. Return one JSON object with nonempty string summary, issues (a list of concrete issue strings, empty only when none), and nonempty string normalization_instructions. Ground all findings in the actual tool reads; do not claim a proposal effect.",
+        )
+        record = self._current(work_run_id)
+        _validate_capture_agent(self.exops.application, record, stage_step(record, "capture_evidence"),
+                                evidence, self.runner_binding, context=triage["context"])
+        _validate_triage_decision(decision)
+        self._save(work_run_id, record, "curation_capture_evidence",
+                   {**triage, "decision": decision, "agent_evidence": evidence})
 
     def _request(self, record):
         self._evidence(record)
         _source(self.exops.application, record["method_source_reference"])
         context = self._view(record, 1)
+        handoffs = [record["curation_capture_evidence"]["decision"]]
+        if "curation_initial_assessment" in record:
+            handoffs.append(record["curation_initial_assessment"])
+        for graph_run_id in record["run"]["graph_run_ids"]:
+            for step in agent_plan(record, graph_run_id)["steps"]:
+                if graph_run_id == record["run"]["active_graph_run_id"] and step["stage_id"] == "normalization_proposal":
+                    break
+                key = "curation_optional." + graph_run_id + "." + step["stage_id"]
+                if key in record:
+                    handoffs.append(record[key])
+            if graph_run_id == record["run"]["active_graph_run_id"]:
+                break
         request = {
             k: context[k]
             for k in (
@@ -915,6 +1113,9 @@ class CurationTeamExecutor:
         request.update(
             runner_binding=self.runner_binding,
             control_root=str(self.exops.application.roots.control),
+            agent_step=stage_step(record, "normalization_proposal"),
+            method_id=record["spec"]["method_contract_ref"]["method_id"],
+            agent_handoffs=handoffs,
         )
         return {"request_digest": record_digest(request), **request}
 
@@ -935,11 +1136,12 @@ class CurationTeamExecutor:
                 "final_text",
                 "tool_calls",
                 "exposed_tools",
+                "agent_evidence",
             }
             and response["request_digest"] == request["request_digest"]
             and response["runner_binding"] == self.runner_binding
-            and response["model"] == self.runner_binding["model"]
-            and response["provider"] == self.runner_binding["provider"]
+            and response["model"] == response["agent_evidence"].get("model")
+            and response["provider"] == response["agent_evidence"].get("provider")
             and isinstance(response["session_id"], str)
             and 0 < len(response["session_id"]) <= 256
             and isinstance(response["final_text"], str)
@@ -949,6 +1151,15 @@ class CurationTeamExecutor:
             and set(response["exposed_tools"]) == set(_TOOLS),
             "Native response changed route, tools or binding",
         )
+        step = request["agent_step"]
+        validate_role_evidence(self.exops.application.roots.control, step["role_id"],
+                               response["agent_evidence"], tools=list(_TOOLS), route=step["route"])
+        _require(response["session_id"] == response["agent_evidence"]["session_id"]
+                 and response["final_text"] == response["agent_evidence"]["final_text"]
+                 and response["tool_calls"] == [
+                     {key: value for key, value in call.items() if key != "call_id"}
+                     for call in response["agent_evidence"]["tool_calls"]],
+                 "Native response differs from its actual role callbacks")
         calls = response["tool_calls"]
         _require(
             isinstance(calls, list) and 3 <= len(calls) <= 32,
@@ -1041,14 +1252,18 @@ class CurationTeamExecutor:
         )
         return proposal
 
-    async def normalization_proposal(self, work_run_id):
+    def _prepare_normalization(self, work_run_id):
         record = self._current(work_run_id)
         request = self._request(record)
         self._save(work_run_id, record, "curation_model_request", request)
-        response = await self.runner(copy.deepcopy(request))
+        return request
+
+    def _retain_normalization(self, work_run_id, request, response):
+        record = self._current(work_run_id)
+        evidence = {"request": request, "response": response}
+        self._save(work_run_id, record, "curation_model_attempt", evidence)
         record = self._current(work_run_id)
         reference = self._response(record, request, response)
-        evidence = {"request": request, "response": response}
         self._save(
             work_run_id,
             record,
@@ -1075,8 +1290,111 @@ class CurationTeamExecutor:
             )
             writer.commit(app.clock())
 
+    async def normalization_proposal(self, work_run_id):
+        request = await asyncio.to_thread(self._prepare_normalization, work_run_id)
+        response = await self.runner(copy.deepcopy(request))
+        await asyncio.to_thread(self._retain_normalization, work_run_id, request, response)
+
+    def _prepare_assessment(self, work_run_id):
+        record = self._current(work_run_id)
+        return record, self._assess(record)
+
     async def assess(self, work_run_id):
-        return self._assess(self._current(work_run_id))
+        record, structural = await asyncio.to_thread(self._prepare_assessment, work_run_id)
+        return await self._semantic(record, structural)
+
+    def _semantic_evidence(self, record, structural):
+        app = self.exops.application
+        source = record["method_source_reference"]
+        path, raw = _source(app, source)
+        contents = []
+        for reference in structural.artifacts.values():
+            if reference["artifact_id"] == source["logical_id"]:
+                content = raw
+            else:
+                selected = record["canonical_proposal_reference"]
+                content = read_regular(resolve_beneath(app.roots.vault, app.resolve_reference(selected, proposal=True)))
+                _require(content is not None, "Assessment artifact is unavailable")
+            contents.append({"artifact_reference": reference, "content_text": content.decode("utf-8")})
+        proposal = record.get("canonical_proposal_reference")
+        review = None
+        if proposal is not None and proposal["logical_id"] in structural.artifacts:
+            snapshot = app.journal.read()
+            effect = next(item for item in snapshot["intents"].values()
+                          if item.get("work_binding", {}).get("work_run_id") == record["run"]["work_run_id"])
+            human = snapshot["human_requests"][effect["human_request_id"]]
+            review = {
+                "proposal_reference": proposal,
+                "creation_receipt": snapshot["receipts"][effect["effect_id"]]["execution"],
+                "human_request": {key: human[key] for key in (
+                    "request_id", "lifecycle", "allowed_actions", "evidence_reference_ids",
+                    "expires_at", "target_digest")},
+                "decision_recorded": human["request_id"] in snapshot["decisions"],
+            }
+        return {
+            "sources": [{"source_reference": source, "source_path": path, "source_text": raw.decode("utf-8")}],
+            "artifacts": contents,
+            "observations": {"triage": record["curation_capture_evidence"],
+                             "specialist": record.get("curation_model_execution"),
+                             "proposal_review": review,
+                             "optional": {key: value for key, value in record.items() if key.startswith("curation_optional.")}},
+        }
+
+    def final_result(self, record, *, semantic_assessment=None):
+        _require(validate_runner_binding(self.runner.binding) == self.runner_binding,
+                 "Final assessment runtime binding changed")
+        structural = self._assess(record)
+        retained = semantic_assessment if semantic_assessment is not None else record.get("curation_semantic_assessment")
+        return self._compile_semantic(record, structural, retained)
+
+    def _compile_semantic(self, record, structural, retained):
+        _require(isinstance(retained, dict), "Final result lacks its actual independent semantic assessment")
+        assessment = retained["result"]["assessment"] if "result" in retained else retained["assessment"]
+        structural = replace(structural, assessment={
+            **structural.assessment, "assessed_at": assessment["assessed_at"],
+        })
+        assessed = compile_assessment(
+            self.exops, self.runner, record, structural,
+            evidence=self._semantic_evidence(record, structural), decision_evidence=retained["evidence"],
+        )
+        result = assessed["result"]
+        _require(result.assessment == assessment and assessed["remaining_work"] == retained["remaining_work"],
+                 "Final result differs from its retained independent semantic assessment")
+        if "result" in retained:
+            _require(canonical(retained["result"]) == canonical({
+                field: getattr(result, field) for field in (
+                    "next_run", "assessment", "segments", "evaluations", "artifacts",
+                    "checkpoints", "candidate_assessor_id")
+            }), "Recovery result differs from its retained independent semantic assessment")
+        return result
+
+    def _retain_semantic(self, record, assessed):
+        app = self.exops.application
+        value = {"evidence": assessed["evidence"], "remaining_work": assessed["remaining_work"],
+                 "assessment": assessed["result"].assessment}
+        _require(len(canonical(value)) <= 256 * 1024, "Semantic evidence exceeds its bounded record")
+        with app.journal.writer() as writer:
+            live = writer.value["intents"].get("exops.work." + record["run"]["work_run_id"])
+            _require(live == record and "curation_semantic_assessment" not in live,
+                     "Work changed during independent semantic assessment")
+            live["curation_semantic_assessment"] = copy.deepcopy(value)
+            live["continuation_state"] = "completed" if assessed["remaining_work"] is None else "human_required"
+            if assessed["remaining_work"] is None:
+                live.pop("remaining_work", None)
+            else:
+                live["remaining_work"] = copy.deepcopy(assessed["remaining_work"])
+            writer.value["history"].append({
+                "event": "curation_semantic_assessment", "work_run_id": record["run"]["work_run_id"],
+                "sequence": writer.value["revision"] + 1,
+            })
+            writer.commit(app.clock())
+
+    async def _semantic(self, record, structural, *, retain=True, full=False):
+        evidence = await asyncio.to_thread(self._semantic_evidence, record, structural)
+        assessed = await assess_result(self.exops, self.runner, record, structural, evidence=evidence)
+        if retain:
+            await asyncio.to_thread(self._retain_semantic, record, assessed)
+        return assessed if full else assessed["result"]
 
     def _assess(self, record):
         work_run_id = record["run"]["work_run_id"]
@@ -1130,7 +1448,7 @@ class CurationTeamExecutor:
             "work_run_id": work_run_id,
             "work_spec_digest": spec["spec_digest"],
             "graph_run_id": run["active_graph_run_id"],
-            "executor_id": spec["allowed_executor_ids"][1],
+            "executor_id": stage_step(record, "normalization_proposal")["executor_id"],
             "source_reference": source,
         }
         receipt = snapshot["receipts"].get(effect["effect_id"], {}).get("execution", {})

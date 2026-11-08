@@ -49,10 +49,12 @@
 
 ## AgentFabric target ownership
 
-- Use the exact Core 0.19.0 source selection in `ops/config/core-adoption.json`; retain historical contracts and evidence under their original pins.
-- Keep source adoption separate from owner State pins and require an explicit cutover before opening differently pinned State.
+- Use the exact Core 0.20.1 and semantic 0.7.1 source selection in `ops/config/core-adoption.json`; retain historical contracts and evidence under their original pins.
+- Keep source adoption separate from owner State and installed runtime pins; require an explicit fenced cutover before opening differently pinned State.
 - Distinguish existing durable runtime records from host-owned reconstructable Runtime in the target architecture.
 - Keep Operation canonical state, persistent control, routing policy, and effects owner-controlled.
+- Keep administrative HTML and JavaScript in `frontend/`, served through existing ExOps while all human document workflows remain in Obsidian.
+- Keep KnowledgeOS Discord routing, export policy, durable notices and outcomes Operation-owned while the host owns its distinct bot credentials and transport.
 - Retain maintained source, tests, configuration, and authoring plans here regardless of Git dirty status.
 - Use workspace Tmp freely for unrelated drafts and intermediate verification algorithms.
 - Keep README documents in Korean and directory guidance and machine state in English.

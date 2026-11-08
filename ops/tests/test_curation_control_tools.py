@@ -30,7 +30,8 @@ def resumed_tools(tmp_path, monkeypatch):
     asyncio.run(executor.manager_successor(run["work_run_id"]))
     record = exops.application.journal.read()["intents"]["exops.work." + run["work_run_id"]]
     graph_id = record["run"]["active_graph_run_id"]
-    assignment = record["admitted_method_segments"][graph_id]["assignments"][0]
+    assignment = next(item for item in record["admitted_method_segments"][graph_id]["assignments"]
+                      if item["role_id"] == "knowledgeos.normalizer")
     app = KnowledgeApplication.from_roots(
         exops.application.roots,
         identity=LocalIdentity("local.mcp", "mcp", local_execution=True),
@@ -120,7 +121,7 @@ def test_control_revocation_after_assessment_blocks_final_work_commit(tmp_path, 
     paused_target, _receipt = pause(controller, target)
     resume(controller, paused_target)
     asyncio.run(executor.manager_successor(run["work_run_id"]))
-    asyncio.run(executor.normalization_proposal(run["work_run_id"]))
+    asyncio.run(executor.execute_plan(run["work_run_id"]))
     result = asyncio.run(executor.assess(run["work_run_id"]))
     assert result.assessment["completion_state"] == "complete"
     before = exops.application.journal.read()

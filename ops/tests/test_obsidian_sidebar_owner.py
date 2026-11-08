@@ -456,6 +456,8 @@ def test_enhancement_result_links_each_improvement_to_current_cited_evidence(tmp
 
 
 def _evaluated_candidates(exops, scope, *, metadata_fields=None, omit_evidence_value=None):
+    from vaultops.application.metadata_work import candidate_values, evidence_key
+
     app = exops.application
     source = app.reference(scope["path"])
     note = parse_frontmatter((app.roots.vault / scope["path"]).read_text(encoding="utf-8"))
@@ -468,8 +470,8 @@ def _evaluated_candidates(exops, scope, *, metadata_fields=None, omit_evidence_v
         for index, (fields, kind) in enumerate(candidates, 1):
             proposal_id = f"{index:08d}-0000-4000-8000-000000000000"
             relative = f"01_AI_Review/Pending/candidate-{index}.md"
-            evidence = {field: {value: [quote] for value in values}
-                        for field, values in fields.items()}
+            evidence = {field: {evidence_key(value): [quote] for value in candidate_values(proposed)}
+                        for field, proposed in fields.items()}
             if index == 1 and omit_evidence_value is not None:
                 evidence["tags"].pop(omit_evidence_value)
             candidate = {"source_reference": source, "registry_digest": registry_digest,
@@ -620,10 +622,11 @@ def test_metadata_rejects_populated_field_replacement_before_pending(tmp_path):
     backend = _backend(exops, admit_template=lambda _actor, _template, _scope, _request: admissions)
     _call(backend, "work/intake-template", {"template_id": "note_metadata",
                                              "scope": scope, "request_id": REQUEST})
-    _evaluated_candidates(exops, scope, metadata_fields={"claim": ["Replacement claim"]})
+    _evaluated_candidates(exops, scope, metadata_fields={"claim": "Replacement claim"})
     before = (exops.application.roots.vault / SOURCE).read_bytes()
-    with pytest.raises(AdmissionError, match="populated property cannot be replaced"):
+    with pytest.raises(AdmissionError) as denied:
         _call(backend, "work/prepare-metadata", {"request_id": REQUEST})
+    assert denied.value.code == "CONFLICT"
     assert (exops.application.roots.vault / SOURCE).read_bytes() == before
     assert not list((exops.application.roots.vault / "01_AI_Review/Pending").glob("Metadata *.md"))
 

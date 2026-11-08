@@ -5,6 +5,7 @@ import copy
 from dataclasses import replace
 from uuid import uuid4
 
+from support.agent_fixture import install_agent_policy, retain_director_context
 from support.control_factory import make_separate_portable_fixture_roots
 from vaultops.adapters.core import canonical, digest
 from vaultops.application.authoring_work import (
@@ -27,6 +28,7 @@ PROJECT = "20_Projects/guestbook-horror/guestbook-horror.md"
 def prepare(root, runner_binding, method_id, *, canary=None):
     roots = make_separate_portable_fixture_roots(root,
         extra_inputs=("ops/config/team-catalog.json", "ops/config/work-methods.json"), review_queues=True)
+    install_agent_policy(roots.control)
     policy = POLICIES[method_id]
     canary = canary or ("authoring-" + uuid4().hex)
     if method_id == DRAFT_METHOD:
@@ -68,11 +70,12 @@ def prepare(root, runner_binding, method_id, *, canary=None):
     spec, run = authoring_admission(app, binding, source, method_id=method_id, scope=scope,
         work_id="work.authoring." + suffix, work_run_id="workrun.authoring." + suffix,
         admission_receipt_id="admission.authoring." + suffix, runner_binding=runner_binding)
+    retain_director_context(app, spec, run, source, owner_scope={"scope": scope})
     admitted = copy.deepcopy(spec)
     exops = KnowledgeExOps(app,
         authorize_actor=lambda actor, action: actor.actor_id == "owner.authoring" and actor.ingress in {"cli", "web"},
         director_admitted=lambda selected: dict(selected) == admitted,
-        current_team_binding=lambda team: binding if team == binding.team_id else None,
-        teams={binding.team_id: binding}, worker_identity="knowledgeos.worker.authoring",
+        current_method_binding=lambda method: binding if method == method_id else None,
+        method_teams={method_id: binding}, worker_identity="knowledgeos.worker.authoring",
         director_method_source_admitted=lambda selected, ref: dict(selected) == admitted and dict(ref) == source)
     return exops, spec, run, binding, source, path, canary

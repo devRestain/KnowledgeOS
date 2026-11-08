@@ -4,7 +4,7 @@
 
 ## Ownership
 
-- AgentFabric Core supplies versioned static contracts. `ops/config/core-adoption.json` selects Core 0.19.0 and the current semantic bundle.
+- AgentFabric Core supplies versioned static contracts; `ops/config/core-adoption.json` selects the exact source Core/schema and semantic versions and digests, independently of retained State and installed runtime.
 - `Operations/KnowledgeOS/` owns code, policy, methods, tests, and this Blueprint.
 - `Vaults/KnowledgeHub/` is the independent Obsidian Vault and Git root. It owns canonical Markdown, Properties, attachments, and Pending review material.
 - `States/Operations/knowledgeos/` owns the journal, Work and Graph bindings, human decisions, receipts, and unresolved effects.
@@ -28,6 +28,7 @@ flowchart LR
 - The Thin Client submits a bounded Work request for Director admission and displays status, cited evidence, Pending content, and diff. It records an explicit human approval or rejection through the owner. Canonical apply is a separate human action through the owner; the plugin does not directly write canonical notes.
 - Agents read and submit through one owner-gated `vaultmcp` v3. Work tools require an owner-issued session bound to Team or Officer, Profile, method, Graph, source, and effect scope. General tool listing is not authorization.
 - `vaultctl` is the maintenance interface: operation checks and recovery, index build/verify/export, note validation, diagnostics, receipts, exact repair, contract checks, and exact storage transitions. It has no general note creation, search/answer, AI decision, model, provider, queue, worker, or embedding command.
+- The Operation-owned `frontend/` serves local status and administration through the existing ExOps backend. Human document workflows remain in Obsidian. A distinct outbound KnowledgeOS Discord bot may send admitted attention notices using host-owned credentials and transport; notices and link visits never authorize decisions.
 
 ## Vault contract
 

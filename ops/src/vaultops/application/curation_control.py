@@ -9,15 +9,15 @@ from datetime import datetime
 
 from ..adapters.core import AdmissionError
 from ..adapters.owner_journal import stamp
+from .agent_decisions import admitted_director_context, admitted_owner_seed
 from .curation_continuation import (
     METHOD_ID,
     CurationContinuationExecutor,
-    _bundle,
-    curation_continuation_admission,
     curation_continuation_native_digest,
 )
-from .curation_work import _require, _runner_binding, _source
+from .curation_work import _require, _source
 from .exops import OwnerActor
+from .native_team import agent_plan, validate_runner_binding
 from .team_catalog import TeamCatalog
 from .temporal_contract import CURATION_DISPATCH_FIELDS
 from .work import WorkContracts, directive_digest, record_digest, work_control_binding
@@ -81,12 +81,22 @@ def validate_control_release(application, snapshot, record):
              and record["admitted_method_segments"].get(first) == admitted,
              "Released Team, native execution or initial assignment changed")
     mutable = {"run", "assessment", "evaluations", "checkpoints", "assessment_artifacts",
-               "admitted_method_segments", "state", "application_state", "receipt", "continuation_state"}
+               "admitted_method_segments", "agent_plans", "remaining_work",
+               "state", "application_state", "receipt", "continuation_state"}
     _require(all(record.get(key) == value for key, value in baseline.items() if key not in mutable),
              "Released Work changed original evidence or admission")
-    _require(all(record.get(key) == baseline[key] for key in (
-        "assessment", "remaining_work", "evaluations", "checkpoints", "assessment_artifacts",
-    )), "Released Work changed its independent initial gap")
+    final = record.get("curation_semantic_assessment")
+    if final is None:
+        _require(all(record.get(key) == baseline[key] for key in (
+            "assessment", "remaining_work", "evaluations", "checkpoints", "assessment_artifacts",
+        )), "Released Work changed its independent initial gap")
+    else:
+        _require(record["curation_initial_assessment"] == baseline["curation_initial_assessment"]
+                 and record.get("remaining_work") == final["remaining_work"],
+                 "Released Work confused its immutable trigger with current semantic RemainingWork")
+    _require(all(record.get("agent_plans", {}).get(key) == value
+                 for key, value in baseline.get("agent_plans", {}).items()),
+             "Released Work changed its original Manager decision")
     original = checkpoint["initial_run"]
     current = {**copy.deepcopy(original), "revision": original["revision"] + 1,
                "control_revision": original["control_revision"] + 1, "state": "awaiting_human"}
@@ -159,17 +169,20 @@ def validate_control_release(application, snapshot, record):
     if run["segments_started"] == 1:
         _require(run == current, "Successor release changed the closed run")
     else:
-        _require(run["segments_started"] == run["profile_invocations"] == len(run["graph_run_ids"]) == 2
+        _require(run["segments_started"] == len(run["graph_run_ids"]) == 2
+                 and run["profile_invocations"] == current["profile_invocations"]
+                     + len(agent_plan(record, run["graph_run_ids"][1])["steps"])
                  and run["revision"] == current["revision"] + 1
                  and run["control_revision"] == current["control_revision"] + 1
                  and run["graph_run_ids"][:1] == current["graph_run_ids"]
                  and all(run[key] == current[key] for key in current if key not in {
                      "revision", "control_revision", "graph_run_ids", "segments_started", "profile_invocations",
                  }), "Successor changed release lineage, pins or consumed budgets")
-        bundle, _artifacts = _bundle(
-            application, spec, run, record["method_source_reference"], index=2,
-            predecessor=admitted["segment"], remaining=baseline["remaining_work"],
-        )
+        agent_plan(record, run["graph_run_ids"][1])
+        bundle = record["agent_plans"][run["graph_run_ids"][1]]["bundle"]
+        _require(bundle["segment"]["predecessor_graph_run_id"] == first
+                 and bundle["segment"]["trigger_digest"] == record_digest(baseline["remaining_work"]),
+                 "Released successor changed original independent gap lineage")
         successor = record["admitted_method_segments"].get(run["graph_run_ids"][1])
         _require(successor == {
             "segment": bundle["segment"], "assignments": bundle["assignments"],
@@ -227,17 +240,17 @@ class CurationRunControl:
         spec, run = record["spec"], record["run"]
         _require(spec.get("method_contract_ref", {}).get("method_id") == METHOD_ID,
                  "Control requires the selected continuation method")
-        _require(_runner_binding(executor.runner.binding) == executor.runner_binding,
+        _require(validate_runner_binding(executor.runner.binding) == executor.runner_binding,
                  "Control native runner changed")
-        expected, admitted_run = curation_continuation_admission(
-            exops.application, exops.teams.get(spec.get("team_id")),
-            record.get("method_source_reference"), work_id=spec["work_id"],
-            work_run_id=run["work_run_id"], admission_receipt_id=spec["admission_receipt_id"],
-            runner_binding=executor.runner_binding, continuation_policy=spec["continuation_policy"],
-        )
-        _require(spec == expected, "Control WorkSpec or criteria changed")
+        admitted_director_context(exops.application, record)
+        seed = admitted_owner_seed(exops.application, record)
+        admitted_run = {**copy.deepcopy(seed["run"]), "work_spec_digest": spec["spec_digest"],
+                        "work_spec_revision": spec["work_spec_revision"]}
+        _require(exops.team_for_spec(spec).native_binding_digest
+                 == curation_continuation_native_digest(executor.runner_binding),
+                 "Control Team or native binding changed")
         admission = {
-            "spec": expected, "run": admitted_run, "actor_id": record["actor_id"],
+            "spec": spec, "run": admitted_run, "actor_id": record["actor_id"],
             "action_id": record["action_id"], "expires_at": record["expires_at"],
             "method_source_reference": record["method_source_reference"], "control_checkpoint": True,
         }
@@ -288,8 +301,8 @@ class CurationRunControl:
     def _quiescent(self, snapshot, record):
         run = record["run"]
         _require(
-            run["segments_started"] == run["profile_invocations"] == 1
-            and len(run["graph_run_ids"]) == 1
+            run["segments_started"] == len(run["graph_run_ids"]) == 1
+            and run["profile_invocations"] == len(agent_plan(record, run["graph_run_ids"][0])["steps"])
             and "active_graph_run_id" not in run and not run["unresolved_effect_ids"]
             and record.get("continuation_state") in {"allowed", "cancelled"}
             and not any(key in record for key in (
@@ -376,6 +389,11 @@ class CurationRunControl:
                 expected.update(state="recorded", application_state="recorded", continuation_state="cancelled")
                 expected["receipt"]["application_state"] = "recorded"
             actual = {key: value for key, value in record.items() if key != "curation_control_checkpoint"}
+            if resumed:
+                _require(all(actual.get("agent_plans", {}).get(key) == value
+                             for key, value in expected.get("agent_plans", {}).items()),
+                         "Released Manager planning changed initial evidence")
+                actual["agent_plans"] = expected.get("agent_plans", {})
             _require(actual == expected, "Current Work is not the exact checkpoint derivation")
         return checkpoint, last
 
@@ -383,30 +401,46 @@ class CurationRunControl:
         # Successor admission/result may advance the live run, never the captured
         # initial evidence or the historical command result snapshots.
         mutable = {"run", "assessment", "evaluations", "checkpoints", "assessment_artifacts",
-                   "admitted_method_segments", "state", "application_state", "receipt", "continuation_state"}
+                   "admitted_method_segments", "agent_plans", "remaining_work",
+                   "state", "application_state", "receipt", "continuation_state"}
         _require(all(record.get(key) == value for key, value in baseline.items() if key not in mutable),
                  "Resumed Work changed original admission or independent evidence")
         first = released["graph_run_ids"][0]
         _require(record["admitted_method_segments"].get(first) == baseline["admitted_method_segments"][first],
                  "Resumed Work changed its immutable initial segment")
+        _require(all(record.get("agent_plans", {}).get(key) == value
+                     for key, value in baseline.get("agent_plans", {}).items()),
+                 "Resumed Work changed its initial Manager plan")
         selected = copy.deepcopy(record)
         selected["run"]["active_graph_run_id"] = record["run"]["graph_run_ids"][1]
         self.executor._segment(selected)
         run = record["run"]
-        if run["state"] == "running":
+        final = record.get("curation_semantic_assessment")
+        if final is None and run["state"] == "running":
             _require(all(record.get(key) == baseline[key] for key in (
                 "assessment", "remaining_work", "evaluations", "checkpoints", "assessment_artifacts",
             )), "Resumed Work changed its current independent initial gap")
+        elif final is not None:
+            _require(record.get("remaining_work") == final["remaining_work"]
+                     and record["curation_initial_assessment"] == baseline["curation_initial_assessment"],
+                     "Resumed Work confused current semantic gaps with immutable initial lineage")
+            if record["application_state"] == "recorded":
+                _require(record.get("assessment") == final["assessment"]
+                         and run.get("latest_assessment_digest") == record_digest(final["assessment"]),
+                         "Current control result differs from its final semantic assessment")
         _require(run["graph_run_ids"][:1] == released["graph_run_ids"]
-                 and len(run["graph_run_ids"]) == run["segments_started"] == run["profile_invocations"] == 2
+                 and len(run["graph_run_ids"]) == run["segments_started"] == 2
+                 and run["profile_invocations"] == sum(
+                     len(agent_plan(record, graph_id)["steps"]) for graph_id in run["graph_run_ids"])
                  and run["repeated_gap_count"] == released["repeated_gap_count"]
                  and not run["pending_action_ids"] and not run["unresolved_effect_ids"]
                  and all(run[key] == released[key] for key in released if key not in {
                      "revision", "control_revision", "state", "graph_run_ids", "segments_started",
                      "profile_invocations", "latest_assessment_id", "latest_assessment_digest",
                  }), "Resumed Work changed consumed budgets, pins or lineage")
-        _require(run["revision"] == released["revision"] + (2 if run["state"] == "completed" else 1)
-                 and run["control_revision"] == released["control_revision"] + (2 if run["state"] == "completed" else 1),
+        finished = record["application_state"] == "recorded"
+        _require(run["revision"] == released["revision"] + (2 if finished else 1)
+                 and run["control_revision"] == released["control_revision"] + (2 if finished else 1),
                  "Resumed Work has an unexpected revision")
 
     def _authorize_successor(self, snapshot, record):
@@ -698,7 +732,7 @@ class CurationRunControl:
             "operative_package_version": spec["method_contract_ref"]["method_version"],
             "operative_package_digest": spec["method_contract_ref"]["content_digest"],
             "mapping_id": "knowledgeos.curation.control", "mapping_version": "1.0.0",
-            "mapping_digest": self.exops.teams[spec["team_id"]].native_binding_digest,
+            "mapping_digest": self.exops.team_for_spec(spec).native_binding_digest,
             "work_binding": work_control_binding(directive),
         }
         target_digest = _target_digest(binding, run["semantic_version"], run["semantic_digest"])

@@ -10,11 +10,17 @@ import json
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 from ..adapters.core import AdmissionError
 from ..application.exops import KnowledgeExOps, OwnerActor
 from .exops_web import ExOpsWebBackend
+
+# Wheels embed the same Operation-owned source; editable installs use its root.
+_FRONTEND = files("vaultops").joinpath("frontend")
+if not _FRONTEND.is_dir():
+    _FRONTEND = Path(__file__).resolve().parents[4] / "frontend"
 
 
 @dataclass(frozen=True)
@@ -82,7 +88,7 @@ def create_loopback_owner(exops: KnowledgeExOps, *, actor_id: str,
             if selected is None:
                 self._reply(404, {"status": "FAIL", "message": "Unknown console asset"})
                 return
-            body = files(__package__).joinpath("web_console", selected[0]).read_bytes()
+            body = _FRONTEND.joinpath(selected[0]).read_bytes()
             if len(body) > 262144:
                 self._reply(503, {"status": "FAIL", "message": "Console asset exceeds its bound"})
                 return

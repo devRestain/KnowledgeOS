@@ -4,6 +4,9 @@ WORKFLOW_TYPE = "knowledgeos.work.v1"
 ACTIVITY_TYPE = "knowledgeos.execute_admitted_work.v1"
 TEAM_WORKFLOW_TYPE = "KnowledgeOSCurationTeamV1"
 CURATION_GRAPH_NAME = "knowledgeos-curation-v1"
+CURATION_METHOD_ID = "knowledgeos.capture_normalization_team"
+STEERING_METHOD_ID = "knowledgeos.capture_steering_team"
+STEERING_WORKFLOW_TYPE = "KnowledgeOSCurationSteeringWorkflow"
 CONTINUATION_WORKFLOW_TYPE = "KnowledgeOSCurationContinuationV1"
 CONTINUATION_METHOD_ID = "knowledgeos.capture_normalization_continuation_team"
 CURATION_INITIAL_GRAPH_NAME = "knowledgeos-curation-initial-v1"
@@ -13,6 +16,8 @@ CURATION_RECOVERY_QUERY = "curation.recovery_status.v1"
 CURATION_MARK_UNKNOWN_ACTIVITY = "knowledgeos.curation.mark_unknown.v1"
 CURATION_RECONCILE_ACTIVITY = "knowledgeos.curation.reconcile.v1"
 CONTROL_WORKFLOW_TYPE = "KnowledgeOSCurationControlV1"
+CONTROL_INITIAL_GRAPH_NAME = "knowledgeos-curation-control-initial-v1"
+CONTROL_SUCCESSOR_GRAPH_NAME = "knowledgeos-curation-control-successor-v1"
 CONTROL_UPDATE = "curation.control.v1"
 CONTROL_QUERY = "curation.control_status.v1"
 CONTROL_CHECKPOINT_ACTIVITY = "knowledgeos.curation.control_checkpoint.v1"
@@ -62,6 +67,16 @@ NATIVE_TEAM_CRITERIA = {
     "knowledgeos.project_review_team": "criterion.project_review",
     EXCHANGE_METHOD_ID: "criterion.disclosed_adaptation",
     MAINTENANCE_METHOD_ID: "criterion.scoped_recovery_plan",
+}
+
+# Every catalog method has one explicit native route; control is an opt-in
+# continuation route, not a generic Team fallback.
+TEAM_METHOD_ROUTES = {
+    **NATIVE_TEAM_ROUTES,
+    CURATION_METHOD_ID: ("knowledge-curation", TEAM_WORKFLOW_TYPE, "curation"),
+    CONTINUATION_METHOD_ID: ("knowledge-curation", CONTINUATION_WORKFLOW_TYPE, "curation_continuation"),
+    STEERING_METHOD_ID: ("knowledge-curation", STEERING_WORKFLOW_TYPE, "curation_steering"),
+    RESEARCH_METHOD_ID: ("evidence-research", RESEARCH_WORKFLOW_TYPE, "research"),
 }
 
 

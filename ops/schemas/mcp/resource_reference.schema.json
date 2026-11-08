@@ -134,9 +134,9 @@
   "type": "object",
   "x-agentfabric-contract": {
     "catalog_id": "agentfabric.core.contract-catalog",
-    "catalog_version": "0.16.1",
+    "catalog_version": "0.20.1",
     "owner": "Operation",
-    "release_version": "0.16.1",
+    "release_version": "0.20.1",
     "source_of_truth": "contracts/catalog.json",
     "unknown_field_policy": "reject"
   }

@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 11,
   "capability": "knowledgeos_owner_work_review",
   "surface": "native_obsidian_sidebar_item_view",
   "commands": ["open-work-review", "open-search", "open-note-work", "open-pending", "open-daily-review", "request-metadata", "request-enhancement", "open-library"],
@@ -8,7 +8,12 @@
     "icons": "obsidian_setIcon_lucide",
     "navigation": "five_icon_buttons_with_accessible_names_and_pressed_state",
     "actions": "icon_only_connection_actions_and_short_labeled_domain_actions",
-    "details": "collapsed_owner_observations_methods_receipts_and_id_lookup",
+    "details": "collapsed_methods_receipts_and_id_lookup",
+    "method_inspection": "select_all_catalog_methods_for_reasons_and_disable_submission_when_unavailable",
+    "method_inputs": "korean_labeled_schema_controls_with_owner_defaults_and_required_scope",
+    "method_labels": "concise_korean_names_with_exact_owner_method_id_values_and_tooltips",
+    "work_results": "native_user_result_evidence_reason_state_staleness_and_unknown_notices",
+    "execution_management": "explicit_local_browser_console_for_history_graphs_role_model_prompt_eval_and_remaining_work",
     "theme": "inherit_obsidian_variables_and_interface_font"
   },
   "owner": {
@@ -16,7 +21,7 @@
     "host": "127.0.0.1",
     "path": "/owner",
     "control_adapter": "vaultops.interfaces.exops_web",
-    "routes": ["owner/status", "mutation/receipt", "search/query", "work/methods", "work/intake", "work/intake-template", "work/intake-selected", "work/read", "work/inspection", "work/list", "work/result", "work/prepare-metadata", "work/control/target", "work/control/pause", "work/control/resume", "work/control/cancel", "work/control/command", "work/steering/view", "work/steering/artifact", "work/steering/request", "work/steering/export", "daily/list", "daily/read", "daily/decide", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
+    "routes": ["owner/status", "mutation/receipt", "search/query", "work/methods", "work/intake", "work/intake-template", "work/intake-selected", "work/read", "work/list", "work/result", "work/prepare-metadata", "work/control/target", "work/control/pause", "work/control/resume", "work/control/cancel", "work/control/command", "work/steering/view", "work/steering/artifact", "work/steering/request", "daily/list", "daily/read", "daily/decide", "proposal/list", "proposal/read", "proposal/decide", "proposal/apply"],
     "endpoint_is_configurable": true,
     "work_id_persistence": "last_selected_only",
     "template_request_id_persistence": "retain_inflight_and_unknown_until_owner_records_terminal_outcome",
@@ -28,8 +33,8 @@
     "search_modes": ["lexical", "vector", "hybrid", "ontology"],
     "mutation_retry": "never_automatic_reconcile_unknown_outcome",
     "action_validation": "owner_exact_target_at_action_without_client_wall_clock_lock",
-    "control_and_steering": "only_current_owner_reported_binding_and_exact_target",
-    "selected_method_parameters": "fixed_by_owner_not_client_editable"
+    "control_and_steering": "native_pause_resume_cancel_question_answer_and_bounded_parameters_with_current_owner_binding_and_exact_target",
+    "selected_method_parameters": "mandatory_typed_object_from_descriptor_schema_with_parameter_sensitive_request_uuid"
   },
   "local_backend": {
     "activation": "explicit_sidebar_click_only",
@@ -58,6 +63,8 @@
     "owner_canonical_apply_requires_separate_confirmed_click": true,
     "git_effects": false,
     "network_scope": "127.0.0.1_only",
-    "external_browser_or_webview": false
+    "browser_admin_navigation": "explicit_accessible_link_to_configured_owner_origin_console_with_optional_exact_work_run_id_fragment",
+    "browser_document_workflow": false,
+    "embedded_browser_or_webview": false
   }
 }

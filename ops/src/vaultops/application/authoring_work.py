@@ -7,7 +7,12 @@ import json
 from datetime import date, datetime
 from types import SimpleNamespace
 
-from ..action_proposals import DRAFT_SOURCE_TYPES, DRAFT_TARGET_TYPES, generate_action_proposal
+from ..action_proposals import (
+    DRAFT_SOURCE_TYPES,
+    DRAFT_TARGET_TYPES,
+    _source_excerpt,
+    generate_action_proposal,
+)
 from ..adapters.core import canonical, digest
 from ..adapters.owner_journal import read_regular
 from ..adapters.paths import resolve_beneath
@@ -16,6 +21,7 @@ from ..interfaces.mcp_server import _convert_report, _operation
 from ..note_engine import NoteEngine
 from ..projection import source_properties
 from ..retrieval import _chunks_for_note
+from .agent_decisions import admitted_owner_parameters
 from .native_team import (
     NativeTeamExecutor,
     NativeTeamPolicy,
@@ -90,15 +96,9 @@ def authoring_native_digest(runner_binding, method_id=DRAFT_METHOD):
 
 
 def authoring_admission(application, binding, source_reference, *, method_id, scope=None, objective=None, **identities):
-    if scope is None:
-        try:
-            scope = json.loads(objective)
-        except (ValueError, TypeError):
-            require(False, "Authoring scope is missing")
-    selected = _scope(application, source_reference, method_id, scope)
-    encoded = canonical(selected).decode()
-    require(objective is None or objective == encoded, "Authoring objective changed immutable user pins")
-    return native_admission(application, binding, source_reference, policy=_policy(method_id), objective=encoded, **identities)
+    _scope(application, source_reference, method_id, scope)
+    return native_admission(application, binding, source_reference, policy=_policy(method_id),
+                            objective=objective, **identities)
 
 
 def cited_draft_admission(application, binding, source_reference, **kwargs):
@@ -107,6 +107,31 @@ def cited_draft_admission(application, binding, source_reference, **kwargs):
 
 def project_review_admission(application, binding, source_reference, **kwargs):
     return authoring_admission(application, binding, source_reference, method_id=REVIEW_METHOD, **kwargs)
+
+
+def validate_project_evidence_arguments(tool_name, arguments, *, scope, source_path, index_generation_id):
+    """Accept public optional arguments only within the admitted project pins."""
+    if tool_name == "task_query":
+        require(set(arguments) <= {"path_prefix", "limit"}
+                and arguments.get("path_prefix", source_path) == source_path,
+                "Task query differs from the admitted project")
+        limit = arguments.get("limit", 20)
+    elif tool_name == "base_view_query":
+        require(set(arguments) <= {"base", "view", "filters", "limit"}
+                and arguments.get("base") == scope["base"] and arguments.get("view") == scope["view"]
+                and arguments.get("filters", {}) == {},
+                "Base query differs from admitted project pins")
+        limit = arguments.get("limit", 20)
+    else:
+        require(tool_name == "knowledge_retrieve"
+                and set(arguments) <= {"query", "hops", "expected_generation_id", "limit", "path_prefix", "include_types", "scope"}
+                and arguments.get("query") == scope["query"]
+                and arguments.get("hops", 1) == 0
+                and arguments.get("expected_generation_id") == index_generation_id
+                and arguments.get("path_prefix", source_path) == source_path,
+                "Retrieval differs from admitted project pins")
+        limit = arguments.get("limit", 10)
+    require(type(limit) is int and 1 <= limit <= 20, "Project evidence limit exceeds its admitted bound")
 
 
 class AuthoringExecutor(NativeTeamExecutor):
@@ -120,7 +145,7 @@ class AuthoringExecutor(NativeTeamExecutor):
     def request_context(self, record, stage):
         app = self.exops.application
         source = record["method_source_reference"]
-        scope = _scope(app, source, self.policy.method_id, json.loads(record["spec"]["objective"]))
+        scope = _scope(app, source, self.policy.method_id, admitted_owner_parameters(app, record).get("scope"))
         path, _ = source_bytes(app, source)
         reader = KnowledgeReadTools(app, allowed_path=path)
         projection, notes = reader._eligible(selected_path=path)
@@ -130,9 +155,59 @@ class AuthoringExecutor(NativeTeamExecutor):
                 "objective": record["spec"]["objective"], "index_generation_id": projection.manifest["generation_id"],
                 "evidence": None if stage == self.policy.stages[0] else self.evidence(record, self.policy.stages[0])}
 
+    def assessment_observations(self, record):
+        if self.policy.method_id != REVIEW_METHOD:
+            return {}
+        execution = record["project_review_project_evidence"]
+        request = execution["request"]
+        retrieval, base, _ = execution["response"]["tool_calls"]
+        return {"project_read_scope": {
+            "work_run_id": request["work_run_id"],
+            "work_spec_digest": record["spec"]["spec_digest"],
+            "graph_run_id": request["graph_run_id"],
+            "executor_id": request["executor_id"],
+            "evidence_digest": execution["evidence_digest"],
+            "source_reference": request["source_reference"],
+            "source_path": request["source_path"],
+            "admitted_scope": request["scope"],
+            "effective_source_scope": (
+                "These retained calls use the admitted TeamToolSession Graph source, not caller-selected "
+                "Vault access. MCP resolves that source to the exact source_path. KnowledgeReadTools "
+                "restricts its eligible records to that one path before Base evaluation or task scanning; "
+                "empty Base filters mean no additional caller filter, not unrestricted project access."),
+            "knowledge_retrieve": {
+                "query": retrieval["arguments"]["query"],
+                "expected_generation_id": retrieval["arguments"]["expected_generation_id"],
+                "returned_generation_id": retrieval["result"]["data"]["index_generation_id"],
+                "effective_path_prefix": request["source_path"],
+                "hops": retrieval["arguments"]["hops"],
+                "access_scope": (
+                    "MCP replaces caller scope/path_prefix with the admitted source path and supplies "
+                    "mcp_allowed_path; the Owner filters exported candidates to that exact eligible path. "
+                    "The query, generation and zero hops are admitted pins.")},
+            "base_view_query": {
+                "base": base["result"]["data"]["base"],
+                "view": base["result"]["data"]["view"],
+                "caller_filters": base["arguments"].get("filters", {}),
+                "access_scope": (
+                    "The registered admitted Base/view is evaluated over only the selected source record, "
+                    "with its declared view filters; additional caller filters must be empty.")},
+            "task_query": {
+                "effective_source_path": request["source_path"],
+                "capability_limits": (
+                    "Only path_prefix and limit are accepted. Tasks are checkbox lines from the selected "
+                    "source body, with exact line locators/hashes and optional parsed due dates. "
+                    "There is no period argument, date filtering or completion-timestamp inference.")},
+            "review_period_semantics": (
+                "period_start and period_end are the admitted review's interpretation/reporting window, "
+                "not an executed date predicate on these reads. No read receives those period pins as "
+                "date filters. Assess the review's use of that window against the actual evidence; "
+                "source-scoped reads do not themselves establish period coverage or semantic acceptance.")}}
+
     def _fresh_call(self, record, call):
         app = self.exops.application
-        session = TeamToolSession(app, record["run"]["work_run_id"], record["spec"]["allowed_executor_ids"][0],
+        executor_id = self.step(record, self.policy.stages[0])["executor_id"]
+        session = TeamToolSession(app, record["run"]["work_run_id"], executor_id,
                                   record["run"]["active_graph_run_id"], self.exops)
         actual, error = _convert_report(SimpleNamespace(services=app), call["name"], call["arguments"],
             _operation(app, call["name"], call["arguments"], session=session)())
@@ -157,17 +232,17 @@ class AuthoringExecutor(NativeTeamExecutor):
                     citations.append({k: data[k] for k in ("resource_reference", "chunk_locator", "chunk_hash")})
                     position, offset = position + 1, 0
             require(position == len(request["source_chunks"]), "Source extraction omitted a page")
-            return {"source_reference": request["source_reference"], "citations": citations, "pages": pages}
+            _, raw = source_bytes(self.exops.application, request["source_reference"])
+            excerpt = _source_excerpt(raw.decode("utf-8"), None)
+            return {"source_reference": request["source_reference"], "citations": citations, "pages": pages,
+                    "original_excerpt": excerpt, "original_excerpt_digest": digest(excerpt.encode("utf-8"))}
         if stage == "project_evidence":
             scope = request["scope"]
-            expected = [
-                {"query": scope["query"], "hops": 0, "expected_generation_id": request["index_generation_id"], "limit": 20},
-                {"base": scope["base"], "view": scope["view"], "filters": {}, "limit": 20},
-                {"path_prefix": request["source_path"], "limit": 20},
-            ]
-            require([c["name"] for c in calls] == list(self.policy.tools[stage])
-                    and [c["arguments"] for c in calls] == expected, "Project reader changed immutable scope or tool sequence")
+            require([c["name"] for c in calls] == list(self.policy.tools[stage]),
+                    "Project reader changed immutable tool sequence")
             for call in calls:
+                validate_project_evidence_arguments(call["name"], call["arguments"], scope=scope,
+                    source_path=request["source_path"], index_generation_id=request["index_generation_id"])
                 self._fresh_call(record, call)
             tasks = calls[2]["result"]["data"]
             require(tasks.get("truncated") is False, "Project task evidence exceeds bound")
@@ -249,7 +324,8 @@ class AuthoringExecutor(NativeTeamExecutor):
                 "Formal proposal artifact reference differs from exact Pending bytes")
         snapshot = app.journal.read()
         bound = {"work_run_id": run["work_run_id"], "work_spec_digest": spec["spec_digest"],
-                 "graph_run_id": run["active_graph_run_id"], "executor_id": spec["allowed_executor_ids"][-1],
+                 "graph_run_id": run["active_graph_run_id"],
+                 "executor_id": self.step(record, self.policy.stages[-1])["executor_id"],
                  "source_reference": record["method_source_reference"]}
         effects = [e for e in snapshot["intents"].values() if e.get("work_binding", {}).get("work_run_id") == run["work_run_id"]
                    or e.get("identity", {}).get("work_run_id") == run["work_run_id"]]
@@ -281,7 +357,7 @@ class AuthoringExecutor(NativeTeamExecutor):
             identity = {"action": "proposal_project_review", "source": record["method_source_reference"], "payload": payload,
                         "idempotency_key": args.get("idempotency_key") or digest(canonical(payload)),
                         "work_run_id": run["work_run_id"], "graph_run_id": run["active_graph_run_id"],
-                        "executor_id": spec["allowed_executor_ids"][-1]}
+                        "executor_id": self.step(record, self.policy.stages[-1])["executor_id"]}
             require(effect.get("identity") == identity and effect.get("action") == "proposal_project_review", "Review effect identity changed")
         require(record.get("submitted_artifacts") == [reference]
                 and record.get("artifact_references") == {artifact["artifact_id"]: artifact}, "Authoring artifact registration changed")

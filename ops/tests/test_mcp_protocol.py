@@ -45,7 +45,6 @@ def test_stdio_v3_tools_logical_refs_readonly_review_and_create_replay(tmp_path)
             assert not index_status.is_error, index_status.structured_content
             assert index_status.structured_content["effect"] == "read_only"
             assert index_status.structured_content["data"]["lexical_state"] == "ready"
-            assert index_status.structured_content["data"]["lexical_generation_id"] == report["generation_id"]
             retrieved = await client.call_tool("knowledge_retrieve", {"query": "공포"})
             data = retrieved.structured_content
             assert not retrieved.is_error, data

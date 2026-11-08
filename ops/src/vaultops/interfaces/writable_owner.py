@@ -27,6 +27,7 @@ import threading
 from contextlib import AsyncExitStack
 from pathlib import Path
 
+from ..adapters.core import AdmissionError
 from ..adapters.paths import resolve_paths
 from ..application.owner_runtime import (
     DispatchSupervisor,
@@ -61,13 +62,22 @@ class NativeStdioTransport:
                 require(0 < len(response.encode()) <= MAX_MESSAGE and response.endswith("\n"),
                         "Native host response is uncertain; it will not be retried")
                 value = json.loads(response)
-                require(isinstance(value, dict) and set(value) == {"response"},
+                require(isinstance(value, dict) and (
+                    set(value) == {"response"}
+                    or set(value) in ({"error"}, {"error", "diagnostic_code"})
+                    and value["error"] == "NATIVE_RESULT_UNKNOWN"
+                    and value.get("diagnostic_code", "NATIVE_DRIVER_REFUSED") in {
+                        "NATIVE_DRIVER_REFUSED", "NATIVE_CALLBACK_EVIDENCE_INVALID", "NATIVE_ADAPTER_FAILED"}),
                         "Native host outcome requires explicit reconciliation")
-                return value["response"]
             except BaseException:
                 # A late pipe response must never be consumed by the next caller.
                 self.failed = True
                 raise
+            if "error" in value:
+                # A complete explicit refusal consumes its frame; only that Work is unknown.
+                raise AdmissionError("NATIVE_RESULT_UNKNOWN", "Native host outcome requires explicit reconciliation; "
+                                     + value.get("diagnostic_code", "NATIVE_DRIVER_REFUSED"))
+            return value["response"]
 
     async def call(self, method, request):
         return await self._call(REQUEST, {"method_id": method, "request": request})
@@ -102,6 +112,21 @@ class NativeStdioRunner:
     async def __call__(self, request):
         return await self.transport.call(self.method, request)
 
+    def call_sync(self, request):
+        """Carry HTTP-thread Director decisions on the existing native pipe."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise AdmissionError("BINDING_INVALID", "Director admission must run outside the Owner event loop")
+        future = asyncio.run_coroutine_threadsafe(self(request), self.transport.loop)
+        try:
+            return future.result(timeout=365)
+        except TimeoutError as error:
+            future.cancel()
+            raise AdmissionError("NATIVE_RESULT_UNKNOWN", "Director model outcome is unknown") from error
+
 
 def compose_runtime(arguments):
     policy = OwnerRuntimePolicy(arguments.policy_file)
@@ -130,35 +155,42 @@ async def serve(arguments):
     from temporalio.worker import Worker
 
     from ..application.temporal_contract import (
-        NATIVE_TEAM_ROUTES,
-        RESEARCH_METHOD_ID,
-        RESEARCH_WORKFLOW_TYPE,
+        CONTINUATION_METHOD_ID,
+        CONTROL_QUERY,
+        CONTROL_UPDATE,
+        CONTROL_WORKFLOW_TYPE,
+        TEAM_METHOD_ROUTES,
     )
     from ..application.temporal_work import connect_owner_temporal
 
     runtime = compose_runtime(arguments)
     policy = runtime.policy
     clients = {}
-    for method in runtime.executors:
-        wire = RESEARCH_WORKFLOW_TYPE if method == RESEARCH_METHOD_ID else NATIVE_TEAM_ROUTES[method][1]
+    wires = {TEAM_METHOD_ROUTES[method][1] for method in runtime.executors}
+    if CONTINUATION_METHOD_ID in runtime.executors:
+        wires.add(CONTROL_WORKFLOW_TYPE)
+    for wire in sorted(wires):
         binding = TemporalBinding("knowledgeos", "server:7233", "knowledgeos", "knowledgeos.work.v1",
             wire, "knowledgeos/", "owner.unavailable.update", "owner.unavailable.signal",
             "owner.unavailable.query", False)
         clients[wire] = await connect_owner_temporal(runtime.exops, binding)
     sdk = await Client.connect("server:7233", namespace="knowledgeos", tls=False)
+    control_client = None
+    controller = getattr(runtime.exops, "curation_control", None)
+    if controller is not None and not arguments.admission_only:
+        from ..application.curation_control_temporal import connect_control_temporal
+        control_binding = TemporalBinding(
+            "knowledgeos", "server:7233", "knowledgeos", "knowledgeos.work.v1",
+            CONTROL_WORKFLOW_TYPE, "knowledgeos/", CONTROL_UPDATE, "owner.unavailable.signal",
+            CONTROL_QUERY, False)
+        control_client = await connect_control_temporal(controller, control_binding)
     require(bool(runtime.executors), "Writable Owner requires at least one explicitly bound method")
     server = create_loopback_owner(runtime.exops, actor_id=policy.initial["actor_id"],
         admit_template=runtime.admit_template if policy.initial["templates"] else None,
         admit_request=runtime.admit_request if policy.initial["freeform_research"] else None,
         selected_methods=runtime.selected_methods, admit_selected_request=runtime.admit_selected_request,
+        run_control=getattr(runtime.exops, "curation_control", None),
         bind_host=arguments.bind_host, port=arguments.port)
-    scheduler = None
-    if policy.initial["daily_enabled"] and not arguments.admission_only:
-        from ..application.daily_scheduler import DailyAdmissionScheduler
-        scheduler = DailyAdmissionScheduler(runtime.application, admit_request=runtime.admit_daily_request,
-            authorize=lambda: policy.read()["daily_enabled"]
-                and policy.actor_allowed(runtime.actor, "submit_work")
-                and runtime.method_current("knowledgeos.daily_corpus_stewardship_team"))
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
@@ -176,9 +208,8 @@ async def serve(arguments):
                 await stop.wait()
             else:
                 async with asyncio.TaskGroup() as tasks:
-                    if scheduler is not None:
-                        tasks.create_task(scheduler.run(stop, enabled=True, interval_seconds=60))
-                    tasks.create_task(DispatchSupervisor(runtime, clients).run(stop, interval=arguments.interval))
+                    tasks.create_task(DispatchSupervisor(runtime, clients,
+                        control_client=control_client, steering_client=sdk).run(stop, interval=arguments.interval))
     finally:
         if thread.is_alive():
             server.shutdown()

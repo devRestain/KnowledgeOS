@@ -12,14 +12,6 @@ _spec = importlib.util.spec_from_file_location("knowledgeos_native_runtime", Pat
 _runtime = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_runtime)
 NativeMetadataError = _runtime.NativeRuntimeError
-MODEL = "gpt-6.1-terra"
-PROVIDER = "openai-codex"
-BASE_URL = "https://chatgpt.com/backend-api/codex"
-REVISION = "bf0203a794a07aac3ff764972ab9087baa4e4f4e"
-VERSION = "0.22.5"
-SERVER_NAME = "knowledgeosmetadata"
-MAX_ITERATIONS = 64
-DEADLINE_SECONDS = 240
 RESPONSE_MARKER = "KNOWLEDGEOS_MODEL_RESPONSE="
 _METHODS = {
     "knowledgeos.note_metadata_team": {"coverage_evidence": ("knowledge_read", "semantic_registry_read"), "metadata_candidate": ("artifact_submit",)},
@@ -28,7 +20,8 @@ _METHODS = {
 }
 _FIELDS = {"request_digest", "runner_binding", "method_id", "stage_id", "work_run_id", "work_spec_digest", "graph_run_id",
            "executor_id", "generation", "fencing_token", "source_reference", "control_root", "source_chunks",
-           "registry_digest", "artifact_kind", "existing_properties", "evidence"}
+           "registry_digest", "artifact_kind", "existing_properties", "evidence", "agent_step", "agent_handoffs",
+           "semantic_registry_digests", "permitted_fields"}
 
 
 def _canonical(value):
@@ -41,11 +34,7 @@ def _require(condition, message):
 
 
 def runner_binding():
-    return {"runtime_kind": "hermes_native", "hermes_version": VERSION, "hermes_revision": REVISION,
-            "provider": PROVIDER, "model": MODEL, "adapter_digest": "sha256:" + hashlib.sha256(_canonical({
-                "adapter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                "runtime_sha256": hashlib.sha256(Path(__file__).with_name("native_runtime.py").read_bytes()).hexdigest(),
-            })).hexdigest()}
+    return _runtime.binding_for(__file__)
 
 
 def stage_tools(request):
@@ -61,43 +50,30 @@ def _validate_request(request):
         _require(isinstance(request[key], str) and 0 < len(request[key]) <= 500, "Native request identity invalid")
     _require(type(request["generation"]) is int and request["generation"] > 0, "Native generation invalid")
     _require(isinstance(request["source_reference"], dict) and isinstance(request["existing_properties"], dict), "Native source invalid")
+    digests = request["semantic_registry_digests"]
+    _require(isinstance(digests, dict) and set(digests) == {"properties", "types", "relations"}
+             and all(isinstance(value, str) and len(value) == 71 and value.startswith("sha256:")
+                     and all(char in "0123456789abcdef" for char in value[7:]) for value in digests.values())
+             and digests["relations"] == request["registry_digest"], "Native semantic registry pins invalid")
+    fields = request["permitted_fields"]
+    _require(isinstance(fields, list) and all(isinstance(value, str) and value for value in fields)
+             and fields == sorted(set(fields)), "Native permitted fields invalid")
     _require(isinstance(request["source_chunks"], list) and 0 < len(request["source_chunks"]) <= 20
              and all(isinstance(s, str) and s for s in request["source_chunks"]), "Native source chunks invalid")
     _require(isinstance(request["control_root"], str) and request["control_root"].startswith("/")
              and ".." not in request["control_root"].split("/") and "\x00" not in request["control_root"], "Native control root invalid")
     first = request["stage_id"] in {"coverage_evidence", "relation_evidence"}
-    _require((request["evidence"] is None) if first else isinstance(request["evidence"], dict), "Native evidence stage differs")
+    _require((request["evidence"] is None) if first else isinstance(request["evidence"], dict),
+             "Native evidence stage differs")
     expected_kind = {"knowledgeos.note_metadata_team": "note_metadata", "knowledgeos.relation_ontology_team": "note_relations",
                      "knowledgeos.daily_corpus_stewardship_team": "daily_enrichment"}[request["method_id"]]
     _require(request["artifact_kind"] == expected_kind, "Native artifact kind differs")
 
 
-def _owner_result(raw):
-    value = json.loads(raw) if isinstance(raw, str) else raw
-    _require(isinstance(value, dict), "Native callback result invalid")
-    if "schema_version" not in value:
-        rendered = value.get("result")
-        rendered = json.loads(rendered) if isinstance(rendered, str) else rendered
-        structured = value.get("structuredContent")
-        _require(structured is None or not rendered or structured == rendered, "Conflicting native callback copies")
-        value = structured if structured is not None else rendered
-    _require(isinstance(value, dict) and value.get("schema_version") == 3 and value.get("error") is None
-             and value.get("status") in {"ok", "empty", "created"}, "Native callback denied")
-    return value
 
 
-def _validate_trace(request, calls):
-    tools = stage_tools(request)
-    _require(calls and all(c["name"] in tools and c["result"].get("operation") == c["name"] for c in calls), "Native tools escaped stage")
-    if request["stage_id"] in {"coverage_evidence", "relation_evidence"}:
-        tail = "link_context" if request["stage_id"] == "relation_evidence" else "semantic_registry_read"
-        _require(calls[-1]["name"] == tail and all(c["name"] == "knowledge_read" for c in calls[:-1]), "Native evidence order differs")
-        complete = [c["arguments"].get("chunk_locator") for c in calls[:-1] if not c["result"]["data"].get("truncated")]
-        _require(complete == request["source_chunks"] and all(c["arguments"].get("resource_reference") == request["source_reference"] for c in calls[:-1]), "Native exact source reads incomplete")
-    else:
-        expected = ["semantic_registry_read", "artifact_submit"] if request["stage_id"] == "ontology_alignment" else ["artifact_submit"]
-        _require([c["name"] for c in calls] == expected, "Native candidate order differs")
-        _require(calls[-1]["arguments"].get("artifact_kind") == request["artifact_kind"], "Native candidate kind differs")
+
+
 
 
 def _prompt(request, raw_names):
@@ -108,15 +84,26 @@ def _prompt(request, raw_names):
         system += ("Read EVERY supplied source chunk IN ORDER with exact knowledge_read resource_reference, offset 0, max_chars 4096; "
                    "continue truncated chunks at previous offset plus text length before the next chunk. After all source pages call ")
         system += ("link_context exactly once with exact resource_reference and limit 20. " if request["stage_id"] == "relation_evidence"
-                   else "semantic_registry_read exactly once with category relations. ")
-        system += "No more tools. Final response identifies observed Synthetic observation code if present; no inferred enrichment."
+                   else "semantic_registry_read for each category properties, types and relations, in any order; "
+                        "additional reads of these categories are permitted. "
+                        "Use authoritative property descriptors and allowed note types to understand metadata meanings. ")
+        system += "No more tools. Final response summarizes actual source evidence and unresolved gaps; no inferred enrichment."
     else:
         if request["stage_id"] == "ontology_alignment":
-            system += "First call semantic_registry_read with category relations. Then "
-        system += ("Call artifact_submit EXACTLY ONCE with supplied artifact_kind and content a JSON STRING containing EXACTLY "
-                   "source_reference, registry_digest, fields, evidence. Copy source_reference and registry_digest EXACTLY. "
-                   "fields maps declared field names to lists of NEW values; evidence maps each same field to an object mapping EACH exact value "
-                   "to a NONEMPTY list of exact source BODY quotes, not frontmatter. The value token must appear in a quote. "
+            system += ("Before submitting the artifact, call semantic_registry_read for category relations at least once. "
+                       "You may also read properties and types, in any order and again as needed for authoritative meanings. ")
+        system += ("Call artifact_submit EXACTLY ONCE using the concrete Owner-pinned arguments template below. "
+                   "content is a JSON STRING whose object has EXACTLY source_reference, registry_digest, fields, evidence. "
+                   "Copy source_reference and registry_digest EXACTLY; replace only fields and evidence with supported additions. "
+                   "Do not add source_digest, semantic_registry_digests, candidate_digest or field_evidence to this object. "
+                   "Requested provenance stays in the Owner request, the Owner-computed artifact receipt and your final report, "
+                   "not in extra candidate keys; evidence is the only candidate field-evidence key. "
+                   "fields maps only permitted_fields to NEW values with authoritative property descriptor types: text/date/datetime are scalar "
+                   "strings, number is a JSON number, checkbox is a boolean, list/tags are bounded unique string lists; "
+                   "relation and daily fields are lists. evidence maps each same field to an object mapping EACH exact string value "
+                   "(or JSON spelling of a number/boolean) to a NONEMPTY list of exact source BODY quotes, not frontmatter. "
+                   "The exact value must appear in a quote. Use the properties/types registries to resolve meaning and applicability; "
+                   "never infer a field value merely from its descriptor or name. "
                    "Only suggest clear evidence-backed additions; empty fields:{} and evidence:{} is a valid explicit no-evidence result. "
                    "Preserve all populated scalar properties; tags and relation lists may only gain new values, never replace existing. "
                    "Never suggest id/type/title/created/modified/schema_version/ai_policy/sensitivity/status. "
@@ -126,8 +113,22 @@ def _prompt(request, raw_names):
                    "name and exact [[target]]. Unlinked mentions and uncertain semantics stay unasserted candidates: omit them from fields. "
                    "For daily_enrichment ONLY tags and eligible registered relation/context fields that are ENTIRELY EMPTY are allowed, "
                    "never populated lists; this is a candidate consumed by the separate owner provisional exact-delta/human review path, not a sidebar Pending. "
+                   "The Owner validates the candidate and returns candidate_digest with the actual artifact receipt; "
+                   "retain that exact identity, never compute or invent hashes yourself. The independent EvalOfficer "
+                   "subsequently judges this candidate against the source and registries; do not claim that its "
+                   "assessment already exists or wait for it before submitting. For note_metadata, a separate "
+                   "note_relations Work and its independent assessment are required only at later Owner Pending promotion. "
                    "No more tools after artifact. Final response reports actual artifact receipt and explicit no-evidence when empty.")
-    return system, "Native tool names: " + json.dumps(raw_names) + "\nExact owner request:\n" + json.dumps(request, ensure_ascii=False, sort_keys=True)
+    user = "Native tool names: " + json.dumps(raw_names) + "\nExact owner request:\n" + json.dumps(request, ensure_ascii=False, sort_keys=True)
+    if request["stage_id"] not in {"coverage_evidence", "relation_evidence"}:
+        content = {"source_reference": request["source_reference"], "registry_digest": request["registry_digest"],
+                   "fields": {}, "evidence": {}}
+        user += ("\nOwner-pinned artifact_submit arguments template (fill only content.fields and content.evidence "
+                 "when exact source evidence supports additions; otherwise retain both empty objects):\n"
+                 + json.dumps({"artifact_kind": request["artifact_kind"],
+                               "content": json.dumps(content, ensure_ascii=False, sort_keys=True)},
+                              ensure_ascii=False, sort_keys=True))
+    return system, user
 
 
 def run_native_metadata(request, **startup):

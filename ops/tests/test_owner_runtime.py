@@ -11,12 +11,14 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from support.agent_fixture import decision_response, model_binding, synthetic_decision
 from support.metadata_fixture import SOURCE
 from support.owner_runtime_fixture import compose, write_policy
 
 from vaultops.adapters.core import AdmissionError
 from vaultops.application.exops import OwnerActor, work_workflow_type
 from vaultops.application.metadata_work import METADATA_METHOD_ID
+from vaultops.application.native_team import stage_step
 from vaultops.application.owner_runtime import (
     DispatchSupervisor,
     OwnerRuntimePolicy,
@@ -24,17 +26,24 @@ from vaultops.application.owner_runtime import (
 )
 from vaultops.application.temporal_work import dispatch_admitted_work
 
-ROUTE = {"runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-    "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-    "provider": "openai-codex", "model": "gpt-6.1-terra", "adapter_digest": "sha256:" + "a" * 64}
+ROUTE = model_binding()
 
 
 class NoModel:
-    def __init__(self, binding, _app):
-        self.binding = copy.deepcopy(binding)
+    """Synthetic role judgments only; no model or external transport is invoked."""
 
-    async def __call__(self, _request):
-        raise AssertionError("These owner boundary tests must never execute a model")
+    def __init__(self, binding, app):
+        self.binding = copy.deepcopy(binding)
+        self.application = app
+        self.decisions = []
+
+    def call_sync(self, request):
+        self.decisions.append(copy.deepcopy(request))
+        return decision_response(request, synthetic_decision(request),
+                                 control_root=self.application.roots.control)
+
+    async def __call__(self, request):
+        return self.call_sync(request)
 
 
 def admitted(runtime):
@@ -62,6 +71,26 @@ def test_director_is_exact_durable_and_authority_is_live(tmp_path):
     with pytest.raises(AdmissionError):
         rebuilt.exops.authorize_dispatch(work_run_id=receipt["work_run_id"], action_id=receipt["action_id"],
                                          content_digest=receipt["content_digest"])
+
+
+def test_large_retained_model_evidence_preserves_existing_work_and_allows_new_admission(tmp_path):
+    runtime, _runner, _canary, _path, _document = compose(tmp_path, ROUTE, NoModel)
+    first = admitted(runtime)["receipts"][0]
+    journal = runtime.application.journal
+    key = "exops.work." + first["work_run_id"]
+    evidence = [{"session_id": "retained." + str(index), "final_text": "x" * 131072}
+                for index in range(33)]
+    with journal.writer() as writer:
+        writer.value["intents"][key]["retained_model_evidence"] = evidence
+        writer.commit(runtime.application.clock())
+    assert journal.path.stat().st_size > 4194304
+    reopened = journal.read()
+    assert reopened["intents"][key]["retained_model_evidence"] == evidence
+    second = admitted(runtime)["receipts"][0]
+    assert second["work_run_id"] != first["work_run_id"]
+    current = journal.read()
+    assert current["intents"][key] == reopened["intents"][key]
+    assert current["intents"]["exops.work." + second["work_run_id"]]["method_source_reference"] == runtime.application.reference(SOURCE)
 
 
 @pytest.mark.parametrize("change", ["actor", "source", "runner", "binding"])
@@ -230,7 +259,7 @@ def test_actual_separate_mcp_process_rechecks_live_owner_authority(tmp_path, rev
     async def exercise():
         parameters = StdioServerParameters(command=sys.executable, args=[
             "-m", "vaultops.interfaces.mcp_server", "--control-root", str(runtime.application.roots.control),
-            "--work-run-id", record["run"]["work_run_id"], "--executor-id", record["spec"]["allowed_executor_ids"][0],
+            "--work-run-id", record["run"]["work_run_id"], "--executor-id", stage_step(record, "coverage_evidence")["executor_id"],
             "--graph-run-id", record["run"]["active_graph_run_id"]],
             env={"PYTHONPATH": str(Path(vaultops.__file__).resolve().parent.parent),
                  "PYTHONDONTWRITEBYTECODE": "1"})
@@ -271,7 +300,7 @@ def test_cached_proposal_binding_cannot_bypass_live_private_policy(tmp_path):
     separate = KnowledgeApplication.from_roots(runtime.application.roots,
         identity=LocalIdentity("local.mcp", "mcp", local_execution=True))
     session = TeamToolSession(separate, record["run"]["work_run_id"],
-        record["spec"]["allowed_executor_ids"][0], record["run"]["active_graph_run_id"])
+        stage_step(record, "coverage_evidence")["executor_id"], record["run"]["active_graph_run_id"])
     cached = session.proposal_binding(record["method_source_reference"])
     document["director_enabled"] = False
     write_policy(policy_path, document)
@@ -308,7 +337,7 @@ def test_actual_separate_mcp_writer_cannot_create_pending_after_revocation(tmp_p
     async def exercise():
         parameters = StdioServerParameters(command=sys.executable, args=[
             "-m", "vaultops.interfaces.mcp_server", "--control-root", str(runtime.application.roots.control),
-            "--work-run-id", record["run"]["work_run_id"], "--executor-id", record["spec"]["allowed_executor_ids"][1],
+            "--work-run-id", record["run"]["work_run_id"], "--executor-id", stage_step(record, "metadata_candidate")["executor_id"],
             "--graph-run-id", record["run"]["active_graph_run_id"]],
             env={"PYTHONPATH": str(Path(vaultops.__file__).resolve().parent.parent),
                  "PYTHONDONTWRITEBYTECODE": "1"})
@@ -450,7 +479,7 @@ def selected_web(runtime, *, bound=True, actor=None):
 
 
 def selected_payload(runtime):
-    return {"method_id": METADATA_METHOD_ID, "request_id": str(uuid4()),
+    return {"method_id": METADATA_METHOD_ID, "request_id": str(uuid4()), "parameters": {},
             "scope": {"path": SOURCE,
                       "content_sha256": runtime.application.reference(SOURCE)["source_revision"]}}
 
@@ -528,11 +557,15 @@ def test_selected_http_admission_fails_closed_without_owner_source_authority(tmp
 
 
 @pytest.mark.parametrize("change", ["parameters", "actor", "graph", "scope_extra", "bad_uuid",
-                                  "bad_digest", "unknown_method"])
-def test_selected_http_rejects_caller_parameters_and_malformed_identity(tmp_path, change):
+                                  "bad_digest", "unknown_method", "missing_parameters"])
+def test_selected_http_rejects_untyped_parameters_and_malformed_identity(tmp_path, change):
     runtime, _runner, _canary, _path, _document = compose(tmp_path, ROUTE, NoModel)
     payload = selected_payload(runtime)
-    if change == "scope_extra":
+    if change == "parameters":
+        payload["parameters"] = {"runner_binding": {}}
+    elif change == "missing_parameters":
+        del payload["parameters"]
+    elif change == "scope_extra":
         payload["scope"]["parameters"] = {}
     elif change == "bad_uuid":
         payload["request_id"] = "-" * 36
@@ -580,7 +613,7 @@ def test_selected_exact_replay_retains_spec_after_dispatch_and_rebuild_without_s
     assert rebuilt.application.journal.read() == before
 
 
-def test_selected_uses_only_fixed_owner_parameters(tmp_path):
+def test_selected_typed_parameters_remain_director_context_not_objective_encoding(tmp_path):
     runtime, runner, _canary, path, document = compose(tmp_path, ROUTE, NoModel)
     parameters = {"objective": "Inspect only this exact selected source"}
     document["methods"][METADATA_METHOD_ID]["admission_scope"]["parameters"] = parameters
@@ -591,13 +624,14 @@ def test_selected_uses_only_fixed_owner_parameters(tmp_path):
     selected = next(item for item in web("work/methods", {})["methods"] if item["method_id"] == METADATA_METHOD_ID)
     assert selected["parameters"] == parameters and selected["available"]
     payload = selected_payload(runtime)
+    payload["parameters"] = {"objective": "Caller-selected semantic objective"}
     receipt = web("work/intake-selected", payload)
     record = runtime.application.journal.read()["intents"]["exops.work." + receipt["work_run_id"]]
-    assert record["spec"]["objective"] == parameters["objective"]
+    from vaultops.application.agent_decisions import admitted_owner_parameters
+    assert admitted_owner_parameters(runtime.application, record) == payload["parameters"]
+    assert record["spec"]["objective"] == "Synthetic admitted goal for " + METADATA_METHOD_ID
     assert record["selected_scope"] == payload["scope"]
-    with pytest.raises(AdmissionError, match="parameters differ"):
-        runtime.admit_selected(METADATA_METHOD_ID, runtime.application.reference(SOURCE),
-            request_id=str(uuid4()), request={}, objective="Caller replacement")
+    assert runner.decisions[-1]["agent_request"]["context"]["owner_scope"] == payload["parameters"]
 
 
 def test_selected_invalid_private_parameters_are_not_exported_or_admitted(tmp_path):
@@ -637,16 +671,22 @@ def test_daily_selected_admission_requires_existing_daily_authority(tmp_path, en
         runners={DAILY_METHOD_ID: NoModel(ROUTE, app)})
     web = selected_web(runtime)
     method = next(item for item in web("work/methods", {})["methods"] if item["method_id"] == DAILY_METHOD_ID)
-    assert not method["available"] and method["parameters"] == {}
+    assert method["available"] is enabled and method["parameters"] == {}
     payload = selected_payload(runtime)
     payload["method_id"] = DAILY_METHOD_ID
     before = runtime.application.journal.read()
-    with pytest.raises(AdmissionError):
-        web("work/intake-selected", payload)
-    with pytest.raises(AdmissionError):
-        runtime.admit_selected(DAILY_METHOD_ID, app.reference(SOURCE),
-                               request_id=payload["request_id"], request={})
-    assert runtime.application.journal.read() == before
+    if enabled:
+        receipt = web("work/intake-selected", payload)
+        record = runtime.application.journal.read()["intents"]["exops.work." + receipt["work_run_id"]]
+        assert runtime.exops.team_for_spec(record["spec"]) == runtime.method_teams[DAILY_METHOD_ID]
+        assert record["dispatch_state"] == "pending"
+    else:
+        with pytest.raises(AdmissionError):
+            web("work/intake-selected", payload)
+        with pytest.raises(AdmissionError):
+            runtime.admit_selected(DAILY_METHOD_ID, app.reference(SOURCE),
+                                   request_id=payload["request_id"], request={})
+        assert runtime.application.journal.read() == before
 
 
 def test_daily_direct_admission_and_retained_dispatch_are_revoked_with_daily_policy(tmp_path):
@@ -681,3 +721,53 @@ def test_daily_direct_admission_and_retained_dispatch_are_revoked_with_daily_pol
         runtime.exops.authorize_dispatch(work_run_id=receipt["work_run_id"],
             action_id=receipt["action_id"], content_digest=receipt["content_digest"])
     assert runtime.application.journal.read() == before
+
+
+def test_all_catalog_methods_register_separate_exact_method_teams_without_scheduling(tmp_path):
+    from support.owner_runtime_fixture import policy_document
+
+    from vaultops.application.work_methods import WorkMethodCatalog
+
+    runtime, runner, _canary, path, _ = compose(tmp_path, ROUTE, NoModel)
+    methods = WorkMethodCatalog.load(runtime.application.roots.control).methods
+    document = policy_document(runtime.application, ROUTE, methods=methods)
+    document["daily_enabled"] = True
+    write_policy(path, document)
+    rebuilt = WritableOwnerRuntime(runtime.application.roots, policy=OwnerRuntimePolicy(path),
+        runners={method: runner for method in methods})
+    assert len(methods) == 11
+    assert set(rebuilt.executors) == set(rebuilt.method_teams) == set(methods)
+    assert all(item["available"] for item in rebuilt.selected_methods(rebuilt.actor)["methods"])
+    group = admitted(rebuilt)
+    records = [rebuilt.application.journal.read()["intents"]["exops.work." + receipt["work_run_id"]]
+               for receipt in group["receipts"]]
+    for record in records:
+        method = record["spec"]["method_contract_ref"]["method_id"]
+        assert rebuilt.exops.team_for_spec(record["spec"]) == rebuilt.method_teams[method]
+    assert all(record["dispatch_state"] == "pending" for record in records)
+    assert len(runner.decisions) == len(group["receipts"])
+
+
+@pytest.mark.parametrize("failure", ["digest", "model", "transport"])
+def test_director_rejects_unbound_role_evidence_without_factory_admission(tmp_path, failure):
+    class InvalidDirector(NoModel):
+        def call_sync(self, request):
+            if failure == "transport":
+                raise ConnectionError("Synthetic unavailable transport")
+            response = super().call_sync(request)
+            response["request_digest" if failure == "digest" else "model"] = (
+                "sha256:" + "0" * 64 if failure == "digest" else "unapproved-model")
+            return response
+
+    runtime, _runner, _canary, _path, _document = compose(tmp_path, ROUTE, InvalidDirector)
+    payload = selected_payload(runtime)
+    with pytest.raises((AdmissionError, ConnectionError)):
+        runtime.admit_selected_request(runtime.actor, payload)
+    journal = runtime.application.journal.read()
+    assert not any(key.startswith("exops.work.") for key in journal["intents"])
+    judgments = [item for key, item in journal["intents"].items() if key.startswith("owner.director.")]
+    assert len(judgments) == 1
+    assert judgments[0]["state"] == ("unknown" if failure == "transport" else "rejected")
+    with pytest.raises(AdmissionError):
+        runtime.admit_selected_request(runtime.actor, payload)
+    assert runtime.application.journal.read() == journal

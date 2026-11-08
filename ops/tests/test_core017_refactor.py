@@ -21,13 +21,6 @@ from vaultops.application.work import (
     work_spec_digest,
 )
 from vaultops.interfaces.cli import build_parser, main
-from vaultops.projection import (
-    CURRENT_POINTER,
-    _runtime_path,
-    _state_path,
-    generate_projection,
-    read_current_projection,
-)
 
 
 def make_app(tmp_path):
@@ -56,20 +49,6 @@ def test_mcp_cannot_enter_other_writers(tmp_path):
         with pytest.raises(AdmissionError, match='denies'):
             app.guard(action)
     assert snapshot(roots.state) == before
-
-
-def test_explicit_storage_accessors_and_unavailable_read_make_no_files(tmp_path):
-    roots, _ = make_app(tmp_path)
-    assert _runtime_path(roots, CURRENT_POINTER).is_relative_to(roots.runtime)
-    assert _state_path(roots, CURRENT_POINTER).is_relative_to(roots.state)
-    before = snapshot(roots.state), snapshot(roots.runtime)
-    report, code = read_current_projection(roots)
-    assert code != 0, report
-    assert (snapshot(roots.state), snapshot(roots.runtime)) == before
-    report, code = generate_projection(roots)
-    assert code == 0, report
-    assert (roots.state / CURRENT_POINTER).is_file()
-    assert not (roots.runtime / CURRENT_POINTER).exists()
 
 
 def test_work_bundle_is_static_control_scoped_and_read_only(tmp_path, capsys):

@@ -56,8 +56,8 @@ def read_regular(path: Path) -> bytes | None:
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     try:
         metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 4194304:
-            raise AdmissionError("STATE_INVALID", "record must be a bounded regular file")
+        if not stat.S_ISREG(metadata.st_mode):
+            raise AdmissionError("STATE_INVALID", "record must be a regular file")
         with os.fdopen(descriptor, "rb", closefd=False) as handle:
             return handle.read()
     finally:
@@ -104,8 +104,6 @@ class JournalSession:
         self.value["observed_at"] = stamp(now)
         self.journal.prune(self.value, now)
         payload = canonical(self.value) + b"\n"
-        if len(payload) > 4194304:
-            raise AdmissionError("STATE_CAPACITY", "owner State capacity must be resolved before admission")
         replace_exact(self.journal.path, self.raw, payload)
         self.raw = payload
 
@@ -141,7 +139,7 @@ class OwnerJournal:
             if self.roots.state.exists():
                 entries = [item for item in self.roots.state.iterdir() if item.name != ".owner-control.lock"]
                 if any(not item.is_dir() or any(item.iterdir()) for item in entries):
-                    raise AdmissionError("STATE_VERSION_UNSUPPORTED", "nonempty State requires its exact v3 owner journal; no automatic conversion")
+                    raise AdmissionError("STATE_VERSION_UNSUPPORTED", "nonempty State requires its exact owner journal; no automatic conversion")
             return self.empty()
         metadata = self.path.stat(follow_symlinks=False)
         if stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_uid != os.getuid():
@@ -195,14 +193,14 @@ class OwnerJournal:
             for key, item in list(records.items()):
                 if key.startswith(("exops.work.", "exops.control.", "exops.attention.")):
                     continue
-                if item.get("unresolved") or key in value["intents"] and value["intents"][key]["state"] in {"pending", "unknown", "approved"}:
+                if item.get("unresolved") or key in value["intents"]:
                     continue
                 if (now - datetime.fromisoformat(item["recorded_at"])).total_seconds() >= 43200:
                     del records[key]
         for key, intent in value["intents"].items():
-            if key.startswith(("exops.work.", "exops.attention.")):
-                # WorkRun uncertainty and attention delivery/mappings are
-                # durable until an explicit reconciliation/retention decision.
+            if key.startswith(("exops.work.", "exops.attention.", "owner.command_dispatch.")):
+                # WorkRun uncertainty, attention mappings and native command
+                # delivery fences remain durable until explicitly reconciled.
                 continue
             if intent["state"] == "pending" and (now - datetime.fromisoformat(intent["recorded_at"])).total_seconds() >= 43200:
                 intent["state"] = "expired"

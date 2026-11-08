@@ -11,10 +11,12 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
 from typing import Any, Protocol
+from uuid import UUID
 
 from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
+from ..application.console_reads import retained_execution, role_policy, work_history
 from ..application.curation_steering_contract import METHOD_ID as STEERING_METHOD
 from ..application.exops import KnowledgeExOps, OwnerActor
 from ..application.knowledge import LocalIdentity
@@ -32,6 +34,7 @@ _TEMPLATE_METHODS = {
 }
 _READ_ONLY_ROUTES = frozenset({
     "search/query", "owner/status", "work/read", "work/inspection", "work/list", "work/result",
+    "work/history", "agents/policy", "agents/prompt",
     "work/steering/view", "work/steering/export",
     "work/methods", "mutation/receipt",
 })
@@ -240,6 +243,11 @@ class ExOpsWebBackend:
             return self.exops.submit_work(payload["spec"], payload["run"], actor=actor,
                                           action_id=payload["action_id"],
                                           expires_at=datetime.fromisoformat(payload["expires_at"]))
+        if ingress.resource_path == "work/history":
+            return work_history(self.exops, actor, payload)
+        if ingress.resource_path in {"agents/policy", "agents/prompt"}:
+            return role_policy(self.exops, actor, payload,
+                               prompt=ingress.resource_path == "agents/prompt")
         if ingress.resource_path == "work/read":
             if set(payload) != {"work_run_id"} or not isinstance(payload["work_run_id"], str):
                 raise AdmissionError("INVALID_PAYLOAD", "Work read body has an unsupported shape")
@@ -248,24 +256,23 @@ class ExOpsWebBackend:
             if set(payload) != {"work_run_id"} or not isinstance(payload["work_run_id"], str):
                 raise AdmissionError("INVALID_PAYLOAD", "Work inspection needs one exact run")
             read = self.exops.read_work(payload["work_run_id"], actor=actor)
-            record = self.exops.application.journal.read()["intents"].get(
-                "exops.work." + payload["work_run_id"])
+            snapshot = self.exops.application.journal.read()
+            record = snapshot["intents"].get("exops.work." + payload["work_run_id"])
             if record is None or record["run"] != read["run"]:
                 raise AdmissionError("RESOURCE_STALE", "Work changed during inspection")
-            segments = []
-            for key in ("admitted_method_segments", "admitted_officer_segments"):
-                for item in record.get(key, {}).values():
-                    segments.append({"segment": copy.deepcopy(item["segment"]),
-                                     "assignments": copy.deepcopy(item.get("assignments")
-                                         or ([item["assignment"]] if "assignment" in item else []))})
+            execution = retained_execution(record, snapshot["intents"])
             assessment = record.get("assessment")
             evaluated = (isinstance(assessment, dict)
                          and record_digest(assessment) == read["run"].get("latest_assessment_digest"))
             return {"work_run_id": payload["work_run_id"],
+                    "run_revision": read["run"]["revision"],
+                    "work_spec_digest": read["spec"]["spec_digest"],
                     "observed_at": stamp(self.exops.application.clock()),
-                    "segments": segments,
+                    **execution,
                     "assessment": copy.deepcopy(assessment) if evaluated else None,
                     "evaluations": copy.deepcopy(record.get("evaluations", [])) if evaluated else [],
+                    "remaining_work": copy.deepcopy(read.get("remaining_work")) if evaluated else None,
+                    "continuation_state": read.get("continuation_state"),
                     "source_scope": copy.deepcopy(
                         record.get("template_scope") or record.get("selected_scope")),
                     "runtime_observation": "unavailable"}
@@ -404,6 +411,7 @@ class ExOpsWebBackend:
             read = self.exops.read_work(payload["work_run_id"], actor=actor)
             run = read["run"]
             result = {"work_run_id": run["work_run_id"],
+                      "run_revision": run["revision"], "work_spec_digest": read["spec"]["spec_digest"],
                       "state": "unknown" if read["application_state"] == "unknown" else run["state"],
                       "assessment": None, "text": None,
                       "reason": "Owner execution outcome is unknown; do not replay the producer."
@@ -412,6 +420,8 @@ class ExOpsWebBackend:
             record = self.exops.application.journal.read()["intents"].get("exops.work." + run["work_run_id"])
             if record is None:
                 raise AdmissionError("RESOURCE_UNAVAILABLE", "Work record is unavailable")
+            if record["run"] != run:
+                raise AdmissionError("RESOURCE_STALE", "Work changed during result observation")
             scope = record.get("template_scope") or record.get("selected_scope")
             application = replace(self.exops.application,
                                   identity=LocalIdentity(actor.actor_id, "operator", local_execution=True))
@@ -502,11 +512,6 @@ class ExOpsWebBackend:
             result.update({"text": "".join(excerpts), "truncated": artifact["truncated"],
                            "proposal_reference": record.get("canonical_proposal_reference"),
                            "reason": None})
-            if source_stale:
-                result.update(historical=True, current_evidence_valid=False, apply_allowed=False,
-                              truth_evaluated=False, proposal_reference=None,
-                              reason="Historical evaluated result; its source changed or moved. It is not current evidence.")
-                return result
             boundary_method = record["spec"].get("method_contract_ref", {}).get("method_id")
             if boundary_method in {
                     "knowledgeos.note_metadata_team", "knowledgeos.relation_ontology_team",
@@ -531,14 +536,22 @@ class ExOpsWebBackend:
                         source = record["method_source_reference"]
                         links = (relation_link_evidence(record) if boundary_method
                                  == "knowledgeos.relation_ontology_team" else None)
-                        validate_candidate(application, source, candidate, method_id=boundary_method,
-                                           link_evidence=links)
+                        if candidate.get("source_reference") != source:
+                            raise AdmissionError("EVIDENCE_REQUIRED", "Native metadata candidate source changed")
+                        if not source_stale:
+                            validate_candidate(application, source, candidate, method_id=boundary_method,
+                                               link_evidence=links)
                     except (KeyError, TypeError, ValueError) as error:
                         raise AdmissionError("EVIDENCE_REQUIRED", "Native metadata result evidence is invalid") from error
                     result["report"] = candidate
                     result["evidence"] = candidate["evidence"]
                     result["apply_allowed"] = False
                     result["truth_evaluated"] = False
+            if source_stale:
+                result.update(historical=True, current_evidence_valid=False, apply_allowed=False,
+                              truth_evaluated=False, proposal_reference=None,
+                              reason="Historical evaluated result; its source changed or moved. It is not current evidence.")
+                return result
             if boundary_method in {"knowledgeos.knowledge_exchange_team", "knowledgeos.vault_maintenance_team"}:
                 from ..application.boundary_contract import validate_boundary_export
 
@@ -640,19 +653,28 @@ class ExOpsWebBackend:
             self.exops._guard(actor, "read_work")
             if self.selected_methods is not None and not self.exops.read_only:
                 return self.selected_methods(actor)
+            from ..application.owner_runtime import selected_parameter_schema
             from ..application.work_methods import WorkMethodCatalog
             return {"methods": [
                 {"method_id": method, "purpose": definition["purpose"], "available": False,
-                 "reason": "This Owner has no writable selected-method admission binding", "parameters": {}}
+                 "reason": "This Owner has no writable selected-method admission binding", "parameters": {},
+                 "parameter_schema": selected_parameter_schema(method)}
                 for method, definition in WorkMethodCatalog.load(
                     self.exops.application.roots.control).methods.items()],
                 "observed_at": stamp(self.exops.application.clock())}
         if ingress.resource_path == "work/intake-selected":
             self.exops._guard(actor, "submit_work")
-            if (set(payload) != {"method_id", "scope", "request_id"}
+            if (set(payload) != {"method_id", "scope", "request_id", "parameters"}
                     or not isinstance(payload["method_id"], str)
-                    or not isinstance(payload["request_id"], str)):
-                raise AdmissionError("INVALID_PAYLOAD", "Selected Work request shape is invalid")
+                    or not isinstance(payload["request_id"], str)
+                    or not isinstance(payload["parameters"], dict)):
+                raise AdmissionError("INVALID_PAYLOAD", "Selected Work requires typed parameters")
+            try:
+                valid_id = str(UUID(payload["request_id"])) == payload["request_id"]
+            except ValueError:
+                valid_id = False
+            if not valid_id:
+                raise AdmissionError("INVALID_PAYLOAD", "Selected Work requires a canonical UUID")
             if self.admit_selected_request is None:
                 raise AdmissionError("ADMISSION_REQUIRED", "Selected-method Director admission is unavailable")
             self._scope(payload["scope"])

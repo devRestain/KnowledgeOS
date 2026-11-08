@@ -4,9 +4,18 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from jsonschema import Draft202012Validator
+from support.agent_fixture import (
+    CONTROL,
+    decision_response,
+    specialist_response,
+    synthetic_decision,
+)
 from support.boundary_case import BASE, make_case
 from support.boundary_fixture import accepted_exchange
 from support.boundary_work_smoke import gateway_denials, owner_http, plan
@@ -24,7 +33,14 @@ class OwnerToolRunner:
         self.requests, self.responses = [], []
         self.alter = None
 
+    def call_sync(self, request):
+        return decision_response(request, synthetic_decision(request),
+                                 control_root=self.application.roots.control)
+
     async def __call__(self, request):
+        if request.get("request_kind") == "agent_decision":
+            return decision_response(request, synthetic_decision(request),
+                                     control_root=self.application.roots.control)
         self.requests.append(copy.deepcopy(request))
         app = self.application
         session = TeamToolSession(app, request["work_run_id"], request["executor_id"], request["graph_run_id"])
@@ -35,24 +51,31 @@ class OwnerToolRunner:
             name, arguments = "vault_diagnose", {"resource_reference": request["source_reference"]}
         else:
             name = "proposal_adaptation" if stage == "adaptation" else "proposal_recovery_plan"
-            arguments = {"source_reference": request["source_reference"], "content": json.dumps(plan(request))}
+            arguments = {"source_reference": request["source_reference"], "content": json.dumps(plan(request)),
+                         "idempotency_key": request["request_digest"]}
+        manifest = json.loads((CONTROL / "ops/schemas/mcp/capabilities.json").read_text())
+        schema = next(tool["input_schema"] for tool in manifest["tools"] if tool["name"] == name)
+        Draft202012Validator(schema).validate(arguments)
         session.authorize(name, arguments)
         result, error = _convert_report(SimpleNamespace(services=app), name, arguments,
                                          _operation(app, name, arguments, session=session)())
         assert not error, result
-        response = {"request_digest": request["request_digest"], "runner_binding": dict(self.binding),
-                    "model": self.binding["model"], "provider": self.binding["provider"],
-                    "session_id": "boundary-test-" + stage, "final_text": "Boundary test actual owner effect only.",
-                    "tool_calls": [{"name": name, "arguments": arguments, "result": result}],
-                    "exposed_tools": list(session.tools())}
+        response = specialist_response(request, [{"name": name, "arguments": arguments, "result": result}],
+                                       control_root=app.roots.control)
         if self.alter:
             self.alter(response)
+            response["agent_evidence"]["tool_calls"] = [
+                {**copy.deepcopy(call), "call_id": "synthetic-call-" + str(index)}
+                for index, call in enumerate(response["tool_calls"])]
+            response["agent_evidence"]["model"] = response["model"]
         self.responses.append(copy.deepcopy(response))
         return response
 
 
 def started(tmp_path, kind):
-    case = make_case(tmp_path, MODEL_BINDING, OwnerToolRunner, kind, unresolved=kind == "maintenance")
+    now = datetime(2030, 1, 1, microsecond=123456, tzinfo=UTC)
+    case = make_case(tmp_path, MODEL_BINDING, OwnerToolRunner, kind,
+                     unresolved=kind == "maintenance", clock=lambda: now)
     exops, run, receipt = case["exops"], case["run"], case["receipt"]
     workflow_id = "knowledgeos/" + run["work_run_id"]
     exops.record_dispatch(run["work_run_id"], action_id=receipt["action_id"], outcome="accepted", workflow_id=workflow_id)
@@ -91,23 +114,125 @@ def test_actual_owner_effect_independent_assessment_and_authenticated_export(tmp
     if kind == "maintenance":
         assert exported["report"]["unresolved_effect_ids"] == [case["diagnostic_canary"]]
         assert all(step["diagnosis_complete"] is False for step in exported["report"]["steps"])
+        assert exops.application.journal.read()["intents"][case["diagnostic_canary"]]["state"] == "unknown"
     else:
         evidence = KnowledgeReadTools(exops.application).gateway_evidence_read(case["accepted"][0]["receipt_id"])
         assert any(reference["content_digest"] == digest(canonical(evidence))
                    for reference in result.segments[0]["input_references"])
+    proposal = case["runner"].responses[-1]["tool_calls"][0]
+    assert proposal["arguments"]["idempotency_key"] == case["runner"].requests[-1]["request_digest"]
 
 
-def test_accepted_gateway_requires_current_correlation_ttl_and_authentic_retained_bytes(tmp_path):
+@pytest.mark.parametrize("kind", ["exchange", "maintenance"])
+def test_completed_boundary_report_survives_observation_expiry(tmp_path, kind):
+    case = started(tmp_path, kind)
+    exops = case["exops"]
+    result = asyncio.run(produce(case))
+    exops.worker_finished(
+        case["run"]["work_run_id"], worker_identity=exops.worker_identity,
+        action_id=case["receipt"]["action_id"], next_run=result.next_run,
+        assessment=result.assessment, segments=result.segments,
+        evaluations=result.evaluations, artifacts=result.artifacts,
+        checkpoints=result.checkpoints, candidate_assessor_id=result.candidate_assessor_id)
+    pending = next((exops.application.roots.vault / "01_AI_Review/Pending").glob("*.md"))
+    artifact = pending.read_bytes()
+    now = exops.application.clock() + timedelta(hours=13)
+    exops.application = replace(exops.application, clock=lambda: now)
+    with exops.application.journal.writer() as writer:
+        if kind == "maintenance":
+            writer.value["intents"]["uncertain.after_completed_report"] = {
+                "state": "unknown", "source_path": exops.application.resolve_reference(case["source"]),
+                "content_digest": digest(b"later unknown outcome"), "generation": writer.generation,
+                "fencing_token": "generation.g" + str(writer.generation)}
+        writer.commit(now)
+    exported = owner_http(case, artifact)
+    assert exported["status"] == 200
+    if kind == "maintenance":
+        assert exported["report"]["unresolved_effect_ids"] == [case["diagnostic_canary"]]
+        assert exops.application.journal.read()["intents"]["uncertain.after_completed_report"]["state"] == "unknown"
+
+
+def test_metadata_only_admission_supports_pending_without_acceptance_or_handoff_agreement(tmp_path):
+    case = started(tmp_path, "exchange")
+    executor, app = case["executor"], case["exops"].application
+    run_id = case["run"]["work_run_id"]
+    receipt = case["accepted"][0]
+    assert receipt["admission_state"] == "admitted"
+    assert receipt["acceptance_state"] == "not_evaluated"
+    assert receipt["execution_outcome"] == "not_started"
+    assert receipt["human_approval"] == "unknown"
+    before = case["source_path"].read_bytes()
+
+    def inaccurate_reader_summary(response):
+        text = "Receipt digest " + receipt["content_digest"] + "4; approval and foreign contents required."
+        response["final_text"] = text
+        response["agent_evidence"]["final_text"] = text
+
+    case["runner"].alter = inaccurate_reader_summary
+    asyncio.run(executor.execute_stage(run_id, "gateway_evidence"))
+    case["runner"].alter = None
+    record = executor.current(run_id)
+    request = executor.request(record, "adaptation")
+    evidence = KnowledgeReadTools(app).gateway_evidence_read(receipt["receipt_id"])
+    assert request["evidence"] == evidence
+    assert evidence["receipt"]["content_digest"] == receipt["content_digest"]
+    assert set(evidence["payload"]) == {"resources"}
+    payload = plan(request)
+    reference = evidence["payload"]["resources"][0]
+    payload["adaptation"] = (
+        f"Pending metadata inventory from {evidence['authenticated_sender']['operation_id']}, "
+        f"receipt {receipt['receipt_id']} ({receipt['content_digest']}); "
+        f"correlation {evidence['envelope']['correlation_id']}. "
+        f"evidence.payload.resources[0] declares {reference['logical_id']} at "
+        f"{reference['source_revision']} ({reference['content_digest']}). "
+        "Only resource metadata was disclosed, not foreign contents or measurements. "
+        "Review the inventory and disclosure limits; decide whether additional specifically scoped "
+        "content should be requested through the owning Gateway. No request or foreign read was made. "
+        "Any later content needs separate review and assessment; approval and apply remain separate."
+    )
+    arguments = {"source_reference": case["source"], "content": json.dumps(payload),
+                 "idempotency_key": request["request_digest"]}
+    session = TeamToolSession(app, run_id, request["executor_id"], request["graph_run_id"])
+    result, error = _convert_report(SimpleNamespace(services=app), "proposal_adaptation", arguments,
+        _operation(app, "proposal_adaptation", arguments, session=session)())
+    assert not error and result["status"] == "created"
+    assert result["data"]["apply_allowed"] is False
+    assert executor.validate_stage(record, request, {"tool_calls": [{
+        "name": "proposal_adaptation", "arguments": arguments, "result": result}]}) == payload
+    assert len(list((app.roots.vault / "01_AI_Review/Pending").glob("*.md"))) == 1
+    assert case["source_path"].read_bytes() == before
+    assert not app.journal.read()["decisions"]
+
+
+
+
+@pytest.mark.parametrize("tamper", ["resource_digest", "receipt_digest"])
+def test_accepted_gateway_requires_current_correlation_ttl_and_authentic_retained_bytes(tmp_path, tamper):
+    from vaultops.application.mcp_effects import submit_pending
+
     case = started(tmp_path, "exchange")
     assert set(gateway_denials(case)) == {"expiry", "correlation"}
     app = case["exops"].application
+    executor, run_id = case["executor"], case["run"]["work_run_id"]
+    asyncio.run(executor.execute_stage(run_id, "gateway_evidence"))
+    request = executor.request(executor.current(run_id), "adaptation")
     receipt_id = case["accepted"][0]["receipt_id"]
     with app.journal.writer() as writer:
         record = next(iter(writer.value["gateway"].values()))
-        record["payload"]["resources"][0]["content_digest"] = "sha256:" + "0" * 64
+        if tamper == "resource_digest":
+            record["payload"]["resources"][0]["content_digest"] = "sha256:" + "0" * 64
+        else:
+            record["receipt"]["content_digest"] += "4"
         writer.commit(app.clock())
     with pytest.raises(AdmissionError):
         KnowledgeReadTools(app).gateway_evidence_read(receipt_id)
+    before = app.journal.read()
+    session = TeamToolSession(app, run_id, request["executor_id"], request["graph_run_id"])
+    with pytest.raises(AdmissionError):
+        submit_pending(app, "proposal_adaptation", {
+            "source_reference": case["source"], "content": json.dumps(plan(request))}, session=session)
+    assert app.journal.read() == before
+    assert not list((app.roots.vault / "01_AI_Review/Pending").glob("*.md"))
 
 
 @pytest.mark.parametrize("kind", ["exchange", "maintenance"])
@@ -115,7 +240,8 @@ def test_selected_source_and_tool_cannot_be_chosen_by_profile(tmp_path, kind):
     case = started(tmp_path, kind)
     record = case["exops"].application.journal.read()["intents"]["exops.work." + case["run"]["work_run_id"]]
     session = TeamToolSession(case["exops"].application, case["run"]["work_run_id"],
-                             case["spec"]["allowed_executor_ids"][0], record["run"]["active_graph_run_id"])
+                             case["executor"].request(record, case["policy"].stages[0])["executor_id"],
+                             record["run"]["active_graph_run_id"])
     with pytest.raises(AdmissionError):
         session.authorize("index_status_read", {})
     tool = "gateway_evidence_read" if kind == "exchange" else "vault_diagnose"

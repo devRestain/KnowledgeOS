@@ -506,8 +506,6 @@ def _operation(
                     relation_scope = (
                         selected.get("method_contract_ref", {}).get("method_id")
                         == "knowledgeos.relation_ontology_team"
-                        and [item["criterion_id"] for item in selected["acceptance_criteria"]]
-                        == ["criterion.native_relation_ontology"]
                     )
                 # The versioned native relation method admits only outgoing
                 # target references from this exact source, never target bodies,

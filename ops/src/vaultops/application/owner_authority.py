@@ -48,28 +48,8 @@ def authority_gate_digest():
 
 
 def registration_native_digest(method, runner):
-    from .authoring_work import POLICIES as authoring
-    from .authoring_work import authoring_native_digest
-    from .boundary_work import (
-        EXCHANGE_POLICY,
-        MAINTENANCE_POLICY,
-        exchange_native_digest,
-        maintenance_native_digest,
-    )
-    from .metadata_work import POLICIES as metadata
-    from .metadata_work import metadata_native_digest
-    from .research_work import METHOD_ID, research_native_digest
-    if method in metadata:
-        return metadata_native_digest(runner, method)
-    if method in authoring:
-        return authoring_native_digest(runner, method)
-    if method == METHOD_ID:
-        return research_native_digest(runner)
-    if method == EXCHANGE_POLICY.method_id:
-        return exchange_native_digest(runner)
-    if method == MAINTENANCE_POLICY.method_id:
-        return maintenance_native_digest(runner)
-    raise AdmissionError("ADMISSION_REQUIRED", "Work has no selected native authority implementation")
+    from .owner_runtime import concrete_method
+    return concrete_method(method)[2](runner)
 
 
 def validate_owner_authority(application, snapshot, record):
@@ -77,8 +57,9 @@ def validate_owner_authority(application, snapshot, record):
     spec = record["spec"]
     receipt_id = spec.get("admission_receipt_id", "")
     director = snapshot["intents"].get("owner.director." + receipt_id)
-    if director is None and not receipt_id.startswith("admission.owner."):
-        return  # Other existing explicit compositions own their separate gates.
+    if not receipt_id.startswith("admission.owner.") and (
+            director is None or isinstance(director, dict) and "authority" not in director):
+        return  # Explicit compositions may retain typed Director context under their own gates.
     require(isinstance(director, dict) and isinstance(director.get("authority"), dict),
             "Writable Work lacks retained cross-process Director authority")
     authority = director["authority"]

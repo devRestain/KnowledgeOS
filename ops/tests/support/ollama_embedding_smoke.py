@@ -162,6 +162,10 @@ def host(evidence):
     if evidence.exists():
         raise ValueError("evidence must be a new file")
     evidence.parent.mkdir(parents=True, exist_ok=True)
+    core = os.environ.get(
+        "KNOWLEDGEOS_CORE_SOURCE",
+        WORKSPACE / "Core",
+    )
     before = private_snapshot()
     report = {"status": "FAIL", "live_before_counts": {key: len(value) for key, value in before.items()},
               "network": "container none; bounded stdio bridge to host loopback", "timings": []}
@@ -180,7 +184,7 @@ def host(evidence):
                 "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                 "--user", f"{os.getuid()}:{os.getgid()}", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,mode=1777",
                 "--mount", f"type=bind,src={CONTROL},dst=/workspace/control,readonly",
-                "--mount", f"type=bind,src={WORKSPACE / 'Core'},dst=/workspace/Core,readonly",
+                "--mount", f"type=bind,src={core},dst=/workspace/Core,readonly",
                 "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "HOME=/tmp",
                 "-e", "PYTHONPATH=/workspace/control/ops/src:/workspace/control/ops/tests",
                 "--workdir", "/workspace/control/ops", IMAGE, "python",

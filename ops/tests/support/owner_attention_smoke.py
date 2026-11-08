@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from clients.discord import DiscordWebhookClient, WebhookBinding
+from clients.discord import BotChannelBinding, BotCredential, DiscordBotClient
 from test_normalization_work import _execute, _finish, _started
 
 from vaultops.adapters.core import AdmissionError, digest
@@ -35,7 +35,7 @@ def run_case(root: Path) -> dict:
     journal = exops.application.journal
     work_key = "exops.work." + run["work_run_id"]
     committed = copy.deepcopy(journal.read()["intents"][work_key])
-    route = [AttentionRoute("owner.attention", 1, 1, "https://knowledgeos.example.test/")]
+    route = [AttentionRoute("owner.attention", 1, 1, "http://127.0.0.1:17900/console/")]
     clock = [datetime.now(UTC)]
     host_evidence = {}
     state = {"mode": "confirmed", "calls": 0, "messages": {}}
@@ -45,10 +45,13 @@ def run_case(root: Path) -> dict:
             pass
 
         def do_POST(self):
+            assert self.path == "/api/v10/channels/123/messages"
+            assert self.headers["Authorization"] == "Bot synthetic-not-a-secret"
+            assert self.headers["User-Agent"].startswith("DiscordBot (")
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             assert set(body) == {"content", "allowed_mentions"}
             assert body["allowed_mentions"] == {"parse": []}
-            assert "#work_run_id=" in body["content"]
+            assert ("http://127.0.0.1:17900/console/#work_run_id=" + run["work_run_id"]) in body["content"]
             state["calls"] += 1
             message = str(7000 + state["calls"])
             if state["mode"] == "unknown":
@@ -67,28 +70,29 @@ def run_case(root: Path) -> dict:
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"id": message}).encode())
+            self.wfile.write(json.dumps({"id": message, "channel_id": "123",
+                                        "author": {"id": "456"}}).encode())
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    def local_http(_host_owned_url, payload):
-        # Services still validates an exact host-owned Discord binding. Only
-        # the separately supplied synthetic host HTTP connection targets local.
+    def local_http(host_owned_url, payload, headers):
+        # Only the injected synthetic connection targets loopback; the client
+        # itself must still produce the exact Discord API v10 destination.
+        assert host_owned_url == "https://discord.com/api/v10/channels/123/messages"
         connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
         try:
-            connection.request("POST", "/synthetic-webhook?wait=true", payload,
-                               {"Content-Type": "application/json"})
+            connection.request("POST", "/api/v10/channels/123/messages", payload, headers)
             response = connection.getresponse()
             return response.status, dict(response.headers), response.read()
         finally:
             connection.close()
 
     def bind():
-        binding = DiscordAttentionBinding(lambda authorize: DiscordWebhookClient(
-            "knowledgeos", {"owner.attention": WebhookBinding(
-                "owner.attention", 1, "https://discord.com/api/webhooks/123/synthetic-not-a-secret")},
+        binding = DiscordAttentionBinding(lambda authorize: DiscordBotClient(
+            "knowledgeos", BotCredential("knowledgeos", "456", "synthetic-not-a-secret"),
+            {"owner.attention": BotChannelBinding("owner.attention", 1, "123")},
             authorize, http_post=local_http))
         return OwnerAttention(replace(journal), lambda _event: route[0], binding,
                               clock=lambda: clock[0],
@@ -121,7 +125,7 @@ def run_case(root: Path) -> dict:
                 raise AssertionError("Queued content crossed a revoked route")
             assert bind().scan() == []
             assert state["calls"] == calls
-            route[0] = AttentionRoute("owner.attention", 1, 1, "https://knowledgeos.example.test/")
+            route[0] = AttentionRoute("owner.attention", 1, 1, "http://127.0.0.1:17900/console/")
         clock[0] += timedelta(seconds=61)
         state["mode"] = "unknown"
         unknown = bind().attempt(outcome)

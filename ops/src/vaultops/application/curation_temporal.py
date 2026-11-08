@@ -95,7 +95,7 @@ class _CurationActivities:
     async def capture_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
         self.current_record(payload, started=True)
         try:
-            await self.executor.capture_evidence(payload["work_run_id"])
+            await self.executor.execute_plan(payload["work_run_id"], before_normalization=True)
             return payload
         except Exception:
             self.unknown(payload)
@@ -119,7 +119,7 @@ class _CurationActivities:
 
         heartbeats = asyncio.create_task(heartbeat())
         try:
-            await self.executor.normalization_proposal(payload["work_run_id"])
+            await self.executor.execute_plan(payload["work_run_id"], from_normalization=True)
             return payload
         except (Exception, asyncio.CancelledError):
             self.unknown(payload)
@@ -130,14 +130,15 @@ class _CurationActivities:
                 await heartbeats
 
     async def assess(self, payload: dict[str, Any]) -> dict[str, Any]:
-        self.current_record(payload, started=True)
+        await asyncio.to_thread(self.current_record, payload, started=True)
         try:
             result = await self.executor.assess(payload["work_run_id"])
             if not isinstance(result, WorkResult):
                 raise AdmissionError(
                     "INVALID_PAYLOAD", "Team executor returned no owner WorkResult"
                 )
-            return self.exops.worker_finished(
+            return await asyncio.to_thread(
+                self.exops.worker_finished,
                 payload["work_run_id"],
                 worker_identity=self.exops.worker_identity,
                 action_id=payload["action_id"],
@@ -150,7 +151,7 @@ class _CurationActivities:
                 candidate_assessor_id=result.candidate_assessor_id,
             )
         except Exception:
-            self.unknown(payload)
+            await asyncio.to_thread(self.unknown, payload)
             raise
 
     async def mark_unknown(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -212,8 +213,8 @@ class _CurationActivities:
         )
 
 
-def team_worker_components(exops: KnowledgeExOps, executor: CurationTeamExecutor):
-    """Return the module-level Workflow and official four-Activity graph plugin."""
+def curation_graph_components(exops: KnowledgeExOps, executor: CurationTeamExecutor):
+    """Return the Workflow, graphs and extra Activities for one shared Worker."""
     for package, selected in (
         ("temporalio", "1.34.0"),
         ("temporalio-langgraph", "0.1.0"),
@@ -236,7 +237,6 @@ def team_worker_components(exops: KnowledgeExOps, executor: CurationTeamExecutor
     from langgraph.graph import END, START, StateGraph
     from temporalio import activity
     from temporalio.common import RetryPolicy
-    from temporalio.langgraph import LangGraphPlugin
 
     from .curation_workflow import KnowledgeOSCurationTeamWorkflow
 
@@ -269,13 +269,17 @@ def team_worker_components(exops: KnowledgeExOps, executor: CurationTeamExecutor
         team_graph.add_edge(previous, name)
         previous = name
     team_graph.add_edge(previous, END)
-    plugin = LangGraphPlugin(graphs={CURATION_GRAPH_NAME: team_graph})
-    # Partials keep SDK decoration local to this Worker, without mutating the
-    # importable owner methods or wrapping their input in LangGraph ActivityInput.
-    plugin.activities.extend(
-        (
-            activity.defn(name=CURATION_MARK_UNKNOWN_ACTIVITY)(partial(activities.mark_unknown)),
-            activity.defn(name=CURATION_RECONCILE_ACTIVITY)(partial(activities.reconcile)),
-        )
-    )
-    return KnowledgeOSCurationTeamWorkflow, plugin
+    extra_activities = [
+        activity.defn(name=CURATION_MARK_UNKNOWN_ACTIVITY)(partial(activities.mark_unknown)),
+        activity.defn(name=CURATION_RECONCILE_ACTIVITY)(partial(activities.reconcile)),
+    ]
+    return KnowledgeOSCurationTeamWorkflow, {CURATION_GRAPH_NAME: team_graph}, extra_activities
+
+
+def team_worker_components(exops: KnowledgeExOps, executor: CurationTeamExecutor):
+    from temporalio.langgraph import LangGraphPlugin
+
+    workflow, graphs, activities = curation_graph_components(exops, executor)
+    plugin = LangGraphPlugin(graphs=graphs)
+    plugin.activities.extend(activities)
+    return workflow, plugin

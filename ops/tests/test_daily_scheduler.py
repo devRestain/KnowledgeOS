@@ -1,7 +1,7 @@
 """Consumer-visible daily admission restart, bounded scan and refusal boundaries.
 
-No native model or Worker is simulated: these tests stop at real owner admission.
-Actual native execution is the separate disposable daily_scheduler_smoke harness.
+Role responses are explicit synthetic fixture evidence, never provider proof.
+These tests stop at real Owner admission without starting a Worker or daily loop.
 """
 from __future__ import annotations
 
@@ -13,8 +13,9 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from support.agent_fixture import model_binding
 from support.daily_scheduler_smoke import fixture, scheduler
-from support.metadata_fixture import SOURCE
+from support.metadata_fixture import SOURCE, MetadataToolRunner
 
 from vaultops.adapters.core import AdmissionError
 from vaultops.application.daily_scheduler import DailyAdmissionScheduler
@@ -23,13 +24,10 @@ from vaultops.application.owner_runtime import OwnerRuntimePolicy, WritableOwner
 from vaultops.note_engine import parse_frontmatter, render_frontmatter
 from vaultops.projection import generate_projection
 
-ROUTE = {"runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-         "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-         "provider": "openai-codex", "model": "gpt-6.1-terra", "adapter_digest": "sha256:" + "1" * 64}
+ROUTE = model_binding()
 
 
-class UnusedRunner:
-    binding = ROUTE
+class UnusedRunner(MetadataToolRunner):
 
     async def __call__(self, _request):
         raise AssertionError("Admission regression must not call a model")

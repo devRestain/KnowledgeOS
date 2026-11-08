@@ -149,6 +149,10 @@ def test_exact_v3_cutover_preserves_completed_receipt_and_rejects_drift(tmp_path
     legacy["state_version"] = 3
     legacy["pins"].update(core_version="0.17.0", schema_version_pin="0.17.0",
                           core_digest="sha256:b69f3e389de8b8362397dec8d55a92d10a4556cc2c5f4fe646b934944db5188e")
+    legacy["pins"].update(
+        semantic_version="0.7.0",
+        semantic_digest="sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
+    )
     legacy["intents"]["index.fixture"] = {"state": "completed", "recorded_at": NOW.isoformat()}
     legacy["receipts"]["index.fixture"] = {"recorded_at": NOW.isoformat(), "outcome": "completed"}
     raw = canonical(legacy) + b"\n"
@@ -172,6 +176,10 @@ def test_exact_v4_core_pin_cutover_preserves_completed_work_and_rejects_active_w
     previous = app.journal.empty()
     previous["pins"].update(core_version="0.17.4", schema_version_pin="0.17.4",
                             core_digest="sha256:28697ac0cb49106afa32b143482cdca32e4e638d1a250173db381a2bf836e2be")
+    previous["pins"].update(
+        semantic_version="0.7.0",
+        semantic_digest="sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
+    )
     previous["generation"] = 2
     previous["revision"] = 4
     previous["intents"]["index.fixture"] = {"state": "completed", "recorded_at": NOW.isoformat()}
@@ -219,6 +227,10 @@ def test_exact_core_0180_to_selected_pin_cutover_preserves_owner_records(tmp_pat
         core_version="0.18.0", schema_version_pin="0.18.0",
         core_digest="sha256:a1a051556d2e187c6012c562a46a9e5aed4bc842325e94e66522ccdbd9ce4c13",
     )
+    previous["pins"].update(
+        semantic_version="0.7.0",
+        semantic_digest="sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
+    )
     previous["generation"] = 3
     previous["revision"] = 5
     previous["intents"]["index.fixture"] = {"state": "completed", "recorded_at": NOW.isoformat()}
@@ -248,23 +260,26 @@ def test_exact_core_0180_to_selected_pin_cutover_preserves_owner_records(tmp_pat
         core_cutover(roots, expected_sha256=hashlib.sha256(active_raw).hexdigest())
 
 
-@pytest.fixture
-def retained_core_0181(tmp_path):
-    """Synthetic observed v4/generation-4/revision-7 envelope, never live State."""
+@pytest.fixture(params=[
+    ("0.18.1", "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676", 4, 7),
+    ("0.19.0", "sha256:0cc4f02444045516b7765d269099aa7c84b7ed94a0e66e4f925ea94cb17e3a85", 5, 8),
+], ids=["core0181", "core0190"])
+def retained_core(request, tmp_path):
+    """Synthetic retained v4 envelopes under exact prior release pins."""
+    version, core_digest, generation, revision = request.param
     roots, app = _app(tmp_path)
     previous = app.journal.empty()
-    # Frozen agentfabric-core-0.18.1 release manifest and retained readiness pins.
     previous["pins"] = {
-        "core_version": "0.18.1",
-        "core_digest": "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676",
-        "schema_version_pin": "0.18.1",
+        "core_version": version,
+        "core_digest": core_digest,
+        "schema_version_pin": version,
         "semantic_version": "0.7.0",
         "semantic_digest": "sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127",
         "capsule_version": "2.0.0",
         "resource_binding_api": "0.3.0",
         "host_binding_api": "0.3.0",
     }
-    previous.update(generation=4, revision=7, observed_at=NOW.isoformat())
+    previous.update(generation=generation, revision=revision, observed_at=NOW.isoformat())
     previous["intents"]["index.fixture"] = {
         "state": "completed", "recorded_at": NOW.isoformat(),
         "source_digest": digest(b"synthetic source bytes"),
@@ -276,10 +291,10 @@ def retained_core_0181(tmp_path):
     return roots, app, previous, raw, hashlib.sha256(raw).hexdigest()
 
 
-def test_exact_core_0181_preview_is_unchanged_and_cli_consumes_transition(
-    retained_core_0181, capsys,
+def test_exact_retained_core_preview_is_unchanged_and_cli_consumes_transition(
+    retained_core, capsys,
 ):
-    roots, app, previous, raw, expected = retained_core_0181
+    roots, app, previous, raw, expected = retained_core
     before = {
         path.relative_to(roots.state): path.read_bytes()
         for path in roots.state.rglob("*") if path.is_file()
@@ -290,9 +305,9 @@ def test_exact_core_0181_preview_is_unchanged_and_cli_consumes_transition(
     preview = core_cutover(roots, expected_sha256=expected)
     assert preview == {
         "status": "PASS", "applied": False, "source_sha256": expected,
-        "source_core_version": "0.18.1", "target_core_version": "0.19.0",
+        "source_core_version": previous["pins"]["core_version"], "target_core_version": "0.20.1",
         "source_version": 4, "target_version": 4,
-        "source_generation": 4, "target_generation": 5,
+        "source_generation": previous["generation"], "target_generation": previous["generation"] + 1,
         "preserved_intent_count": 1, "preserved_receipt_count": 0,
     }
     arguments = ["storage", "core-cutover", "--expected-sha256", expected,
@@ -314,7 +329,8 @@ def test_exact_core_0181_preview_is_unchanged_and_cli_consumes_transition(
     reconstructed = KnowledgeApplication.from_roots(roots, clock=lambda: NOW)
     after = reconstructed.journal.read()
     assert after["pins"] == PINS
-    assert after["generation"] == 5 and after["revision"] == 8
+    assert after["generation"] == previous["generation"] + 1
+    assert after["revision"] == previous["revision"] + 1
     assert after["observed_at"] != previous["observed_at"]
     for key in set(previous) - {"pins", "generation", "revision", "observed_at"}:
         assert after[key] == previous[key]
@@ -325,8 +341,8 @@ def test_exact_core_0181_preview_is_unchanged_and_cli_consumes_transition(
     assert archive.read_bytes() == raw
 
 
-def test_exact_core_0181_apply_preserves_historical_receipt_and_data_bytes(retained_core_0181):
-    roots, app, previous, _, _ = retained_core_0181
+def test_exact_retained_core_apply_preserves_historical_receipt_and_data_bytes(retained_core):
+    roots, app, previous, _, _ = retained_core
     historical = {
         "recorded_at": NOW.isoformat(), "outcome": "completed",
         "payload_bytes": '{ "pins": "historical", "revision": 3 }\n',
@@ -377,10 +393,10 @@ def test_exact_core_0181_apply_preserves_historical_receipt_and_data_bytes(retai
     ("intents", {"work": {"state": "completed", "run": {}}}, "STATE_ACTIVE"),
     ("receipts", {"receipt": {"unresolved": True}}, "STATE_ACTIVE"),
 ])
-def test_exact_core_0181_rejects_foreign_active_and_invalid_state(
-    retained_core_0181, field, replacement, code,
+def test_exact_retained_core_rejects_foreign_active_and_invalid_state(
+    retained_core, field, replacement, code,
 ):
-    roots, app, previous, _, _ = retained_core_0181
+    roots, app, previous, _, _ = retained_core
     previous[field] = replacement
     raw = canonical(previous) + b"\n"
     app.journal.path.write_bytes(raw)
@@ -395,8 +411,8 @@ def test_exact_core_0181_rejects_foreign_active_and_invalid_state(
     "core_version", "core_digest", "schema_version_pin", "semantic_version",
     "semantic_digest", "capsule_version", "resource_binding_api", "host_binding_api", "extra",
 ])
-def test_exact_core_0181_rejects_arbitrary_pins(retained_core_0181, pin):
-    roots, app, previous, _, _ = retained_core_0181
+def test_exact_retained_core_rejects_arbitrary_pins(retained_core, pin):
+    roots, app, previous, _, _ = retained_core
     previous["pins"][pin] = "foreign"
     raw = canonical(previous) + b"\n"
     app.journal.path.write_bytes(raw)
@@ -407,10 +423,10 @@ def test_exact_core_0181_rejects_arbitrary_pins(retained_core_0181, pin):
     assert not (roots.state / "archives/core-cutover").exists()
 
 
-def test_exact_core_0181_rejects_wrong_preimage_mode_uid_and_held_writer(
-    retained_core_0181, monkeypatch,
+def test_exact_retained_core_rejects_wrong_preimage_mode_uid_and_held_writer(
+    retained_core, monkeypatch,
 ):
-    roots, app, _, raw, expected = retained_core_0181
+    roots, app, _, raw, expected = retained_core
     with pytest.raises(AdmissionError) as denied:
         core_cutover(roots, expected_sha256="0" * 64, apply=True)
     assert denied.value.code == "STATE_PREIMAGE_CHANGED"
@@ -445,10 +461,10 @@ def test_exact_core_0181_rejects_wrong_preimage_mode_uid_and_held_writer(
     ("core_release", "CORE_DIGEST_MISMATCH"),
     ("core_bytes", "CORE_DIGEST_MISMATCH"),
 ])
-def test_exact_core_0181_rejects_destination_root_mismatch_without_writes(
-    retained_core_0181, capsys, mismatch, code, apply,
+def test_exact_retained_core_rejects_destination_root_mismatch_without_writes(
+    retained_core, capsys, mismatch, code, apply,
 ):
-    roots, app, previous, raw, expected = retained_core_0181
+    roots, app, previous, raw, expected = retained_core
     if mismatch in {"control_pins", "control_identity"}:
         binding_path = roots.control / "ops/config/core-adoption.json"
         binding = json.loads(binding_path.read_bytes())
@@ -485,6 +501,19 @@ def test_exact_core_0181_rejects_destination_root_mismatch_without_writes(
     assert not (roots.state / "archives/core-cutover").exists()
 
 
+def test_exact_retained_core_conflicting_archive_never_replaces_state(retained_core):
+    roots, app, _, raw, expected = retained_core
+    archive = roots.state / "archives/core-cutover" / expected
+    archive.parent.mkdir(mode=0o700, parents=True)
+    archive.write_bytes(b"conflicting preserved preimage\n")
+    archive.chmod(0o600)
+    with pytest.raises(AdmissionError) as denied:
+        core_cutover(roots, expected_sha256=expected, apply=True)
+    assert denied.value.code == "STATE_PREIMAGE_CHANGED"
+    assert app.journal.path.read_bytes() == raw
+    assert archive.read_bytes() == b"conflicting preserved preimage\n"
+
+
 def test_unbound_outbound_request_is_explicitly_unavailable(tmp_path):
     _, app = _app(tmp_path)
     gateway = KnowledgeGateway(app)
@@ -512,16 +541,8 @@ def test_unbound_outbound_request_is_explicitly_unavailable(tmp_path):
     assert not app.journal.read()["correlations"]
 
 
-def test_new_source_binding_refuses_old_live_0181_state_without_transition(tmp_path):
-    roots, app = _app(tmp_path)
-    previous = app.journal.empty()
-    previous["pins"].update(
-        core_version="0.18.1", schema_version_pin="0.18.1",
-        core_digest="sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676",
-    )
-    raw = canonical(previous) + b"\n"
-    app.journal.path.write_bytes(raw)
-    app.journal.path.chmod(0o600)
+def test_new_source_binding_refuses_retained_state_without_transition(retained_core):
+    roots, app, _, raw, _ = retained_core
 
     def snapshot():
         result = {}

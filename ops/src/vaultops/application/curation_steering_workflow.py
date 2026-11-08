@@ -58,7 +58,7 @@ class KnowledgeOSCurationSteeringWorkflow:
                     start_to_close_timeout=timedelta(seconds=30), retry_policy=RetryPolicy(maximum_attempts=1))
                 if result["kind"] == "cutover":
                     await workflow.execute_activity(PARTIAL_ACTIVITY, payload,
-                        start_to_close_timeout=timedelta(seconds=30), retry_policy=RetryPolicy(maximum_attempts=1))
+                        start_to_close_timeout=timedelta(minutes=10), retry_policy=RetryPolicy(maximum_attempts=1))
             receipt = await workflow.execute_activity(
                 APPLY_ACTIVITY, {"phase": "apply", "dispatch": payload},
                 start_to_close_timeout=timedelta(seconds=30), retry_policy=RetryPolicy(maximum_attempts=1))

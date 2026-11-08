@@ -2,7 +2,7 @@
 
 KnowledgeOS는 AgentFabric에서 개인 지식 저장소 [KnowledgeHub](../../Vaults/KnowledgeHub/)를 관리하기 위해 개발 중인 Operation입니다. 사람은 Obsidian에서 Markdown 노트를 작성하고 검토하며, 에이전트는 허용된 자료를 근거로 검색·분석하거나 변경안을 제안합니다. **자료 접근과 변경의 최종 권한은 KnowledgeOS Owner에 있고, 일반적인 제안의 승인과 정본 적용은 별개의 단계입니다.**
 
-> **사용자 진입점:** KnowledgeHub를 Obsidian에서 열고 명령 팔레트의 `KnowledgeOS Thin Client: Open KnowledgeOS sidebar`를 실행합니다. 문서 작업은 네이티브 사이드바와 기존 플러그인 안에서 수행하며 외부 브라우저가 필요하지 않습니다. 문서별 Projection과 요청 응답 대조를 반영한 Thin Client **0.6.0**을 선택된 `.obsidian-mac`에 설치하고 CLI로 리로드했습니다. 기존 0.5.1의 부분 GUI 관측은 범위 안에서 채택하며, 변경된 기능의 GUI 검증은 별도 Codex Computer Use가 수행합니다. [전체 기능·연동 가이드](docs/OBSIDIAN_CLIENT.md)와 [후속 Computer Use 프롬프트](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)를 사용하세요.
+> **사용자 진입점:** KnowledgeHub를 Obsidian에서 열고 명령 팔레트의 `KnowledgeOS Thin Client: Open KnowledgeOS sidebar`를 실행합니다. 유지 소스 **0.8.0 / contract schema 11**은 문서 기능, 열한 Team의 입력·호출 시작점, 사용자 결과·인용 근거와 Pending·daily 사람 검토를 제공합니다. 실행 이력·Graph·역할별 모델/프롬프트·독립평가·RemainingWork는 **실행 관리 · 브라우저** 또는 선택 결과의 **이 작업 관리 · 브라우저**로 확인합니다. 설치·관리용 reload와 GUI 검증은 별개입니다. [기능·연동 가이드](docs/OBSIDIAN_CLIENT.md), [역할·프롬프트 원본](../../Runtimes/README.md#모델-정책과-13개-home-정렬), [Codex GUI 인계](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md), [현재 상태](PROJECT_STATE.md)를 확인하세요.
 
 백엔드가 꺼져 있으면 사이드바의 **로컬 백엔드 시작**을 누릅니다. 상단 전원 아이콘의 tooltip으로 동작 이름을 확인합니다. 고정 host 도우미는 로그인 자동 시작 없는 LaunchAgent를 사용하고, 이미 실행 중이면 현재 Owner를 재사용합니다. 화면 열기·상태 새로 조회는 시작이 아니고 Obsidian 종료도 백엔드 종료가 아닙니다.
 
@@ -41,6 +41,13 @@ flowchart LR
 - **Owner**는 자료 접근, Work 접수, 결과와 효과를 관리합니다. Core, 이 Operation의 소스, 독립된 Vault, Operation State, Host Runtime은 서로 다른 다섯 루트이며 실제 경로는 신뢰된 설정으로 지정합니다.
 - **State**는 결정·영수증 등 보존할 운영 기록을, **Runtime**은 재구성 가능한 인덱스와 실행 자료를 둡니다. 둘 다 Git 및 동기화 루트 밖에 둡니다.
 
+### Core 0.20.1 소스 구조
+
+- `ops/config/core-adoption.json`이 **Core/schema 0.20.1 · semantic 0.7.1**의 정확한 버전과 digest를 선택합니다. MCP에 포함되는 공통 참조 schema도 같은 계약을 사용합니다.
+- `frontend/`는 기존 ExOps가 제공하는 HTML·JavaScript·CSS 관리 화면입니다. 소스와 설치 패키지에 같은 자원을 포함하며, 원문 경로 없이 기존 Work를 찾고 실제 Graph·배정·역할 호출·모델/추론 강도·프롬프트 식별자와 독립평가·RemainingWork를 조회합니다. 현재 역할 설정·COMMON/SOUL 전문과 과거 실행 관측은 구분합니다. 문서 검색·Team 접수·사용자 결과·Pending 결정/적용·일일 사람 검토는 Obsidian에 남습니다.
+- Discord 알림은 기존 owner outbox와 host의 별도 KnowledgeOS bot 정체성을 사용합니다. Owner는 공개·대상 정책과 전달 결과를, host는 token·연결·전송 제한을 소유합니다. 알림의 loopback 링크나 메시지 수신은 승인이 아니며 실제 bot 연결은 별도 설정입니다.
+- 개발 Make와 합성 host smoke는 workspace `Core/`를 기본 사용하고 정확한 채택 digest를 검증합니다. 실제 Owner는 별도 승인을 거쳐 동결된 `Runtimes/KnowledgeOS-runtime/core/agentfabric-core-0.20.1`을 읽기 전용으로 사용합니다. 현재 Owner envelope는 Core 0.20.1이지만 과거 Work의 pin·영수증·미확정 결과는 그대로 보존하며 자동 재실행하지 않습니다.
+
 기본 `ai_policy: ask` 문서는 구성된 로컬 MCP 정책에서 허용됩니다. `deny`와 confidential 자료는 제외하고 `local_only` 본문은 신뢰된 로컬 실행 문맥에서만 반환합니다. 외부 모델에 이 제한을 우회해 원문을 보내지 않습니다.
 
 ## 제안은 어떻게 정본이 되나
@@ -61,7 +68,7 @@ flowchart LR
 
 원문이 바뀌거나 정책·대상·근거가 일치하지 않으면 이전 제안을 그대로 적용하지 않습니다. 노트 메타데이터와 온톨로지 두 작업의 결과 및 독립 평가가 기록되면 Owner는 원문·레지스트리·각 값의 정확한 원문 인용을 다시 확인해 결합 Pending을 준비합니다. 검토 화면은 값별 근거와 정본 변경 diff를 구분합니다. 실제 Core 0.19.0의 합성 native 실행과 브라우저에서 결과·근거·결합 Pending을 Owner API와 비교했지만, 이 관찰은 실제 Obsidian에서의 검토나 적용이 아닙니다.
 
-예외적으로 **일일 정리**는 독립 평가와 원래 Director 권한을 확인한 뒤 Owner만 근거 있는 값을 빈 속성에 임시 선기록하고 `ai/pending`을 붙일 수 있습니다. 사람은 보존된 변경분을 확인하거나 거절하며, 확인 전 AI 관계는 온톨로지 검색에 포함되지 않습니다. 근거가 없는 결과도 별도로 기록합니다. 선택적인 Owner 일일 due loop와 dispatch supervisor는 명시적인 정책·등록이 있을 때만 작동하며, 알 수 없는 접수·전달·소비 결과는 확인 없이 재시도하지 않습니다. Cron이나 상시 운영이 자동으로 켜지는 것은 아닙니다.
+예외적으로 **수동 일일 정리**는 사람이 선택한 문서의 독립 평가와 원래 Director 권한을 확인한 뒤 Owner만 근거 있는 값을 빈 속성에 임시 선기록하고 `ai/pending`을 붙일 수 있습니다. 사람은 보존된 변경분을 확인하거나 거절하며, 확인 전 AI 관계는 온톨로지 검색에 포함되지 않습니다. 근거 없는 결과도 별도로 기록합니다. serving supervisor는 완료된 수동 요청만 소비하고 Vault due scan이나 새 정기 작업을 만들지 않습니다. 알 수 없는 접수·전달·소비 결과는 재시도하지 않으며 Cron·자동 일일 실행은 켜지지 않습니다.
 
 ## 작업과 결과의 범위
 
@@ -82,17 +89,17 @@ Core 0.19.0 합성 환경에서 위 native 방법 계열의 독립 기준 평가
 
 ### 사람이 KnowledgeHub를 사용할 때
 
-[KnowledgeHub](../../Vaults/KnowledgeHub/)를 Obsidian에서 열어 Markdown을 작성하고 검색·링크·속성·할 일을 관리합니다. Thin Client 0.5.1의 다섯 아이콘은 **검색 / 작업 / Pending / 일일 검토 / 노트 도구**이며 tooltip과 접근 가능한 이름으로 구분합니다. 주요 동작은 아이콘과 짧은 이름을 함께 쓰고, 연결 상세·Method·영수증·ID 조회는 펼쳐 봅니다. 명령 팔레트와 파일·편집기 메뉴는 선택적 Note Toolbar가 없어도 동작하며, 메타데이터·문서 개선 명령은 요청 폼만 준비합니다. 실제 Work 접수는 별도 버튼으로 실행하고, 승인과 원본 적용도 별도 동작입니다.
+[KnowledgeHub](../../Vaults/KnowledgeHub/)를 Obsidian에서 열어 Markdown을 작성하고 검색·링크·속성·할 일을 관리합니다. 다섯 아이콘은 **검색 / 작업 / Pending / 일일 검토 / 노트 도구**이며 tooltip과 접근 가능한 이름으로 구분합니다. 주요 사람 동작은 아이콘과 짧은 이름을 함께 쓰고, 필요한 영수증·ID 조회만 펼칩니다. 명령 팔레트와 파일·편집기 메뉴는 선택적 Note Toolbar 없이도 동작합니다. 명령은 폼만 준비하며 Team 접수, 승인, 정본 적용은 각각 별도 동작입니다. 실행 추적과 모델·프롬프트 관리는 명시적인 로컬 브라우저 링크로 엽니다.
 
 Lexical은 기본 검색입니다. Vector·Hybrid는 정확히 선택된 임베딩과 현재 원문에 맞는 인덱스가 필요하며 Hybrid는 RRF로 순위를 합칩니다. 온톨로지는 승인된 관계를 사용합니다. 합성 검색 성공이 실제 한국어 자료의 검색 품질을 보증하지는 않습니다.
 
 ### 현재 로컬 백엔드
 
-- Thin Client endpoint: `http://127.0.0.1:17900/owner`. 사용자는 Obsidian 안에서 연결합니다. `http://127.0.0.1:17900/console/`은 외부 브라우저 관리용이며 문서 사용의 필수 경로가 아닙니다. 다른 장치나 LAN·Tailscale 주소에는 공개하지 않습니다.
+- Thin Client endpoint는 기본 `http://127.0.0.1:17900/owner`입니다. 일반 문서 기능은 Obsidian에서 사용합니다. 관리 링크는 현재 구성된 Owner origin의 `/console/`을 열며, 기본 주소는 `http://127.0.0.1:17900/console/`입니다. 선택 Work 링크는 그 ID를 지정할 뿐 새 Work나 모델을 실행하지 않습니다. 다른 장치·LAN·Tailscale에는 공개하지 않습니다.
 - 로그인·세션·토큰 입력은 없습니다. 같은 사용자 권한의 로컬 프로그램은 신뢰합니다. Host·Origin 검사, JSON 요청 제한과 교차 출처 허용 금지는 백엔드가 자동 처리합니다. 제안 승인·별도 적용과 원본 변경·중복 실행 방지는 그대로 유지합니다.
-- 수동 작업: 메타데이터·온톨로지 두 Team 템플릿과 근거 기반 Research/Director 입력을 기존 Hermes Runner에 연결했습니다. 다른 문서 작업 목록은 현재 Owner가 반환하는 Method 가용성과 고정 매개변수를 따릅니다. 실제 Work 제출은 선택된 외부 모델을 호출할 수 있으므로 자료 정책·실행 동의를 확인합니다. GUI 없는 검증은 격리된 Owner를 사용했고 실제 Vault Work나 외부 모델 호출을 만들지 않았습니다.
-- 검색: 로컬 Qwen binding과 현재 Lexical·Vector 세대를 게시했습니다. 현재 Vault에는 시스템·홈 문서만 있어 정책상 일반 지식 검색 결과와 Vector 레코드는 비어 있습니다. 승인된 온톨로지 관계도 없습니다.
-- 자동 일일 실행·Cron·Discord·InterOps Gateway는 꺼 두었습니다. 이 Owner에 결합되지 않은 안전 제어·steering은 화면에서도 사용 불가로 표시됩니다.
+- 수동 작업: 열한 Team Method를 공통 Owner admission·dispatch에 연결하고 실제 Director·Manager·전문 역할·독립 EvalOfficer의 판단을 사용합니다. 현재 Method 가용성과 편집 가능한 입력 schema는 Owner에서 읽습니다. 가용 표시나 소스 구현은 실제 모델·전체 E2E 성공을 보증하지 않으며 현재 provider 상태·완료 근거는 [PROJECT_STATE.md](PROJECT_STATE.md)를 따릅니다.
+- 검색: 허용된 현재 문서를 문서별 Projection으로 읽습니다. 선택된 로컬 Qwen binding과 Vector·Hybrid 세대, 승인된 온톨로지 관계의 가용성은 실제 응답으로 구분합니다. 과거 빈 corpus 관측을 현재 검색 품질이나 결과로 대신하지 않습니다.
+- 자동 일일 실행·Cron은 활성화하지 않습니다. 안전 제어·steering은 현재 Owner의 실제 binding과 정확한 Work 경계가 있을 때만 사용하며 외부 Discord·InterOps 전송은 별도 선택입니다.
 - 전환 전 State·Runtime·Temporal과 변경 생성물의 원본은 `States/Operations/knowledgeos/archives/local-activation-2026-11-01/`에 보존했습니다. 실행 중 Work의 일반 복구나 off-host 백업을 증명한 것은 아닙니다.
 
 LaunchAgent는 host Runtime에 보관하며 로그인·재부팅 자동 시작 위치에 등록하지 않습니다. 일반 사용은 Thin Client의 시작 버튼을 이용하고, 운영자는 아래 고정 도우미로 같은 시작·상태 확인을 할 수 있습니다. Docker가 사용 가능하고 선택된 Temporal 컨테이너가 이미 설치돼 있어야 합니다. 도우미는 기존 중지된 의존성을 시작할 수 있지만 설치·image build·State 초기화를 하지 않습니다.
@@ -114,13 +121,13 @@ LaunchAgent는 host Runtime에 보관하며 로그인·재부팅 자동 시작 �
 
 ### 활성화 경계와 후속 작업
 
-1. **루트와 State:** Core, control, Vault, State, Runtime 다섯 루트를 독립적으로 지정하고 State와 Runtime은 Git·동기화 밖에 둡니다. 현재 로컬 설치는 Core 0.19.0이며, 이전 State 원본은 보존했습니다.
-2. **전환과 백업:** [Core 전환 안내](docs/RUNTIME.md#source-adoption-and-retained-owner-state)의 정확한 대상 Core·원본 해시 확인, producer 정지 및 공동 백업 경계를 따릅니다. 이번 정식 전환은 사용자 승인으로 적용했으며, preview나 기존 적용 기록이 이후 변경 권한을 부여하지 않습니다.
+1. **루트와 State:** Core, control, Vault, State, Runtime 다섯 루트를 독립적으로 지정하고 State와 Runtime은 Git·동기화 밖에 둡니다. 소스와 실제 Owner envelope는 Core 0.20.1을 선택하며, 실제 서비스는 동결된 별도 Core 설치와 검증한 Team 이미지를 사용합니다. 디렉터리나 이미지 선택 자체가 State 전환 권한은 아닙니다.
+2. **전환과 백업:** 사용자 승인 후 기존 driver·Owner·relay를 정지하고 실제 0.19.0 State의 envelope만 0.20.1로 이행했습니다. generation 5→6, revision 58→59이며 기존 intent·receipt·history와 미확정 결과 5건을 보존했습니다. 원본과 설정·State·Vault 내용·Runtime 사본 및 논리 DB dump는 `States/Operations/knowledgeos/archives/core0201-live-2026-11-04/`에 비공개로 보관합니다. 재시작 후 실제 HTTP·기존 완료 결과·미확정 결과 조회와 Worker poller 및 변경 없는 native 이력을 확인했습니다. GUI·새 모델 Work·DB 복원은 수행하지 않았습니다. 일반 유지보수 명령의 미해결 Work 거부는 그대로이며 상세 경계는 [Core 전환 안내](docs/RUNTIME.md#source-adoption-and-retained-owner-state)를 따릅니다.
 3. **설치본과 권한:** [활성화 요건](docs/RUNTIME.md#capability-specific-activation-prerequisites)에 따라 이미지 ID·설치 모듈, config v3·현재 인덱스·자료 정책을 선택합니다. HTTP 인증은 요구하지 않습니다. 쓰기 작업의 Director/Worker/Temporal/Runner·독립 평가 바인딩과 복구 조건은 유지하며 이미지나 역할 프로필만으로 실행 권한이 생기지는 않습니다.
 4. **외부 연결:** 배포·원격 접속을 전제로 하지 않습니다. Tailscale·SSO·로그인·세션 도입은 후속 필수 작업이 아니며 현재 loopback에 Serve를 붙이지 않습니다. 다른 장치에서도 각각 로컬 설치를 사용합니다. 향후 외부 연결 요구가 생기면 별도 설계·승인을 거칩니다.
-5. **사용자 기기:** 선택한 mac 프로필에 Thin Client 0.5.1의 네 파일을 설치하고 자체 플러그인을 리로드했습니다. 로컬 통합 함수는 네이티브 로더에 맞춰 `main.js`에 포함합니다. 설정·문서·타사 플러그인과 기존 toolbar 명령은 보존하며, 내부 plugin manager의 로드 확인을 실제 화면·문서 기능 검증으로 간주하지 않습니다. 시작 버튼·앱 종료 후 백엔드 유지·화면·검토·적용은 추후 [Computer Use 프롬프트](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)로 검증합니다.
+5. **사용자 기기:** 과거 0.6.1 GUI 관측은 [원래 보고서](../../Tmp/knowledgeos-gui-core0201-2026-11-04/final-report.md)의 범위로만 채택합니다. 0.8.0 네 파일 설치·관리용 loaded 버전과 실제 GUI 관측은 구분하며 현재 채택은 [PROJECT_STATE.md](PROJECT_STATE.md)를 따릅니다. 사용자 기능·관리 링크의 네이티브 사용성과 브라우저 관리 화면은 [Codex 인계](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)의 N01–N48 및 B01–B06에서 각각 검증합니다. 이미 완료된 실제 Team Work를 GUI 검사를 위해 재실행하지 않습니다.
 
-[native Hermes 조회 연결](../../Runtimes/README.md#네이티브-hermes와-knowledgeos-조회)의 `kos-cited-answer`는 별도 읽기 전용 프로필입니다. 이번 Obsidian 작업에서는 이 프로필의 지속 launcher 핀·기존 Gateway 연결·다른 역할 프로필을 바꾸지 않았습니다. 실제 Thin Client는 갱신한 로컬 쓰기 가능 Owner를 사용합니다.
+[native Hermes 조회 연결](../../Runtimes/README.md#네이티브-hermes와-knowledgeos-조회)의 `kos-cited-answer`는 별도 읽기 전용 프로필입니다. 열세 home의 모델·SOUL 정렬, launcher 이미지 pin, 새 MCP 연결 및 기존 Gateway 캐시는 각각 별도 채택 항목입니다. Thin Client는 로컬 쓰기 가능 Owner를 사용하며 프로필 이름이나 MCP 조회 성공이 도메인 변경 권한을 만들지는 않습니다.
 
 ### 격리 실행
 

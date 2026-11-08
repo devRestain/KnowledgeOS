@@ -16,14 +16,14 @@ with workflow.unsafe.imports_passed_through():
 from .temporal_contract import (
     CONTROL_APPLY_ACTIVITY,
     CONTROL_CHECKPOINT_ACTIVITY,
+    CONTROL_INITIAL_GRAPH_NAME,
     CONTROL_QUERY,
     CONTROL_ROLLOVER_ADOPT_ACTIVITY,
     CONTROL_ROLLOVER_PREPARE_ACTIVITY,
     CONTROL_ROLLOVER_UPDATE,
+    CONTROL_SUCCESSOR_GRAPH_NAME,
     CONTROL_UPDATE,
     CONTROL_WORKFLOW_TYPE,
-    CURATION_INITIAL_GRAPH_NAME,
-    CURATION_SUCCESSOR_GRAPH_NAME,
     curation_control_target,
     curation_dispatch,
     curation_rollover_envelope,
@@ -257,7 +257,7 @@ class KnowledgeOSCurationControlWorkflow:
             except ValueError as error:
                 raise ApplicationError(str(error), non_retryable=True) from error
             self._dispatch = copy.deepcopy(payload)
-            decision = await graph(CURATION_INITIAL_GRAPH_NAME).compile().ainvoke(payload)
+            decision = await graph(CONTROL_INITIAL_GRAPH_NAME).compile().ainvoke(payload)
             if (
                 not isinstance(decision, dict)
                 or set(decision) != {"continuation_state", "receipt"}
@@ -291,7 +291,7 @@ class KnowledgeOSCurationControlWorkflow:
         await workflow.wait_condition(workflow.all_handlers_finished)
         if self._status == "cancelled":
             return self._cancel_receipt
-        result = await graph(CURATION_SUCCESSOR_GRAPH_NAME).compile().ainvoke(payload)
+        result = await graph(CONTROL_SUCCESSOR_GRAPH_NAME).compile().ainvoke(payload)
         if not isinstance(result, dict) or result.get("work_run_id") != payload["work_run_id"]:
             raise ApplicationError("Successor returned no owner Work result", non_retryable=True)
         self._status = "completed"

@@ -1,4 +1,4 @@
-"""Exact fenced Core adoption, including retained v4 Core 0.18.1 to 0.19.0.
+"""Exact fenced adoption from supported retained Core releases to selected pins.
 
 Only the journal envelope changes; historical evidence retains its original pins.
 Source support does not authorize a live State transition.
@@ -21,8 +21,10 @@ from .paths import ResolvedPaths, resolve_beneath
 _OLD_CORE = "sha256:b69f3e389de8b8362397dec8d55a92d10a4556cc2c5f4fe646b934944db5188e"
 _PREVIOUS_CORE = "sha256:28697ac0cb49106afa32b143482cdca32e4e638d1a250173db381a2bf836e2be"
 _CORE_0180 = "sha256:a1a051556d2e187c6012c562a46a9e5aed4bc842325e94e66522ccdbd9ce4c13"
-# Frozen agentfabric-core-0.18.1 manifest; retained State uses the same non-Core pins.
+# Frozen release identities; source semantic pins never derive from the target.
 _CORE_0181 = "sha256:a08b724d6910575a0164302b0e5ed2c81e83519bf595e930c779d5e0f6bfd676"
+_CORE_0190 = "sha256:0cc4f02444045516b7765d269099aa7c84b7ed94a0e66e4f925ea94cb17e3a85"
+_SEMANTIC_070 = "sha256:2998829dec11f61d635c3c2ddec1127f988e8ad517ab64b27eade9539207f127"
 _EMPTY_REQUIRED = ("gateway", "correlations", "experience", "outbox",
                    "human_requests", "decisions", "interops_outbound", "experience_events")
 
@@ -53,12 +55,13 @@ def _inspect(roots: ResolvedPaths, expected_sha256: str):
     source_core = value.get("pins", {}).get("core_version") if isinstance(value.get("pins"), dict) else None
     supported_sources = {3: {"0.17.0": _OLD_CORE},
                          4: {"0.17.4": _PREVIOUS_CORE, "0.18.0": _CORE_0180,
-                             "0.18.1": _CORE_0181}}
+                             "0.18.1": _CORE_0181, "0.19.0": _CORE_0190}}
     source_digest = supported_sources[source_version].get(source_core)
     if source_digest is None:
         raise AdmissionError("STATE_PIN_MISMATCH", "cutover source Core release is unsupported")
     old_pins.update(core_version=source_core, core_digest=source_digest,
-                    schema_version_pin=source_core)
+                    schema_version_pin=source_core, semantic_version="0.7.0",
+                    semantic_digest=_SEMANTIC_070)
     if value["pins"] != old_pins or value["owner_operation_id"] != "knowledgeos" or (
         value["fabric_id"] != "agentfabric" or value["instance_id"] != "knowledgeos.local"
     ):

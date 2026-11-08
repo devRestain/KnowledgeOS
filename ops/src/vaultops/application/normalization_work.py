@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import copy
-import re
 from collections.abc import Mapping
 from datetime import datetime
 from itertools import pairwise
@@ -15,8 +14,10 @@ from ..adapters.core import AdmissionError, canonical, digest
 from ..adapters.owner_journal import read_regular, stamp
 from ..adapters.paths import resolve_beneath
 from ..projection import source_properties
+from .agent_decisions import validate_role_evidence
 from .exops import KnowledgeExOps
 from .knowledge import KnowledgeApplication
+from .native_team import validate_runner_binding
 from .read_tools import KnowledgeReadTools
 from .team_catalog import OfficerBinding, TeamCatalog
 from .temporal_work import WorkResult
@@ -38,21 +39,6 @@ CRITERION = {
 }
 _POLICY = {"max_segments": 1, "max_repeated_gap_assessments": 1, "max_profile_invocations": 1}
 _MODEL_TOOLS = ("work_context_read", "knowledge_read", "proposal_create")
-_MODEL_ROUTE = {
-    "runtime_kind": "hermes_native", "hermes_version": "0.22.5",
-    "hermes_revision": "bf0203a794a07aac3ff764972ab9087baa4e4f4e",
-    "provider": "openai-codex", "model": "gpt-6.1-terra",
-}
-
-
-def _runner_binding(value: Mapping[str, Any]) -> dict[str, Any]:
-    _require(isinstance(value, Mapping)
-             and set(value) == {*_MODEL_ROUTE, "adapter_digest"}
-             and all(value.get(key) == expected for key, expected in _MODEL_ROUTE.items())
-             and isinstance(value.get("adapter_digest"), str)
-             and re.fullmatch(r"sha256:[0-9a-f]{64}", value["adapter_digest"]) is not None,
-             "Normalization requires the exact native Hermes runtime binding")
-    return dict(value)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -67,7 +53,7 @@ def normalization_native_digest(runner_binding: Mapping[str, Any] | None = None)
     content = {"engine_id": ENGINE_ID, "engine_version": ENGINE_VERSION,
                "execution_module_digest": digest(raw)}
     if runner_binding is not None:
-        content["runner_binding"] = _runner_binding(runner_binding)
+        content["runner_binding"] = validate_runner_binding(runner_binding)
     return record_digest(content)
 
 
@@ -106,7 +92,7 @@ def normalization_admission(application: KnowledgeApplication, binding: OfficerB
         "constraints": (("No provider, canonical apply, or source mutation; selected source "
                          if runner_binding is None else
                          "No canonical apply or source mutation; native Hermes runner "
-                         + record_digest(_runner_binding(runner_binding)) + "; selected source ")
+                         + record_digest(validate_runner_binding(runner_binding)) + "; selected source ")
                         + record_digest(source_reference)),
         "acceptance_criteria": [dict(CRITERION)], "target_kind": "officer",
         "officer_executor_id": binding.officer_executor_id,
@@ -227,22 +213,23 @@ def _model_request(exops: KnowledgeExOps, work_run_id: str, runner_binding) -> d
     request = {key: context[key] for key in (
         "work_run_id", "work_spec_digest", "graph_run_id", "executor_id",
         "generation", "fencing_token", "source_reference", "source_chunks")}
-    request.update(runner_binding=_runner_binding(runner_binding),
+    request.update(runner_binding=validate_runner_binding(runner_binding),
                    control_root=str(exops.application.roots.control))
     return {"request_digest": record_digest(request), **request}
 
 
 def _model_response(exops: KnowledgeExOps, work_run_id: str, request, response) -> dict[str, Any]:
     """Re-read context/chunks; a model's final answer never authorizes an effect."""
-    binding = _runner_binding(request["runner_binding"])
+    binding = validate_runner_binding(request["runner_binding"])
     _require(request == _model_request(exops, work_run_id, binding),
              "Model request differs from current owner Work, source or runtime")
     _require(isinstance(response, dict) and set(response) == {
         "request_digest", "runner_binding", "model", "provider", "session_id",
-        "final_text", "tool_calls", "exposed_tools"}
+        "final_text", "tool_calls", "exposed_tools", "agent_evidence"}
         and response["request_digest"] == request["request_digest"]
         and response["runner_binding"] == binding
-        and response["model"] == binding["model"] and response["provider"] == binding["provider"]
+        and response["model"] == response["agent_evidence"].get("model")
+        and response["provider"] == response["agent_evidence"].get("provider")
         and isinstance(response["session_id"], str) and 0 < len(response["session_id"]) <= 256
         and isinstance(response["final_text"], str) and 0 < len(response["final_text"]) <= 16384
         and isinstance(response["exposed_tools"], list)
@@ -250,6 +237,14 @@ def _model_response(exops: KnowledgeExOps, work_run_id: str, request, response) 
         and all(isinstance(name, str) for name in response["exposed_tools"])
         and set(response["exposed_tools"]) == set(_MODEL_TOOLS),
         "Model response changed request, binding, route or exposed tools")
+    validate_role_evidence(exops.application.roots.control, "knowledgeos.normalization_officer",
+                           response["agent_evidence"], tools=list(_MODEL_TOOLS))
+    _require(response["session_id"] == response["agent_evidence"]["session_id"]
+             and response["final_text"] == response["agent_evidence"]["final_text"]
+             and response["tool_calls"] == [
+                 {key: value for key, value in call.items() if key != "call_id"}
+                 for call in response["agent_evidence"]["tool_calls"]],
+             "Normalization response differs from actual role callbacks")
     calls = response["tool_calls"]
     _require(isinstance(calls, list) and 3 <= len(calls) <= 32,
              "Model normalization needs actual context, read and proposal tool calls")
@@ -316,7 +311,7 @@ def _model_evidence(exops: KnowledgeExOps, work_run_id: str, runner_binding, *, 
     with exops.application.journal.writer() as writer:
         current = writer.value["intents"].get("exops.work." + work_run_id)
         _require(current == record, "Work changed before model evidence registration")
-        current["normalization_runner_binding"] = _runner_binding(runner_binding)
+        current["normalization_runner_binding"] = validate_runner_binding(runner_binding)
         current["normalization_model_execution"] = copy.deepcopy({
             "request": request, "response": response, "evidence_digest": digest(encoded)})
         writer.value["history"].append({"event": "normalization_model_execution_recorded",
@@ -469,10 +464,10 @@ class NormalizationOfficerExecutor:
     def __init__(self, exops: KnowledgeExOps, *, runner=None):
         self.exops = exops
         self.runner = runner
-        self.runner_binding = _runner_binding(runner.binding) if runner is not None else None
+        self.runner_binding = validate_runner_binding(runner.binding) if runner is not None else None
 
     def _runtime(self) -> None:
-        _require(self.runner is None or _runner_binding(self.runner.binding) == self.runner_binding,
+        _require(self.runner is None or validate_runner_binding(self.runner.binding) == self.runner_binding,
                  "Normalization runner binding changed at the execution boundary")
 
     async def __call__(self, spec: Mapping[str, Any], run: Mapping[str, Any]) -> WorkResult:
