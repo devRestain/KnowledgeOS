@@ -1,0 +1,7 @@
+{
+  "id": "C5", "name": "Document management", "version": "1",
+  "target": {"kind": "officer", "name": "StewardshipOfficer", "runtime": "static"},
+  "evaluation": {"officer": "EvalOfficer", "runtime": "static"},
+  "budget": {"segments": 1, "producer_invocations": 1},
+  "settings": {"recent_autofix_days": 7, "revisit_count": 3}
+}

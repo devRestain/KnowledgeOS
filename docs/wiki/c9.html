@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>C9 학습·Experience · KnowledgeOS 위키</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body class="wiki" data-slug="c9">
+<a class="skip" href="#content">본문으로</a>
+<header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
+<div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html" aria-current="page">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C9 학습·Experience</span></nav>
+<article class="page">
+<h1 id="top">C9 학습·Experience</h1>
+<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS의 모델 역할은 사용자가 제안을 적용하거나 거절하고, 보고서를 고치거나 지우는 <strong>실제 반응</strong>에서 배웁니다. 배움은 세 층으로 나뉩니다. 역할 하나가 자기 책임 안에서 배우는 <strong>역할 수준</strong>, Manager가 teammate를 돌아보는 <strong>팀 수준</strong>(TeamReview), 그리고 근거가 확실한 사건만 다른 Operation(HermesTrace)과 나누는 <strong>Fabric 수준</strong>입니다.</p>
+<p>세 층 모두 노트 본문을 옮기지 않고(참조·분류·digest만 사용), HermesTrace에 닿지 못해도 사용자 기능은 멈추지 않습니다. 용어가 낯설면 <a class="wikilink" href="glossary.html">용어</a>를 보세요.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>항목</th>
+<th>내용</th>
+</tr></thead><tbody>
+<tr><td>트리거</td><td>사용자의 반응(적용·부분 적용·거절·되돌리기·보고서 수정/승격/삭제), Work의 비정상 종료, 차단된 작업, 개인정보 거부, 완료 후 TeamReview</td></tr>
+<tr><td>담당</td><td>Owner와 모든 모델 역할의 Hermes profile (표: 대상 &quot;Owner and role profiles&quot;, 역할 &quot;All model roles&quot;)</td></tr>
+<tr><td>결과물</td><td>역할별 <code>feedback</code> 보기, 로컬 <code>ExperienceSourceEvent</code>, 자격이 있는 사건의 <code>ExperienceCandidate</code>(전송 대기열)</td></tr>
+<tr><td>사용자 결정 여부</td><td>학습 자체는 사용자가 결정하지 않습니다. 사용자가 결정하는 것은 HermesTrace가 승격한 능력을 <strong>채택</strong>하는 일뿐이며, 설정을 명시적으로 고정(pin)해서만 반영됩니다.</td></tr>
+</tbody></table></div>
+<p>출처: 위 표는 <code>docs/CAPABILITIES.md</code>의 Capability summary와 C9 본문을 따릅니다.</p>
+<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
+<p><a class="wikilink" href="philosophy.html">운용 원칙</a>와 USER_FEATURE_SPEC의 &quot;지키는 약속&quot;에서 이 기능이 지키는 것은 다음입니다.</p>
+<ul>
+<li><strong>약속 4 — 자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong> 학습이 권한을 넓히면 이 약속이 깨집니다. C9는 학습이 권한을 넓히지 못하게 못박습니다. 역할이 쓸 수 있는 도구는 언제나 Work 바인딩에서만 나옵니다(Blueprint §4.5).</li>
+<li><strong>약속 6 — 잃으면 안 되는 것은 Vault에 둡니다.</strong> 학습 기록은 State 쪽의 잃어도 되는 기록이며, 학습 때문에 노트 본문이 밖으로 나가서는 안 됩니다. 그래서 SourceEvent와 Candidate는 참조·분류·digest만 담습니다.</li>
+<li><strong>개인정보(<code>ai_policy</code>)의 한계.</strong> 학습 기록이 있다는 이유로 원본 노트의 공개 범위가 넓어지지 않습니다.</li>
+</ul>
+<p>이 명세가 없다면 생길 문제는 이렇습니다.</p>
+<ul>
+<li>같은 제안이 거절돼도 <code>classifier</code>가 같은 실수를 반복합니다.</li>
+<li>한 역할의 기억이 다른 역할로 새어, 책임 경계가 흐려집니다.</li>
+<li>단순히 &quot;제안이 있었다&quot;거나 &quot;Work가 성공했다&quot;는 이유로 후보가 쌓여, HermesTrace가 근거 없는 잡음으로 가득 찹니다.</li>
+<li>HermesTrace가 꺼져 있을 때 사용자 기능까지 막힐 수 있습니다.</li>
+</ul>
+<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
+<p>학습은 사용자가 따로 켜거나 호출하는 기능이 아닙니다. 평소처럼 제안을 검토하면 그 반응이 기록됩니다. 확인할 수 있는 경로는 다음과 같습니다.</p>
+<p><strong>자동 경로 (평소 사용)</strong></p>
+<ol>
+<li>정리·강화를 요청하면 제안이나 보고서가 생깁니다(<a class="wikilink" href="c1.html">C1</a>, <a class="wikilink" href="c4.html">C4</a>).</li>
+<li>제안 노트에서 항목을 체크 해제하고 <strong>적용</strong>하거나, <strong>거절</strong>하거나, 적용 뒤 <strong>자동 변경 되돌리기</strong>를 누릅니다(<a class="wikilink" href="c6.html">C6</a>, <a class="wikilink" href="c11.html">C11</a>).</li>
+<li>보고서를 고치거나 <code>type</code>을 바꿔 승격하거나 삭제합니다.</li>
+<li>이 반응이 해당 역할의 <code>feedback</code>으로 기록되고, 다음 호출 때 그 역할이 볼 수 있습니다.</li>
+</ol>
+<p><strong>관리 콘솔 (브라우저, 로컬 전용)</strong></p>
+<ul>
+<li>역할별 학습 기록(role-profile map과 learning ledger), Experience 대기열(outbox), TeamReview, 작업의 역할별 호출(profile 이름·모델 경로·skill 묶음 digest)을 <strong>볼 수 있습니다</strong>(USER_FEATURE_SPEC &quot;관리&quot;, Blueprint §4.4).</li>
+<li>콘솔은 관리용이며 학습 내용을 편집하는 곳이 아닙니다. 역할 변경은 사용자가 명세와 카탈로그를 고쳐서만 합니다(Blueprint §4.4 TeamReview).</li>
+</ul>
+<p><strong>CLI</strong></p>
+<ul>
+<li>이 기능 전용 명령은 명세·README에 따로 없습니다. 역할 profile 설치는 <code>knowledgeos install profiles --config owner.json</code>이며(<a class="wikilink" href="usage.html">사용 가이드</a>), 이 명령이 profile별 route·도구·학습 설정을 고정합니다(LRN-2 구현 <code>hermes.py::install_profiles</code>).</li>
+</ul>
+<p><strong>HermesTrace 채택 (사용자가 결정하는 유일한 지점)</strong></p>
+<ul>
+<li>HermesTrace가 승격한 능력은 버전과 digest를 고정한 KnowledgeOS 설정 변경으로만 반영됩니다. Core 계약과 스키마는 바뀌지 않습니다.</li>
+</ul>
+<h3 id="따라-해-보기-거절한-제안이-다음에-반영되는-과정">따라 해 보기: 거절한 제안이 다음에 반영되는 과정<a class="anchor" href="#따라-해-보기-거절한-제안이-다음에-반영되는-과정" aria-label="이 제목 링크">#</a></h3>
+<ol>
+<li>정리 요청으로 노트 <code>Draft idea</code>에 대한 제안이 생겼고, 체크리스트에 &quot;폴더를 <code>40_Knowledge/Questions</code>로 이동&quot;이 있습니다.</li>
+<li>이동이 맞지 않다고 판단해 <strong>거절</strong>합니다. 제안 파일은 지워지고 기록은 Git에 남습니다.</li>
+<li>다음에 <code>classifier</code>가 호출되면 <code>feedback</code>에 이 거절이 들어 있습니다.</li>
+<li>같은 거절은 &quot;사용자 수정·거절&quot;이라는 실제 근거가 있는 사건이라 Core 분류(예: <code>human_correction</code>)에 맞으면 Experience 후보가 됩니다. 후보에는 노트 경로나 본문이 아니라 참조·분류·digest만 들어갑니다. 이 시나리오가 <a class="wikilink" href="#LRN-1">LRN-1</a>입니다.</li>
+<li>HermesTrace가 꺼져 있으면 후보는 대기하다 Core 보관 기한이 지나면 만료되며, 사용자는 아무 영향도 받지 않습니다(<a class="wikilink" href="#LRN-3">LRN-3</a>).</li>
+</ol>
+<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
+<figure class="diagram diagram-work-flow">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 400" width="100%" preserveAspectRatio="xMidYMid meet"><title>Work 흐름: 요청에서 Director 승인, 실행, 평가, Owner 효과, TeamReview까지</title><defs><marker id="d-arrow-work-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M170,150 L210,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M360,150 L380,150 L380,60 L400,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M380,150 L380,240 L400,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="372" y="104" text-anchor="end" font-size="13">Officer 대상</text><text class="d-label-small" x="372" y="200" text-anchor="end" font-size="13">Team 대상</text><path class="d-edge" d="M550,240 L590,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M665,212 L665,178" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M550,60 L635,60 L635,122" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M740,150 L780,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="760" y="140" text-anchor="middle" font-size="13">충족</text><path class="d-edge" d="M855,178 L855,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge d-edge-dashed" d="M590,150 L475,150 L475,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="530" y="142" text-anchor="middle" font-size="13">미충족 · 예산 내</text><path class="d-edge d-edge-dashed" d="M710,122 L710,60 L780,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="745" y="48" text-anchor="middle" font-size="13">예산 소진</text><rect class="d-box-muted" x="20" y="122" width="150" height="56" rx="8"/><text class="d-label" x="95" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="95" dy="0" font-size="14">요청</tspan><tspan class="d-label-small" x="95" dy="18" font-size="13">표면·작업·Gateway</tspan></text><rect class="d-box-accent" x="210" y="122" width="150" height="56" rx="8"/><text class="d-label" x="285" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="285" dy="0" font-size="14">Director 승인</tspan><tspan class="d-label-small" x="285" dy="18" font-size="13">WorkSpec 확정</tspan></text><rect class="d-box" x="400" y="32" width="150" height="56" rx="8"/><text class="d-label" x="475" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Officer 단계</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">정적 · 단독 결과</tspan></text><rect class="d-box" x="400" y="212" width="150" height="56" rx="8"/><text class="d-label" x="475" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Manager</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">그래프·후속 구간</tspan></text><rect class="d-box" x="590" y="212" width="150" height="56" rx="8"/><text class="d-label" x="665" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">팀원 단계</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">handoff 산출</tspan></text><rect class="d-box-accent" x="590" y="122" width="150" height="56" rx="8"/><text class="d-label" x="665" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">EvalOfficer</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">독립 평가</tspan></text><rect class="d-box-ok" x="780" y="122" width="150" height="56" rx="8"/><text class="d-label" x="855" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">Owner 효과</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">기록 · 영수증</tspan></text><rect class="d-box-warn" x="780" y="32" width="150" height="56" rx="8"/><text class="d-label" x="855" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">사용자에게 표시</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">새 요청이 필요</tspan></text><rect class="d-box-muted" x="780" y="212" width="150" height="56" rx="8"/><text class="d-label" x="855" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">TeamReview</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">팀원 평가·제안</tspan></text><rect class="d-lane" x="20" y="290" width="920" height="96" rx="10"/><text class="d-label" x="480" y="325" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner가 검증하고 기록한다 · 모델은 판단만 담당한다</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정적 검사 먼저, EvalOfficer 모델은 의미 기준만 판단 · 기본 예산: Team 2구간·생산 6회, Officer 1구간</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">같은 미충족이 연속 두 체크포인트에 남으면 Work는 미충족으로 종료 · 대상이 바뀌면 새 Director 승인</tspan></text></svg>
+</figure>
+<p>위 그림은 Work 전체 흐름이며, 마지막 TeamReview가 팀 수준 학습의 입구입니다. C9 자체의 신호 흐름은 아래와 같습니다.</p>
+<ol>
+<li><strong>사건 발생</strong>: 사용자 반응이나 Work의 종료 상태가 생깁니다.</li>
+<li><strong>역할 수준</strong>: 해당 역할의 <code>feedback</code> 보기에 결과가 기록됩니다.
+<ul>
+<li><code>classifier</code>·<code>linker</code>: 적용·부분 적용·거절</li>
+<li><code>synthesizer</code>: 보고서 편집·승격·삭제</li>
+<li>Manager: 평가와 TeamReview 이력</li>
+<li>EvalOfficer: 만족으로 평가한 결과를 사용자가 거절한 경우</li>
+<li>Director: 접수 성공과 확인 질문 실패</li>
+</ul></li>
+<li><strong>팀 수준</strong>: TeamReview의 제안마다 로컬 <code>ExperienceSourceEvent</code>(<code>category=routine_progress</code>, <code>evaluation_state=not_evaluated</code>)가 남습니다. Candidate나 outbox 항목은 만들지 않고 HermesTrace로도 보내지 않습니다.</li>
+<li><strong>Fabric 수준 판정</strong>: Owner가 사건의 <strong>근거</strong>로 Core 분류에 맞는지 가립니다. 제안이 있었다는 사실이나 Work 성공은 자격이 아닙니다.</li>
+<li><strong>전달</strong>: 자격이 있으면 SourceEvent와 Candidate가 생기고 InterOps로 HermesTrace에 전달됩니다. 닿지 못하면 대기하다 만료됩니다.</li>
+</ol>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p>자격이 되는 Core 분류는 <code>failure</code>, <code>timeout</code>, <code>crash_recovery</code>, <code>cancellation</code>, <code>human_correction</code>, <code>policy_denial</code>, <code>verified_unusual_success</code>입니다. &quot;결과 불명&quot;만으로는 실패의 증거가 아니고, 평가 전의 제안은 검증된 성공이 아닙니다(CAPABILITIES C9).</p>
+</div>
+<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
+<section class="source-include">
+<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C9 Learning and Experience</header>
+<h3 id="c9-learning-and-experience">C9 Learning and Experience<a class="anchor" href="#c9-learning-and-experience" aria-label="이 제목 링크">#</a></h3>
+<ul>
+<li><strong>Role level</strong>: each model role learns in its own Hermes profile (Blueprint §4.5). Its <code>feedback</code> view reports outcomes of its own earlier outputs:
+<ul>
+<li>Applied, partially applied or rejected changes, for the <code>classifier</code> and <code>linker</code>.</li>
+<li>Report edits, promotion or deletion, for the <code>synthesizer</code>.</li>
+<li>Assessments and TeamReview history, for the Managers.</li>
+<li>User rejection of results it rated satisfied, for the EvalOfficer.</li>
+<li>Successful admissions and clarification failures, for the Director.</li>
+</ul></li>
+<li><strong>Team level</strong>: TeamReview (C4, ENH-7) records teammate performance and proposals in TeamReview, role feedback and the console. Each proposal also creates a local <code>ExperienceSourceEvent</code> with <code>category=routine_progress</code> and <code>evaluation_state=not_evaluated</code> for the proposal, regardless of the Work&#x27;s assessment.</li>
+<li><strong>Local-only proposals</strong>: ordinary TeamReview proposals do not create an <code>ExperienceCandidate</code> or outbox item and are not sent to HermesTrace. Local observations are bounded and expire under C9 retention; they are not a permanent promotion queue.</li>
+<li><strong>Fabric level</strong>: actual eligible events create an <code>ExperienceSourceEvent</code> and an <code>ExperienceCandidate</code> for delivery to HermesTrace through InterOps. The Owner uses the existing Core categories and the event&#x27;s evidence, not the presence of a suggestion or a successful Work, to establish eligibility. Signals include:
+<ul>
+<li>A Work that ended unmet, failed or unknown.</li>
+<li>A proposal that was rejected or partially applied.</li>
+<li>An undo.</li>
+<li>A blocked job.</li>
+<li>A privacy refusal.
+These signals must evidence the applicable Core category: <code>failure</code>, <code>timeout</code>, <code>crash_recovery</code>, <code>cancellation</code>, <code>human_correction</code>, <code>policy_denial</code> or <code>verified_unusual_success</code>. An unknown outcome alone is not proof of failure, and an unevaluated proposal is not a verified success.</li>
+</ul></li>
+<li><strong>Later events</strong>: a real user correction or other eligible event creates its own evidenced event and Candidate. It does not automatically promote an earlier proposal; no future promotion or export of that proposal is promised.</li>
+<li><strong>Payloads and retention</strong>: SourceEvents and Candidates carry references, categories and digests, never note text. Local observations and the outbox are bounded. If HermesTrace is unavailable, eligible candidates wait and expire under Core retention without blocking KnowledgeOS. Neither local observations nor Candidates widen source-note disclosure policy.</li>
+<li><strong>Adoption</strong> of a HermesTrace-promoted capability is an explicit, pinned change to KnowledgeOS configuration; Core contracts and schemas remain unchanged.</li>
+</ul>
+<p>Acceptance:</p>
+<ul>
+<li><strong><a class="wikilink" href="#LRN-1">LRN-1</a></strong> Given a rejected curation proposal, then the next <code>classifier</code> invocation&#x27;s <code>feedback</code> includes it, and an Experience candidate exists without note text.</li>
+<li><strong><a class="wikilink" href="#LRN-2">LRN-2</a></strong> Given a <code>classifier</code> skill update, then other role profiles&#x27; skills are unchanged.</li>
+<li><strong><a class="wikilink" href="#LRN-3">LRN-3</a></strong> Given HermesTrace is unreachable, then user capabilities are unaffected and the candidate stays pending.</li>
+</ul>
+</section>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오는 공개 인터페이스로 실행하는 테스트이며, 모델 단계는 스크립트된 역할 응답을 씁니다. 아래 표는 각 ID의 구현 위치와 테스트 노드를 보여줍니다(<a class="wikilink" href="#LRN-1">LRN-1</a>은 사용자 거절 후 feedback·후보, <a class="wikilink" href="#LRN-2">LRN-2</a>는 역할별 profile 격리, <a class="wikilink" href="#LRN-3">LRN-3</a>은 HermesTrace 불통 시 동작).</p>
+<div class="table-wrap"><table class="acceptance">
+<thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
+<tr><td class="acc-id"><a class="acc-id" id="LRN-1" href="#LRN-1">LRN-1</a></td><td class="acc-example">Given a rejected curation proposal, then the next <code>classifier</code> invocation&#x27;s <code>feedback</code> includes it, and an Experience candidate exists without note text.</td><td class="acc-impl"><code>src/knowledgeos/learning.py::record_feedback</code><br><code>src/knowledgeos/learning.py::signal</code><br><code>src/knowledgeos/learning.py::on_team_review</code></td><td class="acc-tests"><details><summary>테스트 7개</summary><ul><li><code>tests/test_c9_learning.py::test_LRN_1_rejected_curation_proposal_reaches_next_classifier</code></li><li><code>tests/test_c9_learning.py::test_LRN_teamreview_stays_local_while_user_correction_becomes_candidate</code></li><li><code>tests/test_interops_delivery.py::test_LRN_interops_rejection_and_local_proposal</code></li><li><code>tests/test_c9_learning.py::test_LRN_manager_assessments_teamreview_and_synthesizer_edits</code></li><li><code>tests/test_c9_learning.py::test_LRN_synthesizer_sees_report_promotion_or_deletion</code></li><li><code>tests/test_c9_learning.py::test_LRN_paused_job_is_a_blocked_job_signal</code></li><li><code>tests/test_c9_learning.py::test_LRN_unsuccessful_work_end_states_signal</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="LRN-2" href="#LRN-2">LRN-2</a></td><td class="acc-example">Given a <code>classifier</code> skill update, then other role profiles&#x27; skills are unchanged.</td><td class="acc-impl"><code>src/knowledgeos/hermes.py::install_profiles</code><br><code>src/knowledgeos/hermes.py::profile_state</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c9_profiles.py::test_LRN_2_classifier_skill_update_leaves_other_profiles_unchanged</code></li><li><code>tests/test_c9_profiles.py::test_LRN_2_profiles_pin_routes_tools_and_learning_without_credentials</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="LRN-3" href="#LRN-3">LRN-3</a></td><td class="acc-example">Given HermesTrace is unreachable, then user capabilities are unaffected and the candidate stays pending.</td><td class="acc-impl"><code>src/knowledgeos/learning.py::deliver</code><br><code>src/knowledgeos/interops.py::deliver</code></td><td class="acc-tests"><details><summary>테스트 6개</summary><ul><li><code>tests/test_c9_learning.py::test_LRN_3_unreachable_hermestrace_does_not_block_user_capabilities</code></li><li><code>tests/test_c9_learning.py::test_LRN_core_records_outbox_bound_and_retention</code></li><li><code>tests/test_interops_delivery.py::test_LRN_interops_rejection_and_local_proposal</code></li><li><code>tests/test_interops_delivery.py::test_LRN_interops_exact_admission</code></li><li><code>tests/test_interops_delivery.py::test_LRN_interops_unknown_queries_on_restart</code></li><li><code>tests/test_interops_delivery.py::test_LRN_interops_missing_receipt_never_resends</code></li></ul></details></td></tr>
+</tbody></table></div>
+<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><strong>원천 근거</strong>: 인수 시나리오 3개(LRN-1~3)는 추적표에 구현과 테스트 노드가 연결돼 있고, PROJECT_STATE의 <code>E_TRACED_TESTS</code>는 전체 테스트가 skip·xfail 없이 통과했다고 기록합니다. 다만 이 테스트의 모델 단계는 스크립트 대역입니다(CAPABILITIES 머리말, README &quot;검증 범위&quot;).</li>
+<li><strong>정리된 결정</strong>: TeamReview 제안을 <code>routine_progress</code> 로컬 SourceEvent로만 남기고, 실제 근거가 있는 사건에서만 Candidate를 만드는 결정은 <code>D_C9_PENDING_CLASSIFICATION</code>, <code>E_C9_CATEGORY_CONFLICT</code>, <code>B_C9_TEAMREVIEW_CATEGORY</code>(해결됨)에 기록돼 있습니다.</li>
+<li><strong>실환경에서 확인되지 않은 것</strong>: README &quot;검증 범위&quot;는 실제 HermesTrace 수신기를 별도로 확인해야 하는 항목으로 둡니다. PROJECT_STATE에는 실제 HermesTrace 수신이나 Experience 전송을 관찰한 증거가 없습니다. 같은 맥락에서 Hermes native skill curator가 실제로 역할 profile을 갱신하는 모습을 관찰한 기록도 PROJECT_STATE에는 없습니다. 실환경 역할 세션은 <code>E_REAL_ROLE_SMOKE</code>로 확인됐지만, 이것은 C9 학습이나 Experience 전달의 증거가 아닙니다.</li>
+<li><strong>채택 근거의 범위</strong>: PROJECT_STATE에는 HermesTrace가 승격한 능력의 채택이나 예정 일정이 기록되어 있지 않습니다 [해석]. 이는 채택이 일어나지 않았다는 증거는 아닙니다. TeamReview 제안이 나중에 자동으로 승격·전송되는 일도 약속하지 않습니다.</li>
+<li><strong>Delivery order</strong>: C9와 C10은 다섯 번째 단계(Fabric)이며 모바일(M1~M3) 앞입니다. 현재 진행 중인 전체 목표는 <code>KNOWLEDGEOS_REAL_ADOPTION</code>입니다.</li>
+</ul>
+<p>현황의 전체 근거는 <a class="wikilink" href="status.html">현재 상태</a>, 시작 전·막힌 과제는 <a class="wikilink" href="roadmap.html">로드맵</a>에서 보세요.</p>
+<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><a class="wikilink" href="c4.html">C4</a> — TeamReview(ENH-7)가 팀 수준 학습의 원천입니다. 그 제안은 이 기능에서 로컬 관찰로만 남습니다.</li>
+<li><a class="wikilink" href="c1.html">C1</a> — <code>classifier</code>·<code>linker</code>가 거절·부분 적용을 <code>feedback</code>으로 받습니다.</li>
+<li><a class="wikilink" href="c6.html">C6</a> — 적용·거절·되돌리기라는 사용자 결정이 학습 신호가 되는 곳입니다.</li>
+<li><a class="wikilink" href="c7.html">C7</a> — 차단(일시정지)된 작업이 Fabric 수준 신호 중 하나입니다.</li>
+<li><a class="wikilink" href="c8.html">C8</a> — 알림도 본문 없이 제목과 링크만 보냅니다. Experience 전달 역시 본문 없이 참조·digest만 보내는 같은 원칙을 따릅니다.</li>
+<li><a class="wikilink" href="c10.html">C10</a> — 같은 Fabric 단계의 다른 절반입니다. 다른 Operation과의 정보 교환은 Gateway가, 성장은 이 기능이 맡습니다.</li>
+<li><a class="wikilink" href="c11.html">C11</a> — 콘솔이 역할별 학습 기록과 Experience 대기열을 보여줍니다.</li>
+</ul>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
+</article>
+<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
+</body>
+</html>

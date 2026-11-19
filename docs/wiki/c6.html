@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>C6 검토: 적용·거절·되돌리기 · KnowledgeOS 위키</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body class="wiki" data-slug="c6">
+<a class="skip" href="#content">본문으로</a>
+<header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
+<div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html" aria-current="page">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C6 검토: 적용·거절·되돌리기</span></nav>
+<article class="page">
+<h1 id="top">C6 검토: 적용·거절·되돌리기</h1>
+<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS는 판단이 필요한 변경을 노트에 직접 쓰지 않고 <strong>제안</strong>(<a class="wikilink" href="glossary.html">용어</a> 참고)으로 만들어 둡니다. C6은 그 제안을 사용자가 <strong>적용</strong>하거나 <strong>거절</strong>하는 단계이고, 자동 규격화가 바꾼 것을 <strong>되돌리는</strong> 단계입니다. 결정은 항상 사람의 명시적 행동으로만 일어납니다.</p>
+<p>적용은 &quot;제안을 만들 때 본 노트가 지금도 그대로일 때만&quot; 일어납니다. 그사이 노트가 바뀌었으면 아무것도 쓰지 않고 다시 요청하라고 안내합니다. 이렇게 해서 사용자가 나중에 고친 내용을 KnowledgeOS가 덮어쓰는 일을 막습니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>항목</th>
+<th>내용</th>
+</tr></thead><tbody>
+<tr><td>트리거</td><td>사용자가 제안 노트에서 &quot;적용&quot; 또는 &quot;거절&quot;을 누르거나, 노트에서 &quot;자동 변경 되돌리기&quot;를 실행 (사람의 행동만 트리거)</td></tr>
+<tr><td>담당</td><td>Owner의 효과(effect). 모델 역할은 없음 (기능 요약표의 Roles 칸은 &quot;—&quot;)</td></tr>
+<tr><td>결과물</td><td>대상 노트에 반영된 체크한 변경, 삭제된 제안 파일, 복원된 노트, 기록된 결정(<code>HumanActionResponse</code>)</td></tr>
+<tr><td>사용자 결정 여부</td><td>예. 적용·거절·되돌리기 모두 사용자가 직접 결정</td></tr>
+</tbody></table></div>
+<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
+<p><a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC.md</a>의 &#x27;지키는 약속&#x27; 가운데 세 가지를 지키기 위한 단계입니다.</p>
+<ul>
+<li><strong>&quot;Vault는 사용자의 것입니다.&quot;</strong> 약속 1. 사용자가 어디서든 노트를 고칠 수 있으므로, 제안을 만든 뒤 노트가 바뀌었을 가능성을 항상 전제해야 합니다. 정확한 내용 확인(SHA-256 preimage) 없이 적용하면 사용자의 수정을 덮어쓰게 됩니다.</li>
+<li><strong>&quot;자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.&quot;</strong> 약속 4. 판단이 필요한 변경은 제안으로 만들고 적용은 사용자가 결정한다는 약속을 이 기능이 실제로 구현합니다. C6이 없으면 제안은 읽기만 하는 메모가 되거나, 반대로 사용자 모르게 적용되어 버립니다.</li>
+<li><strong>&quot;Git이 백업이자 이력입니다.&quot;</strong> 약속 5. 거절·적용된 제안 파일은 지워지지만 기록은 Git에 남고, 되돌리기가 거절하는 경우에도 Git 이력으로 안내합니다.</li>
+</ul>
+<p>결정이 기록되지 않거나 응답이 유실될 때 같은 요청이 두 번 적용되면 노트가 이중으로 바뀔 수 있습니다. 그래서 모든 결정은 요청 ID로 기록되고, 유실된 응답은 재전송이 아니라 기록 조회로 풀립니다(<a class="wikilink" href="glossary.html">용어</a> 참고).</p>
+<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
+<h3 id="obsidian에서-thin-clientnote-toolbar사이드바">Obsidian에서 (Thin Client·Note Toolbar·사이드바)<a class="anchor" href="#obsidian에서-thin-clientnote-toolbar사이드바" aria-label="이 제목 링크">#</a></h3>
+<ol>
+<li><strong>검토 대기 목록 보기.</strong> 검토용 Bases 화면이 제안과 보고서를 나열합니다.</li>
+<li>제안 노트(<code>type: proposal</code>)를 엽니다. 변경 <strong>체크리스트</strong>와 <strong>diff</strong>가 보입니다.</li>
+<li>원하지 않는 변경은 체크를 해제합니다. 체크리스트는 직접 고칠 수 있습니다.</li>
+<li><strong>적용</strong>을 누릅니다. Note Toolbar의 적용 버튼, 명령 팔레트의 &quot;적용 · 거절&quot;, 사이드바의 적용 버튼 중 하나입니다. 사이드바에서는 제안 노트에서만 적용·거절이 나타납니다(<a class="wikilink" href="c11.html">C11</a>).</li>
+<li>결과 알림을 확인합니다. 적용되었으면 체크한 변경만 대상 노트에 들어가고 제안 파일은 사라집니다. 대상이 그사이 바뀌었으면 노트는 그대로이고 제안이 stale로 표시되며, 알림이 다시 요청하라고 안내합니다.</li>
+<li>원치 않으면 <strong>거절</strong>을 누릅니다. 결정이 기록되고 제안 파일이 삭제되며 대상 노트는 바뀌지 않습니다.</li>
+</ol>
+<p><strong>되돌리기.</strong> 자동 규격화(<a class="wikilink" href="c2.html">C2</a>)나 수동 규격화가 바꾼 노트에서 &quot;자동 변경 되돌리기&quot;를 실행합니다. 사이드바에서는 <strong>더보기</strong>를 선택한 뒤 같은 영역의 <strong>되돌리기</strong>를 누릅니다. 직전 규격화 변경의 원래 내용으로 복원하되, 노트가 그 변경의 결과 그대로일 때만 합니다. 그 뒤 노트를 고쳤다면 아무것도 쓰지 않고 Git 이력으로 되돌리라고 안내합니다.</p>
+<h3 id="콘솔cli">콘솔·CLI<a class="anchor" href="#콘솔cli" aria-label="이 제목 링크">#</a></h3>
+<p>C6의 사용 경로는 Obsidian 쪽(Note Toolbar, 명령, 사이드바)입니다. USER_FEATURE_SPEC의 &quot;하지 않는 일&quot;은 브라우저 콘솔과 CLI에서 문서 작업을 하지 않는다고 못 박고 있으므로, 둘은 적용·거절을 하지 않는 관리용입니다. 결과를 알 수 없는 요청의 관리는 <a class="wikilink" href="c11.html">C11</a>과 <a class="wikilink" href="usage.html">사용 가이드</a>를 보세요.</p>
+<h3 id="자동-경로">자동 경로<a class="anchor" href="#자동-경로" aria-label="이 제목 링크">#</a></h3>
+<p>사용자의 결정을 대신하는 자동 적용은 없습니다. 자동으로 일어나는 것은 <strong>7일이 지난 stale 제안의 삭제</strong>뿐입니다.</p>
+<h3 id="사용-예">사용 예<a class="anchor" href="#사용-예" aria-label="이 제목 링크">#</a></h3>
+<p><code>00_Inbox/</code>에 적은 포착 노트에 대해 <a class="wikilink" href="c1.html">C1</a>의 &quot;정리 요청&quot;으로 제안이 만들어졌다고 합시다. (아래는 설명용 가상 예시입니다.)</p>
+<ol>
+<li>제안에 세 항목이 체크되어 있습니다: 종류를 <code>question</code>으로, 제목 추가, <code>40_Knowledge/Questions/</code>로 이동.</li>
+<li>이동은 원하지 않아 체크를 해제하고 <strong>적용</strong>합니다.</li>
+<li>종류와 제목만 노트에 반영되고 파일은 제자리에 있으며 제안 파일은 사라집니다. 이것이 <a class="wikilink" href="#REV-1">REV-1</a>과 <a class="wikilink" href="c1.html#ORG-4">ORG-4</a>가 확인하는 동작입니다.</li>
+<li>만약 적용 전에 그 노트를 직접 고쳤다면 3번 대신 노트는 그대로이고 제안이 stale이 되며 &quot;다시 요청&quot; 안내가 나옵니다 (<a class="wikilink" href="#REV-2">REV-2</a>).</li>
+</ol>
+<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
+<figure class="diagram diagram-review-flow">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 410" width="100%" preserveAspectRatio="xMidYMid meet"><title>검토 흐름: 제안의 적용·거절, preimage SHA 확인, applied·stale·unknown 결과</title><defs><marker id="d-arrow-review-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M150,200 L180,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M310,200 L340,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="325" y="190" text-anchor="middle" font-size="13">적용</text><path class="d-edge" d="M245,171 L245,55 L340,55" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="252" y="112" text-anchor="start" font-size="13">거절</text><path class="d-edge" d="M490,55 L520,55" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M490,200 L520,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M595,171 L595,110 L720,110" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="603" y="140" text-anchor="start" font-size="13">일치</text><path class="d-edge" d="M670,200 L720,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="695" y="190" text-anchor="middle" font-size="13">불일치</text><path class="d-edge d-edge-dashed" d="M415,229 L415,300 L720,300" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="560" y="292" text-anchor="middle" font-size="13">응답 유실 · 결과 미확정</text><rect class="d-box-muted" x="10" y="171" width="140" height="58" rx="8"/><text class="d-label" x="80" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="80" dy="0" font-size="14">제안 노트</tspan><tspan class="d-label-small" x="80" dy="18" font-size="13">type: proposal</tspan></text><rect class="d-box-accent" x="180" y="171" width="130" height="58" rx="8"/><text class="d-label" x="245" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="245" dy="0" font-size="14">사용자 결정</tspan><tspan class="d-label-small" x="245" dy="18" font-size="13">적용 · 거절</tspan></text><rect class="d-box" x="340" y="26" width="150" height="58" rx="8"/><text class="d-label" x="415" y="51" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="415" dy="0" font-size="14">결정 기록</tspan><tspan class="d-label-small" x="415" dy="18" font-size="13">거절</tspan></text><rect class="d-box-muted" x="520" y="26" width="150" height="58" rx="8"/><text class="d-label" x="595" y="51" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="595" dy="0" font-size="14">제안 파일 삭제</tspan><tspan class="d-label-small" x="595" dy="18" font-size="13">대상 노트 불변</tspan></text><rect class="d-box" x="340" y="171" width="150" height="58" rx="8"/><text class="d-label" x="415" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="415" dy="0" font-size="14">결정 먼저 기록</tspan><tspan class="d-label-small" x="415" dy="18" font-size="13">받음 → 적용 시도</tspan></text><rect class="d-box-accent" x="520" y="171" width="150" height="58" rx="8"/><text class="d-label" x="595" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="595" dy="0" font-size="14">SHA-256 확인</tspan><tspan class="d-label-small" x="595" dy="18" font-size="13">대상 = preimage?</tspan></text><rect class="d-box-ok" x="720" y="75" width="220" height="70" rx="8"/><text class="d-label" x="830" y="97" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">applied</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">체크한 변경만 적용</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">제안 파일 삭제</tspan></text><rect class="d-box-warn" x="720" y="165" width="220" height="70" rx="8"/><text class="d-label" x="830" y="187" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">accepted-not-applied</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">대상 변경 없음 · 제안 stale</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">재요청 안내 · 7일 후 삭제</tspan></text><rect class="d-box-muted" x="720" y="270" width="220" height="60" rx="8"/><text class="d-label" x="830" y="296" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">unknown</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">요청 ID의 기록된 결과 조회</tspan></text><text class="d-label-small" x="830" y="348" text-anchor="middle" font-size="13">재전송하지 않는다</text><rect class="d-lane" x="10" y="360" width="940" height="44" rx="10"/><text class="d-label" x="480" y="387" text-anchor="middle" font-size="14"><tspan class="d-label-small" x="480" dy="0" font-size="13">되돌리기: 대상이 마지막 자동 변경 결과와 같을 때만 preimage 복원 · 아니면 거절하고 Git 이력 안내</tspan></text></svg>
+</figure>
+<p>흐름의 순서는 원본 명세가 정합니다. 적용은 결정을 <strong>먼저 기록</strong>하고, 그 다음 대상의 현재 SHA-256이 기록된 preimage와 같을 때만 체크한 변경을 적용하며, 마지막에 제안 파일을 삭제합니다. 결과를 관찰할 수 없으면 <code>unknown</code>으로 남고 자동 재전송은 없습니다(Blueprint §6의 효과 규칙 5).</p>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p><strong>응답이 유실되면</strong> 클라이언트는 같은 요청을 다시 보내지 않고 요청 ID의 기록된 결과를 읽습니다. Owner가 &quot;기록된 적이 없다&quot;고 확정해 알려 줄 때만 동일한 요청을 다시 보낼 수 있고, 기록된 unknown은 재실행 허가가 아닙니다 (<a class="wikilink" href="#REV-4">REV-4</a>, <a class="wikilink" href="c11.html#SUR-1">SUR-1</a>).</p>
+</div>
+<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
+<section class="source-include">
+<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C6 Review</header>
+<h3 id="c6-review">C6 Review<a class="anchor" href="#c6-review" aria-label="이 제목 링크">#</a></h3>
+<p>The user decides on KnowledgeOS output inside Obsidian.</p>
+<ul>
+<li><strong>Queue</strong>: the review Bases view lists proposals and reports. A proposal note shows its checklist and diff, and Note Toolbar offers the &quot;적용&quot; and &quot;거절&quot; commands on notes with <code>type: proposal</code>.</li>
+<li><strong>Apply</strong> is one explicit action. The Owner records the decision first. It then applies the checked changes only if the target&#x27;s current SHA-256 equals the recorded preimage, and deletes the proposal file. On a preimage mismatch, the decision stays recorded as accepted-not-applied, the proposal is marked stale, and the notice offers to request it again.</li>
+<li><strong>Reject</strong> records the decision and deletes the proposal file.</li>
+<li><strong>Undo</strong> (&quot;자동 변경 되돌리기&quot; on the current note) restores the recorded preimage of the last autofix or manual standardization, but only if the note still equals that change&#x27;s result. Otherwise it refuses and points to Git history.</li>
+<li><strong>Expiry</strong>: stale proposals are deleted after 7 days.</li>
+<li><strong>Preservation</strong>: an open or stale proposal reserves its target until the user decides or stale expiry occurs. Regeneration is the sole create-only exception: it requires the exact bytes still recorded as Owner-written and preserves user edits, including checklist edits. A State-unrecorded proposal is never overwritten or duplicated. An explicit new user request may refresh an unchanged stale proposal under the same checks.</li>
+<li><strong>Recorded outcomes</strong>: every decision is a <code>HumanActionResponse</code>. Outcomes distinguish received, applied, not applied and unknown. A lost response is resolved by reading the request ID&#x27;s recorded outcome, never by resending.</li>
+</ul>
+<p>Acceptance:</p>
+<ul>
+<li><strong><a class="wikilink" href="#REV-1">REV-1</a></strong> Given a proposal and an unchanged target, when the user applies it, then exactly the checked changes appear in the target and the proposal file is gone.</li>
+<li><strong><a class="wikilink" href="#REV-2">REV-2</a></strong> Given the target was edited after the proposal was created, when the user applies it, then the target is unchanged, the proposal is stale and the decision is recorded.</li>
+<li><strong><a class="wikilink" href="#REV-3">REV-3</a></strong> Given an autofix followed by a user edit to that note, when undo is requested, then nothing is written and the notice points to Git history.</li>
+<li><strong><a class="wikilink" href="#REV-4">REV-4</a></strong> Given the client times out after apply, when it reconnects, then it shows the recorded outcome for that request ID and nothing is applied twice.</li>
+</ul>
+</section>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트이며, 모델 단계는 스크립트로 만든 역할 응답을 씁니다(실환경 확인은 별도). 아래 표에 각 시나리오의 구현 위치와 테스트 노드가 있습니다.</p>
+<div class="table-wrap"><table class="acceptance">
+<thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
+<tr><td class="acc-id"><a class="acc-id" id="REV-1" href="#REV-1">REV-1</a></td><td class="acc-example">Given a proposal and an unchanged target, when the user applies it, then exactly the checked changes appear in the target and the proposal file is gone.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c6_review.py::apply</code><br><code>src/knowledgeos/proposals.py::apply</code></td><td class="acc-tests"><details><summary>테스트 5개</summary><ul><li><code>tests/test_c6_review.py::test_REV_1_only_checked_changes_apply_and_proposal_is_deleted</code></li><li><code>tests/test_c6_review.py::test_REV_apply_works_after_originating_state_is_lost</code></li><li><code>tests/test_c6_review.py::test_REV_reject_records_decision_and_never_changes_target</code></li><li><code>tests/test_c1_organize.py::test_ORG_capture_attachment_is_processed_only_on_apply</code></li><li><code>tests/test_vault_boundaries.py::test_STD_1_public_output_and_rename_boundaries_do_not_write_excluded_destinations</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="REV-2" href="#REV-2">REV-2</a></td><td class="acc-example">Given the target was edited after the proposal was created, when the user applies it, then the target is unchanged, the proposal is stale and the decision is recorded.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c6_review.py::_apply</code><br><code>src/knowledgeos/capabilities/c6_review.py::_stale</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c6_review.py::test_REV_2_edited_target_stays_unchanged_and_acceptance_is_not_applied</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="REV-3" href="#REV-3">REV-3</a></td><td class="acc-example">Given an autofix followed by a user edit to that note, when undo is requested, then nothing is written and the notice points to Git history.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c6_review.py::undo</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c6_review.py::test_REV_3_undo_refuses_after_user_edit_and_points_to_git</code></li><li><code>tests/test_c6_review.py::test_REV_undo_restores_last_standardization_once</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="REV-4" href="#REV-4">REV-4</a></td><td class="acc-example">Given the client times out after apply, when it reconnects, then it shows the recorded outcome for that request ID and nothing is applied twice.</td><td class="acc-impl"><code>src/knowledgeos/owner.py::Owner.submit</code><br><code>src/knowledgeos/owner.py::Owner.get_request</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c6_review.py::test_REV_4_timeout_replay_and_get_receipt_never_apply_twice</code></li><li><code>tests/test_c11_cli.py::test_requests_are_idempotent_by_request_id</code></li></ul></details></td></tr>
+</tbody></table></div>
+<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
+<p>PROJECT_STATE.md와 Blueprint §9가 말하는 사실만 적습니다.</p>
+<ul>
+<li><strong>계약 테스트</strong>: C6 인수 시나리오 REV-1~REV-4는 추적표에 구현 심볼과 테스트 노드가 연결되어 있습니다. 전체 테스트 통과는 <code>E_TRACED_TESTS</code>가 기록합니다(248개 통과, 건너뜀·xfail 없음).</li>
+<li><strong>실환경 근거</strong>:
+<ul>
+<li>사용자가 실제 Vault에서 스모크 제안을 적용했습니다. 체크한 변경 7개로 포착을 <code>40_Knowledge/Questions</code>로 옮기고 제안을 삭제했습니다(<code>E_USER_PROPOSAL_APPLY</code>, 장치 확인 통과).</li>
+<li>Note Toolbar는 제안 전용으로 정리되어 적용·거절 버튼이 있습니다(<code>E_VAULT_CONFIG_CLEANUP</code>).</li>
+<li>실제 모델 역할 스모크가 열린 제안 1개를 만들었습니다(<code>E_REAL_ROLE_SMOKE</code>).</li>
+</ul></li>
+<li><strong>기록되지 않은 것</strong>: 실환경에서 stale 제안(REV-2), 되돌리기 거절(REV-3), 요청 시간 초과 후 재접속(REV-4)을 관찰했다는 기록은 PROJECT_STATE.md에 없습니다. 이 위키에서 확인할 수 있는 근거는 계약 테스트이며, 기록 부재가 실행하지 않았다는 증거는 아닙니다.</li>
+<li><strong>GUI 근거의 범위</strong>: 현재 인라인형 사이드바 1.2.0의 실제 설치·화면 관찰은 <code>E_SIDEBAR_INLINE_INSTALL</code>·<code>E_SIDEBAR_INLINE_GUI</code>에 기록되어 있습니다. 다만 제안 노트에서 적용·거절 버튼이 나타나는 양성 사례는 이 GUI 기록으로 입증되지 않으므로 테스트 근거와 구분해야 합니다. 이전 1.1.0 관찰에서는 일반 노트에서 결정 영역이 숨겨진 것을 확인했지만 제안 노트가 없어 양성 사례를 확인하지 못했습니다. 당시 네이티브 팝업 내용을 확인하지 못한 <code>E_SIDEBAR_NATIVE_MENUS</code>의 blocked는 과거 이력이며, 더보기 등을 팝업 없이 표시하는 현재 인라인 UI의 미확인을 뜻하지 않습니다.</li>
+<li><strong>C6만의 미결 항목</strong>: Blueprint §9의 열린 질문 중 C6에 해당하는 것은 없습니다. 열린 <code>handoff</code>는 첫 정시 규격화·임베딩 실행 관찰과 <code>related_min_score</code> 조정으로, C6과 무관합니다.</li>
+</ul>
+<p>전체 계획은 <a class="wikilink" href="roadmap.html">로드맵</a>, 검증 근거 전체는 <a class="wikilink" href="status.html">현재 상태</a>에서 볼 수 있습니다.</p>
+<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><a class="wikilink" href="c1.html">C1</a>: 정리가 만든 제안이 C6의 주된 검토 대상입니다. 체크 해제 후 적용은 <a class="wikilink" href="c1.html#ORG-4">ORG-4</a>가 다룹니다.</li>
+<li><a class="wikilink" href="c2.html">C2</a>: 자동·수동 규격화의 변경이 &quot;자동 변경 되돌리기&quot;의 대상입니다.</li>
+<li><a class="wikilink" href="c5.html">C5</a>: 문서 관리가 만든 보관 제안도 같은 방식으로 검토합니다. 예: 완료된 프로젝트의 보관 제안은 사용자가 결정할 때까지 하나만 유지됩니다 (<a class="wikilink" href="c5.html#DOC-4">DOC-4</a>).</li>
+<li><a class="wikilink" href="c9.html">C9</a>: 제안의 적용·체크 해제·거절, 되돌리기는 해당 역할의 피드백이 됩니다. 예: 거절된 정리 제안은 다음 <code>classifier</code>의 <code>feedback</code>에 들어갑니다 (<a class="wikilink" href="c9.html#LRN-1">LRN-1</a>).</li>
+<li><a class="wikilink" href="c11.html">C11</a>: 적용·거절·되돌리기를 호출하는 명령, 사이드바, 요청 ID 기반 복구 규칙이 여기 있습니다 (<a class="wikilink" href="c11.html#SUR-8">SUR-8</a>).</li>
+<li><a class="wikilink" href="c8.html">C8</a>: 알림은 알림만 합니다. Discord 메시지나 반응으로는 아무것도 승인되지 않으므로 적용·거절은 항상 Obsidian에서 합니다.</li>
+</ul>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+</article>
+<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
+</body>
+</html>

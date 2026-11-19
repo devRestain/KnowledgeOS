@@ -1,10 +1,10 @@
 # KnowledgeOS Domain Relations
 
-Use `../blueprint/blueprint.yaml#/relation_registry` and `#/property_registry` as the existing executable relation sources. `../ops/policies/relations.yaml` is a generated policy copy. Read the source for exact predicates, permitted endpoints, inverse aliases, context edges, and provenance rather than copying those definitions here.
+Use the Blueprint (`../OBSIDIAN_VAULT_BLUEPRINT.md` §5.3) as the existing relation source: `related`, `projects` and `sources` are associations, while `supports`, `contradicts` and `derived_from` carry direction from the note to its target. Read the source rather than copying those definitions here.
 
 ## Preserve current meanings
 
-Keep canonical relation, context relation, and ordinary wikilink meanings distinct according to the Blueprint. Its internal inverse aliases are declared local behavior; they do not establish a cross-Operation alignment. A proposal confidence score or a delivery receipt is not a canonical knowledge claim.
+Keep typed relation properties, association properties, and ordinary body wikilinks distinct according to the Blueprint. A proposal or a delivery receipt is not a canonical knowledge claim; a relation becomes canonical only when the user writes it or applies a proposal adding it.
 
 ## Author an additional relation
 

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>C11 호출·관리 화면 · KnowledgeOS 위키</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body class="wiki" data-slug="c11">
+<a class="skip" href="#content">본문으로</a>
+<header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
+<div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html" aria-current="page">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C11 호출·관리 화면</span></nav>
+<article class="page">
+<h1 id="top">C11 호출·관리 화면 (Invocation and management surfaces)</h1>
+<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
+<p>C11은 KnowledgeOS의 <strong>다른 기능(C1–C10)을 사용자가 부르고 관리하는 입구</strong>입니다. 새로운 일을 하는 기능이 아니라, Obsidian의 Thin Client(작은 플러그인)·브라우저 관리 콘솔·CLI·Owner 시작/중지가 각자 맡은 일만 하도록 나눈 계약입니다. 문서 작업은 Obsidian 안에서, 관리는 콘솔과 CLI에서 하며 서로의 일을 겹쳐 하지 않습니다(<a class="wikilink" href="architecture.html">구조</a> 참고).</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>항목</th>
+<th>내용</th>
+</tr></thead><tbody>
+<tr><td>트리거</td><td>사용자가 Thin Client 명령·사이드바 버튼을 누르거나, 콘솔에서 조작하거나, CLI 명령을 실행</td></tr>
+<tr><td>담당</td><td>없음(고유 역할 없음). 부르는 기능의 역할이 일을 처리하고, 모든 요청은 Director를 거침</td></tr>
+<tr><td>결과물</td><td>직접 쓰는 것은 없음. 위임한 기능(C1·C2·C3·C4·C6 등)의 결과물로 나타남</td></tr>
+<tr><td>사용자 결정 여부</td><td>호출은 항상 사용자가 직접 누를 때만 일어남. Owner 시작·중지도 눌렀을 때만 동작</td></tr>
+</tbody></table></div>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p>요청(Request)은 Thin Client 명령, 콘솔 조작, CLI 명령, 예약 작업 실행, Gateway 제출 모두를 가리킵니다. Director가 받아들인 요청이 Work입니다. 자세한 뜻은 <a class="wikilink" href="glossary.html">용어</a>를 보세요.</p>
+</div>
+<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
+<p><a class="wikilink" href="philosophy.html">운용 원칙</a>의 지키는 약속 가운데 이 기능이 직접 지키는 것은 다음입니다(<a class="wikilink" href="glossary.html">용어</a>의 용어 참고).</p>
+<ul>
+<li><strong>&quot;문서 작업은 Obsidian 안에서 합니다.&quot;</strong> KnowledgeOS를 부르는 쪽은 최소한의 Thin Client 명령과 사이드바 탭뿐이고, 관리는 브라우저 콘솔과 CLI가 맡으며 거기서 문서 작업은 하지 않습니다(USER_FEATURE_SPEC). 이 경계가 없으면 화면마다 기능이 중복되어 Thin Client가 커지고 유지보수를 오픈소스 플러그인에 맡긴다는 약속이 흔들립니다.</li>
+<li><strong>&quot;Vault는 사용자의 것입니다.&quot;</strong> 요청은 노트 경로와 마지막으로 본 내용의 해시만 보내고 본문은 보내지 않습니다(<a class="wikilink" href="#SUR-1">SUR-1</a>). 화면을 열거나 노트를 옮겨 다니는 것만으로는 설정도, Owner 상태도 바뀌지 않습니다(<a class="wikilink" href="#SUR-2">SUR-2</a>, <a class="wikilink" href="#SUR-8">SUR-8</a>).</li>
+<li><strong>&quot;자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.&quot;</strong> 자유 요청을 해석하는 모델 Director는 정해진 몇 가지 명령으로만 연결할 수 있고, 기준·예산·권한을 스스로 정하려 하면 Work 자체가 만들어지지 않습니다(<a class="wikilink" href="#SUR-3">SUR-3</a>).</li>
+</ul>
+<p>이 명세가 없다면 응답을 잃어버린 뒤 같은 요청을 무심코 다시 보내 일이 두 번 일어나거나, &quot;켜졌다/꺼졌다&quot;를 실제 확인 없이 알리는 일이 생길 수 있습니다. C11은 이를 영수증 확인과 health 관찰로 막습니다.</p>
+<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
+<h3 id="obsidian-thin-client">Obsidian Thin Client<a class="anchor" href="#obsidian-thin-client" aria-label="이 제목 링크">#</a></h3>
+<p>명령은 명령 팔레트, 파일·편집기 메뉴, 사이드바 탭에서 부를 수 있습니다(CAPABILITIES C11).</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>명령</th>
+<th>대상</th>
+<th>부르는 기능</th>
+</tr></thead><tbody>
+<tr><td>규격화 미리보기</td><td>노트·선택·폴더</td><td><a class="wikilink" href="c2.html">C2</a> 수동 경로</td></tr>
+<tr><td>정리 요청</td><td>노트·선택·폴더</td><td><a class="wikilink" href="c1.html">C1</a></td></tr>
+<tr><td>강화: 발전 / 묻기 / 돌아보기</td><td>노트, 질문 입력, 날짜 구간</td><td><a class="wikilink" href="c4.html">C4</a></td></tr>
+<tr><td>자유 요청</td><td>자유 문장</td><td>Director 라우팅</td></tr>
+<tr><td>관련 노트 · 의미 검색</td><td>노트, 검색어 입력</td><td><a class="wikilink" href="c3.html">C3</a></td></tr>
+<tr><td>적용 · 거절</td><td>제안 노트</td><td><a class="wikilink" href="c6.html">C6</a></td></tr>
+<tr><td>자동 변경 되돌리기</td><td>노트</td><td><a class="wikilink" href="c6.html">C6</a></td></tr>
+<tr><td>관리 콘솔 열기</td><td>어디서나</td><td>브라우저 콘솔 열기</td></tr>
+<tr><td>Owner 시작 · 중지</td><td>어디서나(데스크톱)</td><td>Owner 생명주기</td></tr>
+</tbody></table></div>
+<p><strong>사이드바 사용법</strong></p>
+<ol>
+<li>리본의 KnowledgeOS 아이콘을 누르거나 명령 <strong>KnowledgeOS: 사이드바 열기</strong>를 실행하면 오른쪽 탭이 열립니다. 다시 열어도 탭은 하나만 재사용됩니다.</li>
+<li>탭 위쪽에는 마지막으로 활성이던 Markdown 노트가 표시되고, 아래에 <strong>규격화 · 정리 · 강화 · 찾기</strong> 네 버튼이 있습니다. 버튼은 아래의 <strong>인라인 기능 창</strong>을 선택할 뿐, 선택만으로 요청을 보내지 않습니다.</li>
+<li><strong>규격화</strong>에서는 <strong>미리보기</strong>를 눌러 diff를 받은 뒤, 같은 창의 <strong>적용 · 취소</strong>로 결정합니다. 확정하지 않은 미리보기는 기능이나 대상 노트를 바꾸면 취소되며, 늦게 도착한 응답도 자동 적용되지 않습니다. <strong>정리</strong> 역시 기능 창의 <strong>정리 요청</strong>을 눌러 실행합니다.</li>
+<li><strong>강화</strong>의 발전·묻기·돌아보기 선택, 질문·기간 입력과 <strong>찾기</strong>의 관련 노트·의미 검색 입력·결과는 모두 기능 창 안에 있습니다. 결과 링크를 누르면 해당 노트의 줄로 이동합니다. 사이드바는 팝업 메뉴나 모달을 열지 않습니다.</li>
+<li>대상 노트가 <strong>제안 노트</strong>일 때만 <strong>적용 · 거절</strong>이 나타납니다. 제안 노트인지는 그 노트의 현재 frontmatter를 따라 판단합니다.</li>
+<li><strong>더보기</strong>는 인라인 자유 요청 입력창과 자동 변경 되돌리기·관리 콘솔 동작을 엽니다. <strong>전원 버튼</strong>은 관찰된 연결 상태에 따라 Owner 시작 또는 중지를 부릅니다. 탭을 여는 것만으로는 Owner를 켜거나 끄지 않습니다.</li>
+<li>사이드바로 초점을 옮겨도 표시된 노트가 대상으로 유지되고, 다른 파일을 열면 대상이 바뀌며, 대상을 지우면 비워집니다. Markdown 대상이 없으면 노트 전용 동작은 비활성화되고 묻기·의미 검색·자유 요청만 남습니다. 입력 초안은 메모리에만 둡니다.</li>
+<li>연결 상태·진행 중 개수와 함께 입력 오류·요청 결과·결과 링크를 사이드바 안에서 표시합니다. 작업 이력이나 관리 패널은 없습니다. 기존 명령 팔레트·문맥 메뉴는 작은 입력·미리보기 모달과 완료 알림을 유지하면서 같은 요청·확인 경로를 사용합니다(<a class="wikilink" href="#SUR-9">SUR-9</a>).</li>
+</ol>
+<div class="callout callout-tip">
+<p class="callout-title">도움말</p>
+<p>노트 하단의 &quot;적용·거절&quot; 같은 버튼은 Note Toolbar 등 다른 플러그인이 같은 명령을 띄울 수도 있습니다. 어느 쪽에서 눌러도 같은 요청 경로를 지납니다.</p>
+</div>
+<h3 id="브라우저-관리-콘솔">브라우저 관리 콘솔<a class="anchor" href="#브라우저-관리-콘솔" aria-label="이 제목 링크">#</a></h3>
+<p>Owner의 ExOps 백엔드가 loopback으로 제공하는 로컬 전용 페이지입니다. Thin Client의 <strong>관리 콘솔 열기</strong>로 열 수 있습니다(Blueprint §3.2).</p>
+<ul>
+<li><strong>볼 수 있는 것</strong>: 작업 이력(WorkSpec, Graph, 역할별 호출·모델, 평가, 남은 작업, TeamReview), 예약 작업 실행 기록, 결과 불명(unknown), Bases로 보기 어려운 주의 항목, 알림 기록, Experience outbox, 역할별 학습 기록, 상태와 관찰 시각.</li>
+<li><strong>할 수 있는 것</strong>(다른 화면과 같은 ExOps 접수를 거침): 작업 취소, 예약 작업 일시정지·재개, 결과 불명에 대한 확인 기록, TeamReview 제안을 &quot;검토함&quot;으로 표시.</li>
+<li>취소는 일정 관찰 시간 뒤에 실제 적용 결과를 알려 주고, 확인하지 못하면 불명으로 남깁니다. 확인 기록은 사용자가 적용됨/적용 안 됨을 직접 관찰해 남기는 것이며, 과거 Work·영수증·불명 증거는 고쳐 쓰지 않습니다(<a class="wikilink" href="#SUR-4">SUR-4</a>).</li>
+</ul>
+<h3 id="cli">CLI<a class="anchor" href="#cli" aria-label="이 제목 링크">#</a></h3>
+<p>운영자용 유지보수 화면입니다(README, Blueprint §3.3).</p>
+<pre><code class="language-sh">knowledgeos serve --config owner.json          # Owner와 ExOps 백엔드, 관리 콘솔
+knowledgeos health | vault-check | index rebuild|verify|embed
+knowledgeos standardize PATH --dry-run|--apply
+knowledgeos job run standardize|embed|curate|digest
+knowledgeos reconcile UNKNOWN_ID --resolution applied|not_applied --yes
+knowledgeos install profiles --config owner.json [--dry-run]
+knowledgeos install service --config owner.json [--dry-run]</code></pre>
+<ul>
+<li>변경을 일으키는 모든 CLI 명령은 다른 화면과 같은 Owner 접수·효과 규칙을 따릅니다.</li>
+<li><code>job run</code>은 트리거 영수증만 보고 끝내지 않고, 별도로 접수된 요청의 실행 영수증까지 따라가 보고합니다.</li>
+</ul>
+<h3 id="owner-시작중지와-서비스-설치">Owner 시작·중지와 서비스 설치<a class="anchor" href="#owner-시작중지와-서비스-설치" aria-label="이 제목 링크">#</a></h3>
+<p>Owner는 Mac에서 <strong>필요할 때 켜지는 사용자 서비스(LaunchAgent)</strong> 로 돌기 때문에 Obsidian을 종료해도 계속 실행됩니다. 처음 한 번 CLI로 등록합니다.</p>
+<ol>
+<li><code>knowledgeos install service --config owner.json --dry-run</code> 으로 plist와 <code>launchctl</code> 인자만 확인합니다. 아무것도 쓰지 않습니다(<a class="wikilink" href="#SUR-7">SUR-7</a>).</li>
+<li>확인했으면 <code>--dry-run</code> 없이 실행합니다. <code>~/Library/LaunchAgents/com.agentfabric.knowledgeos.owner.plist</code>가 만들어지고 적재되지만 <strong>실행되지는 않습니다</strong>(<code>RunAtLoad</code>·<code>KeepAlive</code> 꺼짐, 로그는 Runtime의 <code>logs/</code>). 라벨과 plist 경로는 <code>--label</code>, <code>--plist</code>로 바꿀 수 있습니다.</li>
+<li>Obsidian에서 <strong>Owner 시작</strong>을 누르면 launchd 라벨을 kickstart하고 <code>/api/health</code>가 준비될 때까지 기다린 뒤 &quot;시작됨&quot;을 알립니다.</li>
+<li><strong>Owner 중지</strong>는 SIGTERM을 보낸 뒤 health 응답이 끊겼는지 확인해 &quot;중지됨&quot;, &quot;아직 실행 중&quot;, &quot;확인 불가&quot; 중 하나로 알립니다. <code>serve</code>는 SIGTERM에서 Owner와 ExOps를 깨끗이 닫습니다(<a class="wikilink" href="#SUR-6">SUR-6</a>).</li>
+</ol>
+<p>예약 작업은 Owner가 켜져 있는 동안에만 돕니다(<a class="wikilink" href="c7.html">C7</a>).</p>
+<h3 id="작업-예시">작업 예시<a class="anchor" href="#작업-예시" aria-label="이 제목 링크">#</a></h3>
+<ol>
+<li>사용자가 새로 쓴 아이디어 노트를 열고 사이드바의 <strong>규격화</strong>를 눌러 기능 창을 엽니다. 이 선택만으로 요청을 보내지는 않습니다.</li>
+<li><strong>미리보기</strong>를 누르면 Thin Client가 그 노트의 경로와 마지막으로 본 해시만 담아 Owner에 요청합니다. 본문은 가지 않습니다.</li>
+<li>Owner가 영수증을 기록하고 요청 ID로 즉시 답합니다. 사용자는 사이드바 안의 diff를 확인하고 <strong>적용</strong> 또는 <strong>취소</strong>를 누릅니다(<a class="wikilink" href="c2.html">C2</a>). 기능이나 대상 노트를 바꾸면 미확정 미리보기는 취소됩니다.</li>
+<li>응답이 유실되어도 클라이언트는 원래 영수증을 먼저 조회합니다. Owner가 &quot;기록된 적 없음&quot;이라고 확인한 경우에만 같은 요청을 다시 보낼 수 있고, &quot;결과 불명&quot;으로 기록된 요청은 다시 보내지 않습니다.</li>
+</ol>
+<p>반대로 &quot;이 노트들 전부 삭제해 줘&quot; 같은 자유 요청은 카탈로그에 허용된 명령(규격화 미리보기·정리·강화)으로 연결할 수 없으므로 Work가 만들어지지 않습니다. 이유는 사이드바의 인라인 피드백 또는 명령 팔레트의 알림으로 표시됩니다(<a class="wikilink" href="#SUR-3">SUR-3</a>).</p>
+<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
+<figure class="diagram diagram-system-map">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 450" width="100%" preserveAspectRatio="xMidYMid meet"><title>KnowledgeOS 시스템 구성도: 표면, Owner, 실행 엔진, 저장소, 외부 서비스</title><defs><marker id="d-arrow-system-map" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><rect class="d-lane" x="10" y="8" width="940" height="104" rx="10"/><text class="d-label-small" x="22" y="26" text-anchor="start" font-size="13">표면 · 요청은 모두 Owner로 들어간다</text><rect class="d-box-accent" x="30" y="38" width="190" height="58" rx="8"/><text class="d-label" x="125" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="125" dy="0" font-size="14">Thin Client</tspan><tspan class="d-label-small" x="125" dy="18" font-size="13">Obsidian 명령 · 사이드바</tspan></text><rect class="d-box" x="270" y="38" width="190" height="58" rx="8"/><text class="d-label" x="365" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="365" dy="0" font-size="14">브라우저 콘솔</tspan><tspan class="d-label-small" x="365" dy="18" font-size="13">관찰 · 관리</tspan></text><rect class="d-box" x="510" y="38" width="190" height="58" rx="8"/><text class="d-label" x="605" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="605" dy="0" font-size="14">CLI</tspan><tspan class="d-label-small" x="605" dy="18" font-size="13">유지보수 · 설치</tspan></text><rect class="d-box-muted" x="750" y="38" width="190" height="58" rx="8"/><text class="d-label" x="845" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="845" dy="0" font-size="14">다른 Operation</tspan><tspan class="d-label-small" x="845" dy="18" font-size="13">Gateway 제출 · 질의</tspan></text><path class="d-edge" d="M125,96 L125,126" fill="none"/><path class="d-edge" d="M365,96 L365,126" fill="none"/><path class="d-edge" d="M605,96 L605,126" fill="none"/><path class="d-edge" d="M845,96 L845,126" fill="none"/><path class="d-edge" d="M125,126 L845,126" fill="none"/><path class="d-edge" d="M480,126 L480,150" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-accent" x="290" y="150" width="380" height="270" rx="8"/><text class="d-label" x="480" y="254" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner / ExOps</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">Director 승인 (정형=정적, 자유 텍스트=모델)</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정책 확인 · 입력 스냅샷 · 제출 검증</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">Vault 쓰기 · 영수증 · 스케줄러</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">단일 권한자: 역할은 파일·셸·네트워크 없음</tspan></text><rect class="d-box-ok" x="30" y="150" width="220" height="56" rx="8"/><text class="d-label" x="140" y="174" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">Vault</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">사용자 정본 · Owner만 기록</tspan></text><rect class="d-box" x="30" y="225" width="220" height="56" rx="8"/><text class="d-label" x="140" y="249" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">State</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">요청·Work 기록 · 벡터 색인</tspan></text><rect class="d-box-muted" x="30" y="300" width="220" height="56" rx="8"/><text class="d-label" x="140" y="324" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">HermesTrace</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">Experience 후보 (InterOps)</tspan></text><path class="d-edge" d="M290,178 L250,178" fill="none" marker-end="url(#d-arrow-system-map)"/><path class="d-edge" d="M290,253 L250,253" fill="none" marker-end="url(#d-arrow-system-map)"/><path class="d-edge d-edge-dashed" d="M290,328 L250,328" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box" x="710" y="150" width="220" height="56" rx="8"/><text class="d-label" x="820" y="174" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Temporal + LangGraph</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">Work 실행 · 그래프</tspan></text><path class="d-edge" d="M670,178 L710,178" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box" x="710" y="225" width="220" height="56" rx="8"/><text class="d-label" x="820" y="249" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Hermes 역할 프로필</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">모델 역할마다 1개</tspan></text><path class="d-edge" d="M670,253 L710,253" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-muted" x="710" y="300" width="220" height="56" rx="8"/><text class="d-label" x="820" y="324" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Ollama</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">로컬 임베딩 (loopback)</tspan></text><path class="d-edge" d="M670,328 L710,328" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-muted" x="710" y="375" width="220" height="56" rx="8"/><text class="d-label" x="820" y="399" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">kos-ops → Discord</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">송신 전용 알림</tspan></text><path class="d-edge" d="M670,403 L710,403" fill="none" marker-end="url(#d-arrow-system-map)"/><text class="d-label-small" x="480" y="442" text-anchor="middle" font-size="13">실선: 호출 · 기록   점선: 후보·알림 같은 단방향 전달</text></svg>
+</figure>
+<p>위 그림은 세 관리 화면이 모두 Owner를 거쳐 일하는 구조입니다. 요청이 접수되는 순서는 다음과 같습니다.</p>
+<ol>
+<li>화면(Thin Client·콘솔·CLI)이 요청을 보냅니다. Thin Client는 경로와 해시만 보냅니다.</li>
+<li>Owner가 영수증을 커밋하고 요청 ID를 즉시 돌려줍니다.</li>
+<li>정형 요청(모든 Thin Client 명령·작업·CLI 명령)은 정적 코드가, 자유 문장만 <code>kos-director</code> 모델이 접수합니다. 모델 Director는 정해진 명령으로만 연결하며 기준·예산·권한·WorkSpec·입력 연결·경로를 지정하려는 시도는 권한 위반으로 Work 없이 거절됩니다. 일반적인 초안 오류에는 수정 기회가 한 번 주어집니다.</li>
+<li>조회(GET)는 효과를 일으키지 않으며, 응답을 잃은 뒤에는 원래 영수증을 조회합니다.</li>
+</ol>
+<div class="callout callout-warning">
+<p class="callout-title">주의</p>
+<p>&quot;결과 불명&quot;으로 기록된 요청은 다시 실행해도 된다는 허락이 아닙니다. 확인이 필요하면 콘솔의 확인 기록이나 <code>knowledgeos reconcile</code>로 사람이 관찰한 결과를 남깁니다.</p>
+</div>
+<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
+<section class="source-include">
+<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C11 Invocation and management surfaces</header>
+<h3 id="c11-invocation-and-management-surfaces">C11 Invocation and management surfaces<a class="anchor" href="#c11-invocation-and-management-surfaces" aria-label="이 제목 링크">#</a></h3>
+<p><strong>Thin Client commands.</strong> These remain the client&#x27;s entire functional surface, available from the command palette, context menus and one native Obsidian sidebar tab.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>Command</th>
+<th>Context</th>
+<th>Capability</th>
+</tr></thead><tbody>
+<tr><td>규격화 미리보기</td><td>Note, selection, folder</td><td>C2 manual</td></tr>
+<tr><td>정리 요청</td><td>Note, selection, folder</td><td>C1</td></tr>
+<tr><td>강화: 발전 / 묻기 / 돌아보기</td><td>Note; question input; date window</td><td>C4</td></tr>
+<tr><td>자유 요청</td><td>Free text</td><td>Director routing</td></tr>
+<tr><td>관련 노트 · 의미 검색</td><td>Note; query input</td><td>C3</td></tr>
+<tr><td>적용 · 거절</td><td>Proposal note</td><td>C6</td></tr>
+<tr><td>자동 변경 되돌리기</td><td>Note</td><td>C6</td></tr>
+<tr><td>관리 콘솔 열기</td><td>Any</td><td>Opens the browser console</td></tr>
+<tr><td>Owner 시작 · 중지</td><td>Any (desktop)</td><td>Owner lifecycle</td></tr>
+</tbody></table></div>
+<p><strong>Sidebar.</strong> A ribbon icon or <code>사이드바 열기</code> reveals the reusable right-sidebar tab. Four compact buttons (규격화, 정리, 강화, 찾기) select one inline function region below them; navigation alone never submits work. Secondary choices, question and date inputs, semantic search, linked search results, standardization diffs and explicit confirm/cancel controls stay inside this region, never in popup menus or modals. More selects an inline free-request form with undo and console actions. Applying or rejecting appears only for a proposal note; one power button invokes Owner start or stop according to the observed connection state. It never starts the Owner on open. Focusing the sidebar retains the displayed target; opening another file updates it, and deleting the target clears it. With no Markdown target, note-only execution is disabled, while 묻기, 의미 검색 and 자유 요청 remain available. Unsubmitted input drafts remain only in memory. Changing the function or note cancels an undecided preview, including a late preview response; unrelated late results cannot replace the new function region. Request feedback and result links stay inline. Existing palette and context-menu commands retain their modal presentation and share the same request and confirmation paths. The tab adds no Work browser, persistent document lists, settings, authority or persistent navigation state.</p>
+<p><strong>Console and CLI</strong> behave as in Blueprint §3.2 and §3.3.</p>
+<ul>
+<li><strong>Free text</strong>: the model Director may map only to catalog-allowed standardization preview, organize or enhance commands, not job, review or Work-management actions. It sees policy-filtered references to notes the user named, not note bodies; the Owner supplies paths and digests and performs static admission. Attempts to set criteria, budget, target authority, WorkSpec, input bindings or routes are authority violations: no corrective turn and no Work. Ordinary invalid drafts get one corrective turn; refusal, unavailable route or unknown outcome admits no Work and is reported explicitly.</li>
+<li><strong>Read safety and recovery</strong>: GETs never cause effects. After a lost response, the client looks up the original receipt; it may resend the identical request only after the Owner reports that the request was never recorded. A recorded unknown is not permission to replay.</li>
+<li><strong>Console actions</strong>: cancellation reports the observed application outcome after a bounded observation window, otherwise unknown. Reconciliation records an explicit human observation of applied or not applied without rewriting historical Work, receipts or unknown evidence.</li>
+<li><strong>Owner lifecycle</strong>: the Owner runs on the host as an on-demand macOS user service, so it outlives Obsidian. <code>knowledgeos install service --config FILE</code> writes its LaunchAgent plist (<code>RunAtLoad</code> and <code>KeepAlive</code> false, logs under Runtime) and loads it without starting it; <code>--dry-run</code> prints the plist and <code>launchctl</code> argv and changes nothing. <code>Owner 시작</code> kickstarts that launchd label and <code>Owner 중지</code> sends it SIGTERM; each reports only what <code>GET /api/health</code> then shows: started once health is ready, stopped once it stops answering, otherwise still running or unknown. They act only when the user invokes them and send no note text. <code>serve</code> closes the Owner and ExOps on SIGTERM.</li>
+</ul>
+<p>Acceptance:</p>
+<ul>
+<li><strong><a class="wikilink" href="#SUR-1">SUR-1</a></strong> Given any Thin Client command, then the request carries the note path and last-seen digest, never note body text.</li>
+<li><strong><a class="wikilink" href="#SUR-2">SUR-2</a></strong> Given the user opens notes, switches files and reconnects, then the client writes nothing to its settings.</li>
+<li><strong><a class="wikilink" href="#SUR-3">SUR-3</a></strong> Given a free-text request the Director cannot map to a capability, then no Work is admitted, and the notice says why.</li>
+<li><strong><a class="wikilink" href="#SUR-4">SUR-4</a></strong> Given the console&#x27;s &quot;cancel Work&quot; action, then it goes through ExOps admission and the outcome is shown as received, then applied or unknown.</li>
+<li><strong><a class="wikilink" href="#SUR-5">SUR-5</a></strong> Given <code>standardize --dry-run</code> on a folder from the CLI, then the planned changes are printed and nothing is written.</li>
+<li><strong><a class="wikilink" href="#SUR-6">SUR-6</a></strong> Given the Owner&#x27;s LaunchAgent, then <code>Owner 시작</code> kickstarts its launchd label and reports started only after <code>/api/health</code> is ready, <code>Owner 중지</code> sends SIGTERM and reports stopped only after health stops answering (otherwise still running or unknown), neither sends anything but health GETs, and <code>serve</code> exits cleanly on SIGTERM.</li>
+<li><strong><a class="wikilink" href="#SUR-7">SUR-7</a></strong> Given <code>install service --dry-run</code> with a config, then the plist and <code>launchctl</code> argv are printed and nothing is written; given a real install, the plist is written and the service is loaded but not running.</li>
+<li><strong><a class="wikilink" href="#SUR-8">SUR-8</a></strong> Given the user opens the sidebar repeatedly and switches between notes and the command tab, then one tab retains the visible note target, requests use that target&#x27;s current path and digest, proposal decisions follow its current frontmatter, unavailable note actions cannot submit requests, and merely opening the tab never starts or stops the Owner.</li>
+<li><strong><a class="wikilink" href="#SUR-9">SUR-9</a></strong> Given sidebar navigation, then function selection opens only inline controls without submitting requests or opening menus or modals; input validation, search results, outcome links and standardization confirmation remain inline, repeated confirmation submits once, and leaving a pending preview cancels its exact identity without applying it even if its response arrives late.</li>
+</ul>
+</section>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트로 확인하는 구체적인 예시입니다. C11은 SUR-1부터 SUR-9까지 아홉 개이며, 각 ID의 구현 위치와 테스트 노드가 아래 표에 있습니다. <a class="wikilink" href="#SUR-9">SUR-9</a>는 인라인 기능 선택·입력·검색 결과·확인 절차와 미확정 미리보기 취소를 다룹니다.</p>
+<div class="table-wrap"><table class="acceptance">
+<thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-1" href="#SUR-1">SUR-1</a></td><td class="acc-example">Given any Thin Client command, then the request carries the note path and last-seen digest, never note body text.</td><td class="acc-impl"><code>thin-client/main.js::noteReference</code><br><code>thin-client/main.js::targetReferences</code><br><code>thin-client/main.js::request</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c11_thin_client.py::test_SUR_1_thin_client_requests_carry_path_and_digest_only</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-2" href="#SUR-2">SUR-2</a></td><td class="acc-example">Given the user opens notes, switches files and reconnects, then the client writes nothing to its settings.</td><td class="acc-impl"><code>thin-client/main.js::onload</code><br><code>thin-client/main.js::updateEndpoint</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c11_thin_client.py::test_SUR_2_thin_client_writes_no_settings</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-3" href="#SUR-3">SUR-3</a></td><td class="acc-example">Given a free-text request the Director cannot map to a capability, then no Work is admitted, and the notice says why.</td><td class="acc-impl"><code>src/knowledgeos/owner.py::Director.free_text</code><br><code>src/knowledgeos/owner.py::Director._draft_problems</code></td><td class="acc-tests"><details><summary>테스트 6개</summary><ul><li><code>tests/test_c11_surfaces.py::test_SUR_3_unmappable_free_text_admits_no_work_and_notice_says_why</code></li><li><code>tests/test_c11_surfaces.py::test_SUR_3_draft_still_invalid_after_corrective_turn_admits_no_work</code></li><li><code>tests/test_c11_surfaces.py::test_SUR_3_director_authoring_criteria_is_rejected_without_corrective_turn</code></li><li><code>tests/test_c11_surfaces.py::test_SUR_3_unavailable_director_route_admits_no_work</code></li><li><code>tests/test_c11_surfaces.py::test_SUR_3_mapped_free_text_admits_the_derived_request_with_catalog_criteria</code></li><li><code>tests/test_hermes_adapter.py::test_SUR_3_serve_wires_configured_hermes_profiles</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-4" href="#SUR-4">SUR-4</a></td><td class="acc-example">Given the console&#x27;s &quot;cancel Work&quot; action, then it goes through ExOps admission and the outcome is shown as received, then applied or unknown.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c11_console.py::cancel</code><br><code>src/knowledgeos/capabilities/c11_console.py::reconcile</code><br><code>frontend/app.js::loadWork</code></td><td class="acc-tests"><details><summary>테스트 8개</summary><ul><li><code>tests/test_c11_surfaces.py::test_SUR_4_console_cancel_of_running_team_work_is_received_then_applied</code></li><li><code>tests/test_c11_surfaces.py::test_SUR_4_unobserved_cancellation_is_unknown_not_fabricated</code></li><li><code>tests/test_c11_console.py::test_SUR_4_cancel_waiting_preview_records_applied_and_writes_nothing</code></li><li><code>tests/test_c11_console.py::test_SUR_4_reconcile_retained_unknown_records_human_observation</code></li><li><code>tests/test_c11_console.py::test_SUR_4_reconcile_missing_or_invalid_unknown_is_refused</code></li><li><code>tests/test_c11_console.py::test_SUR_4_console_actions_are_user_only</code></li><li><code>tests/test_c11_cli_ops.py::test_SUR_4_cli_reconcile_requires_yes_and_preserves_original_unknown</code></li><li><code>tests/test_hermes_adapter.py::test_SUR_4_role_tools_keep_exops_loopback_json_checks</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-5" href="#SUR-5">SUR-5</a></td><td class="acc-example">Given <code>standardize --dry-run</code> on a folder from the CLI, then the planned changes are printed and nothing is written.</td><td class="acc-impl"><code>src/knowledgeos/cli.py::cmd_standardize</code><br><code>src/knowledgeos/capabilities/c2_standardize.py::admit_batch</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c11_cli.py::test_SUR_5_cli_dry_run_prints_plan_and_writes_nothing</code></li><li><code>tests/test_c11_cli.py::test_cli_standardize_apply_writes_through_the_owner</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-6" href="#SUR-6">SUR-6</a></td><td class="acc-example">Given the Owner&#x27;s LaunchAgent, then <code>Owner 시작</code> kickstarts its launchd label and reports started only after <code>/api/health</code> is ready, <code>Owner 중지</code> sends SIGTERM and reports stopped only after health stops answering (otherwise still running or unknown), neither sends anything but health GETs, and <code>serve</code> exits cleanly on SIGTERM.</td><td class="acc-impl"><code>thin-client/main.js::ownerStart</code><br><code>thin-client/main.js::ownerStop</code><br><code>thin-client/main.js::pollOwner</code><br><code>src/knowledgeos/cli.py::cmd_serve</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c11_owner_service.py::test_SUR_6_thin_client_owner_start_stop_follow_launchd_and_report_observed_health</code></li><li><code>tests/test_c11_owner_service.py::test_SUR_6_owner_serve_stops_cleanly_on_sigterm</code></li><li><code>tests/test_c11_thin_client.py::test_thin_client_node_suite</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-7" href="#SUR-7">SUR-7</a></td><td class="acc-example">Given <code>install service --dry-run</code> with a config, then the plist and <code>launchctl</code> argv are printed and nothing is written; given a real install, the plist is written and the service is loaded but not running.</td><td class="acc-impl"><code>src/knowledgeos/service.py::install</code><br><code>src/knowledgeos/service.py::build_plist</code><br><code>src/knowledgeos/cli.py::cmd_install</code></td><td class="acc-tests"><details><summary>테스트 4개</summary><ul><li><code>tests/test_c11_owner_service.py::test_SUR_7_install_service_dry_run_prints_plist_and_argv_and_writes_nothing</code></li><li><code>tests/test_c11_owner_service.py::test_SUR_7_install_service_writes_plist_and_loads_it_without_starting</code></li><li><code>tests/test_c11_owner_service.py::test_SUR_7_install_service_failures_are_reported_not_hidden</code></li><li><code>tests/test_c11_owner_service.py::test_SUR_7_install_service_without_hermes_takes_home_from_the_environment</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-8" href="#SUR-8">SUR-8</a></td><td class="acc-example">Given the user opens the sidebar repeatedly and switches between notes and the command tab, then one tab retains the visible note target, requests use that target&#x27;s current path and digest, proposal decisions follow its current frontmatter, unavailable note actions cannot submit requests, and merely opening the tab never starts or stops the Owner.</td><td class="acc-impl"><code>thin-client/main.js::KnowledgeOSSidebar</code><br><code>thin-client/main.js::openSidebar</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c11_thin_client.py::test_SUR_8_sidebar_preserves_note_context_and_existing_action_boundaries</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="SUR-9" href="#SUR-9">SUR-9</a></td><td class="acc-example">Given sidebar navigation, then function selection opens only inline controls without submitting requests or opening menus or modals; input validation, search results, outcome links and standardization confirmation remain inline, repeated confirmation submits once, and leaving a pending preview cancels its exact identity without applying it even if its response arrives late.</td><td class="acc-impl"><code>thin-client/main.js::KnowledgeOSSidebar</code><br><code>thin-client/main.js::standardizePreview</code><br><code>thin-client/main.js::search</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c11_thin_client.py::test_SUR_9_sidebar_inline_results_and_preview_decisions</code></li></ul></details></td></tr>
+</tbody></table></div>
+<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
+<p>PROJECT_STATE의 기록에서 C11과 직접 관련된 것은 다음과 같습니다.</p>
+<ul>
+<li><strong>1.1.0 당시 소스·테스트</strong>: <code>E_SIDEBAR_TESTS</code>는 C11 Thin Client 테스트 4건 통과, <code>E_SIDEBAR_TRACE</code>는 SUR-8까지 포함한 당시 인수 60건과 추적표 60행의 연결 기록입니다. 현재 인라인 계약의 검증과 구분합니다.</li>
+<li><strong>1.1.0 설치와 GUI 이력</strong>: 실제 Obsidian 1.13.7에 1.1.0을 설치하고 밝은·어두운 테마, 탭 재사용, 노트 대상 전환, 312px 폭을 관찰했습니다(<code>E_SIDEBAR_INSTALL</code>, <code>E_SIDEBAR_GUI</code>). 그때 Vault Markdown 20개의 해시와 플러그인 설정 부재 상태를 보존했습니다(<code>E_SIDEBAR_PRESERVATION</code>). 이 기록을 1.2.0의 근거로 쓰지는 않습니다.</li>
+<li><strong>1.2.0 인라인 소스·추적</strong>: <code>E_SIDEBAR_INLINE_TESTS</code>는 입력 검증·결과·초안 유지·한 번만 확인·늦은 미리보기 취소를 포함한 집중 테스트 5건 통과를 기록합니다. <code>E_SIDEBAR_INLINE_TRACE</code>는 SUR-9를 포함한 전체 인수 61건과 추적표 61행·pytest 노드 171개의 연결 기록이며, 171개 노드를 모두 새로 실행했다는 뜻은 아닙니다.</li>
+<li><strong>1.2.0 설치와 GUI</strong>: <code>E_SIDEBAR_INLINE_INSTALL</code>은 현재 소스 payload로 실제 Obsidian에 1.2.0을 설치한 기록입니다. <code>E_SIDEBAR_INLINE_GUI</code>는 네 인라인 기능 창·세부 선택·질문·기간 입력·보조 동작·실제 의미 검색 결과 7건을 밝은·어두운 테마와 242px 폭에서 관찰하고 팝업 메뉴·모달이 없었음을 기록합니다. Vault Markdown 20개 해시와 플러그인 설정 상태를 보존하고 원래 테마·Home 대상·사이드바 폭을 복원했습니다(<code>E_SIDEBAR_INLINE_PRESERVATION</code>). 목표 <code>SIDEBAR_INLINE_SOURCE</code>·<code>SIDEBAR_INLINE_GUI</code>는 pass로 기록되어 있습니다.</li>
+<li><strong>Owner 시작·중지</strong>: 실제 Vault 설정에 Thin Client를 설치하고 Obsidian CLI로 활성화해 Owner 중지(launchd 종료 코드 0)와 시작(health 정상)을 관찰했습니다(<code>E_OBSIDIAN_OWNER_LIFECYCLE</code>, 목표 <code>OWNER_LIFECYCLE</code> 통과).</li>
+<li><strong>콘솔</strong>: 임시 Owner·합성 Vault·로컬 Temporal 개발 서버로 브라우저에서 정상 상태와 <code>job.pause</code>·<code>job.resume</code> 영수증 적용을 관찰했습니다(<code>E_CONSOLE_BROWSER</code>).</li>
+</ul>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p><strong>1.1.0 당시의 미확인 기록</strong>: <code>E_SIDEBAR_NATIVE_MENUS</code>는 접근성 자동화 거부와 렌더러 DOM에 나타나지 않는 네이티브 팝업 때문에 당시 메뉴 내용을 확인하지 못한 blocked 이력입니다. 이 기록은 그대로 보존합니다. 현재 1.2.0은 팝업 대신 인라인 기능 창을 쓰며, 그 설치·GUI 관찰은 별도 <code>E_SIDEBAR_INLINE_*</code> 기록으로 구분합니다.</p>
+</div>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p>README의 검증 범위에 따르면 자동 테스트는 <code>launchctl</code>과 Hermes를 가짜 실행 파일로 대체합니다. 실제 launchd 등록과 시작·중지, Obsidian GUI는 위 실환경 근거로 따로 기록됩니다.</p>
+</div>
+<p>C11 자체에 남은 명세 변경이나 열린 질문은 CAPABILITIES와 Blueprint §9에 없습니다. 프로젝트 전체의 남은 일은 &quot;첫 자연 실행(시간별 규격화·임베딩)을 관찰하고 <code>related_min_score</code>를 조정하는 것&quot;(handoff)이며, 이는 <a class="wikilink" href="c3.html">C3</a>·<a class="wikilink" href="c7.html">C7</a> 쪽 과제입니다. 전체 목록은 <a class="wikilink" href="roadmap.html">로드맵</a>을, 검증 현황은 <a class="wikilink" href="status.html">현재 상태</a>를 보세요. 모바일 후속(M1–M3)은 아직 시작 전이라 C11 범위 밖입니다.</p>
+<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><a class="wikilink" href="c1.html">C1</a> — 사이드바·명령 팔레트의 <strong>정리 요청</strong>이 부르는 기능입니다.</li>
+<li><a class="wikilink" href="c2.html">C2</a> — <strong>규격화 미리보기</strong>와 CLI <code>standardize --dry-run|--apply</code>가 닿는 기능입니다(<a class="wikilink" href="#SUR-5">SUR-5</a>).</li>
+<li><a class="wikilink" href="c3.html">C3</a> — <strong>관련 노트·의미 검색</strong>을 부르고, CLI <code>index rebuild|verify|embed</code>로 관리합니다.</li>
+<li><a class="wikilink" href="c4.html">C4</a> — <strong>발전·묻기·돌아보기</strong> 강화 명령이 부르는 기능입니다.</li>
+<li><a class="wikilink" href="c6.html">C6</a> — <strong>적용·거절·자동 변경 되돌리기</strong>를 제안 노트에서 부릅니다.</li>
+<li><a class="wikilink" href="c7.html">C7</a> — 콘솔에서 예약 작업을 일시정지·재개하고, Owner가 켜져 있는 동안에만 예약 작업이 돕니다.</li>
+<li><a class="wikilink" href="c8.html">C8</a> — 알림은 콘솔의 알림 기록에서 확인하며, Discord는 발송 전용이라 명령을 받지 않습니다.</li>
+<li><a class="wikilink" href="c9.html">C9</a> — 콘솔이 역할별 학습 기록과 Experience outbox를 보여 줍니다.</li>
+<li><a class="wikilink" href="c10.html">C10</a> — 같은 Owner 접수를 거치는 또 하나의 요청 입구입니다.</li>
+<li><a class="wikilink" href="usage.html">사용 가이드</a> — Obsidian·콘솔·CLI·운영 명령을 한곳에서 보는 사용 가이드입니다.</li>
+</ul>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+</article>
+<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
+</body>
+</html>

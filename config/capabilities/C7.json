@@ -1,0 +1,10 @@
+{
+  "id": "C7", "name": "Scheduled jobs", "version": "1",
+  "target": {"kind": "owner_service", "name": "Scheduler", "runtime": "static"},
+  "commands": {
+    "job.run": {"origins": ["schedule"], "params": {"job": {"type": "string", "required": true, "min": 1, "max": 64}}},
+    "job.pause": {"origins": ["user"], "params": {"job": {"type": "string", "required": true, "min": 1, "max": 64}}},
+    "job.resume": {"origins": ["user"], "params": {"job": {"type": "string", "required": true, "min": 1, "max": 64}}}
+  },
+  "settings": {"scheduler_enabled": true, "startup_delay_minutes": 3, "tick_seconds": 30}
+}

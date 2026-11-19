@@ -1,0 +1,60 @@
+{
+  "id": "C2",
+  "name": "Standardize",
+  "version": "1",
+  "target": {"kind": "officer", "name": "StandardizationOfficer", "runtime": "static"},
+  "evaluation": {"officer": "EvalOfficer", "runtime": "static"},
+  "budget": {"segments": 1, "producer_invocations": 1},
+  "commands": {
+    "standardize.preview": {
+      "origins": ["user"],
+      "params": {
+        "paths": {"type": "array", "items": "string", "required": true, "min": 1, "max": 500},
+        "digests": {"type": "object", "values": "string", "default": {}}
+      }
+    },
+    "standardize.confirm": {
+      "origins": ["user"],
+      "params": {"preview_id": {"type": "string", "required": true, "min": 1, "max": 160}}
+    },
+    "standardize.cancel": {
+      "origins": ["user"],
+      "params": {"preview_id": {"type": "string", "required": true, "min": 1, "max": 160}}
+    },
+    "standardize.batch": {
+      "origins": ["user"],
+      "params": {
+        "path": {"type": "string", "required": true, "min": 1, "max": 1024},
+        "apply": {"type": "boolean", "default": false}
+      }
+    },
+    "standardize.auto": {
+      "origins": ["schedule"],
+      "params": {}
+    }
+  },
+  "modes": {
+    "manual": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]},
+    "batch": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]},
+    "automatic": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]}
+  },
+  "criteria": {
+    "std.skips_respected": {
+      "runtime": "static",
+      "text": "No planned write is for a never-list path or for a deny, conflict-marked, unparseable, duplicate-ID or navigation note, and each is for an admitted snapshot"
+    },
+    "std.result_valid": {
+      "runtime": "static",
+      "text": "Every planned result parses, has id, created and ai_policy, carries the folder-derived type, and every value it writes has the contract shape (UUIDv4 id, ISO-8601 created with offset, canonical enums, string lists)"
+    },
+    "std.properties_preserved": {
+      "runtime": "static",
+      "text": "No property is deleted, renamed or reordered, and only properties standardization manages change"
+    },
+    "std.minimal_diff": {
+      "runtime": "static",
+      "text": "Untouched frontmatter lines stay byte-identical and the body only loses rule-8 trailing list lines"
+    }
+  },
+  "settings": {"quiet_period_minutes": 10}
+}

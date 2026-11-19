@@ -1,0 +1,220 @@
+.kos-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 12px;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-interface);
+  color: var(--text-normal);
+}
+
+.kos-sidebar-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+}
+
+.kos-sidebar-actions,
+.kos-sidebar-proposal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kos-sidebar-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.kos-sidebar-actions button {
+  padding: 8px 4px;
+}
+
+.kos-sidebar-proposal[hidden] {
+  display: none;
+}
+
+.kos-sidebar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 8px;
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  white-space: normal;
+  box-shadow: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.kos-sidebar button:disabled {
+  cursor: default;
+  opacity: var(--icon-opacity-faint);
+}
+
+.kos-sidebar button:not(:disabled):hover {
+  background: var(--interactive-hover);
+}
+
+.kos-sidebar button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.kos-sidebar button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.kos-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 4px;
+}
+
+.kos-sidebar-status {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.kos-sidebar .kos-sidebar-icon {
+  flex: 0 0 44px;
+  background: transparent;
+  border: none;
+}
+
+.kos-sidebar .kos-sidebar-icon[aria-pressed="true"] {
+  color: var(--interactive-accent);
+}
+
+.kos-sidebar-actions button[aria-pressed="true"],
+.kos-sidebar-modes button[aria-pressed="true"] {
+  color: var(--text-accent);
+  box-shadow: inset 0 -2px 0 var(--interactive-accent);
+}
+
+.kos-sidebar-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 12px;
+}
+
+.kos-sidebar-body,
+.kos-sidebar-controls,
+.kos-sidebar-form,
+.kos-sidebar-field {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.kos-sidebar-modes,
+.kos-sidebar-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.kos-sidebar-modes button,
+.kos-sidebar-tools button {
+  flex: 1;
+}
+
+.kos-sidebar-controls > button {
+  width: 100%;
+}
+
+.kos-sidebar-field {
+  gap: 6px;
+  font-size: var(--font-ui-small);
+}
+
+.kos-sidebar-field input,
+.kos-sidebar-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.kos-sidebar-field textarea {
+  resize: vertical;
+}
+
+.kos-sidebar-field-error {
+  color: var(--text-error);
+}
+
+.kos-sidebar-field-error:empty,
+.kos-sidebar-feedback:empty,
+.kos-sidebar-output:empty {
+  display: none;
+}
+
+.kos-sidebar-form > button {
+  justify-self: end;
+  min-width: 80px;
+}
+
+.kos-sidebar-output,
+.kos-sidebar-feedback {
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+
+.kos-sidebar-output h4 {
+  margin: 8px 0;
+  font-size: inherit;
+}
+
+.kos-sidebar-output pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-smaller);
+}
+
+.kos-sidebar-result {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.kos-sidebar-result small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.kos-sidebar-result p {
+  margin: 6px 0 0;
+}
+
+.kos-sidebar-feedback {
+  max-height: 25%;
+  overflow-y: auto;
+}
+
+.kos-sidebar-feedback a {
+  display: block;
+}

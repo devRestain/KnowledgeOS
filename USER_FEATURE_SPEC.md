@@ -1,51 +1,201 @@
 # KnowledgeOS 사용자 기능 명세
 
-KnowledgeOS는 AgentFabric 안에서 개발 중인 Operation입니다. 현재 소스의 기능과 실제 설치·기기에서 확인한 기능은 구분합니다. 진행 상태와 수행한 검사는 [현재 상태](PROJECT_STATE.md)를 확인하세요.
+KnowledgeOS는 사용자가 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 **다시 쓸 수 있는 형태로 정리·축적**하고, 축적된 생각을 이용해 **지금의 사고를 강화**하는 가벼운 Operation입니다.
 
-## 사용자가 하는 일
+이 문서는 사용자의 의도를 정합니다.
 
-사용자는 KnowledgeHub를 Obsidian에서 엽니다. 일반 노트와 포착은 구성된 QuickAdd 또는 Obsidian의 새 노트 흐름으로 작성하고, Daily Notes·Templates·Notebook Navigator로 기간별 기록을 만듭니다. Search, Bases, Backlinks, Properties, Tasks로 자료를 찾고 연결과 할 일을 확인합니다. 플러그인을 쓰지 않아도 Markdown 본문과 YAML Properties가 정본입니다.
+- 시스템 계약: [Blueprint](OBSIDIAN_VAULT_BLUEPRINT.md)
+- 기능별 동작과 인수 시나리오: [기능 명세](docs/CAPABILITIES.md)
 
-Home과 Mobile은 탐색 화면이고, Base와 Compass 뷰는 원문을 바꾸지 않는 투영입니다. 제목·alias의 미연결 언급은 연결 후보로만 봅니다. 관계를 정본에 추가할지, 할 일을 완료할지, 제안을 승인할지는 사용자가 결정합니다.
+사용자의 결정에 따라 [기능 명세](docs/CAPABILITIES.md)가 동작과 인수 기준의 최상위 계약입니다. 이 문서는 의도를, Blueprint는 시스템 제약을 보충하며 기능이나 인수 범위를 줄이지 않습니다. 충돌은 함께 바로잡고, 이 우선순위로 Core 계약이나 스키마를 바꾸지 않습니다.
 
-문서 관리·조정, Team 호출 시작점과 작업 입력, 사용자 산출물·인용 근거, Pending 결정·별도 적용과 일일 사람 검토는 Obsidian 내부에서 수행합니다. 실행 이력·Graph·역할별 모델/프롬프트·독립평가·RemainingWork 같은 관리 정보는 외부 브라우저의 기존 ExOps 콘솔에 둡니다. 네이티브의 관리 링크는 선택 Work를 열 뿐 새 실행이나 문서 변경을 요청하지 않습니다. 터미널은 KnowledgeOS Operation 운영·유지보수 CLI에 한정합니다.
+## 지키는 약속
 
-macOS에서는 Thin Client의 **로컬 백엔드 시작** 버튼으로 미리 설치된 KnowledgeOS를 필요할 때 켭니다. 고정 host 도우미가 로그인 자동 시작 없는 LaunchAgent와 기존 실행 구성을 사용합니다. 화면 열기·상태 새로 조회는 시작이 아니며, Obsidian을 닫아도 접수한 작업과 백엔드는 유지됩니다. 설치·복구·모델 활성화나 임의 명령 실행을 사용자 문서 흐름에 추가하지 않습니다.
+1. **Vault는 사용자의 것입니다.**
+   - 맥·iPhone·iPad 어디서든 어떤 노트든 자유롭게 쓰고, 고치고, 옮기고, 지울 수 있습니다.
+   - frontmatter·폴더·등록 없이 쓴 Markdown도 그대로 유효합니다.
+2. **문서 작업은 Obsidian 안에서 합니다.**
+   - 쓰기·검색·보기는 Obsidian core와 community plugin이 맡습니다.
+   - KnowledgeOS 기능 호출은 최소한의 Thin Client 명령과 사이드바 탭이 맡습니다.
+   - 관리는 브라우저 콘솔과 CLI가 맡고, 문서 작업은 거기서 하지 않습니다.
+3. **유지보수는 가능한 한 오픈소스에 맡깁니다.** 화면·보기·템플릿·버튼은 plugin을 쓰고, Thin Client는 커지지 않게 유지합니다.
+4. **자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.**
+   - 빠진 frontmatter를 채우는 결정적 규격화만 자동입니다.
+   - 판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.
+5. **Git이 백업이자 이력입니다.**
+   - Vault는 GitHub private repo와 동기화됩니다. 맥은 사용자의 동기화 방식으로, iOS는 Working Copy로 합니다.
+   - KnowledgeOS는 git 명령을 실행하지 않고, diff가 작고 읽기 쉽게 씁니다.
+6. **잃으면 안 되는 것은 Vault에 둡니다.** KnowledgeOS 내부 상태와 자격증명은 Vault 밖에 있어 GitHub로 올라가지 않으며, 잃어도 지식은 남습니다.
+7. **근거를 밝힙니다.** 결과는 이미 쓴 노트를 정확히 인용하고, 근거·추론·근거 없음을 구분합니다.
 
-## 에이전트가 하는 일
+## 다섯 가지 기능
 
-에이전트는 단일 `vaultmcp` v3로 허용된 자료를 읽고 결과를 제출합니다. 현재 도구는 검색·근거 조회와 구간 읽기, Base·링크·할 일 조회, Work·method 조회, Graph 제안, 산출물 제출, 독립 평가, 인용 확인, 관계·정렬·프로젝트 검토·교환 적응·복구 계획 제안을 포함합니다. 정확한 이름과 입력 스키마는 [MCP capability manifest](ops/schemas/mcp/capabilities.json)에 있습니다.
+| 기능 | 사용자가 얻는 것 | 요청 방법 | 결과가 나타나는 곳 |
+|---|---|---|---|
+| **정리** | 노트의 종류·제목·태그·관련 노트·위치 제안. 포착을 아이디어·지식·질문·자료로 바꾸거나 기존 노트에 연결 | "정리 요청"(노트·선택·폴더), 매일 자동 | `01_AI_Review/Proposals/`의 제안 노트 |
+| **규격화** | `id`·`type`·`created`·`status`·`ai_policy`가 채워지고 값 모양이 정돈된 노트. 본문 끝에 잘못 들어간 `tags:` 같은 줄은 frontmatter로 이동 | 세 경로(아래) | 노트 자체(작은 frontmatter 변경) |
+| **검색** | 키워드 검색(Obsidian 검색), 관련 노트, 준비된 경우 의미 검색 | Obsidian 검색, "관련 노트"·"의미 검색" | 검색 결과에서 해당 줄로 이동 |
+| **강화** | 아이디어 발전(`develop`), Vault에 묻기(`ask`), 프로젝트 돌아보기(`review`). 내가 이미 쓴 생각, 연결과 긴장, 빈틈과 반론, 다음 걸음을 인용과 함께 정리 | "강화: 발전 / 묻기 / 돌아보기" | `01_AI_Review/Reports/`의 보고서 노트 |
+| **문서 관리** | 처리 안 된 포착, 오래 안 본 아이디어, 열린 질문, 검토 대기, 충돌·오류 노트, 보관 제안 | Bases 화면, 관리 콘솔, Discord 요약 | Bases·콘솔·Discord, 제안 노트 |
 
-일반 연결에 도구 이름이 보여도 모든 호출이 허용되지는 않습니다. Work 도구는 owner가 발급한 Team 또는 Officer, Profile, method, Graph, 원문 범위, 효과 권한에 묶입니다. 모델이 actor, root, 실행 binding을 선택할 수 없습니다. 원문을 반환하기 직전에 현재 digest와 문서 정책을 다시 확인합니다.
+정리·강화는 원본 노트를 직접 바꾸지 않습니다. 보고서는 만들어진 뒤 사용자의 문서입니다. 자유롭게 고치고 옮기며, `type`을 바꾸면 자기 지식으로 편입됩니다.
 
-기본 `ai_policy: ask` 문서는 구성된 로컬 MCP 정책에서 읽을 수 있습니다. `deny`와 confidential 문서는 제외하며, `local_only` 본문은 신뢰된 로컬 실행 문맥에서만 반환합니다. 인용 검증은 참조·구간·해시를 확인하고 주장 자체의 진실성은 판정하지 않습니다.
+### 규격화의 세 경로
 
-## 제안과 사람의 결정
+| 경로 | 방법 | 특징 |
+|---|---|---|
+| 작성할 때 | QuickAdd·Templater 템플릿으로 노트 생성 | 처음부터 규격에 맞는 frontmatter. KnowledgeOS 호출 없음 |
+| 수동 | Thin Client "규격화 미리보기"(노트·선택·폴더) | 바뀔 diff를 먼저 보여주고 확인하면 적용. 방금 편집한 노트도 가능. 대량 정리는 CLI `--dry-run`/`--apply` |
+| 자동 | 매시간 예약 작업 | 최근 10분 안에 편집한 노트는 건너뜀 |
 
-에이전트의 변경안은 출처와 대상 preimage에 묶인 Pending 제안입니다. Obsidian Thin Client의 소스 계약은 owner Work 접수, 진행 상태, 인용된 결과, Pending 원문·출처·diff 표시를 제공합니다. 사용자가 승인 또는 거절을 누르면 owner가 그 결정을 기록합니다. 정본 적용은 별도 버튼과 owner의 재검증을 거칩니다. 승인만으로 파일이 바뀌지 않습니다.
+세 경로 모두 결정적 규칙만 적용합니다.
 
-소스, 디스크 설치, 관리용 reload 후 로드 버전, 실제 Owner 실행 및 기기별 GUI 관측은 각각 별도 증거가 필요합니다. 과거 실패·결과 불명 Work를 새 성공으로 바꾸거나 화면 검증을 위해 재실행하지 않으며 현재 채택과 완료 근거는 `PROJECT_STATE.md`를 따릅니다.
+- 본문의 다른 부분, 관련 없는 기존 속성, 파일 위치는 바꾸지 않습니다. 빠졌거나 형식이 잘못된 UUID처럼 기계적으로 판별할 수 있는 값은 고치되, 알 수 없는 종류나 상태를 임의로 정하지 않습니다.
+- `deny` 노트, 충돌 표시가 있는 노트, YAML이 깨진 노트는 건드리지 않고 알려줍니다.
+- 바뀐 것은 "자동 변경 되돌리기"로 되돌립니다. 그 뒤 노트를 고쳤다면 Git 이력으로 되돌립니다.
+- Vault 맨 위나 임의의 폴더에 썼다는 이유만으로 일반 Markdown을 건너뛰지 않습니다.
 
-Obsidian 안에서의 전체 기능 대응, 네이티브 명령, 설치 플러그인 통합 경계는 [Obsidian 클라이언트 가이드](docs/OBSIDIAN_CLIENT.md)에 있습니다. 실제 선택한 프로필에서의 후속 GUI 검증은 [Computer Use 프롬프트](docs/OBSIDIAN_COMPUTER_USE_PROMPT.md)를 사용하며, 소스·디스크 설치만으로 실행 중인 플러그인 채택을 판정하지 않습니다.
+## Obsidian 안에서 쓰는 방법
 
-## 운영자가 하는 일
+**plugin이 맡는 일:**
 
-기본 로컬 웹 관리 화면은 `http://127.0.0.1:17900/console/`입니다. 이미 기록된 Work를 목록이나 정확한 ID로 열어 Manager의 Graph, 역할 호출과 관측된 모델·추론 강도·프롬프트 식별자, 독립평가와 남은 작업을 확인합니다. 현재 역할 설정·COMMON/SOUL 전문은 과거 실제 실행 관측과 구분합니다. 웹은 문서 검색·Work 접수·Pending 승인/적용·daily 결정을 대신하지 않으며 새 로그인이나 수동 토큰 입력을 요구하지 않습니다.
+| 하는 일 | plugin |
+|---|---|
+| 노트 생성(포착·아이디어·질문·지식·자료·프로젝트) | QuickAdd, Templater |
+| 키워드 검색 | Obsidian Search |
+| 검토 대기·포착함·아이디어·프로젝트 목록 | Bases |
+| 제안 노트의 "적용·거절" 버튼, 노트별 KnowledgeOS 버튼 | Note Toolbar(필요하면 Meta Bind) |
+| 링크·계층·할 일·홈 | Backlinks, Breadcrumbs, Tasks, Homepage, Notebook Navigator |
+| 서식 정리 | Linter(직접 실행할 때만) |
+| Git 이력 보기 | Obsidian Git(보기만) |
 
-`vaultctl`은 운영·유지보수 전용입니다. `operation check/status/recover`, `index build/verify/export`, `note validate`, `doctor`, `receipts verify`, `repair plan/apply`, `work validate`, `foundation`, `blueprint validate`, `schema export`, 초기 설정과 정확한 storage 전환을 제공합니다. 전체 명령은 [CLI 소스](ops/src/vaultops/interfaces/cli.py)의 parser를 기준으로 확인합니다.
+**Thin Client가 맡는 일:** 기존 KnowledgeOS 명령을 작은 사이드바 탭에서도 호출합니다.
 
-문서·프로젝트 생성, 일반 검색·답변, AI 제안 결정, 모델·provider·queue·worker·embedding 명령은 현재 CLI에 없습니다. 사용자의 문서 작업은 Obsidian, 에이전트의 지식 작업은 MCP에 둡니다.
+- 명령: 규격화 미리보기, 정리 요청, 강화, 자유 요청, 관련 노트·의미 검색, 적용·거절, 자동 변경 되돌리기, 관리 콘솔 열기, Owner 시작·중지(데스크톱).
+- 리본 아이콘이나 `사이드바 열기` 명령으로 오른쪽 탭을 엽니다. 기존 명령 팔레트·파일·편집기 메뉴·Note Toolbar도 유지합니다.
+- **규격화·정리·강화·찾기**를 누르면 네 버튼 아래에 해당 기능 창이 열립니다. 강화의 세부 선택·질문·기간, 검색창·결과, 규격화 diff·적용·취소를 모두 사이드바 안에서 처리하며 팝업은 띄우지 않습니다. 메뉴 선택만으로 작업을 실행하지는 않습니다.
+- 제안 노트에서만 적용·거절을 표시합니다. 더보기 역시 사이드바 안에 자유 요청·되돌리기·관리 콘솔을 열고, Owner 시작·중지는 전원 버튼 하나로 모읍니다. 입력 중인 내용은 메모리에만 유지합니다.
+- 탭으로 초점을 옮겨도 표시된 노트를 대상으로 유지하며, 다른 파일을 열면 대상도 바뀝니다. 확정하지 않은 규격화 미리보기는 기능이나 노트를 바꾸면 취소됩니다. 진행·오류·결과 링크도 사이드바 안에 표시하며 작업 이력이나 관리 화면은 추가하지 않습니다. 기존 명령 팔레트·문맥 메뉴의 입력창은 유지합니다.
+- 요청에는 노트 경로와 마지막으로 본 내용의 해시만 보내고 본문은 보내지 않습니다.
+- Owner는 Mac에서 필요할 때 켜지는 사용자 서비스(LaunchAgent)입니다. **Owner 시작·중지** 명령이 직접 누를 때만 켜고 끄며, Obsidian을 종료해도 Owner는 계속 실행됩니다. 켜졌는지·꺼졌는지는 health가 실제로 응답하는지 보고 알려 주고, 확인하지 못하면 확인하지 못했다고 알립니다.
 
-## 작업 순서
+**제안 검토:**
 
-```mermaid
-flowchart LR
-    U[Obsidian에서 작성] --> V[정본 노트]
-    V --> M[vaultmcp 근거 읽기]
-    M --> P[산출물 또는 Pending 제안]
-    P --> E[독립 평가]
-    E --> R[GUI에서 검토와 결정]
-    R --> A[별도 정본 적용]
-```
+- 제안 노트에는 변경 체크리스트와 diff가 있습니다.
+- 원하지 않는 항목의 체크를 해제하고 **적용**하면 체크한 변경만 반영됩니다.
+- 그사이 대상 노트가 바뀌었으면 적용하지 않고 다시 요청하도록 안내합니다.
+- 같은 대상에는 열린 제안을 하나만 둡니다. 다시 만들 때도 KnowledgeOS가 쓴 그대로 남아 있는 제안만 교체하며, 사용자가 고친 제안과 내부 기록이 없는 제안은 보존하고 중복 생성하지 않습니다.
+- **거절**하면 제안 파일이 지워집니다. 기록은 Git에 남습니다.
 
-일곱 Team의 역할과 Officer 경로는 [Team 계약](docs/TEAMS_AND_ROADMAP.md), 정확한 현재 상태는 [PROJECT_STATE.md](PROJECT_STATE.md)를 확인하세요. Lexical 기본 검색과 선택형 Vector·Hybrid RRF·승인된 ontology 검색의 소스는 구현돼 있습니다. 실제 임베딩 모델의 설치·실행과 검색 품질·메모리 측정은 별도 채택 범위이며, 모델 다운로드는 보류돼 있습니다.
+## 관리: 브라우저와 CLI
+
+- **브라우저 관리 콘솔(로컬 전용):**
+  - 볼 수 있는 것: 작업 이력(WorkSpec, Graph, 역할별 호출·모델, 평가, 남은 작업, TeamReview), 예약 작업 실행 기록, 결과 불명, Bases로 볼 수 없는 주의 항목, 역할별 학습 기록, 상태.
+  - 할 수 있는 것: 작업 취소, 예약 작업 일시정지·재개, 결과 불명 확인 기록.
+- **CLI:** 상태 점검, 색인 재구축, Vault 점검, 대량 규격화, 역할 profile·예약 작업·Owner 서비스 설치, 복구.
+
+## KnowledgeOS의 조직
+
+각 객체는 서로 겹치지 않는 책임 하나만 온전히 소유합니다.
+
+| 객체 | 책임 |
+|---|---|
+| Director | 요청을 작업 명세(WorkSpec)로 접수. 정형 요청은 코드가, 자유 요청만 모델이 해석 |
+| CurationManager와 teammate(`scout`·`classifier`·`linker`) | **정리** Team. Manager는 필요한 teammate와 순서를 정하고, teammate는 각자 수집·분류·연결만 함 |
+| ThinkingManager와 teammate(`retriever`·`connector`·`challenger`·`synthesizer`) | **강화** Team. 근거 수집, 연결·긴장, 빈틈·반론, 보고서 작성을 나눠 맡음 |
+| StandardizationOfficer | **규격화**(결정적 코드) |
+| StewardshipOfficer | **문서 관리**: 주의 항목, 보관 제안, 요약 내용(결정적 코드) |
+| EvalOfficer | 모든 작업 결과를 독립적으로 평가. 만들거나 고치지 않음 |
+| Owner | 권한·정책, 파일 쓰기, 기록. 내용을 판단하지 않음 |
+
+- **Team의 진행:** 결과가 기준에 못 미치면 같은 Manager가 남은 부분만 다시 구성합니다. 예산 안에서만 합니다.
+- **TeamReview:** 완료 후 Manager가 teammate 성과와 개선 제안을 남깁니다. 제안은 TeamReview·역할 피드백·콘솔과 보관 기한이 있는 로컬 관찰 기록에만 남고, 검증된 성과로 간주하거나 HermesTrace 전송 후보로 자동 등록하지 않습니다. 역할 변경은 사용자가 명세를 고쳐서만 합니다.
+- **Hermes profile:** 모델을 쓰는 역할마다 별도 profile을 둡니다. Discord 봇은 모델 없는 `kos-ops` profile이 맡으며 알림 발송에만 쓰입니다.
+
+## 자동으로 일어나는 일
+
+Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시작합니다.
+
+| 작업 | 기본 주기 | 하는 일 |
+|---|---|---|
+| 규격화 | 매시간 | 바뀐 노트를 결정적으로 규격화 |
+| 임베딩 | 매시간 30분 | 새로 생기거나 바뀐 노트의 의미 검색용 벡터를 만듦 |
+| 정리 | 매일 06:00 | 새 포착과 종류 없는 `remote_ok` 노트에 정리 제안. 한 번에 최대 10개 |
+| 요약 | 매일 08:00 | Discord로 요약 발송 |
+
+- **Discord 요약:** 새 자동 변경, 검토 대기, 충돌·오류·실패 작업, 다시 볼 아이디어와 열린 질문을 보냅니다.
+- **즉시 알림:** 충돌·결과 불명·작업 실패는 바로 알립니다.
+- **알림 내용:** 본문 없이 제목과 링크만 보내며, `deny`·`local_only`·`confidential` 노트의 제목이나 식별 정보는 요약과 즉시 알림 모두에 넣지 않습니다.
+- **Discord는 알림만 합니다.** 메시지·반응·답장으로는 아무것도 승인되지 않습니다.
+- **Owner가 꺼져 있으면** 작업이 실행되지 않습니다. 잃는 것은 없습니다. 다시 켜고 `startup_delay_minutes`(기본 3분)가 지나면 놓친 작업을 한 번씩만 실행하고, 이후에는 정해진 시각에 실행합니다. 일시 중지한 작업은 건너뛰며, 재개해도 놓친 실행을 몰아서 하지 않습니다.
+
+## 개인정보: `ai_policy`
+
+| 값 | 의미 |
+|---|---|
+| `remote_ok` | 예약 작업을 포함해 모델이 사용할 수 있음 |
+| `ask` (기본) | 내가 직접 요청한 작업에서만 모델이 사용 |
+| `local_only` | 로컬 처리와 로컬 모델만 |
+| `deny` | KnowledgeOS가 읽지도, 색인하지도, 알리지도 않음 |
+
+- `confidential` 노트는 `ai_policy`와 관계없이 `local_only`로 다룹니다.
+- 결과물은 입력 중 가장 엄격한 정책을 물려받습니다.
+- `ai_policy`는 모델·자동화의 사용 범위만 정합니다. GitHub 동기화 여부는 Vault의 `.gitignore`가 정합니다.
+
+## 모바일
+
+**지금:**
+
+- iPhone·iPad에서는 Obsidian으로 쓰고 Working Copy로 GitHub와 동기화합니다.
+- 모바일용 KnowledgeOS는 만들지 않습니다.
+- 맥이 변경을 받아오면 맥의 KnowledgeOS가 예약 작업으로 규격화·정리합니다.
+- Discord 알림의 Obsidian 링크는 모바일에서도 열립니다.
+
+**후속 과제**(구현 공간 확보, 상세는 [기능 명세](docs/CAPABILITIES.md)의 Follow-up):
+
+| 과제 | 내용 |
+|---|---|
+| M1 단축어 | Apple 단축어로 템플릿 노트 생성, Working Copy pull·commit·push |
+| M2 Vault를 통한 요청 | 노트에 `kos_request` 표시나 `00_Inbox/Requests/` 요청 노트를 두면, 맥 KnowledgeOS가 동기화 후 처리하고 결과가 다시 동기화됨 |
+| M3 GitHub Actions | push 시 YAML·충돌 표시·중복 ID 같은 결정적 점검 |
+
+GitHub Actions에는 제약이 있습니다.
+
+- 모델을 호출하지 않고 KnowledgeOS 자격증명을 쓰지 않습니다.
+- commit은 Git 작성자 규칙을 바꾸는 결정 후에만 합니다.
+
+`kos_request` 속성과 `00_Inbox/Requests/` 폴더는 이 용도로 예약되어 있습니다.
+
+## Hermes와 함께 성장하기
+
+- **스스로 배웁니다.**
+  - 각 역할 profile은 Hermes native skill·memory로 자기 책임 안에서 스스로 익힙니다.
+  - 역할끼리 기억을 공유하지 않으며, 학습은 권한을 넓히지 못합니다.
+- **사용자의 반응에서 배웁니다.** 제안의 적용·체크 해제·거절, 되돌리기, 보고서 수정·삭제가 해당 역할의 피드백이 됩니다.
+- **다른 Operation과 함께 성장합니다.**
+  - 실제 실패, 사용자의 수정·거절·되돌리기, 정책 거부처럼 Core의 기존 분류에 맞는 근거가 있는 사건만 본문 없이 HermesTrace 후보로 전달합니다.
+  - TeamReview의 일반 개선 제안은 아직 평가하지 않은 로컬 관찰입니다. 후보나 전송 대기열로 자동 넘어가지 않으며, 나중에 자동 승격된다는 약속도 없습니다. 이후 실제 사용자 수정 같은 사건이 생기면 그 사건 자체의 근거로 새로 기록합니다.
+  - HermesTrace가 승격한 능력은 명시적으로 버전을 고정해 채택할 때만 반영됩니다. Core 계약과 스키마는 그대로 둡니다.
+- **다른 Operation과 정보를 주고받습니다.**
+  - 다른 Operation이 보낸 정보는 포착 노트로 들어와 같은 규격화·정리를 거칩니다.
+  - ExecutiveOffice의 조회에는 `remote_ok` 노트만 응답합니다.
+
+## 하지 않는 일
+
+- 브라우저·CLI에서 문서 작업하기. 둘은 관리용입니다.
+- Thin Client에 명령 호출 탭을 넘어 문서·작업 목록이나 설정을 늘리기. plugin으로 할 수 있으면 plugin을 씁니다.
+- 사용자 노트 삭제, 자동 병합, 판단이 필요한 변경의 자동 적용.
+- git commit·pull·push.
+- 다른 모델로 몰래 바꾸기, 의미 검색이 안 될 때 키워드 결과로 몰래 대체하기.
+- Discord로 명령 받기, 원격·다중 사용자 접속, 모바일 전용 KnowledgeOS.
+
+## 명세 운용
+
+명세는 단계별 산출물이 아니라 코드와 함께 움직이는 현재 계약입니다.
+
+- 이력·증거·설치 상태를 담지 않습니다. 이력은 Git에, 진행과 검증은 [PROJECT_STATE.md](PROJECT_STATE.md)에 둡니다.
+- 동작을 바꾸는 변경은 같은 변경 안에서 명세도 고칩니다. 낡은 문장은 표시하지 않고 지웁니다.
+- 기능 명세의 인수 시나리오가 곧 실행 가능한 테스트입니다.
+- 기능 하나를 끝까지 얇게 만들어 써 보고, 배운 것으로 명세를 고칩니다.
+- 정하지 않은 것은 Blueprint의 열린 질문에 두고, 필요한 시점에 결정합니다.
+- 기존 구현 중 이 방향과 맞는 부분은 [참고 자료 목록](../../Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md)에 있습니다. 명세가 우선합니다.

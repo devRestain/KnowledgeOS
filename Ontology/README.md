@@ -4,17 +4,15 @@ KnowledgeOS가 자기 도메인의 용어·관계와 필요한 의미 정렬을 
 
 ## 기존 정의의 원본
 
-설계 충돌은 [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md), [기계 registry](../blueprint/blueprint.yaml), [Whitepaper](../OBSIDIAN_VAULT_WHITEPAPER.md) 순서로 해소한다.
+설계 충돌은 [사용자 기능 명세](../USER_FEATURE_SPEC.md), [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md), [기능 명세](../docs/CAPABILITIES.md) 순서로 해소한다.
 
-| 원본 또는 파생 파일 | 정확한 범위와 역할 |
+| 원본 | 정확한 범위와 역할 |
 |---|---|
-| `blueprint/blueprint.yaml#/note_types` | 기존 note 종류와 각 종류의 계약 |
-| `blueprint/blueprint.yaml#/property_registry` | 속성 이름·값·참조 대상의 registry |
-| `blueprint/blueprint.yaml#/relation_registry` | canonical·context 관계, 방향과 provenance 규칙 |
-| `ops/policies/properties.yaml` | Blueprint에서 생성한 속성 정책 |
-| `ops/policies/relations.yaml` | Blueprint에서 생성한 관계 정책 |
+| `OBSIDIAN_VAULT_BLUEPRINT.md` §5.2 | note 종류, 상태값과 관례 폴더 |
+| `OBSIDIAN_VAULT_BLUEPRINT.md` §5.3 | 속성 이름·값과 관계 속성의 방향 |
+| `OBSIDIAN_VAULT_BLUEPRINT.md` §5.4 | `ai_policy`·`sensitivity`의 의미 |
 
-기존 정의는 이 폴더에 복제하지 않는다. 새 문서에서 필요한 원본 selector를 가리키고, 실행 계약을 바꾸어야 할 때 해당 원본과 그 검증·생성 경로를 함께 수정한다.
+기존 정의는 이 폴더에 복제하지 않는다. 새 문서에서 필요한 Blueprint 절을 가리키고, 정의를 바꾸어야 할 때 Blueprint를 먼저 수정한다.
 
 ## 작성할 문서
 

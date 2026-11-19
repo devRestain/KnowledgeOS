@@ -8,11 +8,10 @@
 
 ## Preserve authoritative inputs
 
-- Apply the existing Blueprint Markdown then blueprint YAML then Whitepaper precedence.
-- Reference `../blueprint/blueprint.yaml` selectors `note_types`, `property_registry`, and `relation_registry` for existing definitions.
-- Treat `../ops/policies/properties.yaml` and `../ops/policies/relations.yaml` as generated policy copies rather than separate ontology sources.
+- Apply the spec precedence: `../USER_FEATURE_SPEC.md`, then `../OBSIDIAN_VAULT_BLUEPRINT.md`, then `../docs/CAPABILITIES.md`.
+- Reference Blueprint §5.2 note types and §5.3 properties and relations for existing definitions.
 - Use `knowledgeos.domain` for new domain vocabulary while retaining existing Blueprint identifiers.
-- Keep existing registries authoritative until a separately selected owner change updates their contracts.
+- Keep the Blueprint authoritative until a spec change updates it.
 
 ## Author and use meanings
 

@@ -1,0 +1,15 @@
+{
+  "id": "C9",
+  "name": "Learning and Experience",
+  "version": "1",
+  "target": {"kind": "owner_service", "name": "Owner", "runtime": "static"},
+  "settings": {
+    "hermestrace_socket": null,
+    "hermestrace_credential_file": null,
+    "recipient_operation_id": "hermestrace",
+    "outbox_limit": 4,
+    "retention_days": 30,
+    "delivery_interval_seconds": 60,
+    "hermestrace_timeout_seconds": 5
+  }
+}

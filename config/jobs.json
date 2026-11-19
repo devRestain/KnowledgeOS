@@ -1,0 +1,28 @@
+{
+  "jobs": {
+    "standardize": {
+      "schedule": "0 * * * *",
+      "description": "C2 automatic path over notes changed since the last run",
+      "command": "standardize.auto",
+      "params": {}
+    },
+    "embed": {
+      "schedule": "30 * * * *",
+      "description": "C3 incremental embedding of notes that are new or changed since their last vectors",
+      "command": "index.embed",
+      "params": {}
+    },
+    "curate": {
+      "schedule": "0 6 * * *",
+      "description": "C1 over new captures and untyped remote_ok notes, at most 10 targets",
+      "command": "organize.auto",
+      "params": {}
+    },
+    "digest": {
+      "schedule": "0 8 * * *",
+      "description": "C5 computation and the C8 digest",
+      "command": "digest.run",
+      "params": {}
+    }
+  }
+}

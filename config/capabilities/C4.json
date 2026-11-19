@@ -1,0 +1,88 @@
+{
+  "id": "C4",
+  "name": "Enhance",
+  "version": "1",
+  "target": {
+    "kind": "team",
+    "name": "ThinkingTeam",
+    "manager": "thinking_manager",
+    "pool": {
+      "retriever": {"runtime": "static", "addresses": ["enh.citations_read"]},
+      "connector": {"runtime": "model", "submission": "submit_handoff", "addresses": ["enh.tensions_supported"]},
+      "challenger": {"runtime": "model", "submission": "submit_handoff", "addresses": ["enh.addresses_focus"]},
+      "synthesizer": {
+        "runtime": "model",
+        "submission": "submit_report",
+        "final": true,
+        "addresses": ["enh.citations_read", "enh.claims_labeled", "enh.sections_present", "enh.addresses_focus", "enh.tensions_supported"]
+      }
+    }
+  },
+  "evaluation": {"officer": "EvalOfficer", "role": "eval_officer", "runtime": "model", "profile": "kos-eval"},
+  "budget": {"segments": 2, "producer_invocations": 6, "same_gap_repeats": 1},
+  "commands": {
+    "enhance": {
+      "origins": ["user"],
+      "params": {
+        "mode": {"type": "string", "required": true, "enum": ["develop", "ask", "review"]},
+        "path": {"type": "string", "min": 1, "max": 1024},
+        "digest": {"type": "string", "min": 64, "max": 64},
+        "question": {"type": "string", "min": 1, "max": 2000},
+        "window": {"type": "object", "values": "string"}
+      }
+    }
+  },
+  "modes": {
+    "develop": {
+      "criteria": ["enh.citations_read", "enh.claims_labeled", "enh.sections_present", "enh.addresses_focus", "enh.tensions_supported"],
+      "sections": [
+        {"id": "core", "en": "Core in your own words", "ko": "내가 쓴 말로 본 핵심"},
+        {"id": "related", "en": "Related things you already wrote", "ko": "이미 쓴 관련 생각"},
+        {"id": "connections_tensions", "en": "Connections and tensions", "ko": "연결과 긴장"},
+        {"id": "gaps_questions", "en": "Gaps and open questions", "ko": "빈틈과 열린 질문"},
+        {"id": "next_steps", "en": "Possible next steps", "ko": "다음 걸음"}
+      ]
+    },
+    "ask": {
+      "criteria": ["enh.citations_read", "enh.claims_labeled", "enh.sections_present", "enh.addresses_focus", "enh.tensions_supported"],
+      "sections": [
+        {"id": "answer", "en": "Answer", "ko": "답"},
+        {"id": "supporting", "en": "Supporting notes", "ko": "뒷받침하는 노트"},
+        {"id": "conflicting", "en": "Conflicting notes", "ko": "상충하는 노트"},
+        {"id": "not_covered", "en": "What the Vault does not cover", "ko": "Vault가 다루지 않는 것"}
+      ]
+    },
+    "review": {
+      "criteria": ["enh.citations_read", "enh.claims_labeled", "enh.sections_present", "enh.addresses_focus"],
+      "sections": [
+        {"id": "moved", "en": "What moved", "ko": "움직인 것"},
+        {"id": "stalled", "en": "What stalled", "ko": "멈춘 것"},
+        {"id": "open_decisions", "en": "Open decisions", "ko": "열린 결정"},
+        {"id": "next_actions", "en": "Next actions", "ko": "다음 행동"}
+      ]
+    }
+  },
+  "criteria": {
+    "enh.citations_read": {
+      "runtime": "static",
+      "text": "Every citation in the report is an evidence handle read in this Work"
+    },
+    "enh.claims_labeled": {
+      "runtime": "static",
+      "text": "Every report claim is labeled cited, inference or not_found, and every cited claim has at least one citation"
+    },
+    "enh.sections_present": {
+      "runtime": "static",
+      "text": "The report has exactly the mode's sections, each with at least one claim"
+    },
+    "enh.addresses_focus": {
+      "runtime": "model",
+      "text": "The report addresses the focal note or question (in review mode, the project within the window)"
+    },
+    "enh.tensions_supported": {
+      "runtime": "model",
+      "text": "Every tension or conflict the report states is supported by the cited notes"
+    }
+  },
+  "settings": {"max_candidates": 8}
+}

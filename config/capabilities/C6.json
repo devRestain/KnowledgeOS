@@ -1,0 +1,9 @@
+{
+  "id": "C6", "name": "Review", "version": "1",
+  "target": {"kind": "owner_service", "name": "Owner", "runtime": "static"},
+  "commands": {
+    "review.apply": {"origins": ["user"], "params": {"path": {"type": "string", "required": true, "min": 1, "max": 1024}, "digest": {"type": "string", "required": true, "min": 64, "max": 64}}},
+    "review.reject": {"origins": ["user"], "params": {"path": {"type": "string", "required": true, "min": 1, "max": 1024}, "digest": {"type": "string", "required": true, "min": 64, "max": 64}}},
+    "review.undo": {"origins": ["user"], "params": {"path": {"type": "string", "required": true, "min": 1, "max": 1024}, "digest": {"type": "string", "required": true, "min": 64, "max": 64}}}
+  }
+}

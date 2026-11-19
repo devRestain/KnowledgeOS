@@ -1,0 +1,19 @@
+{
+  "id": "C10",
+  "name": "Gateway",
+  "version": "1",
+  "target": {"kind": "officer", "name": "Owner", "runtime": "static"},
+  "evaluation": {"officer": "EvalOfficer", "runtime": "static"},
+  "budget": {"segments": 1, "producer_invocations": 1},
+  "commands": {
+    "gateway.intake": {
+      "origins": ["gateway"],
+      "params": {"envelope": {"type": "object", "required": true}}
+    }
+  },
+  "modes": {"intake": {"criteria": ["gateway.capture_valid"]}},
+  "criteria": {
+    "gateway.capture_valid": {"runtime": "static", "text": "The new capture preserves the submitted text, sender provenance and Owner default policy"}
+  },
+  "settings": {"authorized_operations": {}}
+}

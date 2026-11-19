@@ -1,0 +1,27 @@
+{
+  "id": "C1", "name": "Organize", "version": "1",
+  "target": {"kind": "team", "name": "curation", "manager": "curation_manager", "pool": {
+    "scout": {"runtime": "static", "addresses": ["org.links_read", "org.tags_marked"]},
+    "classifier": {"runtime": "model", "submission": "submit_handoff", "addresses": ["org.enums_valid", "org.tags_marked", "org.classification_supported"]},
+    "linker": {"runtime": "model", "submission": "submit_handoff", "addresses": ["org.links_read", "org.links_supported"]}
+  }},
+  "evaluation": {"officer": "EvalOfficer", "role": "eval_officer", "runtime": "model", "profile": "kos-eval"},
+  "budget": {"segments": 2, "producer_invocations": 6, "same_gap_repeats": 1},
+  "commands": {
+    "organize": {"origins": ["user"], "params": {
+      "paths": {"type": "array", "items": "string", "required": true, "min": 1, "max": 500},
+      "digests": {"type": "object", "values": "string", "default": {}}
+    }},
+    "organize.auto": {"origins": ["schedule"], "params": {}}
+  },
+  "modes": {"organize": {"criteria": ["org.enums_valid", "org.links_read", "org.tags_marked", "org.one_open_proposal", "org.classification_supported", "org.links_supported"]}},
+  "criteria": {
+    "org.enums_valid": {"runtime": "static", "text": "Every classification uses a valid type and status and every link uses an admitted relation property"},
+    "org.links_read": {"runtime": "static", "text": "Every link and capture attachment targets evidence read in this Work"},
+    "org.tags_marked": {"runtime": "static", "text": "Each tag outside the readable existing vocabulary is marked new; existing tags are not marked new"},
+    "org.one_open_proposal": {"runtime": "static", "text": "There is at most one open proposal per target; an existing proposal is regenerated, never duplicated"},
+    "org.classification_supported": {"runtime": "model", "text": "Each target's classification, title, tags and folder choice is supported by its cited note content"},
+    "org.links_supported": {"runtime": "model", "text": "Each proposed link or capture attachment is supported by the cited note content; an omitted linker proposes no links"}
+  },
+  "settings": {"max_candidates": 5}
+}

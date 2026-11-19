@@ -3,28 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KnowledgeOS · 운영 상태</title>
-<link rel="stylesheet" href="/console/style.css">
-<script src="/console/app.js" defer></script>
+<meta name="referrer" content="no-referrer">
+<title>KnowledgeOS 콘솔</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#workspace">운영 상태 본문으로 이동</a>
-<header class="masthead"><a class="brand" href="/console/">KnowledgeOS <span>운영 상태</span></a><p>문서 작업은 Obsidian에서, 운영 관리는 여기에서.</p><span id="connection-state" class="badge">Owner 확인 중</span></header>
-<section class="owner-connection" aria-label="로컬 Owner 상태">
-<div class="row"><button id="refresh-owner" type="button">Owner 새로 조회 · 재시도</button><button id="disconnect" type="button">연결 해제 · 화면 지우기</button></div>
-<p id="owner-status">이 기기의 로컬 Owner 상태를 자동으로 조회합니다.</p>
-<details><summary>Owner 운영 binding 관측 (실시간 Worker 상태 아님)</summary><pre id="owner-record"></pre></details>
+<a class="skip" href="#main">본문으로 이동</a>
+<header class="masthead">
+  <span class="brand">KnowledgeOS <small>운영 콘솔</small></span>
+  <span id="health-badge" class="badge s-warn" role="status" aria-live="polite" aria-atomic="true" title="Owner 상태">상태 확인 중</span>
+  <span id="health-observed" class="observed"></span>
+  <button id="health-refresh" class="icon" type="button" aria-label="상태 새로 조회" title="상태 새로 조회">⟳</button>
+</header>
+<section id="health" class="health" aria-label="Owner 상태">
+  <dl id="health-facts" class="facts"></dl>
+  <div id="health-deps" class="chips" aria-label="의존성"></div>
+  <ul id="health-blockers" class="blockers"></ul>
 </section>
-<div id="notice" class="notice" role="status" aria-live="polite" aria-atomic="true">Owner 상태만 자동 조회합니다. 운영 명령은 직접 요청하며 자동 재시도하지 않습니다.</div>
-<main id="workspace" tabindex="-1">
-<section class="work-list"><div class="section-head"><div><h1>작업 실행 기록과 운영 제어</h1><p>문서 검색·작업 요청·결과 검토·Pending 결정과 별도 적용·일일 검토는 native Obsidian에서 수행하세요. 여기서는 Owner에 보관된 Work와 실행 근거를 읽습니다. 모든 native Workflow의 실시간 목록은 아닙니다.</p></div><button id="refresh-history" type="button" data-owner>최근 Work 새로 조회</button></div><p id="history-observed" class="observation"></p><div id="history-list"></div><button id="history-more" type="button" data-owner hidden>이전 Work 조회</button><details><summary>정확한 WorkRun ID로 직접 열기</summary><form id="open-work-form" class="row"><label class="grow" for="work-id">WorkRun ID<input id="work-id" name="work_run_id" required maxlength="160" autocomplete="off" spellcheck="false" placeholder="workrun.…"></label><button type="submit" data-owner>작업 열기</button></form></details></section>
-<section aria-labelledby="roles-title"><div class="section-head"><h2 id="roles-title">현재 설정된 역할 · 모델 · 프롬프트</h2><button id="refresh-policy" type="button" data-owner>역할 설정 새로 조회</button></div><p>현재 maintained COMMON + SOUL과 허용 route입니다. 과거 실행 당시 소비한 프롬프트·모델의 증거가 아니며, manual home 이름은 설치·실행 관측이 아닙니다.</p><p id="policy-observed" class="observation"></p><div id="role-policy"></div></section>
-<section aria-labelledby="methods-title"><div class="section-head"><h2 id="methods-title">Method 등록·입력 계약</h2><button id="refresh-methods" type="button" data-owner>목록 새로 조회</button></div><p>운영자용 입력 계약 미리보기입니다. 실제 문서 Work 요청은 Obsidian 작업 패널에서 제출하세요. 아래 입력은 저장·전송되지 않습니다.</p><label for="method-id">작업 종류<select id="method-id" data-owner></select></label><p id="method-status"></p><div id="method-parameters"></div><details><summary>정확한 descriptor</summary><pre id="method-record"></pre></details></section>
-<section id="work-detail" hidden><div class="section-head"><h2>작업 상세</h2><button id="refresh-work" type="button" data-owner>상세 새로 조회</button></div><p id="work-observed" class="observation"></p><div id="work-summary"></div><h3>완료 기준과 독립 평가</h3><div id="criteria"></div><h3>현재 세그먼트와 계보</h3><div id="segments"></div><details><summary>허용 Profiles · 명시적 배정 pin · 계속 실행 한도</summary><pre id="profiles"></pre></details><div id="gaps"></div>
-<section aria-labelledby="invocations-title"><h3 id="invocations-title">실제로 보관된 역할 호출</h3><p>Director · Manager · specialist/Officer · 독립 Eval의 과거 관측입니다. 미관측은 미실행의 증명이 아닙니다. 요청 지시문, COMMON+SOUL digest, 합성 instructions digest, 실제 wire digest를 구분합니다. 과거 원문이 보관되지 않았다면 현재 프롬프트로 대체하지 않습니다.</p><div id="invocations"></div><details><summary>이전 세그먼트의 독립 평가와 RemainingWork</summary><div id="prior-assessments"></div></details></section>
-<section class="controls"><h3>안전한 실행 제어</h3><p>현재 checkpoint와 control revision에 묶인 명령만 접수합니다. 접수(received)와 실제 적용(applied)은 다릅니다. Worker 상태는 이 화면에서 실시간 확인할 수 없습니다.</p><button id="control-target" type="button" data-owner>제어 대상 새로 확인</button><pre id="target">제어 대상 미조회</pre><div class="row"><button id="control-pause" type="button" data-write>일시 정지 요청</button><button id="control-resume" type="button" data-write>다시 실행 요청</button><button id="control-cancel" class="danger" type="button" data-write>취소 요청</button></div><form id="command-form" class="row"><label class="grow" for="command-id">명령 ID<input id="command-id" maxlength="96" required></label><button type="submit" data-owner>접수·적용 상태 조회</button></form><pre id="command-state">명령 없음</pre></section>
-<section class="result"><h3>기록된 독립 평가 결과와 근거</h3><p>운영 진단용 읽기입니다. 문서 결과 검토·결정·적용은 Obsidian에서 수행하세요.</p><p id="result-state"></p><div id="result-evidence"></div><details><summary>보관된 결과 artifact 본문 (운영 근거)</summary><pre id="result-text"></pre></details><details><summary>평가 및 근거 참조 원본</summary><pre id="result-record"></pre></details></section></section>
+<nav class="tabs" aria-label="보기">
+  <a href="#works" data-tab="works">🗂 작업</a>
+  <a href="#jobs" data-tab="jobs">⏱ 예약</a>
+  <a href="#unknowns" data-tab="unknowns">❓ 결과 불명</a>
+  <a href="#attention" data-tab="attention">⚠ 주의</a>
+  <a href="#notices" data-tab="notices">🔔 알림</a>
+  <a href="#experience" data-tab="experience">📤 Experience</a>
+  <a href="#roles" data-tab="roles">🧭 역할</a>
+  <a href="#requests" data-tab="requests">🧾 요청</a>
+</nav>
+<div id="notice" class="notice" role="status" aria-live="polite" aria-atomic="true">관측 전용 화면입니다. 관리 요청은 ExOps 접수를 거치며 자동 재전송하지 않습니다.</div>
+<main id="main" tabindex="-1">
+  <section data-view="works" hidden>
+    <div class="head"><h1>작업</h1><span class="observed" data-observed-for="works"></span><button class="icon" type="button" data-refresh="works" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <div id="works-body"></div>
+  </section>
+  <section data-view="work" hidden>
+    <div class="head"><a class="back" href="#works" aria-label="작업 목록" title="작업 목록">←</a><h1>작업 상세</h1><span class="observed" data-observed-for="work"></span><button class="icon" type="button" data-refresh="work" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <div id="work-body"></div>
+  </section>
+  <section data-view="jobs" hidden>
+    <div class="head"><h1>예약 작업</h1><span class="observed" data-observed-for="jobs"></span><button class="icon" type="button" data-refresh="jobs" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <div id="jobs-body"></div>
+  </section>
+  <section data-view="unknowns" hidden>
+    <div class="head"><h1>결과 불명</h1><span class="observed" data-observed-for="unknowns"></span><button class="icon" type="button" data-refresh="unknowns" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <p class="hint">결과 불명 효과는 자동으로 재시도하지 않습니다. 실제 상태를 직접 확인한 뒤에만 확인 기록을 남기세요.</p>
+    <div id="unknowns-body"></div>
+  </section>
+  <section data-view="attention" hidden>
+    <div class="head"><h1>주의 항목</h1><span class="observed" data-observed-for="attention"></span><button class="icon" type="button" data-refresh="attention" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <p class="hint">Bases로 표현할 수 없는 계산된 항목입니다. 노트 편집은 Obsidian에서 합니다.</p>
+    <div id="attention-body"></div>
+  </section>
+  <section data-view="notices" hidden>
+    <div class="head"><h1>알림 기록</h1><span class="observed" data-observed-for="notices"></span><button class="icon" type="button" data-refresh="notices" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <div id="notices-body"></div>
+  </section>
+  <section data-view="experience" hidden>
+    <div class="head"><h1>Experience outbox</h1><span class="observed" data-observed-for="experience"></span><button class="icon" type="button" data-refresh="experience" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <p class="hint">로컬 관측은 미평가 SourceEvent만 보관합니다. Candidate 생성이나 외부 전달을 뜻하지 않습니다.</p>
+    <div id="experience-body"></div>
+  </section>
+  <section data-view="roles" hidden>
+    <div class="head"><h1>역할 · profile · 학습 기록</h1><span class="observed" data-observed-for="roles"></span><button class="icon" type="button" data-refresh="roles" aria-label="새로 조회" title="새로 조회">⟳</button></div>
+    <div id="roles-body"></div>
+  </section>
+  <section data-view="requests" hidden>
+    <div class="head"><h1>관리 요청 결과</h1></div>
+    <p class="hint">이 화면에서 보낸 요청입니다(새로고침하면 지워집니다). 접수됨 → 적용됨 또는 결과 불명 순으로 표시합니다.</p>
+    <div id="requests-body"></div>
+  </section>
 </main>
-<footer>KnowledgeOS Owner 관측값만 표시합니다. 화면 데이터는 저장하지 않으며 새로고침·연결 해제 시 지웁니다. 페이지를 열면 Owner 상태를 자동 조회하며 실시간 스트림은 연결하지 않습니다.</footer>
+<footer>로컬 Owner의 관측값만 표시합니다. 문서 작업은 Obsidian에서 합니다.</footer>
 </body>
 </html>

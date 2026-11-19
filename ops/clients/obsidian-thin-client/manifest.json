@@ -1,9 +1,0 @@
-{
-  "id": "knowledgeos-thin-client",
-  "name": "KnowledgeOS Thin Client",
-  "version": "0.8.0",
-  "minAppVersion": "1.5.0",
-  "description": "Native KnowledgeOS document work, evidence, review and existing Obsidian integrations.",
-  "author": "KnowledgeOS",
-  "isDesktopOnly": true
-}

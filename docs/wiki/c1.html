@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>C1 정리 · KnowledgeOS 위키</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body class="wiki" data-slug="c1">
+<a class="skip" href="#content">본문으로</a>
+<header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
+<div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html" aria-current="page">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C1 정리</span></nav>
+<article class="page">
+<h1 id="top">C1 정리 (Organize)</h1>
+<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
+<p><strong>정리</strong>는 아직 자리가 없는 노트를 지식 구조 안에 놓아 주는 기능입니다. Curation Team이 노트의 종류·제목·태그·링크·위치를 읽고 <em>제안</em>을 만들며, 원본 노트는 건드리지 않습니다. 제안을 적용할지는 사용자가 <a class="wikilink" href="c6.html">검토</a> 단계에서 결정합니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>항목</th>
+<th>내용</th>
+</tr></thead><tbody>
+<tr><td>트리거</td><td>Thin Client &quot;정리 요청&quot;(현재 노트·선택한 파일·폴더), 예약 작업 <code>curate</code>(<a class="wikilink" href="c7.html">C7</a>), Gateway 수신 포착(<a class="wikilink" href="c10.html">C10</a>)</td></tr>
+<tr><td>담당</td><td>Curation Team: CurationManager(모델), <code>scout</code>(정적), <code>classifier</code>(모델), <code>linker</code>(모델), 독립 평가자 EvalOfficer</td></tr>
+<tr><td>결과물</td><td><code>01_AI_Review/Proposals/</code>의 제안 노트(대상 노트 하나당 하나)</td></tr>
+<tr><td>사용자 결정 여부</td><td>예. 제안은 사용자가 적용해야만 반영되고, 정리가 스스로 원본 노트를 바꾸지 않습니다</td></tr>
+</tbody></table></div>
+<p>한 번의 요청(Work)이 다루는 노트는 최대 10개입니다. 용어(Work, Proposal, Handoff 등)는 <a class="wikilink" href="glossary.html">용어</a>에 정리되어 있습니다.</p>
+<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
+<p>USER_FEATURE_SPEC.md의 &#x27;지키는 약속&#x27; 가운데 세 가지를 직접 보호합니다.</p>
+<ul>
+<li><strong>약속 1 · Vault는 사용자의 것입니다.</strong> 정리 결과는 파일을 직접 고치지 않고 제안 노트로만 나옵니다. 없다면 판단이 필요한 이동·이름 변경·태그 변경이 사용자 모르게 일어날 수 있습니다.</li>
+<li><strong>약속 4 · 자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong> 종류·제목·링크·위치는 판단이 필요한 변경이므로 자동 적용 대상이 아닙니다. 매일 자동으로 도는 <code>curate</code>도 제안까지만 만듭니다.</li>
+<li><strong>약속 7 · 근거를 밝힙니다.</strong> 모든 분류와 링크는 이번 Work에서 실제로 읽은 노트 내용에 기대야 하고, 독립 평가자가 그 근거를 따로 확인합니다.</li>
+</ul>
+<p>개인정보 경계(<a class="wikilink" href="philosophy.html">운용 원칙</a>의 <code>ai_policy</code> 설명과 <a class="wikilink" href="glossary.html">용어</a> 참고)도 이 명세에 들어 있습니다. 예약 실행과 Gateway 실행은 <code>remote_ok</code> 노트만 모델에 보여 줍니다.</p>
+<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
+<h3 id="obsidian-thin-client-사이드바명령">Obsidian Thin Client (사이드바·명령)<a class="anchor" href="#obsidian-thin-client-사이드바명령" aria-label="이 제목 링크">#</a></h3>
+<ol>
+<li>정리할 노트를 엽니다. 사이드바는 마지막으로 활성화된 Markdown 노트를 대상으로 표시합니다.</li>
+<li>사이드바에서 <strong>정리</strong>를 선택한 뒤 아래 기능 창의 <strong>정리 요청</strong>을 누릅니다. 기능 선택만으로는 요청하지 않습니다. 명령 팔레트·파일 메뉴의 <strong>정리 요청</strong>으로도 실행할 수 있으며, 선택한 여러 파일·폴더는 해당 명령에서 대상으로 고릅니다(C11 명령표).</li>
+<li>요청에는 노트 경로와 마지막으로 본 내용의 해시만 실리고 본문은 실리지 않습니다(<a class="wikilink" href="c11.html#SUR-1">SUR-1</a>).</li>
+<li>끝나면 사이드바에는 완료 상태와 결과 링크가 표시되고, 명령 팔레트·문맥 메뉴에서는 요청당 하나의 완료 알림이 뜹니다. 생성된 제안은 <code>01_AI_Review/Proposals/</code>에서 검토합니다.</li>
+<li>제안 노트를 열어 체크리스트를 보고, 원하지 않는 항목의 체크를 해제한 뒤 <strong>적용</strong> 또는 <strong>거절</strong>을 누릅니다(<a class="wikilink" href="c6.html">C6</a>). 적용은 체크한 변경만 반영하고, 거절은 제안 파일을 지웁니다.</li>
+</ol>
+<div class="callout callout-tip">
+<p class="callout-title">도움말</p>
+<p>사이드바에는 Owner가 켜져 있어야 요청이 접수됩니다. 탭을 열기만 해서는 Owner가 켜지거나 꺼지지 않습니다. 자세한 조작은 <a class="wikilink" href="usage.html">사용 가이드</a>를 보세요.</p>
+</div>
+<h3 id="자동-경로">자동 경로<a class="anchor" href="#자동-경로" aria-label="이 제목 링크">#</a></h3>
+<ul>
+<li><strong>예약 작업 <code>curate</code></strong>: 매일 06:00(Asia/Seoul)에 새 포착과 종류 없는 <code>remote_ok</code> 노트를 대상으로 정리를 요청하며, 한 번에 최대 10개입니다(<a class="wikilink" href="c7.html#JOB-2">JOB-2</a>). Owner가 켜져 있는 동안에만 돌고, 꺼져 있었다면 시작 후 지연(기본 3분)이 지나 놓친 작업을 한 번만 실행합니다(<a class="wikilink" href="c7.html">C7</a>).</li>
+<li><strong>Gateway 수신 포착</strong>: 다른 Operation이 보낸 정보는 <code>00_Inbox/</code>의 <code>capture</code> 노트로 들어온 뒤 같은 정리를 거칩니다(<a class="wikilink" href="c10.html">C10</a>, <a class="wikilink" href="c10.html#GW-1">GW-1</a>).</li>
+<li><strong>CLI</strong>: <code>knowledgeos job run curate</code>로 같은 작업을 직접 실행할 수 있고, 결과는 실행 영수증까지 따라가 보고됩니다(README).</li>
+</ul>
+<h3 id="작업-예-인박스의-종류-없는-노트">작업 예: 인박스의 종류 없는 노트<a class="anchor" href="#작업-예-인박스의-종류-없는-노트" aria-label="이 제목 링크">#</a></h3>
+<ol>
+<li><code>00_Inbox/</code>에 frontmatter 없이 쓴 메모가 있습니다.</li>
+<li>사용자가 사이드바에서 <strong>정리</strong>를 선택하고 아래 기능 창의 <strong>정리 요청</strong>을 누릅니다.</li>
+<li><code>scout</code>가 대상 노트, 관련 후보 노트, 기존 태그 목록을 모으고, <code>classifier</code>가 종류·상태·제목·태그·폴더를, <code>linker</code>가 기존 노트와의 링크를 정합니다.</li>
+<li>평가를 통과하면 제안 노트 하나가 생기고, 원래 메모는 그대로입니다(<a class="wikilink" href="#ORG-1">ORG-1</a>).</li>
+<li>사용자가 제안에서 &quot;폴더 이동&quot;만 체크 해제하고 <strong>적용</strong>하면, 나머지 변경은 반영되고 파일은 제자리에 남습니다(<a class="wikilink" href="#ORG-4">ORG-4</a>).</li>
+</ol>
+<h3 id="제안의-구성">제안의 구성<a class="anchor" href="#제안의-구성" aria-label="이 제목 링크">#</a></h3>
+<p>제안의 변경 항목은 체크리스트로 나옵니다(CAPABILITIES C1).</p>
+<ul>
+<li><code>type</code>과 그 종류에서 유효한 <code>status</code>는 <strong>하나의 묶음 항목</strong>입니다.</li>
+<li><code>title</code>.</li>
+<li><code>tags</code>: 기존 태그 목록에서 고르며, 새 태그는 새 것이라고 표시합니다.</li>
+<li>링크(<code>related</code>, <code>projects</code>, <code>sources</code>, 또는 타입이 있는 관계).</li>
+<li>관례 폴더로의 이동.</li>
+<li><strong>포착(capture)</strong>인 경우: 목적지 종류의 유효한 상태와 함께 타입이 있는 노트로 바꾸거나(예: <code>idea</code>와 <code>seed</code>), <code>capture</code>로 남기고 <code>status: processed</code>로 표시합니다. 기존 노트에 붙이는 경우에는 같은 포착에 <code>related</code> 링크만 더하고 <code>capture</code>/<code>processed</code>로 남기며, 다른 노트의 본문은 고치지 않습니다. 어느 경우에도 제안 하나는 대상 하나만 바꿉니다.</li>
+</ul>
+<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
+<p>정리는 공통 Work 흐름의 Team 경로를 따릅니다. 아래 그림은 요청이 Director에게 접수된 뒤 Manager가 그래프를 구성하고, 팀원이 일하고, EvalOfficer가 평가하는 과정을 보여 줍니다. 정리에서는 Manager가 CurationManager, 팀원이 <code>scout</code>·<code>classifier</code>·<code>linker</code>이며 마지막 쓰기는 제안 노트 하나입니다.</p>
+<figure class="diagram diagram-work-flow">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 400" width="100%" preserveAspectRatio="xMidYMid meet"><title>Work 흐름: 요청에서 Director 승인, 실행, 평가, Owner 효과, TeamReview까지</title><defs><marker id="d-arrow-work-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M170,150 L210,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M360,150 L380,150 L380,60 L400,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M380,150 L380,240 L400,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="372" y="104" text-anchor="end" font-size="13">Officer 대상</text><text class="d-label-small" x="372" y="200" text-anchor="end" font-size="13">Team 대상</text><path class="d-edge" d="M550,240 L590,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M665,212 L665,178" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M550,60 L635,60 L635,122" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M740,150 L780,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="760" y="140" text-anchor="middle" font-size="13">충족</text><path class="d-edge" d="M855,178 L855,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge d-edge-dashed" d="M590,150 L475,150 L475,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="530" y="142" text-anchor="middle" font-size="13">미충족 · 예산 내</text><path class="d-edge d-edge-dashed" d="M710,122 L710,60 L780,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="745" y="48" text-anchor="middle" font-size="13">예산 소진</text><rect class="d-box-muted" x="20" y="122" width="150" height="56" rx="8"/><text class="d-label" x="95" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="95" dy="0" font-size="14">요청</tspan><tspan class="d-label-small" x="95" dy="18" font-size="13">표면·작업·Gateway</tspan></text><rect class="d-box-accent" x="210" y="122" width="150" height="56" rx="8"/><text class="d-label" x="285" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="285" dy="0" font-size="14">Director 승인</tspan><tspan class="d-label-small" x="285" dy="18" font-size="13">WorkSpec 확정</tspan></text><rect class="d-box" x="400" y="32" width="150" height="56" rx="8"/><text class="d-label" x="475" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Officer 단계</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">정적 · 단독 결과</tspan></text><rect class="d-box" x="400" y="212" width="150" height="56" rx="8"/><text class="d-label" x="475" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Manager</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">그래프·후속 구간</tspan></text><rect class="d-box" x="590" y="212" width="150" height="56" rx="8"/><text class="d-label" x="665" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">팀원 단계</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">handoff 산출</tspan></text><rect class="d-box-accent" x="590" y="122" width="150" height="56" rx="8"/><text class="d-label" x="665" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">EvalOfficer</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">독립 평가</tspan></text><rect class="d-box-ok" x="780" y="122" width="150" height="56" rx="8"/><text class="d-label" x="855" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">Owner 효과</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">기록 · 영수증</tspan></text><rect class="d-box-warn" x="780" y="32" width="150" height="56" rx="8"/><text class="d-label" x="855" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">사용자에게 표시</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">새 요청이 필요</tspan></text><rect class="d-box-muted" x="780" y="212" width="150" height="56" rx="8"/><text class="d-label" x="855" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">TeamReview</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">팀원 평가·제안</tspan></text><rect class="d-lane" x="20" y="290" width="920" height="96" rx="10"/><text class="d-label" x="480" y="325" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner가 검증하고 기록한다 · 모델은 판단만 담당한다</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정적 검사 먼저, EvalOfficer 모델은 의미 기준만 판단 · 기본 예산: Team 2구간·생산 6회, Officer 1구간</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">같은 미충족이 연속 두 체크포인트에 남으면 Work는 미충족으로 종료 · 대상이 바뀌면 새 Director 승인</tspan></text></svg>
+</figure>
+<ul>
+<li>CurationManager는 Work에 필요한 팀원만 고릅니다. 예를 들어 관련 노트가 없을 법한 포착에는 <code>linker</code>를 건너뛸 수 있습니다.</li>
+<li>평가자는 Manager의 지시를 받지 않습니다. Manager의 그래프 제안에 EvalOfficer에게 주는 지시가 들어 있으면 Owner는 제안을 거부하고 어떤 구간도 시작하지 않습니다(<a class="wikilink" href="#ORG-5">ORG-5</a>).</li>
+<li>평가에서 분류 하나가 근거 부족으로 판정되면, CurationManager가 해당 대상에 <code>classifier</code>만 다시 돌리는 후속 구간 하나를 예산 안에서 구성합니다(<a class="wikilink" href="#ORG-6">ORG-6</a>).</li>
+<li>제안은 사용자가 결정할 때까지 같은 대상에 대해 하나만 열려 있습니다. 다시 요청하면 Owner가 쓴 바이트 그대로인 제안만 제자리 갱신되고, 사용자가 고친 제안은 보존됩니다(아래 &quot;거부와 보존&quot; 참고).</li>
+</ul>
+<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
+<section class="source-include">
+<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C1 Organize</header>
+<h3 id="c1-organize">C1 Organize<a class="anchor" href="#c1-organize" aria-label="이 제목 링크">#</a></h3>
+<p>The Curation Team places notes into the knowledge structure: classification, naming, tags, links and location.</p>
+<ul>
+<li><strong>Triggers</strong>: Thin Client &quot;정리 요청&quot; on the current note, a selection of files or a folder; the scheduled <code>curate</code> job (C7); a Gateway intake capture (C10).</li>
+<li><strong>Input</strong>: up to 10 target notes per Work. Scheduled and Gateway-triggered Work only gives models notes whose effective policy is <code>remote_ok</code>.</li>
+<li><strong>Team pool</strong>:
+<ul>
+<li><code>scout</code> (static): collects the target notes, candidate related notes and the tag vocabulary.</li>
+<li><code>classifier</code> (model): decides type, status, title, tags and conventional folder per note.</li>
+<li><code>linker</code> (model): decides links and typed relations to existing notes, and whether a capture should attach to an existing note.</li>
+</ul></li>
+<li><strong>Manager</strong>: CurationManager picks the teammates the Work needs. For example, a capture with no plausible related notes may skip <code>linker</code>.</li>
+<li><strong>Output</strong>: the Owner renders one proposal per target from the handoffs. Each change is a checklist item:
+<ul>
+<li><code>type</code> and its valid <code>status</code> together as one atomic checklist item.</li>
+<li><code>title</code>.</li>
+<li><code>tags</code>, chosen from the existing vocabulary unless marked new.</li>
+<li>Links (<code>related</code>, <code>projects</code>, <code>sources</code>, or a typed relation).</li>
+<li>A move to the conventional folder.</li>
+<li>For a capture, either conversion to a typed note with that destination type&#x27;s valid status (for example, <code>idea</code> with <code>seed</code>), or retention as <code>capture</code> with <code>status: processed</code>. Attaching to an existing note adds a <code>related</code> link on the same capture and leaves it <code>capture</code>/<code>processed</code>; it never edits the other note&#x27;s body. Every proposal still changes only its single target.</li>
+</ul></li>
+<li><strong>Criteria</strong>:
+<ul>
+<li>Static: every enum value is valid; every link target was read in this Work; new tags are marked; there is at most one open proposal per target.</li>
+<li>Semantic, judged by the model EvalOfficer: each classification and link is supported by the cited note content.</li>
+</ul></li>
+<li><strong>Refuses</strong>: <code>deny</code> notes; notes with conflict markers; ambiguous-ID targets. A target with an open or stale proposal never gains a second one. Regeneration may replace only the exact bytes still recorded as Owner-written; user-edited or State-unrecorded proposals are preserved (Blueprint §5.6).</li>
+</ul>
+<p>Acceptance:</p>
+<ul>
+<li><strong><a class="wikilink" href="#ORG-1">ORG-1</a></strong> Given an untyped note in <code>00_Inbox/</code>, when organize runs, then one proposal lists a type, a title and at least one existing related note, and the note itself is unchanged.</li>
+<li><strong><a class="wikilink" href="#ORG-2">ORG-2</a></strong> Given the <code>linker</code> cites a note it never read in this Work, then that handoff fails validation, the <code>linker</code> gets one corrective turn, and a second failure leaves the link criterion unmet.</li>
+<li><strong><a class="wikilink" href="#ORG-3">ORG-3</a></strong> Given a scheduled run and a note with <code>ai_policy: ask</code>, then no model role receives that note&#x27;s content.</li>
+<li><strong><a class="wikilink" href="#ORG-4">ORG-4</a></strong> Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.</li>
+<li><strong><a class="wikilink" href="#ORG-5">ORG-5</a></strong> Given the CurationManager&#x27;s Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.</li>
+<li><strong><a class="wikilink" href="#ORG-6">ORG-6</a></strong> Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only <code>classifier</code> for that target, within budget.</li>
+</ul>
+</section>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트이며, 아래 표는 각 ID가 어느 구현과 어느 pytest 노드로 확인되는지 기능 추적표(docs/CAPABILITY_TRACE.md)에서 가져옵니다. 모델 단계는 스크립트로 된 역할 응답을 쓰며, 실제 모델 호출은 별도의 실환경 점검으로 따로 기록됩니다.</p>
+<div class="table-wrap"><table class="acceptance">
+<thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-1" href="#ORG-1">ORG-1</a></td><td class="acc-example">Given an untyped note in <code>00_Inbox/</code>, when organize runs, then one proposal lists a type, a title and at least one existing related note, and the note itself is unchanged.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c1_organize.py::finish</code><br><code>src/knowledgeos/proposals.py::write_or_regenerate</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_1_untyped_inbox_gets_one_supported_proposal_without_changing_note</code></li><li><code>tests/test_c1_organize.py::test_ORG_open_proposal_regenerates_instead_of_creating_another</code></li><li><code>tests/test_c1_organize.py::test_ORG_refuses_deny_conflict_ambiguous_id_but_allows_ordinary_root_markdown</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-2" href="#ORG-2">ORG-2</a></td><td class="acc-example">Given the <code>linker</code> cites a note it never read in this Work, then that handoff fails validation, the <code>linker</code> gets one corrective turn, and a second failure leaves the link criterion unmet.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c1_organize.py::validate_linker</code><br><code>src/knowledgeos/capabilities/c1_organize.py::check_links</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_2_unread_link_gets_corrective_turn_then_link_criterion_unmet</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-3" href="#ORG-3">ORG-3</a></td><td class="acc-example">Given a scheduled run and a note with <code>ai_policy: ask</code>, then no model role receives that note&#x27;s content.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c1_organize.py::admit_auto</code><br><code>src/knowledgeos/evidence.py::Evidence</code></td><td class="acc-tests"><details><summary>테스트 4개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_3_scheduled_roles_never_receive_ask_note_content</code></li><li><code>tests/test_policy_boundaries.py::test_automatic_curation_local_roles_cannot_search_related_or_context_private_notes</code></li><li><code>tests/test_policy_boundaries.py::test_automatic_curation_rechecks_snapshot_and_current_reads_for_local_roles</code></li><li><code>tests/test_policy_boundaries.py::test_eval_view_never_discloses_newly_restricted_retained_excerpts_to_local_eval</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-4" href="#ORG-4">ORG-4</a></td><td class="acc-example">Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c6_review.py::apply</code><br><code>src/knowledgeos/proposals.py::apply</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_4_unchecked_move_keeps_file_in_place</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-5" href="#ORG-5">ORG-5</a></td><td class="acc-example">Given the CurationManager&#x27;s Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._compose</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_5_manager_cannot_instruct_evaluation</code></li><li><code>tests/test_team_engine.py::test_team_graph_addressing_the_eval_officer_is_rejected_without_a_segment</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-6" href="#ORG-6">ORG-6</a></td><td class="acc-example">Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only <code>classifier</code> for that target, within budget.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._compose</code><br><code>src/knowledgeos/capabilities/c1_organize.py::team_context</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_6_unsupported_target_gets_only_classifier_successor</code></li></ul></details></td></tr>
+</tbody></table></div>
+<h3 id="거부와-보존-명세-요약">거부와 보존 (명세 요약)<a class="anchor" href="#거부와-보존-명세-요약" aria-label="이 제목 링크">#</a></h3>
+<ul>
+<li><strong>거부</strong>: <code>deny</code> 노트, 충돌 표시가 있는 노트, ID가 겹치는 노트는 정리 대상이 되지 않습니다(C5의 <a class="wikilink" href="c5.html#DOC-2">DOC-2</a>도 같은 규칙을 말합니다). 이미 열린 제안이나 오래된(stale) 제안이 있는 대상에는 두 번째 제안이 생기지 않습니다.</li>
+<li><strong>보존</strong>: 다시 만들 때 교체되는 것은 State에 기록된 Owner가 쓴 바이트와 정확히 같은 제안뿐입니다. 사용자가 고친 제안과 State에 기록되지 않은 제안은 그대로 남습니다(Blueprint §5.6).</li>
+<li><strong>링크 검증</strong>: <code>linker</code>가 이번 Work에서 읽지 않은 노트를 인용하면 그 handoff는 검증에 실패하고, 교정 기회는 한 번뿐입니다. 두 번째에도 실패하면 링크 기준은 충족되지 않은 것으로 남습니다(<a class="wikilink" href="#ORG-2">ORG-2</a>).</li>
+<li><strong>개인정보</strong>: 예약 실행에서 <code>ai_policy: ask</code> 노트의 내용은 어떤 모델 역할에게도 전달되지 않습니다(<a class="wikilink" href="#ORG-3">ORG-3</a>).</li>
+</ul>
+<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
+<p>PROJECT_STATE.md와 CAPABILITY_TRACE.md가 말하는 사실만 적습니다.</p>
+<ul>
+<li><strong>구현·추적</strong>: C1의 인수 ID ORG-1~ORG-6은 모두 추적표에 구현 위치와 pytest 노드가 연결되어 있습니다. 현재 추적 기록은 전체 61개 인수 예시·61행·171개 pytest 노드의 연결을 확인합니다(<code>E_SIDEBAR_INLINE_TRACE</code>). 전체 테스트 통과는 248개 시점의 <code>E_TRACED_TESTS</code> 기록이며, 이후 인라인 사이드바의 집중 검사 5개는 <code>E_SIDEBAR_INLINE_TESTS</code>에 따로 있습니다.</li>
+<li><strong>실환경 근거</strong>:
+<ul>
+<li>실제 Vault에서 Obsidian으로 요청한 정리·강화·자유 요청이 완료되어, 열린 제안 하나와 보고서 하나가 만들어졌습니다. Hermes 세션은 Director·Manager·평가에 <code>gpt-6.1-sol</code>, 팀원에 <code>gpt-6.1-terra</code>를 썼습니다(<code>E_REAL_ROLE_SMOKE</code>).</li>
+<li>사용자가 그 스모크 제안을 체크 항목 7개로 적용해 포착이 <code>40_Knowledge/Questions</code>로 옮겨지고 제안이 삭제된 것이 기록되어 있습니다(<code>E_USER_PROPOSAL_APPLY</code>).</li>
+</ul></li>
+<li><strong>아직 확인되지 않은 것</strong>: PROJECT_STATE.md의 남은 인계는 자연 발생한 매시간 규격화·임베딩 실행 관찰과 <code>related_min_score</code> 조정입니다. 매일 06:00 <code>curate</code>의 자연 실행을 관찰했다는 기록은 PROJECT_STATE.md에 없습니다. 예약 시각 실행의 실환경 확인은 임시 <code>index.embed</code> 작업 하나로 이루어졌습니다(<code>E_REAL_SCHEDULER_SLOT</code>).</li>
+<li><strong>열린 질문(Blueprint §9)</strong>: 예약 정리를 쓰기 시작한 뒤에도 기본 <code>ai_policy</code>를 <code>ask</code>로 두는 것이 맞는지, 그리고 C7의 기본 작업 주기가 실제 사용과 맞는지는 아직 정해지지 않았습니다.</li>
+</ul>
+<p>로드맵 전체는 <a class="wikilink" href="roadmap.html">로드맵</a>, 검증 근거 전체는 <a class="wikilink" href="status.html">현재 상태</a>에서 볼 수 있습니다.</p>
+<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><a class="wikilink" href="c2.html">C2</a> 규격화: 정리의 앞 단계입니다. 결정적 규칙으로 빠진 frontmatter를 채우고, 판단이 필요한 변경만 정리가 제안으로 맡습니다.</li>
+<li><a class="wikilink" href="c6.html">C6</a> 검토: 정리가 만든 제안을 적용·거절·되돌리는 곳이며 ORG-4의 적용 동작을 담당합니다.</li>
+<li><a class="wikilink" href="c7.html">C7</a> 예약 작업: <code>curate</code>가 매일 정리를 요청합니다(최대 10개, 모델 경로가 없으면 눈에 띄게 실패하고 자동 재시도하지 않습니다, <a class="wikilink" href="c7.html#JOB-3">JOB-3</a>).</li>
+<li><a class="wikilink" href="c10.html">C10</a> Gateway: 다른 Operation이 보낸 정보가 포착 노트로 들어와 정리 대상이 됩니다.</li>
+<li><a class="wikilink" href="c5.html">C5</a> 문서 관리: ID 중복·충돌 표시 같은 주의 항목이 정리 거부 조건과 맞닿아 있습니다.</li>
+<li><a class="wikilink" href="c9.html">C9</a> 학습: 거절·부분 적용된 정리 제안이 <code>classifier</code>·<code>linker</code>의 피드백이 되고 근거가 맞으면 Experience 후보가 됩니다(<a class="wikilink" href="c9.html#LRN-1">LRN-1</a>).</li>
+<li><a class="wikilink" href="c11.html">C11</a> 호출 표면: &quot;정리 요청&quot; 명령과 사이드바 버튼의 정의가 있습니다.</li>
+</ul>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
+</article>
+<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
+</body>
+</html>

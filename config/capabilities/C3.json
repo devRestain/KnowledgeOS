@@ -1,0 +1,44 @@
+{
+  "id": "C3",
+  "name": "Search",
+  "version": "1",
+  "target": {"kind": "owner_service"},
+  "budget": {"segments": 1, "producer_invocations": 1},
+  "commands": {
+    "index.embed": {
+      "origins": ["user", "schedule"],
+      "target_kind": "officer",
+      "target": "EmbeddingOfficer",
+      "params": {}
+    }
+  },
+  "modes": {
+    "keyword": {"criteria": []},
+    "semantic": {"criteria": []},
+    "related": {"criteria": []},
+    "embed": {"criteria": ["idx.eligible_only", "idx.chunks_cover_body"]}
+  },
+  "criteria": {
+    "idx.eligible_only": {
+      "runtime": "static",
+      "text": "Every planned note is an admitted snapshot that is eligible for embedding (ai_policy other than deny, outside 99_System/, not a proposal, no merge-conflict markers), and no planned note is also listed for removal"
+    },
+    "idx.chunks_cover_body": {
+      "runtime": "static",
+      "text": "Each planned note's chunk line ranges are exactly those derived from its admitted snapshot's body"
+    }
+  },
+  "settings": {
+    "default_limit": 20,
+    "max_limit": 100,
+    "semantic": {
+      "ollama_url": "http://127.0.0.1:11434",
+      "model": "qwen3-embedding:8b-q4_K_M",
+      "batch_size": 16,
+      "timeout_seconds": 60,
+      "max_notes": 100,
+      "related_neighbors": 5,
+      "related_min_score": 0.5
+    }
+  }
+}

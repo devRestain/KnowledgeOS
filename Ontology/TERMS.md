@@ -1,6 +1,6 @@
 # KnowledgeOS Domain Terms
 
-This page is maintained authoring material, not a published domain package or executable registry. Existing meanings remain at `../blueprint/blueprint.yaml#/note_types` and `../blueprint/blueprint.yaml#/property_registry` under the Operation's Blueprint precedence. Generated `ops/policies/properties.yaml` is not an independent definition source.
+This page is maintained authoring material, not a published domain package or executable registry. Existing meanings remain in the Blueprint (`../OBSIDIAN_VAULT_BLUEPRINT.md` §5.2 note types, §5.3 properties) under the Operation's spec precedence.
 
 ## Reference existing definitions
 

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>C10 Gateway: 다른 Operation과의 교환 · KnowledgeOS 위키</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body class="wiki" data-slug="c10">
+<a class="skip" href="#content">본문으로</a>
+<header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
+<div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html" aria-current="page">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C10 Gateway: 다른 Operation과의 교환</span></nav>
+<article class="page">
+<h1 id="top">C10 Gateway: 다른 Operation과의 교환</h1>
+<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS는 AgentFabric 안에서 <strong>기초 Operation</strong>입니다. 다른 Operation은 정보를 KnowledgeOS에 맡길 수 있고, ExecutiveOffice는 KnowledgeOS에 물어볼 수 있습니다. 이 교환을 맡는 창구가 Gateway(C10)입니다.</p>
+<p>창구는 두 방향입니다. <strong>받기(intake)</strong> 는 허가된 Operation이 보낸 제출을 Vault의 <code>00_Inbox/</code>에 <code>capture</code> 노트 하나로 만듭니다. <strong>묻기(query)</strong> 는 <code>remote_ok</code> 노트만 대상으로 제한된 검색 결과(제목·위치·짧은 발췌)를 돌려줍니다. 두 방향 모두 영수증(receipt)을 먼저 기록한 뒤에 응답합니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>항목</th>
+<th>내용</th>
+</tr></thead><tbody>
+<tr><td>트리거</td><td>다른 Operation의 제출 또는 질의. 사용자가 Obsidian에서 누르는 명령은 없습니다</td></tr>
+<tr><td>담당</td><td>Owner(정적 코드 효과). 접수만 Director가 맡고, 새 Officer는 없습니다</td></tr>
+<tr><td>결과물</td><td>받기: <code>00_Inbox/</code>의 <code>capture</code> 노트 1개와 영수증. 묻기: 제한된 결과 목록</td></tr>
+<tr><td>사용자 결정 여부</td><td>받기·묻기 자체에는 없음. 만들어진 포착은 이후 C2·C1이 다른 포착과 똑같이 다룸</td></tr>
+</tbody></table></div>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p>이 문서에서 &quot;Operation&quot;은 AgentFabric 안의 독립된 서비스 하나(KnowledgeOS, ExecutiveOffice 등)를 뜻합니다. 낯선 용어는 <a class="wikilink" href="glossary.html">용어</a>를 보세요.</p>
+</div>
+<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS가 지키는 약속 가운데 Gateway와 직접 관련된 것은 다음입니다(<a class="wikilink" href="philosophy.html">운용 원칙</a> 참고).</p>
+<ul>
+<li><strong>Vault는 사용자의 것입니다.</strong> 다른 Operation이 Vault에 마음대로 쓰거나 읽어 가면 안 됩니다. 그래서 쓰기는 항상 Owner 한 곳이 하고(Blueprint §6의 &quot;One writer&quot;), 밖에서 온 정보도 평범한 <code>capture</code> 노트가 되어 사용자가 자유롭게 고치거나 지울 수 있는 문서가 됩니다.</li>
+<li><strong>개인정보는 <code>ai_policy</code>가 정합니다.</strong> Blueprint §5.4 표에서 Gateway로 내보낼 수 있는 값은 <code>remote_ok</code>뿐이며 <code>ask</code>·<code>local_only</code>·<code>deny</code>는 내보내지 않습니다. Gateway가 없다면 외부 조회가 정책을 우회할 수도 있고, 반대로 정책을 지킬 방법이 없어 아예 교환할 수 없을 것입니다.</li>
+<li><strong>Git이 백업이자 이력입니다.</strong> Vault는 GitHub private repo와 동기화되므로, Git에 올라가면 안 되는 내용을 Vault에 저장하는 제출은 거절합니다.</li>
+<li><strong>잃거나 중복되면 안 됩니다.</strong> 같은 제출이 두 번 와도 노트는 하나여야 하고, 응답이 유실돼도 영수증으로 확인할 수 있어야 합니다(Blueprint §6의 &quot;Idempotent requests&quot;).</li>
+</ul>
+<p>즉 Gateway는 &quot;다른 Operation과의 교환을 허용하되, Vault 소유권·개인정보·멱등성을 우회로로 잃지 않도록&quot; 하는 명세입니다. 용어는 <a class="wikilink" href="glossary.html">용어</a>의 Request, Work, Receipt를 참고하세요.</p>
+<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
+<p>C10은 <strong>Operation 간 교환용</strong>이라 Thin Client 명령, 사이드바 버튼, CLI 명령이 따로 없습니다. 기능 명세와 README의 C11 표에도 Gateway 전용 명령은 등장하지 않습니다. 사용자는 결과를 평소 도구로 확인합니다.</p>
+<p><strong>자동 경로: 다른 Operation이 보낼 때</strong></p>
+<ol>
+<li>허가된 Operation이 제출을 보냅니다. 제출에는 발신 Operation, 목적, 내용, 내보내기 정책(Git 동기화 허용 여부)이 들어갑니다.</li>
+<li>Director가 제출을 정적 코드로 접수합니다. 허가되지 않은 발신자·목적이거나 형식이 맞지 않으면 거절됩니다(근거: <a class="wikilink" href="#GW-1">GW-1</a>의 테스트, <code>docs/CAPABILITY_TRACE.md</code>).</li>
+<li>Owner가 <code>00_Inbox/</code>에 <code>capture</code> 노트를 만들고 영수증을 확정한 뒤 응답합니다.</li>
+<li>사용자는 Obsidian에서 인박스를 열어 새 포착을 확인하고, 정리가 필요하면 <a class="wikilink" href="c1.html">C1</a>의 <strong>정리 요청</strong>을 합니다. 포착에는 Owner의 기본 <code>ai_policy</code>가 붙으며 기본값은 <code>ask</code>이므로, 그대로는 예약 정리 대상이 아닙니다. 예약 정리를 원하면 사용자가 <code>ai_policy</code>를 <code>remote_ok</code>로 바꾼 뒤 매일 06:00의 <code>curate</code>(<a class="wikilink" href="c7.html">C7</a>)를 기다립니다.</li>
+</ol>
+<p><strong>자동 경로: 다른 Operation이 물을 때</strong></p>
+<ol>
+<li>요청자는 발신자, 목적, 질의를 보냅니다. 설정된 허가 범위 안에서 결과 수와 발췌 길이를 <strong>더 줄일 수는 있지만 넓힐 수는 없습니다</strong>(결과 최대 100개, 결과당 발췌 최대 160자).</li>
+<li>Owner가 <a class="wikilink" href="c3.html">C3</a>의 검색으로 <code>remote_ok</code> 노트만 찾아 제목, 위치, 짧은 발췌를 돌려줍니다.</li>
+</ol>
+<p><strong>사용자가 확인하는 곳</strong></p>
+<ul>
+<li>인박스에 쌓인 포착: Obsidian(Bases 뷰는 <a class="wikilink" href="c5.html">C5</a>, 처리되지 않은 포착이 3일을 넘으면 주의 항목으로 올라옵니다).</li>
+<li>접수·영수증 기록: 제출은 Gateway 제출로 분류되는 Request이고 Director가 접수하면 Work가 됩니다(CAPABILITIES의 Shared terms). Work 목록은 브라우저 콘솔에서 관찰합니다(Blueprint §3.2). 이 목록에 Gateway 항목이 어떻게 표시되는지는 명세에 따로 적혀 있지 않습니다.</li>
+</ul>
+<p><strong>작업 예시</strong></p>
+<p><em>(아래 Operation 이름과 값은 설명용 가정입니다.)</em> <code>example-ops</code>라는 허가된 Operation이 &quot;회의에서 나온 아이디어&quot;를 보냅니다.</p>
+<ol>
+<li>제출이 접수되고 <code>00_Inbox/</code>에 노트가 생깁니다. frontmatter에는 다음처럼 출처가 평평한 필드로 남습니다.</li>
+</ol>
+<pre><code class="language-yaml">type: capture
+captured_from: operation/example-ops
+kos_provenance: &lt;메시지 ID&gt;
+kos_provenance_sender: &lt;발신 Operation&gt;
+kos_provenance_received_at: &lt;수신 시각&gt;</code></pre>
+<ol start="2">
+<li>같은 제출을 한 번 더 보내도 노트는 늘지 않고 <strong>처음 영수증</strong>이 그대로 돌아옵니다.</li>
+<li>기본 <code>ask</code> 포착은 사용자가 직접 <strong>정리 요청</strong>을 할 수 있습니다. 사용자가 <code>ai_policy</code>를 <code>remote_ok</code>로 바꾼 경우에는 다음 06:00 <code>curate</code>의 대상이 될 수도 있습니다. 예약 정리에서 모델은 <code>remote_ok</code> 노트만 받으며(<a class="wikilink" href="c1.html">C1</a>), 제안을 적용할지는 사용자가 정합니다(<a class="wikilink" href="c6.html">C6</a>).</li>
+<li>그동안 <code>ask</code> 노트를 가리키는 외부 질의가 와도 그 노트는 결과에 나오지 않습니다(<a class="wikilink" href="#GW-2">GW-2</a>).</li>
+</ol>
+<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
+<p>이 기능에 맞는 명세 도해(svg)는 없어서, 받기와 묻기를 짧은 순서로 적습니다.</p>
+<p><strong>받기(intake)</strong></p>
+<ol>
+<li>제출 도착</li>
+<li>Director 접수: 허가된 발신자·목적인지, 내보내기 정책이 Git 동기화된 Vault 저장을 막지 않는지 확인</li>
+<li>Owner가 <code>00_Inbox/</code>에 <code>capture</code> 노트 작성(출처 필드 포함)</li>
+<li>영수증을 먼저 확정 → 응답. 같은 제출이 다시 오면 처음 영수증을 돌려줌</li>
+<li>이후 <a class="wikilink" href="c2.html">C2</a>와 <a class="wikilink" href="c1.html">C1</a>이 일반 포착과 똑같이 적용</li>
+</ol>
+<p><strong>묻기(query)</strong></p>
+<ol>
+<li>발신자·목적·질의 도착. 허가 범위는 줄일 수만 있음</li>
+<li><a class="wikilink" href="c3.html">C3</a> 검색: <code>remote_ok</code>이며 보고서가 아닌 노트만</li>
+<li>제목·위치·짧은 발췌를 한도 안에서 반환</li>
+</ol>
+<div class="callout callout-warning">
+<p class="callout-title">주의</p>
+<p>정책으로 내보낼 수 없는 제출(Git 동기화된 Vault에 저장하면 안 된다는 내보내기 정책)은 <strong>조용히 버려지지 않고</strong> 명시적 오류 기록과 함께 거절됩니다(CAPABILITIES C10). 보낸 쪽은 이를 실패로 알게 됩니다.</p>
+</div>
+<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
+<section class="source-include">
+<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C10 Gateway</header>
+<h3 id="c10-gateway">C10 Gateway<a class="anchor" href="#c10-gateway" aria-label="이 제목 링크">#</a></h3>
+<p>KnowledgeOS is a foundational Operation: other Operations may submit information to it, and ExecutiveOffice may query it.</p>
+<ul>
+<li><strong>Intake</strong>: the Director admits a submission from an authorized Operation. The Owner creates a <code>capture</code> note in <code>00_Inbox/</code> with <code>captured_from: operation/&lt;id&gt;</code> and flat provenance fields <code>kos_provenance</code> (message ID), <code>kos_provenance_sender</code> and <code>kos_provenance_received_at</code>; C2 and C1 then apply to it as to any capture. Intake is an Owner effect, not a new Officer. A submission whose export policy forbids storage in a Git-synchronized Vault is refused with an explicit error record.</li>
+<li><strong>Query</strong>: bounded C3 results over <code>remote_ok</code> notes only. The request supplies sender, purpose and query, and may narrow configured grants with result and excerpt limits, never widen them (at most 100 results and 160 excerpt characters per result). Results are titles, locators and short excerpts within those limits.</li>
+<li><strong>Receipts</strong>: committed before acknowledgment. A duplicate submission returns the original receipt.</li>
+</ul>
+<p>Acceptance:</p>
+<ul>
+<li><strong><a class="wikilink" href="#GW-1">GW-1</a></strong> Given a valid submission, then exactly one capture note exists, and resubmitting it returns the same receipt.</li>
+<li><strong><a class="wikilink" href="#GW-2">GW-2</a></strong> Given a query matching an <code>ask</code> note, then that note is not in the result.</li>
+</ul>
+</section>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오는 기능 명세의 &quot;Given … then …&quot; 예시이며, 공개 인터페이스를 통해 실행되는 테스트로 구현되어 <code>docs/CAPABILITY_TRACE.md</code>에서 구현 위치와 테스트에 연결됩니다. 모델 단계는 스크립트된 역할 응답을 씁니다.</p>
+<div class="table-wrap"><table class="acceptance">
+<thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
+<tr><td class="acc-id"><a class="acc-id" id="GW-1" href="#GW-1">GW-1</a></td><td class="acc-example">Given a valid submission, then exactly one capture note exists, and resubmitting it returns the same receipt.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c10_gateway.py::intake</code><br><code>src/knowledgeos/capabilities/c10_gateway.py::finish_capture</code></td><td class="acc-tests"><details><summary>테스트 5개</summary><ul><li><code>tests/test_c10_gateway.py::test_GW_1_intake_commits_one_capture_and_replays_receipt</code></li><li><code>tests/test_c10_gateway.py::test_GW_1_parallel_duplicate_and_changed_content</code></li><li><code>tests/test_c10_gateway.py::test_GW_1_git_sync_forbidden_retains_explicit_error</code></li><li><code>tests/test_c10_gateway.py::test_GW_1_unauthorized_sender_and_purpose_are_refused</code></li><li><code>tests/test_c10_gateway.py::test_GW_1_malformed_envelope_is_rejected</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="GW-2" href="#GW-2">GW-2</a></td><td class="acc-example">Given a query matching an <code>ask</code> note, then that note is not in the result.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c10_gateway.py::query</code><br><code>src/knowledgeos/capabilities/c10_gateway.py::authorization</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c10_gateway.py::test_GW_2_query_exports_only_remote_ok_sources</code></li><li><code>tests/test_c10_gateway.py::test_GW_2_bounds_and_purpose_are_enforced</code></li></ul></details></td></tr>
+</tbody></table></div>
+<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><strong>명세·추적과 실행 검증</strong>: 현재 인수 예시는 61개(GW-1·GW-2, SUR-9 포함)이며, <code>PROJECT_STATE.md</code>의 <code>E_SIDEBAR_INLINE_TRACE</code>는 61개 인수 ID와 추적표 61행·pytest 노드 171개의 연결을 기록합니다. 추적표는 실행 통과 보고가 아닙니다. <code>E_TRACED_TESTS</code>는 당시 전체 248건 통과, <code>E_SIDEBAR_INLINE_TESTS</code>는 이후 인라인 사이드바 관련 5건 통과 기록으로 구분합니다.</li>
+<li><strong>실환경 근거</strong>: <code>PROJECT_STATE.md</code>의 실환경 항목(역할 세션, Owner 수명주기, Discord, 의미 검색, 스케줄러, 사이드바)에는 <strong>C10 전용 기록이 없습니다.</strong> 다른 Operation(예: ExecutiveOffice)이 실제로 제출하거나 질의한 관찰 근거는 아직 없습니다. README의 &quot;검증 범위&quot;도 실제 수신기·외부 연동은 별도로 확인해 <code>PROJECT_STATE.md</code>에 따로 적는다고 구분합니다.</li>
+<li><strong>열린 질문·막힘</strong>: Blueprint §9의 열린 질문과 <code>PROJECT_STATE.md</code>의 blocker·handoff에 C10 항목은 없습니다. 현재 handoff는 첫 자연 실행의 스케줄러 관찰과 <code>related_min_score</code> 조정입니다.</li>
+</ul>
+<div class="callout callout-status">
+<p class="callout-title">상태</p>
+<p>C10의 남은 일은 &quot;실제 Operation 사이의 제출·질의를 관찰하는 실환경 확인&quot;입니다. 이는 명세에 적힌 사실이 아니라 <code>PROJECT_STATE.md</code>에 해당 증거가 없다는 점에서 나온 결론입니다. 전체 계획은 <a class="wikilink" href="roadmap.html">로드맵</a>에서 볼 수 있습니다.</p>
+</div>
+<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li><a class="wikilink" href="c1.html">C1</a> 정리: 받은 포착은 일반 포착처럼 정리 대상이 되고, Gateway가 트리거가 되는 Work는 <code>remote_ok</code> 노트만 모델에 줍니다. 예시: <a class="wikilink" href="c1.html#ORG-1">ORG-1</a>.</li>
+<li><a class="wikilink" href="c2.html">C2</a> 규격화: 새 포착도 같은 결정적 규격화 규칙의 대상입니다.</li>
+<li><a class="wikilink" href="c3.html">C3</a> 검색: 묻기가 쓰는 검색 서비스입니다. (C3의 &quot;게이트웨이는 쓰지 않는다&quot;는 말은 모델 게이트웨이를 뜻하며, 이 C10과는 별개입니다.)</li>
+<li><a class="wikilink" href="c5.html">C5</a> 문서 관리: 처리되지 않은 포착을 주의 항목으로 올립니다. 예시: <a class="wikilink" href="c5.html#DOC-1">DOC-1</a>.</li>
+<li><a class="wikilink" href="c7.html">C7</a> 예약 작업: <code>curate</code>가 새 포착을 매일 처리합니다.</li>
+<li><a class="wikilink" href="c11.html">C11</a> 호출·관리 화면: 다른 Operation은 Thin Client가 아니라 C10을 쓰고, 사용자는 콘솔에서 결과를 관찰합니다.</li>
+</ul>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
+</article>
+<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
+</body>
+</html>

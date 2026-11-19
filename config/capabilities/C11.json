@@ -1,0 +1,34 @@
+{
+  "id": "C11",
+  "name": "Invocation and management surfaces",
+  "version": "1",
+  "target": {"kind": "owner_service", "name": "Owner", "runtime": "static"},
+  "commands": {
+    "free_text": {
+      "origins": ["user"],
+      "params": {"text": {"type": "string", "required": true, "min": 1, "max": 4000}}
+    },
+    "work.cancel": {
+      "origins": ["user"],
+      "params": {"work_id": {"type": "string", "required": true, "min": 1, "max": 160}}
+    },
+    "outcome.reconcile": {
+      "origins": ["user"],
+      "params": {
+        "unknown_id": {"type": "string", "required": true, "min": 1, "max": 160},
+        "resolution": {"type": "string", "required": true, "enum": ["applied", "not_applied"]}
+      }
+    },
+    "teamreview.considered": {
+      "origins": ["user"],
+      "params": {
+        "work_id": {"type": "string", "required": true, "min": 1, "max": 160},
+        "proposal_index": {"type": "integer", "required": true}
+      }
+    }
+  },
+  "settings": {
+    "cancel_observation_seconds": 5,
+    "free_text_commands": ["standardize.preview", "organize", "enhance"]
+  }
+}

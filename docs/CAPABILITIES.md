@@ -1,0 +1,401 @@
+# KnowledgeOS capabilities
+
+This is the user-designated top-level behavior and acceptance specification. [USER_FEATURE_SPEC.md](../USER_FEATURE_SPEC.md) supplies intent, and the [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md) supplies system constraints, surfaces, execution organization, data model and effect rules; they supplement this contract without weakening its acceptance coverage or changing Core contracts or schemas. Conflicts are corrected together under Blueprint §0. Every acceptance example is an executable test through a public interface. Model steps use scripted role responses, except in the real-environment smokes.
+
+## Shared terms
+
+- **Request**: a Thin Client command, console action, CLI command, scheduled job run or Gateway submission, identified by a stable request ID.
+- **Work**: one Director-admitted request. It records its actor, target (Officer or Team), snapshotted inputs, segments, role invocations, effects and assessment.
+- **Step**: one role invocation inside a segment. It is either `static` (Owner code) or `model` (a Hermes role profile).
+- **Handoff**: a teammate's intermediate artifact, readable by later teammates in the same Work.
+- **Report**: a create-only Markdown note in `01_AI_Review/Reports/`.
+- **Proposal**: a change set for one target note in `01_AI_Review/Proposals/`, applied only by the user. It is create-only except for exact-preimage regeneration of an unchanged Owner-written proposal (Blueprint §5.6, §6.2).
+- **Autofix**: a deterministic standardization change written directly under capability C2 rules.
+- **Attention item**: something that needs the user's eye. It is shown either as a Bases view over Vault metadata or as a computed entry in the console and the digest. It is never stored as a note.
+
+## Capability summary
+
+| ID | Capability | Target | Roles | Writes |
+|---|---|---|---|---|
+| C1 | Organize | Curation Team | CurationManager; `scout`, `classifier`, `linker`; EvalOfficer | Proposals |
+| C2 | Standardize | Officer | StandardizationOfficer; EvalOfficer (static) | Autofix or confirmed manual changes |
+| C3 | Search | Owner service; Officer for embedding | EmbeddingOfficer (static); EvalOfficer (static) | Vector index in State |
+| C4 | Enhance | Thinking Team | ThinkingManager; `retriever`, `connector`, `challenger`, `synthesizer`; EvalOfficer | Reports |
+| C5 | Document management | Officer | StewardshipOfficer; EvalOfficer (static) | Lifecycle proposals |
+| C6 | Review | Owner effect from a human action | — | Applies, rejects, undoes |
+| C7 | Scheduled jobs | Triggers C1, C2, C3, C5 | Scheduler | Through those capabilities |
+| C8 | Notifications | Owner effect | StewardshipOfficer content; Notifier | Discord notices |
+| C9 | Learning and Experience | Owner and role profiles | All model roles | Feedback views, local SourceEvents, eligible Experience outbox |
+| C10 | Gateway | Owner | Director for intake | Capture notes, bounded results |
+| C11 | Invocation and management surfaces | — | — | Through the capabilities above |
+
+Every Work passes the Director. Structured requests (every Thin Client command, job and CLI command) are admitted by static code. Only free-text requests use the `kos-director` model.
+
+## C1 Organize
+
+The Curation Team places notes into the knowledge structure: classification, naming, tags, links and location.
+
+- **Triggers**: Thin Client "정리 요청" on the current note, a selection of files or a folder; the scheduled `curate` job (C7); a Gateway intake capture (C10).
+- **Input**: up to 10 target notes per Work. Scheduled and Gateway-triggered Work only gives models notes whose effective policy is `remote_ok`.
+- **Team pool**:
+  - `scout` (static): collects the target notes, candidate related notes and the tag vocabulary.
+  - `classifier` (model): decides type, status, title, tags and conventional folder per note.
+  - `linker` (model): decides links and typed relations to existing notes, and whether a capture should attach to an existing note.
+- **Manager**: CurationManager picks the teammates the Work needs. For example, a capture with no plausible related notes may skip `linker`.
+- **Output**: the Owner renders one proposal per target from the handoffs. Each change is a checklist item:
+  - `type` and its valid `status` together as one atomic checklist item.
+  - `title`.
+  - `tags`, chosen from the existing vocabulary unless marked new.
+  - Links (`related`, `projects`, `sources`, or a typed relation).
+  - A move to the conventional folder.
+  - For a capture, either conversion to a typed note with that destination type's valid status (for example, `idea` with `seed`), or retention as `capture` with `status: processed`. Attaching to an existing note adds a `related` link on the same capture and leaves it `capture`/`processed`; it never edits the other note's body. Every proposal still changes only its single target.
+- **Criteria**:
+  - Static: every enum value is valid; every link target was read in this Work; new tags are marked; there is at most one open proposal per target.
+  - Semantic, judged by the model EvalOfficer: each classification and link is supported by the cited note content.
+- **Refuses**: `deny` notes; notes with conflict markers; ambiguous-ID targets. A target with an open or stale proposal never gains a second one. Regeneration may replace only the exact bytes still recorded as Owner-written; user-edited or State-unrecorded proposals are preserved (Blueprint §5.6).
+
+Acceptance:
+
+- **ORG-1** Given an untyped note in `00_Inbox/`, when organize runs, then one proposal lists a type, a title and at least one existing related note, and the note itself is unchanged.
+- **ORG-2** Given the `linker` cites a note it never read in this Work, then that handoff fails validation, the `linker` gets one corrective turn, and a second failure leaves the link criterion unmet.
+- **ORG-3** Given a scheduled run and a note with `ai_policy: ask`, then no model role receives that note's content.
+- **ORG-4** Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.
+- **ORG-5** Given the CurationManager's Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.
+- **ORG-6** Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only `classifier` for that target, within budget.
+
+## C2 Standardize
+
+The StandardizationOfficer makes notes conform to the Vault contract with deterministic, minimal edits. No model is involved. Fields that need judgment belong to capability C1.
+
+**Three paths:**
+
+| Path | Who | How | Writes |
+|---|---|---|---|
+| Authoring | The user, through plugins | QuickAdd choices and Templater templates in `99_System/Templates/` create notes with conforming frontmatter | The new note (by the plugins) |
+| Manual | The user, through KnowledgeOS | Thin Client "규격화 미리보기" on a note, selection or folder shows the exact diff and applies after confirmation. The CLI batch does the same for maintenance with `--dry-run` and `--apply` | Confirmed changes |
+| Automatic | The `standardize` job (C7) | Applies the rules to notes changed since the last run, honoring the quiet period | Autofix |
+
+**Rules.** Each rule applies only where the value is missing or malformed.
+
+1. Create a frontmatter block if absent.
+2. Add `id`: a new UUIDv4 when missing or malformed. UUID validity is deterministic, not a classification judgment.
+3. Add `type` derived from folder:
+   - `00_Inbox/` → `capture`
+   - `40_Knowledge/Ideas/` → `idea`
+   - `40_Knowledge/Notes/` → `knowledge`
+   - `40_Knowledge/Questions/` → `question`
+   - `40_Knowledge/Sources/` → `source`
+   - `20_Projects/<name>/<name>.md` → `project`
+   - Anywhere else, leave `type` to C1.
+4. Add `created`: the first time KnowledgeOS observed the file.
+5. Add the type's initial `status`.
+6. Add `ai_policy`: the Owner's default.
+7. Normalize shapes:
+   - `tags` and `aliases` become lists.
+   - A leading `#` is dropped from tags.
+   - Dates become ISO-8601 with an offset.
+   - Enum values use their canonical case.
+8. Move trailing body lines that are frontmatter keys of known list properties (such as `tags:` or `related:`) into frontmatter. Merge them with existing values without duplicates, and remove only those lines.
+
+An unknown `type` or a `status` with no valid canonical value needs C1 judgment and is not guessed. Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as `home` or `system` are excluded as navigation.
+
+**Never**:
+
+- Change other body text.
+- Delete, rename or reorder properties.
+- Rename or move files.
+- Touch `deny` notes, `99_System/`, `01_AI_Review/`, the reserved `00_Inbox/Requests/`, navigation notes, attachments or ignored paths.
+
+**Skips**:
+
+- The automatic path skips notes modified within the quiet period (default 10 minutes).
+- All paths skip notes with conflict markers, unparseable YAML or a duplicate ID. These become attention items.
+- The automatic path detects changes by content hash, not by Git history or the mere occurrence of a prior run.
+
+**Write**: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta in the change log, which supports undo (C6).
+
+Acceptance:
+
+- **STD-1** Given a frontmatter-less note in `40_Knowledge/Ideas/`, when standardize runs, then it gains `id`, `type: idea`, `created`, `status: seed` and `ai_policy: ask`, and its body bytes are unchanged.
+- **STD-2** Given a note whose body ends with `tags: [a, b]` and whose frontmatter has `tags: [b]`, then the frontmatter becomes `[b, a]`, the trailing line is removed and nothing else changes.
+- **STD-3** Given the note changes between preview or read and write, then nothing is written. The manual path reports the change; the automatic path reconsiders the note on its next run.
+- **STD-4** Given a note edited 2 minutes ago, then the automatic path skips it, while a manual preview and confirmation still standardizes it.
+- **STD-5** Given an already conforming note, then every path writes nothing.
+- **STD-6** Given frontmatter with custom keys and quoted values, then only missing keys are appended, and existing lines stay byte-identical.
+- **STD-7** Given a note created from each type template, then standardization proposes zero changes.
+- **STD-8** Given a manual preview that the user cancels, then nothing is written and no change-log entry exists.
+
+## C3 Search
+
+- **People search by keyword** with Obsidian core Search, which needs no KnowledgeOS.
+- **KnowledgeOS search** is an Owner service for:
+  - Thin Client "관련 노트": links, backlinks, shared tags and semantic neighbors, each labeled by reason.
+  - Thin Client "의미 검색", when the local semantic index is ready.
+  - The read tools of Team roles inside a Work.
+- **Keyword mode** matches Korean and English partial words. **Semantic mode** ranks notes by the cosine similarity of local embeddings between the query and each note's best-matching chunk. It is available only when the index is ready and the query can be embedded. If not, the client says so and never silently substitutes keyword results.
+- **Results** carry title, path, type, status, an excerpt and a line locator. Semantic results also carry the matching chunk's last line and its similarity score. The client lists them in a picker that opens the note at that line.
+- **Corpus**: all non-`deny` notes outside `99_System/`.
+  - Proposals are excluded.
+  - Reports are included for people and excluded for roles, unless the user changed their type.
+- **Filters**: every result passes its surface's audience and policy filters. Semantic search and semantic neighbors never return a `deny` note or a proposal. Role tools never return reports; their semantic neighbors obey the Work's origin and receiving route, including scheduled C1's `remote_ok`-only rule even on a local route. Gateway queries export only `remote_ok` non-report notes.
+- **Index**: rebuildable derived data, refreshed per changed document. The keyword index lives in memory; the vector index lives in State.
+
+**Semantic index.**
+
+- **Embedding service**: a local Ollama server, called directly by the Owner over loopback HTTP; no gateway or remote model is involved. `settings.C3.semantic` holds `ollama_url` (default `http://127.0.0.1:11434`; a non-loopback URL is a configuration error), `model` (default `qwen3-embedding:8b-q4_K_M`), `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors` and `related_min_score`. An empty `ollama_url` or `model` leaves semantic search unconfigured.
+- **Chunks**: a body is split at headings and paragraph breaks into windows of about 1,500 characters, each with its line range. The embedding input is the note title and the chunk text. Frontmatter is never embedded.
+- **Eligibility**: embedding is deterministic local processing (Blueprint §5.4), so `remote_ok`, `ask`, `local_only` and `confidential` notes are embedded and reports are eligible. Never embedded: `deny` notes; notes under `99_System/`; proposals, decided by `type: proposal` or the proposals folder, because their application is not decided; notes with merge-conflict markers. Policy is checked against the note's current content immediately before anything is sent; a note that has become ineligible is dropped, not sent.
+- **Embedding job**: the request `index.embed` is admitted by static code as one Work for the static EmbeddingOfficer. The C7 `embed` job triggers it with actor `schedule/embed`, and `knowledgeos index embed` runs it for the user until nothing is pending.
+  - It embeds each eligible note with no vectors for the configured model or whose content SHA-256 differs from the embedded one, and drops the vectors of notes that were deleted, renamed or became ineligible. Unchanged notes cost nothing.
+  - A run with nothing to do settles at admission with no Work. Otherwise a Work embeds at most `max_notes` notes, most recently modified first, and stops starting notes before its Activity window closes. The outcome reports `embedded`, `unchanged`, `removed`, `failed` and `pending`; the next run continues.
+  - Static criteria: every planned note is an admitted eligible snapshot, and its chunk ranges are exactly those derived from that snapshot.
+  - If the embedding service is unreachable or rejects a request, the Work fails visibly with the service's error, sends no further request, keeps every vector already stored and is not retried before the next run.
+- **Readiness**: the index is ready when the configured model has vectors for at least one note. A note without current vectors (new, edited since its last embedding, or not yet reached) is absent from semantic results and neighbors until it is embedded. Vectors made by another model are discarded when the first note is embedded with the configured one, and the index is not ready until then. `GET /api/health` reports `search_semantic`, and `index verify` reports counts of eligible, embedded, stale, missing and extra (no longer eligible) notes without naming paths.
+- **Neighbors**: the semantic neighbors of a note are at most `related_neighbors` notes (default 5) whose best chunk has cosine similarity of at least `related_min_score` (default 0.5) to the note's mean chunk vector, so unrelated notes are never labeled. The default threshold is a starting value to tune against the configured model.
+- **Stored data**: `<State>/semantic/`, derived and never in the Vault or Git. Semantic neighbors of a note need no embedding request; a semantic query embeds only the query text.
+
+Acceptance:
+
+- **SRC-1** Given a note containing "사고실험", when the keyword search tool is asked for "사고", then the note is returned with the matching line's locator.
+- **SRC-2** Given a `deny` note containing the query term, then no mode and no surface returns it.
+- **SRC-3** Given the semantic index is unavailable (unconfigured, without vectors for the configured model, or the query cannot be embedded), when "의미 검색" is used, then the client shows "unavailable" and no results.
+- **SRC-4** Given a note is edited and saved, when it is searched again, then the result reflects the new text.
+- **SRC-5** Given an embedded Vault, when one note is edited and the embedding job runs twice, then only that note's text is sent to the embedding service, once; the edited note is absent from semantic results until it is embedded, and the vectors of deleted or renamed notes are dropped.
+- **SRC-6** Given `deny` notes, notes under `99_System/`, proposals (in or outside the proposals folder) and conflict-marked notes, when the embedding job runs, then none of their text reaches the embedding service and no semantic mode returns them, while `local_only`, `confidential` and report notes are embedded; a note that becomes one of these has its vectors dropped by the next run.
+- **SRC-7** Given embedded notes, when "의미 검색" asks a question, then results are ranked by similarity with the best chunk's line range and an excerpt. Role tools bound to a scheduled C1 Work receive only `remote_ok` non-report semantic neighbors even on a local route; user Work may also receive `ask` neighbors and, only on a local route, `local_only` neighbors. Gateway queries return only `remote_ok` non-report notes.
+- **SRC-8** Given the embedding service is down, when the job runs, then the Work fails visibly, existing vectors are kept and still give semantic neighbors, "의미 검색" shows "unavailable", and the next run embeds only what is still missing.
+
+## C4 Enhance
+
+The Thinking Team uses the accumulated Vault to strengthen the user's thinking about one note or question. The output is a cited report that separates what the user already wrote from inference.
+
+- **Trigger**: Thin Client "강화" on the current note in a chosen mode, or a free-text request routed by the Director.
+- **Modes**:
+
+| Mode | Input | Report sections |
+|---|---|---|
+| `develop` | An idea, knowledge or question note | Core restated in the user's own words (cited); related things already written; connections and tensions; gaps and open questions; possible next steps |
+| `ask` | A question | Answer; supporting notes; conflicting notes; what the Vault does not cover |
+| `review` | A project note and an interpretation window (dates) | What moved; what stalled; open decisions; next actions |
+
+- **Team pool**:
+  - `retriever` (static): evidence candidates through C3, within the Work's policy. User-requested Work may read `remote_ok` and `ask` notes.
+  - `connector` (model): related prior thinking, connections and tensions.
+  - `challenger` (model): gaps, counterpoints and open questions.
+  - `synthesizer` (model): the report.
+- **Manager**: ThinkingManager composes the Graph. The `synthesizer` is always the last producer.
+- **Report**: rendered by the Owner from the `synthesizer` submission.
+  - Its language follows the source note.
+  - Citations render as wikilinks with line locators and short content hashes.
+  - Every claim is labeled cited, inference or not found.
+  - Its inputs and inherited policy cover the focal note and every note read in the Work, not only the notes ultimately cited.
+  - It states when any version of an input read in the Work differs from the current note.
+- **Review window**: in `review` mode, notes linked to the project or in its folder are selected when their creation or modification time falls in the window. It is not a task-completion filter.
+- **Criteria**:
+  - Static: every citation handle was read in this Work; every claim is labeled; the mode's sections are present.
+  - Semantic: the report addresses the focal note or question, and its stated tensions are supported by the cited notes.
+- **Refuses**: a `deny` or missing input, or a focal input for which no admitted model route satisfies its policy. A question with no readable notes completes at admission as "not covered" with no Work and no report.
+
+Acceptance:
+
+- **ENH-1** Given an idea note and three related notes, when `develop` runs, then a report exists in `01_AI_Review/Reports/` whose every citation resolves to bytes read in this Work, and the idea note is unchanged.
+- **ENH-2** Given the `synthesizer` submits an unlabeled, uncited claim, then the submission fails validation once, and if it fails again the Work ends unmet with no report written.
+- **ENH-3** Given the user edits the idea note while the Work runs, then the report cites the snapshot and states that the input changed.
+- **ENH-4** Given input notes with `ai_policy: ask` and `remote_ok`, then the report's `ai_policy` is `ask`.
+- **ENH-5** Given an earlier report in `01_AI_Review/Reports/`, then no role's search returns it.
+- **ENH-6** Given the EvalOfficer finds the tensions unsupported, then the ThinkingManager composes one successor with `connector` and `synthesizer` addressing only that gap, and the final report comes from that successor.
+- **ENH-7** Given a completed Work, then a TeamReview exists that rates each producing teammate and changes no role, catalog entry or assessment.
+
+## C5 Document management
+
+The StewardshipOfficer keeps the Vault healthy and surfaces what deserves attention. Its only output is lifecycle proposals.
+
+- **Bases views** (Vault assets in `99_System/Bases/`, maintained with KnowledgeOS conventions):
+  - Unprocessed captures older than 3 days.
+  - Ideas untouched for 30 days.
+  - Open questions.
+  - Proposals waiting.
+  - Reports untouched for 14 days.
+  - Projects by status.
+- **Computed attention items** (console and digest), for what Bases cannot express:
+  - Duplicate IDs, conflict markers and invalid YAML.
+  - `confidential` notes with a looser `ai_policy`.
+  - Stale proposals.
+  - Recent autofix changes.
+  - Unknown effect outcomes and failed or blocked jobs.
+  - A small rotating "revisit" set of older ideas and open questions for the digest.
+- **Lifecycle proposals** come from static rules. For example, a `done` project or a `dropped` idea gets a proposal to become `archived` in `90_Archive/`.
+- **Ordinary note operations** (create, move, rename, delete) stay in Obsidian. KnowledgeOS follows moves by ID and treats a deleted target's proposals as stale.
+
+Acceptance:
+
+- **DOC-1** Given a capture created 4 days ago with status `unprocessed`, then it appears in the inbox Bases view and in the digest count, and it disappears once its status changes.
+- **DOC-2** Given two notes with the same `id`, then both stay searchable, a computed item names both, and an organize request targeting that ID is refused.
+- **DOC-3** Given a note with merge-conflict markers, then all automation skips it and a computed item lists it.
+- **DOC-4** Given a project with status `done`, then exactly one archive proposal exists for it until the user decides.
+
+## C6 Review
+
+The user decides on KnowledgeOS output inside Obsidian.
+
+- **Queue**: the review Bases view lists proposals and reports. A proposal note shows its checklist and diff, and Note Toolbar offers the "적용" and "거절" commands on notes with `type: proposal`.
+- **Apply** is one explicit action. The Owner records the decision first. It then applies the checked changes only if the target's current SHA-256 equals the recorded preimage, and deletes the proposal file. On a preimage mismatch, the decision stays recorded as accepted-not-applied, the proposal is marked stale, and the notice offers to request it again.
+- **Reject** records the decision and deletes the proposal file.
+- **Undo** ("자동 변경 되돌리기" on the current note) restores the recorded preimage of the last autofix or manual standardization, but only if the note still equals that change's result. Otherwise it refuses and points to Git history.
+- **Expiry**: stale proposals are deleted after 7 days.
+- **Preservation**: an open or stale proposal reserves its target until the user decides or stale expiry occurs. Regeneration is the sole create-only exception: it requires the exact bytes still recorded as Owner-written and preserves user edits, including checklist edits. A State-unrecorded proposal is never overwritten or duplicated. An explicit new user request may refresh an unchanged stale proposal under the same checks.
+- **Recorded outcomes**: every decision is a `HumanActionResponse`. Outcomes distinguish received, applied, not applied and unknown. A lost response is resolved by reading the request ID's recorded outcome, never by resending.
+
+Acceptance:
+
+- **REV-1** Given a proposal and an unchanged target, when the user applies it, then exactly the checked changes appear in the target and the proposal file is gone.
+- **REV-2** Given the target was edited after the proposal was created, when the user applies it, then the target is unchanged, the proposal is stale and the decision is recorded.
+- **REV-3** Given an autofix followed by a user edit to that note, when undo is requested, then nothing is written and the notice points to Git history.
+- **REV-4** Given the client times out after apply, when it reconnects, then it shows the recorded outcome for that request ID and nothing is applied twice.
+
+## C7 Scheduled jobs
+
+The Owner runs scheduled jobs itself, and only while it runs: there is no host scheduler, no Hermes cron and no per-minute process. One sleeping timer wakes at the next slot and re-reads the Owner clock at least every `tick_seconds`. KnowledgeOS source declares the jobs in `config/jobs.json`. Each run is a request with actor `schedule/<job>`, admitted by the Director like any other.
+
+| Job | Default schedule | Admits |
+|---|---|---|
+| `standardize` | every hour at :00 | C2 automatic path over notes changed since the last run |
+| `embed` | every hour at :30 | C3 `index.embed`: embeds notes that are new or changed since their last vectors |
+| `curate` | daily 06:00 | C1 over new captures and untyped `remote_ok` notes, at most 10 targets |
+| `digest` | daily 08:00 | C5 computation and the C8 digest |
+
+- Jobs are idempotent. A run where nothing changed writes nothing and sends no notice beyond the digest.
+- **Schedule**: five-field cron expressions in Asia/Seoul time. Only the minute and hour fields vary (`*`, numbers, lists, ranges, steps); day, month and weekday are `*`. An unsupported schedule stops the Owner at start. A job's slots are its scheduled times.
+- **Only while the Owner runs**: nothing triggers while the Owner is stopped, and nothing is lost. A job is due when its latest slot is later than its last run (including a run by `knowledgeos job run`) and than any slot the Owner already consumed. A job the Owner sees for the first time has no missed slot.
+- **Startup catch-up**: nothing triggers during the first `startup_delay_minutes` after the Owner starts. Then each due job runs once, however many of its slots passed while the Owner was stopped, and afterwards runs at its slots. A slot reached while the job's previous run is still active is refused and consumed.
+- **One run per slot**: the trigger request ID of a slot is `schedule-<job>-<YYYYMMDDTHHMM>` (Seoul time), so a restart never triggers the same slot twice, and a trigger already committed for the slot is the slot's run.
+- **Pause**: `job.pause` and `job.resume` (console). A paused job's slots pass without a trigger, and resuming does not catch them up. A manual run of a paused job is refused.
+- **Settings**: `scheduler_enabled` (default true; false triggers nothing automatically, while `knowledgeos job run` still works), `startup_delay_minutes` (default 3) and `tick_seconds` (default 30). The timer only compares the clock; it creates a request only when a slot is due.
+- **Attention**: a failed job run, or a job with two slots passed and no run (the startup delay is pending or the Owner could not run it), becomes an attention item.
+- **Receipts**: the job-trigger receipt records that the declared request was triggered, not that its execution succeeded. The triggered request is admitted separately and has its own execution receipt; CLI job runs follow that receipt to report the result.
+
+Acceptance:
+
+- **JOB-1** Given two new notes since the last run, when `standardize` runs twice, then the second run writes nothing.
+- **JOB-2** Given 15 eligible notes, then one `curate` run targets at most 10 of them, and the rest are eligible for the next run.
+- **JOB-3** Given a model route is unavailable, then the `curate` Work fails visibly, creates no proposals and is not retried automatically.
+- **JOB-4** Given the Owner was stopped while three hourly slots of `standardize` passed, when it starts, then nothing runs until the startup delay has elapsed, then `standardize` runs exactly once with actor `schedule/standardize`, and while the Owner keeps running its next slot runs at its time.
+- **JOB-5** Given a slot whose run was triggered, when the Owner restarts, then that slot does not run again.
+- **JOB-6** Given a paused job, or `scheduler_enabled` false, when slots pass, then no run is triggered, and resuming the paused job runs it at its next slot, not at once.
+- **JOB-7** Given the declared jobs, then `embed` runs hourly at :30 and admits C3 `index.embed`, and the scheduler settings default to `scheduler_enabled` true, `startup_delay_minutes` 3 and `tick_seconds` 30.
+
+## C8 Notifications
+
+Outbound Discord notices through the KnowledgeOS bot. The StewardshipOfficer composes the content and the Notifier delivers it.
+
+- **Digest** (daily):
+  - Counts and titles of new autofix changes.
+  - Proposals and reports waiting.
+  - Stale proposals.
+  - Computed attention items needing a decision.
+  - The "revisit" set.
+- **Alert** (immediate, deduplicated by item ID): a Vault conflict, an unknown effect outcome or a failed job. The Owner observes changes independently of reads; no GET, console visit or digest is needed to trigger an alert. An unknown notification delivery does not recursively generate another alert.
+- **Content**: titles and counts only, `obsidian://` links to eligible notes and console links for management items. Only `remote_ok` and `ask` note titles and links may be disclosed. No body text or identifying information from `deny`, `local_only` or `confidential` notes appears in either digests or immediate alerts.
+- **Delivery**: the Owner records each notice intent before delivery. An unknown delivery is never re-sent. The digest reflects current state, so the next digest carries anything still relevant.
+
+Acceptance:
+
+- **NTF-1** Given an attention item from a `deny` note, then no notice mentions it.
+- **NTF-2** Given the same unresolved conflict on two days, then one alert was sent and both digests list it.
+- **NTF-3** Given a notice with an unknown delivery outcome, then it is not re-sent.
+
+## C9 Learning and Experience
+
+- **Role level**: each model role learns in its own Hermes profile (Blueprint §4.5). Its `feedback` view reports outcomes of its own earlier outputs:
+  - Applied, partially applied or rejected changes, for the `classifier` and `linker`.
+  - Report edits, promotion or deletion, for the `synthesizer`.
+  - Assessments and TeamReview history, for the Managers.
+  - User rejection of results it rated satisfied, for the EvalOfficer.
+  - Successful admissions and clarification failures, for the Director.
+- **Team level**: TeamReview (C4, ENH-7) records teammate performance and proposals in TeamReview, role feedback and the console. Each proposal also creates a local `ExperienceSourceEvent` with `category=routine_progress` and `evaluation_state=not_evaluated` for the proposal, regardless of the Work's assessment.
+- **Local-only proposals**: ordinary TeamReview proposals do not create an `ExperienceCandidate` or outbox item and are not sent to HermesTrace. Local observations are bounded and expire under C9 retention; they are not a permanent promotion queue.
+- **Fabric level**: actual eligible events create an `ExperienceSourceEvent` and an `ExperienceCandidate` for delivery to HermesTrace through InterOps. The Owner uses the existing Core categories and the event's evidence, not the presence of a suggestion or a successful Work, to establish eligibility. Signals include:
+  - A Work that ended unmet, failed or unknown.
+  - A proposal that was rejected or partially applied.
+  - An undo.
+  - A blocked job.
+  - A privacy refusal.
+  These signals must evidence the applicable Core category: `failure`, `timeout`, `crash_recovery`, `cancellation`, `human_correction`, `policy_denial` or `verified_unusual_success`. An unknown outcome alone is not proof of failure, and an unevaluated proposal is not a verified success.
+- **Later events**: a real user correction or other eligible event creates its own evidenced event and Candidate. It does not automatically promote an earlier proposal; no future promotion or export of that proposal is promised.
+- **Payloads and retention**: SourceEvents and Candidates carry references, categories and digests, never note text. Local observations and the outbox are bounded. If HermesTrace is unavailable, eligible candidates wait and expire under Core retention without blocking KnowledgeOS. Neither local observations nor Candidates widen source-note disclosure policy.
+- **Adoption** of a HermesTrace-promoted capability is an explicit, pinned change to KnowledgeOS configuration; Core contracts and schemas remain unchanged.
+
+Acceptance:
+
+- **LRN-1** Given a rejected curation proposal, then the next `classifier` invocation's `feedback` includes it, and an Experience candidate exists without note text.
+- **LRN-2** Given a `classifier` skill update, then other role profiles' skills are unchanged.
+- **LRN-3** Given HermesTrace is unreachable, then user capabilities are unaffected and the candidate stays pending.
+
+## C10 Gateway
+
+KnowledgeOS is a foundational Operation: other Operations may submit information to it, and ExecutiveOffice may query it.
+
+- **Intake**: the Director admits a submission from an authorized Operation. The Owner creates a `capture` note in `00_Inbox/` with `captured_from: operation/<id>` and flat provenance fields `kos_provenance` (message ID), `kos_provenance_sender` and `kos_provenance_received_at`; C2 and C1 then apply to it as to any capture. Intake is an Owner effect, not a new Officer. A submission whose export policy forbids storage in a Git-synchronized Vault is refused with an explicit error record.
+- **Query**: bounded C3 results over `remote_ok` notes only. The request supplies sender, purpose and query, and may narrow configured grants with result and excerpt limits, never widen them (at most 100 results and 160 excerpt characters per result). Results are titles, locators and short excerpts within those limits.
+- **Receipts**: committed before acknowledgment. A duplicate submission returns the original receipt.
+
+Acceptance:
+
+- **GW-1** Given a valid submission, then exactly one capture note exists, and resubmitting it returns the same receipt.
+- **GW-2** Given a query matching an `ask` note, then that note is not in the result.
+
+## C11 Invocation and management surfaces
+
+**Thin Client commands.** These remain the client's entire functional surface, available from the command palette, context menus and one native Obsidian sidebar tab.
+
+| Command | Context | Capability |
+|---|---|---|
+| 규격화 미리보기 | Note, selection, folder | C2 manual |
+| 정리 요청 | Note, selection, folder | C1 |
+| 강화: 발전 / 묻기 / 돌아보기 | Note; question input; date window | C4 |
+| 자유 요청 | Free text | Director routing |
+| 관련 노트 · 의미 검색 | Note; query input | C3 |
+| 적용 · 거절 | Proposal note | C6 |
+| 자동 변경 되돌리기 | Note | C6 |
+| 관리 콘솔 열기 | Any | Opens the browser console |
+| Owner 시작 · 중지 | Any (desktop) | Owner lifecycle |
+
+**Sidebar.** A ribbon icon or `사이드바 열기` reveals the reusable right-sidebar tab. Four compact buttons (규격화, 정리, 강화, 찾기) select one inline function region below them; navigation alone never submits work. Secondary choices, question and date inputs, semantic search, linked search results, standardization diffs and explicit confirm/cancel controls stay inside this region, never in popup menus or modals. More selects an inline free-request form with undo and console actions. Applying or rejecting appears only for a proposal note; one power button invokes Owner start or stop according to the observed connection state. It never starts the Owner on open. Focusing the sidebar retains the displayed target; opening another file updates it, and deleting the target clears it. With no Markdown target, note-only execution is disabled, while 묻기, 의미 검색 and 자유 요청 remain available. Unsubmitted input drafts remain only in memory. Changing the function or note cancels an undecided preview, including a late preview response; unrelated late results cannot replace the new function region. Request feedback and result links stay inline. Existing palette and context-menu commands retain their modal presentation and share the same request and confirmation paths. The tab adds no Work browser, persistent document lists, settings, authority or persistent navigation state.
+
+**Console and CLI** behave as in Blueprint §3.2 and §3.3.
+
+- **Free text**: the model Director may map only to catalog-allowed standardization preview, organize or enhance commands, not job, review or Work-management actions. It sees policy-filtered references to notes the user named, not note bodies; the Owner supplies paths and digests and performs static admission. Attempts to set criteria, budget, target authority, WorkSpec, input bindings or routes are authority violations: no corrective turn and no Work. Ordinary invalid drafts get one corrective turn; refusal, unavailable route or unknown outcome admits no Work and is reported explicitly.
+- **Read safety and recovery**: GETs never cause effects. After a lost response, the client looks up the original receipt; it may resend the identical request only after the Owner reports that the request was never recorded. A recorded unknown is not permission to replay.
+- **Console actions**: cancellation reports the observed application outcome after a bounded observation window, otherwise unknown. Reconciliation records an explicit human observation of applied or not applied without rewriting historical Work, receipts or unknown evidence.
+- **Owner lifecycle**: the Owner runs on the host as an on-demand macOS user service, so it outlives Obsidian. `knowledgeos install service --config FILE` writes its LaunchAgent plist (`RunAtLoad` and `KeepAlive` false, logs under Runtime) and loads it without starting it; `--dry-run` prints the plist and `launchctl` argv and changes nothing. `Owner 시작` kickstarts that launchd label and `Owner 중지` sends it SIGTERM; each reports only what `GET /api/health` then shows: started once health is ready, stopped once it stops answering, otherwise still running or unknown. They act only when the user invokes them and send no note text. `serve` closes the Owner and ExOps on SIGTERM.
+
+Acceptance:
+
+- **SUR-1** Given any Thin Client command, then the request carries the note path and last-seen digest, never note body text.
+- **SUR-2** Given the user opens notes, switches files and reconnects, then the client writes nothing to its settings.
+- **SUR-3** Given a free-text request the Director cannot map to a capability, then no Work is admitted, and the notice says why.
+- **SUR-4** Given the console's "cancel Work" action, then it goes through ExOps admission and the outcome is shown as received, then applied or unknown.
+- **SUR-5** Given `standardize --dry-run` on a folder from the CLI, then the planned changes are printed and nothing is written.
+- **SUR-6** Given the Owner's LaunchAgent, then `Owner 시작` kickstarts its launchd label and reports started only after `/api/health` is ready, `Owner 중지` sends SIGTERM and reports stopped only after health stops answering (otherwise still running or unknown), neither sends anything but health GETs, and `serve` exits cleanly on SIGTERM.
+- **SUR-7** Given `install service --dry-run` with a config, then the plist and `launchctl` argv are printed and nothing is written; given a real install, the plist is written and the service is loaded but not running.
+- **SUR-8** Given the user opens the sidebar repeatedly and switches between notes and the command tab, then one tab retains the visible note target, requests use that target's current path and digest, proposal decisions follow its current frontmatter, unavailable note actions cannot submit requests, and merely opening the tab never starts or stops the Owner.
+- **SUR-9** Given sidebar navigation, then function selection opens only inline controls without submitting requests or opening menus or modals; input validation, search results, outcome links and standardization confirmation remain inline, repeated confirmation submits once, and leaving a pending preview cancels its exact identity without applying it even if its response arrives late.
+
+## Follow-up: mobile
+
+These are reserved and specified when started. Processing always happens in the Mac KnowledgeOS. Mobile only creates, edits, marks and syncs.
+
+- **M1 Templates and sync shortcuts.** Apple Shortcuts create capture, idea and question notes from the Vault templates, with conforming frontmatter including `id`, and drive Working Copy pull, commit and push. Acceptance to be written: a Shortcut-created note passes STD-7.
+- **M2 Vault-borne requests.** A note marked `kos_request: <capability[:mode]>`, or a request note in `00_Inbox/Requests/`, is admitted by the Director after the Mac pulls. Results are written as usual, and the request marker is cleared through the C2 write path. To decide: request identity across devices, duplicate marks, and how the result is announced (digest or alert).
+- **M3 GitHub Actions.** Candidates are deterministic checks on push (YAML validity, conflict markers, duplicate IDs) reported as a check status or issue. Constraints: no model calls, no KnowledgeOS credentials, and no commits unless Blueprint §5.7 is revised to admit a second Git writer.
+
+## Delivery order
+
+Build in thin slices and revise this document after each one. The console and CLI grow with each slice.
+
+1. **Owner core, Director (static), StandardizationOfficer and static EvalOfficer**: C2 manual path and CLI batch, the C3 service, C11 basics, and a rebuildable project development image that keeps `make image-id` and `make state-check` working.
+2. **Scheduling and attention**: C7 `standardize` and `digest`, C8, C5.
+3. **Thinking Team**: C4 with ThinkingManager, its teammates, the model EvalOfficer and TeamReview.
+4. **Curation Team**: C1 with C6 review, then the `curate` job.
+5. **Fabric**: C9 Experience and C10 Gateway.
+6. **Mobile**: follow-ups M1 to M3.

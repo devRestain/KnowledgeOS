@@ -1,0 +1,9 @@
+{
+  "id": "knowledgeos-thin-client",
+  "name": "KnowledgeOS",
+  "version": "1.2.0",
+  "minAppVersion": "1.5.0",
+  "description": "Inline KnowledgeOS sidebar and commands for notes, search, proposals and Owner lifecycle. Requests send note paths and digests only.",
+  "author": "KnowledgeOS",
+  "isDesktopOnly": true
+}

@@ -1,62 +1,33 @@
 # KnowledgeOS Project Contract
 
-## Project Scope
+## Project scope
 
-- Treat this checkout as the KnowledgeOS control boundary.
-- Bind the independent Vault Git root through trusted private config v3.
-- Resolve Core, control, Vault, State and Runtime separately without aliases or nested-layout fallback.
-- Keep Operation State and host Runtime outside Git and sync roots.
-- Use service `dev` in `ops/compose.test.yaml` for canonical offline fixture verification and use `ops/compose.yaml` only for separately selected private bindings and effects.
-- Do not directly operate Obsidian, its plugins, profiles, UI, app connectors, GUI automation, or device controls.
-- Keep any other Obsidian-related external action separately authorized; never infer it from Vault paths, project plans, or filesystem permissions.
+- Treat this checkout as the KnowledgeOS control and source boundary.
+- Bind the independent KnowledgeHub Vault, owner State (`States/Operations/knowledgeos/`) and host Runtime separately; never alias or nest them.
+- Keep Operation State, Runtime and credentials outside Git and outside the Vault.
+- Do not operate Obsidian GUI, plugins, profiles, devices or external transports without separate explicit authorization.
 
-## Project Structure
+## Specification
 
-- Read `PROJECT_STATE.md` as the sole machine-state source; ignore external memory, `MEMORY.md`, rollout summaries, and chats for state.
-- Resolve design conflicts in `OBSIDIAN_VAULT_BLUEPRINT.md`, `blueprint/blueprint.yaml`, then `OBSIDIAN_VAULT_WHITEPAPER.md`.
-- Keep executable contracts in manifests, schemas, source, tests, and commands.
-- Use `Ontology/` for domain term relation and alignment authoring while preserving the existing Blueprint registries as authoritative inputs.
-- Treat `docs/*.md` as compact agent contract indexes, not authoritative state.
-- Keep machine state only in `PROJECT_STATE.md`; update `README.md` only at close and exclude it from startup/in-task reads.
+- Treat `docs/CAPABILITIES.md` as the user-designated top-level behavior and acceptance specification, supplemented by intent in `USER_FEATURE_SPEC.md` and system constraints in `OBSIDIAN_VAULT_BLUEPRINT.md` (§0).
+- Change the spec in the same change as any behavior it describes; delete superseded text instead of annotating it.
+- Treat each acceptance example in `docs/CAPABILITIES.md` as an executable test through a public interface.
+- Preserve Core contracts and schemas unchanged; resolve implementation gaps without weakening capability acceptance examples.
+- Use `Ontology/` for domain term, relation and alignment authoring while treating the Blueprint Vault contract as the authoritative type, property and relation definition.
+- Treat `Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md` as non-normative reference material.
+- Keep `docs/wiki/` as the browsable explanation of capabilities, purpose, usage, blocked or unstarted items and follow-up work; author explanations only in `docs/wiki/_source/` and never let the wiki override the source documents.
+- Treat each wiki update as a spec review: fix conflicts between `docs/CAPABILITIES.md`, the Blueprint, `USER_FEATURE_SPEC.md` and `PROJECT_STATE.md` in the lower-precedence document in the same session, and drop answered Blueprint §9 questions.
 
-## Development Workflow
+## Development workflow
 
-- Use `Makefile` targets and container Python `3.12.8` with uv `0.8.14` for canonical work.
-- Derive numeric `KNOWLEDGEOS_UID` and `KNOWLEDGEOS_GID`; fail closed when Compose values are missing.
-- Use `/goal` mode for every substantive multi-step implementation session.
-- When the user requests implementation, read `PROJECT_STATE.md` and the applicable plan, then find the requested slice before registering `/goal`.
-- Register existing plans only for matching implementation requests; create a new `/goal` when the request differs.
-- Record the slice, objective, scope, dependencies, exclusions, artifacts, completion criteria, checks, evidence, and handoff in `/goal`.
-- Record blockers or deferred/unrun checks; align `/goal` with `PROJECT_STATE.md` and complete it only after verified evidence.
-- Set `token_budget` only when the user explicitly requests a goal budget.
-- Keep create-only writes inside validated targets.
-- Preserve control and Vault worktrees during every slice.
+- Build in the delivery-order slices of `docs/CAPABILITIES.md`; finish one slice end to end before starting the next.
+- Use container Python 3.12.8 and uv 0.8.14 (`mise.toml`) for project tooling.
+- Keep tests fast, parallel-safe and behavioral; prove real Hermes, Ollama, model-route and Obsidian composition through small smokes in the real environment.
 
-## Verification
+## Verification and state
 
-- Read `PROJECT_STATE.md` before implementation or resumption; compare handoff with live state and rerun `make source-check` and `make verify`.
-- Run required container, blueprint, schema, test, and lint checks; run test and lint sequentially.
-- Validate `PROJECT_STATE.md` with `scripts/validate_state.py` after every write.
-- Separate evidence classes and record unrun, deferred, blocked, or permission-limited checks with controlled result states.
+- Read `PROJECT_STATE.md` as the sole machine-state source and validate it with `make state-check` after every write.
+- Record static, runtime, deployment and device evidence separately; mark unrun checks accurately.
 - Run `git diff --check` in every changed Git root before handoff.
-
-## Handoff
-
-- Inventory control and Vault Git roots with dirty sets, ignored paths, and empty namespaces before handoff.
-- Keep exactly one current goal and at most one next goal; preserve action-constraining decisions in `PROJECT_STATE.md`.
-- Compare `PROJECT_STATE.md` and indexes with live paths, manifests, tests, and runtime evidence; reconcile mismatches as incomplete or blocked.
-- Refresh `PROJECT_STATE.md` after verification; read relevant `README.md` files only at close; confirm requested changes.
-
-## AgentFabric target ownership
-
-- Use the exact Core 0.20.1 and semantic 0.7.1 source selection in `ops/config/core-adoption.json`; retain historical contracts and evidence under their original pins.
-- Keep source adoption separate from owner State and installed runtime pins; require an explicit fenced cutover before opening differently pinned State.
-- Distinguish existing durable runtime records from host-owned reconstructable Runtime in the target architecture.
-- Keep Operation canonical state, persistent control, routing policy, and effects owner-controlled.
-- Keep administrative HTML and JavaScript in `frontend/`, served through existing ExOps while all human document workflows remain in Obsidian.
-- Keep KnowledgeOS Discord routing, export policy, durable notices and outcomes Operation-owned while the host owns its distinct bot credentials and transport.
-- Retain maintained source, tests, configuration, and authoring plans here regardless of Git dirty status.
-- Use workspace Tmp freely for unrelated drafts and intermediate verification algorithms.
+- In every development session, update the source documents and wiki explanations for the changed scope, regenerate with `make wiki`, pass `make wiki-check` and review the changed pages in a browser before handoff.
 - Keep README documents in Korean and directory guidance and machine state in English.
-- Keep selected CLI and MCP control in KnowledgeApplication and finalize decisions in OwnerJournal.
-- Use `docs/IMPLEMENTATION_STATUS.md`, the current Blueprint, and live owner contracts for current entry points. Keep native service activation separate from source verification.
