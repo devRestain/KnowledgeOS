@@ -9,6 +9,7 @@ KnowledgeOS의 설계는 한 문장으로 줄일 수 있습니다. **"모든 객
 - **입구는 셋**: Obsidian Thin Client(명령·사이드바), 브라우저 콘솔, CLI. 셋 모두 **같은 접수 경로**(ExOps)로 Owner에 요청합니다.
 - **Owner**가 권한 판단·파일 쓰기·기록을 모두 맡고, 작업의 수명은 **Temporal**(내구성 있는 실행)과 **LangGraph**(Graph 실행)가 이끕니다.
 - **모델이 필요한 단계**는 역할마다 따로 둔 **Hermes profile**이 맡습니다. Discord로 나가는 알림은 모델 없는 `kos-ops` profile만 보냅니다.
+- **빠른 선택형 판단**은 역할이 아니라 Owner 서비스인 **System One**이 맡습니다. Owner가 OpenAI Decisions API(`gpt-6-luna`)에 직접 묻고 정해진 선택지나 확률만 받으며, Hermes profile은 쓰지 않습니다.
 - **의미 검색용 임베딩**은 Owner가 로컬 Ollama를 loopback HTTP로 직접 부릅니다.
 - **데이터는 셋으로 갈립니다**: 사용자의 Vault, 운영 기록인 State, 다시 만들 수 있는 Runtime.
 
@@ -44,8 +45,9 @@ KnowledgeOS의 설계는 한 문장으로 줄일 수 있습니다. **"모든 객
 | **EvalOfficer** | 독립 평가자. 결과를 만들거나 고치지 않고, Manager의 설명이나 팀원의 자기평가도 보지 않음 | static 검사는 항상, 의미 기준만 model(`kos-eval`) |
 | **Scheduler** | 정해진 작업을 때맞춰 트리거함 | Owner 안 서비스 |
 | **Notifier** | 만들어진 알림을 전달함 | `kos-ops` profile |
+| **System One** | 선택지 중 하나(`choice`)나 확률(`predicate`)만 답하는 빠른 판단. 쓰지도 글을 짓지도 않고 `ai_policy`·`sensitivity`는 정하지 않음 | Owner 서비스(OpenAI Decisions API 직접 호출, profile 없음) |
 
-검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 **서비스**입니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.
+검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 **서비스**입니다. System One도 역할이 아니라 Owner의 **서비스**입니다. 규격화 규칙 9([[c2]]), 정리 `scout` 힌트([[c1]]), 관련 노트 이웃 거르기([[c3]]), 문서 관리 상태 제안([[c5]]), 자유 요청 사전 거름([[c11]])에서 Owner 코드가 질문하고, 답을 쓸지는 Owner 코드가 정합니다. 설정이 없거나 실패하면 이 기능들은 System One 없이 하던 대로 동작하며, 어떤 기능도 System One 때문에 실패하지 않습니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.
 
 ### 두 개의 팀
 
@@ -54,7 +56,7 @@ KnowledgeOS의 설계는 한 문장으로 줄일 수 있습니다. **"모든 객
 | Curation Team | [[c1]] 정리 | CurationManager | `scout`(수집), `classifier`(분류), `linker`(연결) |
 | Thinking Team | [[c4]] 강화 | ThinkingManager | `retriever`(근거 수집), `connector`(연결·긴장), `challenger`(빈틈·반론), `synthesizer`(보고서) |
 
-Officer로 처리되는 것은 [[c2]] 규격화(StandardizationOfficer), [[c5]] 문서 관리(StewardshipOfficer), [[c3]]의 임베딩(EmbeddingOfficer)입니다.
+Officer로 처리되는 것은 [[c2]] 규격화(StandardizationOfficer), [[c5]] 문서 관리(StewardshipOfficer), [[c3]]의 임베딩(EmbeddingOfficer)입니다. 앞의 둘은 코드로 움직이면서 설정 시 System One에게 선택 질문을 합니다.
 
 아래는 Blueprint의 원문입니다.
 
@@ -134,8 +136,9 @@ Officer로 처리되는 것은 [[c2]] 규격화(StandardizationOfficer), [[c5]] 
 - `confidential` 노트는 `ai_policy`가 느슨해도 `local_only`처럼 다룹니다. 어긋남은 "주의 항목"으로 알려 주되 **내 값을 고쳐 쓰지는 않습니다**.
 - **결과물은 입력 중 가장 엄격한 정책을 물려받습니다.** 읽기만 했고 인용하지 않은 노트도 포함합니다([[ENH-4]]).
 - 정책은 공개하기 **직전**의 현재 내용으로 다시 확인하며, 옮겨지거나 지워지거나 새로 제한된 노트는 닫힌 채로 실패합니다.
-- 결정적 로컬 처리(규격화·임베딩)는 `deny`만 빼고 모두 할 수 있어서, `ask`·`local_only`·`confidential` 노트도 임베딩됩니다([[c3]]).
+- 결정적 로컬 처리(규격화 규칙 1~8·임베딩)는 `deny`만 빼고 모두 할 수 있어서, `ask`·`local_only`·`confidential` 노트도 임베딩됩니다([[c3]]).
 - 예약 정리([[c1]])는 모델에 `remote_ok` 노트만 줍니다([[ORG-3]]). Gateway 조회는 `remote_ok` 노트만 내보냅니다([[GW-2]]). 알림 제목·링크는 `remote_ok`·`ask`만 쓸 수 있습니다([[NTF-1]]).
+- **System One은 원격 모델입니다.** 같은 정책 열을 따르고 로컬 경로가 없습니다. 내가 직접 요청한 작업과 검색은 `remote_ok`·`ask` 노트를, 예약 작업과 Gateway 작업은 `remote_ok` 노트만 보내며, `local_only`·`confidential`·`deny` 노트는 어느 경로에서도 보내지 않습니다. 정책은 보내기 직전의 현재 값으로 다시 확인하고, `ai_policy`·`sensitivity` 자체는 System One에게 묻지 않습니다. 자격 증명은 Git과 Vault 밖의 호스트 소유 0600 파일에 있고 Hermes 하위 프로세스에는 전달되지 않습니다. 호출 기록(State `system_one`)에는 질문 이름·입력 해시·모델·토큰 수만 남고 노트 내용은 남지 않습니다([[c2]]).
 
 {{include:BLUEPRINT#5.4 Privacy}}
 

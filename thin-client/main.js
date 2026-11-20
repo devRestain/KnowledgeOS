@@ -134,6 +134,11 @@ class InputModal extends Modal {
   }
 }
 
+// Values System One decided (C2 rule 9), shown above the diff with their confidence.
+function decisionLines(note) {
+  return (note.decisions || []).map((d) => `System One: ${d.key} → ${d.value} (${Math.round(d.confidence * 100)}%)`);
+}
+
 class PreviewModal extends Modal {
   constructor(app, outcome, decide) {
     super(app);
@@ -147,6 +152,7 @@ class PreviewModal extends Modal {
     this.contentEl.empty();
     for (const note of this.outcome.notes || []) {
       this.contentEl.createEl("h4", { text: note.path });
+      for (const line of decisionLines(note)) this.contentEl.createEl("p", { text: line });
       this.contentEl.createEl("pre", { text: note.diff || "" });
     }
     for (const skipped of this.outcome.skipped || []) {
@@ -401,6 +407,7 @@ class KnowledgeOSSidebar extends ItemView {
     parent.empty();
     for (const note of outcome.notes || []) {
       parent.createEl("h4", { text: note.path });
+      for (const line of decisionLines(note)) parent.createEl("p", { text: line });
       parent.createEl("pre", { text: note.diff || "" });
     }
     for (const skipped of outcome.skipped || []) parent.createEl("p", { text: `건너뜀: ${skipped.path} (${skipped.reason})` });

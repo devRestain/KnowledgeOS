@@ -38,7 +38,8 @@
       "timeout_seconds": 60,
       "max_notes": 100,
       "related_neighbors": 5,
-      "related_min_score": 0.5
+      "related_min_score": 0.5,
+      "related_min_probability": 0.5
     }
   }
 }

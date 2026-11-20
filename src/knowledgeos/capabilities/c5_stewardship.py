@@ -1,21 +1,56 @@
-"""Static stewardship: attention, lifecycle proposals, and proposal expiry."""
+"""Stewardship: attention, lifecycle proposals (static rules plus System One status judgments), proposal expiry."""
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from .. import proposals
+from .. import proposals, system_one
 from ..capabilities import Done, Registry
 from ..notes import FrontmatterEditor
-from ..policy import declared_looser_than_confidential, effective
+from ..policy import declared_looser_than_confidential, effective, strictest
 from ..standardize import path_skip_reason
+from ..system_one import SystemOneUnavailable
 from ..util import digest, iso
 from ..vault import PROPOSALS_DIR
 from .c7_jobs import jobs_view
 
 CAPABILITY = "C5"
 OFFICER = "StewardshipOfficer"
+STATIC_RULES = (("project", "done"), ("idea", "dropped"))
+SEEN = "lifecycle_seen"  # State record kind: {path, sha, work, at} of the note content last asked of System One
+log = logging.getLogger("knowledgeos.stewardship")
+
+
+@dataclass(frozen=True)
+class Judgment:
+    """A status transition that needs reading the note: a System One predicate decides it."""
+
+    question: str
+    target: str
+    claim: str
+    instructions: str
+
+
+JUDGMENTS: dict[tuple[str, str], Judgment] = {}
+for _type, _statuses, _judgment in (
+    ("question", ("open",), Judgment(
+        "answered", "answered", "the note already answers its question",
+        "The note is a question the author wants answered. Does the note itself already contain an "
+        "answer to that question, stated in its body?")),
+    ("project", ("planned", "active", "paused"), Judgment(
+        "finished", "done", "the project is finished",
+        "The note describes a project. Does the note state that the project is finished, completed "
+        "or delivered?")),
+    ("idea", ("seed", "developing", "mature"), Judgment(
+        "abandoned", "dropped", "the author abandoned the idea",
+        "The note describes an idea. Does the note state that its author abandoned the idea or decided "
+        "not to pursue it?")),
+):
+    for _status in _statuses:
+        JUDGMENTS[(_type, _status)] = _judgment
 
 
 def register(reg: Registry) -> None:
@@ -27,11 +62,42 @@ def _eligible(doc) -> bool:
     return doc.policy != "deny" and doc.valid and not doc.conflict and not path_skip_reason(doc.path)
 
 
+def _reserved(owner) -> tuple[set[str], set[str]]:
+    """Target paths and IDs that an open or stale proposal already reserves."""
+    paths: set[str] = set()
+    ids: set[str] = set()
+    for path in owner.vault.iter_paths(PROPOSALS_DIR):
+        note = owner.vault.read(path)
+        if note is not None and note.type == "proposal" and note.status in ("open", "stale"):
+            paths.add(note.data.get("target_path"))
+            ids.add(note.data.get("target_id"))
+    return paths, ids
+
+
+def _is_reserved(reserved: tuple[set[str], set[str]], path: str, note_id: str | None) -> bool:
+    return path in reserved[0] or bool(note_id and note_id in reserved[1])
+
+
+def _seen(owner, identity: str, sha: str) -> bool:
+    return (owner.store.get(SEEN, digest(identity)) or {}).get("sha") == sha
+
+
 def lifecycle_targets(owner) -> list[str]:
+    """Notes the digest Work admits: static lifecycle targets and, with System One configured,
+    notes whose status transition needs reading them (unreserved, sendable by a job, changed
+    since last asked)."""
     docs = owner.index.refresh()
     duplicates = owner.index.duplicate_ids(docs)
-    return sorted(path for path, doc in docs.items() if _eligible(doc) and doc.note_id not in duplicates and
-                  ((doc.type == "project" and doc.status == "done") or (doc.type == "idea" and doc.status == "dropped")))
+    targets = {path for path, doc in docs.items() if _eligible(doc) and doc.note_id not in duplicates and
+               (doc.type, doc.status) in STATIC_RULES}
+    if owner.system_one is not None:
+        reserved = _reserved(owner)
+        targets.update(
+            path for path, doc in docs.items()
+            if (doc.type, doc.status) in JUDGMENTS and _eligible(doc) and doc.note_id not in duplicates
+            and system_one.may_send(doc.policy, "schedule") and not _is_reserved(reserved, path, doc.note_id)
+            and not _seen(owner, doc.note_id or path, doc.sha))
+    return sorted(targets)
 
 
 def target_path(owner, proposal, docs=None) -> str | None:
@@ -108,25 +174,86 @@ def attention(owner) -> list[dict[str, Any]]:
     return result
 
 
+def _judge(ctx, service, note, item, duplicates, reserved):
+    """Ask System One whether ``note`` warrants its status transition.
+
+    Returns ``(asked, entry)``: ``asked`` records the content that was sent (None when nothing
+    was sent); ``entry`` is the lifecycle proposal, present only for a confident yes. Raises
+    ``SystemOneUnavailable``."""
+    owner = ctx.owner
+    rule = JUDGMENTS[(note.type, note.status)]
+    identity = note.note_id or note.path
+    current = owner.vault.read(note.path)
+    if (current is None or current.sha != note.sha or not current.valid or current.conflict
+            or path_skip_reason(note.path) or note.note_id in duplicates
+            or _is_reserved(reserved, note.path, note.note_id) or _seen(owner, identity, note.sha)):
+        return None, None
+    # The disclosure boundary: the note's current policy, at the strictest of admission and now.
+    policy = strictest([item["policy"], effective(current, owner.config.default_policy)])
+    if not system_one.may_send(policy, ctx.workspec["origin"]):
+        return None, None
+    answers = service.decide(system_one.note_input(note, service.max_input_chars),
+                             [system_one.predicate(rule.question, rule.instructions)],
+                             purpose="stewardship lifecycle", ref=ctx.work_id)
+    answer = answers.get(rule.question)
+    verdict = service.holds(answer)
+    asked = {"path": note.path, "id": identity, "sha": note.sha, "holds": verdict}
+    if not verdict:
+        return asked, None
+    probability = answer["probability"]
+    return asked, {"path": note.path, "preimage": note.sha, "kind": "status", "source": "system_one",
+                   "probability": probability, "changes": [
+                       {"change_id": "status", "op": "set", "key": "status", "value": rule.target,
+                        "description": f"Set status to {rule.target}: System One judged that {rule.claim} "
+                                       f"(probability {probability:.2f})"}]}
+
+
 def officer_step(ctx) -> dict[str, Any]:
-    lifecycle = []
+    owner = ctx.owner
+    service = owner.system_one
+    duplicates = owner.index.duplicate_ids(owner.index.refresh()) if service else {}
+    reserved = _reserved(owner) if service else (set(), set())
+    lifecycle, asked = [], []
     for item in ctx.inputs():
         note = ctx.snapshot(item["path"])
-        if (note.type, note.status) in (("project", "done"), ("idea", "dropped")):
+        if (note.type, note.status) in STATIC_RULES:
             lifecycle.append({"path": note.path, "preimage": note.sha, "changes": [
                 {"change_id": "archive-status", "op": "set", "key": "status", "value": "archived", "description": "Set status to archived"},
                 {"change_id": "archive-move", "op": "move", "to": "90_Archive", "description": "Move to 90_Archive/"}]})
-    return {"lifecycle": lifecycle}
+        elif service is not None and (note.type, note.status) in JUDGMENTS:
+            try:
+                record, entry = _judge(ctx, service, note, item, duplicates, reserved)
+            except SystemOneUnavailable as error:
+                # Static proposals continue; unasked notes are asked again in the next run.
+                log.warning("stewardship status judgments stopped: %s", error)
+                service = None
+                continue
+            if record:
+                asked.append(record)
+            if entry:
+                lifecycle.append(entry)
+    return {"lifecycle": lifecycle, "asked": asked}
 
 
 def check(ctx, artifact):
     seen = set()
     result = []
+    origin = ctx.workspec["origin"]
+    default_policy = ctx.owner.config.default_policy
     for entry in artifact["lifecycle"]:
         note = ctx.snapshot(entry["path"])
-        ok = entry["path"] not in seen and note.sha == entry["preimage"] and (note.type, note.status) in (("project", "done"), ("idea", "dropped"))
+        ok = entry["path"] not in seen and note.sha == entry["preimage"]
+        if entry.get("kind") == "status":
+            rule = JUDGMENTS.get((note.type, note.status))
+            ok = (ok and rule is not None and entry.get("source") == "system_one" and
+                  [(c["op"], c.get("key"), c.get("value")) for c in entry["changes"]] == [("set", "status", rule.target)] and
+                  system_one.may_send(effective(note, default_policy), origin))
+            reason = "System One status judgment on an admitted candidate; Owner proposes, the user decides"
+        else:
+            ok = ok and (note.type, note.status) in STATIC_RULES
+            reason = "Deterministic lifecycle rule for an admitted target"
         seen.add(entry["path"])
-        result.append({"target": entry["path"], "verdict": "satisfied" if ok else "unmet", "reason": "Deterministic lifecycle rule for an admitted target"})
+        result.append({"target": entry["path"], "verdict": "satisfied" if ok else "unmet", "reason": reason})
     return result
 
 
@@ -168,9 +295,24 @@ def maintain_proposals(ctx) -> dict[str, list[str]]:
 
 
 def finish(ctx, artifact) -> Done:
+    owner = ctx.owner
     written = []
+    reserved = None
     for item in artifact["lifecycle"]:
-        written.append(proposals.write_or_regenerate(ctx, ctx.snapshot(item["path"]), item["changes"], kind="archive", capability=CAPABILITY))
+        note = ctx.snapshot(item["path"])
+        if item.get("kind") != "status":
+            written.append(proposals.write_or_regenerate(ctx, note, item["changes"], kind="archive", capability=CAPABILITY))
+            continue
+        # A System One status proposal never replaces or joins another proposal for its target.
+        reserved = _reserved(owner) if reserved is None else reserved
+        if _is_reserved(reserved, note.path, note.note_id):
+            written.append({"status": "reserved", "path": None})
+            continue
+        written.append(proposals.write_or_regenerate(ctx, note, item["changes"], kind="status", capability=CAPABILITY))
+    # Remember what was asked only after the effects, so a failed Work asks again.
+    for asked in artifact.get("asked", []):
+        owner.store.put(SEEN, digest(asked["id"]), {"path": asked["path"], "sha": asked["sha"],
+                                                      "work": ctx.work_id, "at": iso(ctx.clock.now())})
     maintained = maintain_proposals(ctx)
     from .c8_notify import send_digest
     digest_result = send_digest(ctx.owner, ctx.request_id)

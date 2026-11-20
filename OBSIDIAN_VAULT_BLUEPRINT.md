@@ -169,12 +169,13 @@ Each step has a fixed runtime, `static` (Owner code) or `model` (a Hermes role p
 | `connector` | Thinking teammate | model (`kos-connector`) | What the user already wrote that relates, and connections and tensions between notes |
 | `challenger` | Thinking teammate | model (`kos-challenger`) | Gaps, counterpoints and open questions |
 | `synthesizer` | Thinking teammate | model (`kos-synthesizer`) | The final cited report, including next steps |
-| StandardizationOfficer | Officer (capability C2) | static | Deterministic conformance of one or more notes |
-| StewardshipOfficer | Officer (capability C5) | static | Attention items, lifecycle suggestions and digest content |
+| StandardizationOfficer | Officer (capability C2) | static; asks System One for rule-9 closed-set values | Conformance of one or more notes: deterministic rules plus confident System One enum choices |
+| StewardshipOfficer | Officer (capability C5) | static; asks System One for status predicates | Attention items, lifecycle suggestions and digest content |
 | EmbeddingOfficer | Officer (capability C3) | static; calls the local Ollama embedding model over loopback | Incremental vector index of eligible notes |
 | EvalOfficer | EvalOfficer | static checks always; model (`kos-eval`) for semantic criteria | Assessments for every Work |
 | Scheduler | Owner service | Static; slots from `config/jobs.json`, runs only while the Owner runs | Triggering declared jobs |
 | Notifier | Host service | Delivery through the operations profile `kos-ops` | Delivery |
+| System One | Owner service | OpenAI Decisions API (`gpt-6-luna`) called directly by the Owner; no Hermes profile | Typed closed-set answers (`choice`, `predicate`) that Owner code acts on: C2 rule 9, C1 `scout` hints, C3 neighbor vetting, C5 status proposals, the C11 free-text prefilter. Never writes, authors text or decides `ai_policy`/`sensitivity` |
 
 Search (capability C3) is a service the Owner provides to people and to roles through tools. It is not a role; only keeping its vector index current is Officer work (EmbeddingOfficer).
 
@@ -300,6 +301,7 @@ Body wikilinks are ordinary associations. Typed relation properties exist only w
 - Output inherits the strictest policy among the focal or target note and every note read in the Work, including notes not ultimately cited.
 - Policy is checked against the note's current content immediately before disclosure. A moved, deleted or newly restricted source fails closed.
 - Discord digests and immediate alerts may disclose note titles and links only for `remote_ok` and `ask` notes, never body text or identifying information from `deny`, `local_only` or `confidential` notes.
+- System One is a remote model: it follows the model-use columns with no local route. Its credential is a host-owned 0600 file outside Git and the Vault, and no secret reaches Hermes subprocesses.
 
 ### 5.5 Identity and references
 

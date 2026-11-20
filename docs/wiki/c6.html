@@ -111,8 +111,8 @@
 <li>실제 모델 역할 스모크가 열린 제안 1개를 만들었습니다(<code>E_REAL_ROLE_SMOKE</code>).</li>
 </ul></li>
 <li><strong>기록되지 않은 것</strong>: 실환경에서 stale 제안(REV-2), 되돌리기 거절(REV-3), 요청 시간 초과 후 재접속(REV-4)을 관찰했다는 기록은 PROJECT_STATE.md에 없습니다. 이 위키에서 확인할 수 있는 근거는 계약 테스트이며, 기록 부재가 실행하지 않았다는 증거는 아닙니다.</li>
-<li><strong>GUI 근거의 범위</strong>: 현재 인라인형 사이드바 1.2.0의 실제 설치·화면 관찰은 <code>E_SIDEBAR_INLINE_INSTALL</code>·<code>E_SIDEBAR_INLINE_GUI</code>에 기록되어 있습니다. 다만 제안 노트에서 적용·거절 버튼이 나타나는 양성 사례는 이 GUI 기록으로 입증되지 않으므로 테스트 근거와 구분해야 합니다. 이전 1.1.0 관찰에서는 일반 노트에서 결정 영역이 숨겨진 것을 확인했지만 제안 노트가 없어 양성 사례를 확인하지 못했습니다. 당시 네이티브 팝업 내용을 확인하지 못한 <code>E_SIDEBAR_NATIVE_MENUS</code>의 blocked는 과거 이력이며, 더보기 등을 팝업 없이 표시하는 현재 인라인 UI의 미확인을 뜻하지 않습니다.</li>
-<li><strong>C6만의 미결 항목</strong>: Blueprint §9의 열린 질문 중 C6에 해당하는 것은 없습니다. 열린 <code>handoff</code>는 첫 정시 규격화·임베딩 실행 관찰과 <code>related_min_score</code> 조정으로, C6과 무관합니다.</li>
+<li><strong>GUI 근거의 범위</strong>: 인라인형 사이드바 1.2.0의 실제 설치·화면 관찰은 <code>E_SIDEBAR_INLINE_INSTALL</code>·<code>E_SIDEBAR_INLINE_GUI</code>에, 1.3.0의 설치와 규격화 미리보기 관찰은 <code>E_SYSTEM_ONE_CLIENT_INSTALL</code>·<code>E_SYSTEM_ONE_CLIENT_GUI</code>에 기록되어 있습니다. 다만 제안 노트에서 적용·거절 버튼이 나타나는 양성 사례는 이 GUI 기록들로 입증되지 않으므로 테스트 근거와 구분해야 합니다. 이전 1.1.0 관찰에서는 일반 노트에서 결정 영역이 숨겨진 것을 확인했지만 제안 노트가 없어 양성 사례를 확인하지 못했습니다. 당시 네이티브 팝업 내용을 확인하지 못한 <code>E_SIDEBAR_NATIVE_MENUS</code>의 blocked는 과거 이력이며, 더보기 등을 팝업 없이 표시하는 현재 인라인 UI의 미확인을 뜻하지 않습니다.</li>
+<li><strong>C6만의 미결 항목</strong>: Blueprint §9의 열린 질문 중 C6에 해당하는 것은 없습니다. 열린 <code>handoff</code>에는 System One이 돕는 정리가 남긴 제안 <code>KOS 점검 - 생성 효과 — organize.md</code>를 사용자가 검토(적용·거절)하는 일이 들어 있습니다(<code>E_SYSTEM_ONE_CLIENT_GUI</code>). 나머지는 첫 정시 규격화 관찰과 임계값(<code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code>) 조정으로 C6과 직접 관련이 없습니다. System One이 낸 규격화 값과 문서 관리 상태 제안(<a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c5.html">C5</a>)도 이 기능이 확인·적용·되돌리기를 맡습니다.</li>
 </ul>
 <p>전체 계획은 <a class="wikilink" href="roadmap.html">로드맵</a>, 검증 근거 전체는 <a class="wikilink" href="status.html">현재 상태</a>에서 볼 수 있습니다.</p>
 <h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
@@ -124,9 +124,9 @@
 <li><a class="wikilink" href="c11.html">C11</a>: 적용·거절·되돌리기를 호출하는 명령, 사이드바, 요청 ID 기반 복구 규칙이 여기 있습니다 (<a class="wikilink" href="c11.html#SUR-8">SUR-8</a>).</li>
 <li><a class="wikilink" href="c8.html">C8</a>: 알림은 알림만 합니다. Discord 메시지나 반응으로는 아무것도 승인되지 않으므로 적용·거절은 항상 Obsidian에서 합니다.</li>
 </ul>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

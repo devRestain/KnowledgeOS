@@ -264,14 +264,48 @@
     }
   }
 
-  /* ---------- keyboard access for scrollable regions ---------- */
+  /* ---------- diagram scale and keyboard access for scrollable regions ---------- */
   function initScrollRegions() {
     var nodes = doc.querySelectorAll('.table-wrap, figure.diagram, .page pre');
     Array.prototype.forEach.call(nodes, function (n) {
-      if (n.scrollWidth > n.clientWidth + 1) {
-        n.tabIndex = 0;
-        n.setAttribute('role', 'region');
-        n.setAttribute('aria-label', n.matches('pre') ? '코드 (가로 스크롤)' : n.matches('figure') ? '다이어그램 (가로 스크롤)' : '표 (가로 스크롤)');
+      var diagram = n.matches('figure');
+      var kind = n.matches('pre') ? '코드' : diagram ? '그림' : '표';
+      var hint = el('p', 'scroll-hint', kind + ' 안을 가로로 밀어 나머지 내용을 볼 수 있습니다.');
+      hint.hidden = true;
+      n.before(hint);
+      function update() {
+        var overflow = n.scrollWidth > n.clientWidth + 1;
+        hint.hidden = !overflow;
+        if (overflow) {
+          n.tabIndex = 0;
+          n.setAttribute('role', 'region');
+          n.setAttribute('aria-label', kind + ' (가로 스크롤)');
+        } else {
+          n.removeAttribute('tabindex');
+          n.removeAttribute('role');
+          n.removeAttribute('aria-label');
+        }
+      }
+      if (diagram) {
+        var tools = el('div', 'diagram-tools');
+        var button = el('button', 'diagram-toggle', '그림 크게 보기');
+        button.type = 'button';
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', function () {
+          var expanded = n.classList.toggle('diagram-expanded');
+          button.setAttribute('aria-pressed', String(expanded));
+          button.textContent = expanded ? '그림 전체 보기' : '그림 크게 보기';
+          n.scrollLeft = 0;
+          update();
+        });
+        tools.appendChild(button);
+        hint.before(tools);
+      }
+      update();
+      if ('ResizeObserver' in window) {
+        new ResizeObserver(update).observe(n);
+      } else {
+        window.addEventListener('resize', update);
       }
     });
   }

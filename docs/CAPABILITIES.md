@@ -10,18 +10,30 @@ This is the user-designated top-level behavior and acceptance specification. [US
 - **Handoff**: a teammate's intermediate artifact, readable by later teammates in the same Work.
 - **Report**: a create-only Markdown note in `01_AI_Review/Reports/`.
 - **Proposal**: a change set for one target note in `01_AI_Review/Proposals/`, applied only by the user. It is create-only except for exact-preimage regeneration of an unchanged Owner-written proposal (Blueprint §5.6, §6.2).
-- **Autofix**: a deterministic standardization change written directly under capability C2 rules.
+- **Autofix**: a standardization change written directly under capability C2 rules: deterministic rules 1-8 and rule-9 values System One decided with sufficient confidence.
 - **Attention item**: something that needs the user's eye. It is shown either as a Bases view over Vault metadata or as a computed entry in the console and the digest. It is never stored as a note.
+- **System One**: the Owner's fast closed-set judgment service (below). It answers typed questions; Owner code acts on the answers.
+
+## System One
+
+System One is an Owner service, not a role. Owner code sends it one input and typed questions through the OpenAI Decisions API (`POST /v1/decisions`, model `gpt-6-luna`): a `choice` from a fixed set of values or a `predicate` probability. It never writes, never authors free text and never decides `ai_policy` or `sensitivity`.
+
+- **Settings** (`settings.system_one`): `api_key_file` (absolute path of a private 0600 file outside Git and the Vault; absent means unconfigured), `url` (default the OpenAI Decisions endpoint; plain `http` only on loopback), `model` (default `gpt-6-luna`), `timeout_seconds` (default 20), `min_confidence` (default 0.7) and `max_input_chars` (default 8000, the body excerpt sent per note). `GET /api/health` reports `system_one` as `ready`, `unavailable` (unusable key file) or `unconfigured` without sending a request.
+- **Disclosure**: a note is sent only when its current policy, checked immediately before sending, allows remote model use for the origin (Blueprint §5.4): user requests and reads may send `remote_ok` and `ask` notes; scheduled and Gateway Work only `remote_ok`. `local_only`, `confidential` and `deny` notes are never sent.
+- **Answers**: every `choice` question offers `none_of_these`. A choice is used only when it is an offered value other than `none_of_these` with confidence at least `min_confidence`; a predicate holds at its stated threshold. Refusals, `none_of_these` and low confidence change nothing.
+- **Failure**: an unconfigured or failing System One is reported and never retried within the request; every capability then behaves as it would without System One. No capability fails because of it.
+- **Records**: a call made for a Work or request appends question names, an input digest, model and token usage, never content, to the State stream `system_one`. Read surfaces (`POST /api/search`) write no State and only log.
+- **Touchpoints**: C2 rule 9 values, C1 `scout` hints, C3 related-note vetting, C5 status proposals and the C11 free-text prefilter.
 
 ## Capability summary
 
 | ID | Capability | Target | Roles | Writes |
 |---|---|---|---|---|
 | C1 | Organize | Curation Team | CurationManager; `scout`, `classifier`, `linker`; EvalOfficer | Proposals |
-| C2 | Standardize | Officer | StandardizationOfficer; EvalOfficer (static) | Autofix or confirmed manual changes |
+| C2 | Standardize | Officer | StandardizationOfficer (asks System One for rule 9); EvalOfficer (static) | Autofix or confirmed manual changes |
 | C3 | Search | Owner service; Officer for embedding | EmbeddingOfficer (static); EvalOfficer (static) | Vector index in State |
 | C4 | Enhance | Thinking Team | ThinkingManager; `retriever`, `connector`, `challenger`, `synthesizer`; EvalOfficer | Reports |
-| C5 | Document management | Officer | StewardshipOfficer; EvalOfficer (static) | Lifecycle proposals |
+| C5 | Document management | Officer | StewardshipOfficer (asks System One for status judgments); EvalOfficer (static) | Lifecycle proposals |
 | C6 | Review | Owner effect from a human action | — | Applies, rejects, undoes |
 | C7 | Scheduled jobs | Triggers C1, C2, C3, C5 | Scheduler | Through those capabilities |
 | C8 | Notifications | Owner effect | StewardshipOfficer content; Notifier | Discord notices |
@@ -38,8 +50,8 @@ The Curation Team places notes into the knowledge structure: classification, nam
 - **Triggers**: Thin Client "정리 요청" on the current note, a selection of files or a folder; the scheduled `curate` job (C7); a Gateway intake capture (C10).
 - **Input**: up to 10 target notes per Work. Scheduled and Gateway-triggered Work only gives models notes whose effective policy is `remote_ok`.
 - **Team pool**:
-  - `scout` (static): collects the target notes, candidate related notes and the tag vocabulary.
-  - `classifier` (model): decides type, status, title, tags and conventional folder per note.
+  - `scout` (static): collects the target notes, candidate related notes (semantic neighbors vetted as in C3) and the tag vocabulary. When System One is configured, it also asks, per target that may be sent for the Work's origin, a `type` choice and, for a known type, a `status` choice, and records accepted answers with confidence and top probabilities as advisory per-target hints.
+  - `classifier` (model): decides type, status, title, tags and conventional folder per note. It sees System One hints in its work context as advice only; Owner code never writes a hint to a note or proposal.
   - `linker` (model): decides links and typed relations to existing notes, and whether a capture should attach to an existing note.
 - **Manager**: CurationManager picks the teammates the Work needs. For example, a capture with no plausible related notes may skip `linker`.
 - **Output**: the Owner renders one proposal per target from the handoffs. Each change is a checklist item:
@@ -62,10 +74,11 @@ Acceptance:
 - **ORG-4** Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.
 - **ORG-5** Given the CurationManager's Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.
 - **ORG-6** Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only `classifier` for that target, within budget.
+- **ORG-7** Given System One is configured and a user organize request targets an untyped `remote_ok` note in `00_Inbox/` that System One classifies as `idea` at 0.9 confidence, then the `classifier`'s work context carries that advisory hint, and if the `classifier` submits `question` the proposal says `question` and the note is unchanged. A scheduled `curate` run never sends an `ask` note to System One, and with System One unavailable the Work completes without hints.
 
 ## C2 Standardize
 
-The StandardizationOfficer makes notes conform to the Vault contract with deterministic, minimal edits. No model is involved. Fields that need judgment belong to capability C1.
+The StandardizationOfficer makes notes conform to the Vault contract with minimal edits. Rules 1-8 are deterministic. Rule 9 lets System One map closed-set (enum) values that need judgment; every other judgment, such as title, tags, links, folder or reclassifying a valid type, belongs to capability C1.
 
 **Three paths:**
 
@@ -86,7 +99,7 @@ The StandardizationOfficer makes notes conform to the Vault contract with determ
    - `40_Knowledge/Questions/` → `question`
    - `40_Knowledge/Sources/` → `source`
    - `20_Projects/<name>/<name>.md` → `project`
-   - Anywhere else, leave `type` to C1.
+   - Anywhere else, rule 9.
 4. Add `created`: the first time KnowledgeOS observed the file.
 5. Add the type's initial `status`.
 6. Add `ai_policy`: the Owner's default.
@@ -96,8 +109,15 @@ The StandardizationOfficer makes notes conform to the Vault contract with determ
    - Dates become ISO-8601 with an offset.
    - Enum values use their canonical case.
 8. Move trailing body lines that are frontmatter keys of known list properties (such as `tags:` or `related:`) into frontmatter. Merge them with existing values without duplicates, and remove only those lines.
+9. Ask System One for closed-set values that need judgment, one request per note with one `choice` question per field over the contract's values (Blueprint §5.2, §5.3) plus `none_of_these`:
+   - `type` when it is missing and rule 3 derives none;
+   - `status` when it is neither a valid value of the note's type (or `archived`) nor one up to case;
+   - `confidence` of a `knowledge` note when present but invalid;
+   - `capture_kind` of a `capture` when missing or invalid.
 
-An unknown `type` or a `status` with no valid canonical value needs C1 judgment and is not guessed. Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as `home` or `system` are excluded as navigation.
+   A `type` decided this way gets the initial `status` by rule 5, or a second request when its existing `status` is invalid for that type. An accepted answer (System One section) becomes an ordinary planned change with rule `system_one`, recorded with its confidence; anything else leaves the field unchanged and is listed as undecided with its reason (`unconfigured`, `unavailable`, `deferred` near the Activity window's end, `policy`, `refused`, `none_of_these` or `low_confidence`). Manual and batch Work may send `remote_ok` and `ask` notes; the automatic path only `remote_ok`. An existing unknown `type` (for example a user's own `daily`), a missing `confidence`, `ai_policy`, `sensitivity` and every non-enum field are never judged.
+
+Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as `home` or `system` are excluded as navigation.
 
 **Never**:
 
@@ -110,9 +130,11 @@ An unknown `type` or a `status` with no valid canonical value needs C1 judgment 
 
 - The automatic path skips notes modified within the quiet period (default 10 minutes).
 - All paths skip notes with conflict markers, unparseable YAML or a duplicate ID. These become attention items.
-- The automatic path detects changes by content hash, not by Git history or the mere occurrence of a prior run.
+- The automatic path detects changes by content hash, not by Git history or the mere occurrence of a prior run. A note whose rule-9 question was `unavailable` or `deferred` is not settled, so the next run asks again; other outcomes settle it until its content changes.
 
-**Write**: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta in the change log, which supports undo (C6).
+**Write**: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation and shows each System One value with its confidence above the diff. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta, including System One decisions, in the change log, which supports undo (C6).
+
+**Static criteria** (EvalOfficer): skips respected, result valid, properties preserved, minimal diff, and decisions grounded: every `system_one` change is an offered value of a rule-9 field, equals an accepted answer at or above the recorded threshold, and belongs to a note whose admitted policy allows remote model use for the Work origin.
 
 Acceptance:
 
@@ -124,6 +146,9 @@ Acceptance:
 - **STD-6** Given frontmatter with custom keys and quoted values, then only missing keys are appended, and existing lines stay byte-identical.
 - **STD-7** Given a note created from each type template, then standardization proposes zero changes.
 - **STD-8** Given a manual preview that the user cancels, then nothing is written and no change-log entry exists.
+- **STD-9** Given a note at the Vault root with `status: 초안` and no `type`, when a manual preview runs with System One answering `knowledge` (0.92) and then `developing` (0.81), then two requests are sent (type, then status), the preview shows both values with their confidence, nothing is written until confirmation, `sensitivity` and `ai_policy` are never asked, and the `system_one` State records carry the Work ID but no note text.
+- **STD-10** Given `remote_ok` notes with invalid statuses or a missing `capture_kind`, an `ask` note and a low-confidence answer, when the automatic path runs, then only confident answers are written as autofix, the `ask` note's text is never sent, the low-confidence field is left unchanged, and a second run sends nothing for the settled notes.
+- **STD-11** Given System One is down, when the automatic path runs, then rules 1-8 still apply, the rule-9 field stays unchanged with reason `unavailable`, and the next run after recovery asks again and applies the answer.
 
 ## C3 Search
 
@@ -142,7 +167,7 @@ Acceptance:
 
 **Semantic index.**
 
-- **Embedding service**: a local Ollama server, called directly by the Owner over loopback HTTP; no gateway or remote model is involved. `settings.C3.semantic` holds `ollama_url` (default `http://127.0.0.1:11434`; a non-loopback URL is a configuration error), `model` (default `qwen3-embedding:8b-q4_K_M`), `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors` and `related_min_score`. An empty `ollama_url` or `model` leaves semantic search unconfigured.
+- **Embedding service**: a local Ollama server, called directly by the Owner over loopback HTTP; no gateway or remote model is involved. `settings.C3.semantic` holds `ollama_url` (default `http://127.0.0.1:11434`; a non-loopback URL is a configuration error), `model` (default `qwen3-embedding:8b-q4_K_M`), `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`, `related_min_score` and `related_min_probability`. An empty `ollama_url` or `model` leaves semantic search unconfigured.
 - **Chunks**: a body is split at headings and paragraph breaks into windows of about 1,500 characters, each with its line range. The embedding input is the note title and the chunk text. Frontmatter is never embedded.
 - **Eligibility**: embedding is deterministic local processing (Blueprint §5.4), so `remote_ok`, `ask`, `local_only` and `confidential` notes are embedded and reports are eligible. Never embedded: `deny` notes; notes under `99_System/`; proposals, decided by `type: proposal` or the proposals folder, because their application is not decided; notes with merge-conflict markers. Policy is checked against the note's current content immediately before anything is sent; a note that has become ineligible is dropped, not sent.
 - **Embedding job**: the request `index.embed` is admitted by static code as one Work for the static EmbeddingOfficer. The C7 `embed` job triggers it with actor `schedule/embed`, and `knowledgeos index embed` runs it for the user until nothing is pending.
@@ -152,6 +177,7 @@ Acceptance:
   - If the embedding service is unreachable or rejects a request, the Work fails visibly with the service's error, sends no further request, keeps every vector already stored and is not retried before the next run.
 - **Readiness**: the index is ready when the configured model has vectors for at least one note. A note without current vectors (new, edited since its last embedding, or not yet reached) is absent from semantic results and neighbors until it is embedded. Vectors made by another model are discarded when the first note is embedded with the configured one, and the index is not ready until then. `GET /api/health` reports `search_semantic`, and `index verify` reports counts of eligible, embedded, stale, missing and extra (no longer eligible) notes without naming paths.
 - **Neighbors**: the semantic neighbors of a note are at most `related_neighbors` notes (default 5) whose best chunk has cosine similarity of at least `related_min_score` (default 0.5) to the note's mean chunk vector, so unrelated notes are never labeled. The default threshold is a starting value to tune against the configured model.
+- **Neighbor vetting**: when System One is configured, related notes (the people surface, role `related` tools and the C1 `scout` and C4 `retriever` candidates) vet semantic neighbors before labeling them. One request carries the focal note and, per neighbor, a predicate asking whether that neighbor (title and best-matching chunk excerpt) is substantively related, not merely sharing generic words. A neighbor keeps its `semantic` reason, marked `vetted: true`, only when the probability is at least `related_min_probability` (default 0.5); a rejected neighbor loses `semantic` and disappears unless it also has a link, backlink or tag reason. The focal note and each neighbor are sent only if their current policy allows remote model use for the surface's origin (people: user; roles: the Work's origin). Neighbors that cannot be sent, and any unconfigured, failing or refusing System One, keep the cosine-only result without `vetted`. Verdicts are cached in memory per focal content, neighbor content and model, so repeated calls on unchanged notes send nothing, and the read writes no State.
 - **Stored data**: `<State>/semantic/`, derived and never in the Vault or Git. Semantic neighbors of a note need no embedding request; a semantic query embeds only the query text.
 
 Acceptance:
@@ -164,6 +190,7 @@ Acceptance:
 - **SRC-6** Given `deny` notes, notes under `99_System/`, proposals (in or outside the proposals folder) and conflict-marked notes, when the embedding job runs, then none of their text reaches the embedding service and no semantic mode returns them, while `local_only`, `confidential` and report notes are embedded; a note that becomes one of these has its vectors dropped by the next run.
 - **SRC-7** Given embedded notes, when "의미 검색" asks a question, then results are ranked by similarity with the best chunk's line range and an excerpt. Role tools bound to a scheduled C1 Work receive only `remote_ok` non-report semantic neighbors even on a local route; user Work may also receive `ask` neighbors and, only on a local route, `local_only` neighbors. Gateway queries return only `remote_ok` non-report notes.
 - **SRC-8** Given the embedding service is down, when the job runs, then the Work fails visibly, existing vectors are kept and still give semantic neighbors, "의미 검색" shows "unavailable", and the next run embeds only what is still missing.
+- **SRC-9** Given a focal `ask` note with two sendable semantic neighbors, one of which System One judges unrelated, and a `local_only` neighbor, when "관련 노트" runs, then the related neighbor is returned marked vetted, the `local_only` neighbor stays unvetted and its text is never sent, the unrelated one is omitted, a repeated call sends no new request and writes no State, and with System One unavailable the result is the cosine-only neighbor list.
 
 ## C4 Enhance
 
@@ -225,6 +252,7 @@ The StewardshipOfficer keeps the Vault healthy and surfaces what deserves attent
   - Unknown effect outcomes and failed or blocked jobs.
   - A small rotating "revisit" set of older ideas and open questions for the digest.
 - **Lifecycle proposals** come from static rules. For example, a `done` project or a `dropped` idea gets a proposal to become `archived` in `90_Archive/`.
+- **System One status proposals**: when System One is configured, the digest run also asks one predicate per candidate note and proposes a status change only when it holds at `min_confidence`: an `open` question that already contains its answer becomes `answered`; a `planned`, `active` or `paused` project that states it is finished becomes `done`; a `seed`, `developing` or `mature` idea whose author abandoned it becomes `dropped`. Each is an ordinary single-target lifecycle proposal whose checklist item names System One and the probability; the note itself is never written. Only notes whose current policy is `remote_ok` are sent (scheduled origin), never `deny`, conflict, duplicate-ID, system or review notes, and a target with an open or stale proposal is neither asked about nor proposed again. A note is asked again only when its content changed since it was last asked (State `lifecycle_seen`, written after the Work's effects); a failed call records nothing, so the next run asks again.
 - **Ordinary note operations** (create, move, rename, delete) stay in Obsidian. KnowledgeOS follows moves by ID and treats a deleted target's proposals as stale.
 
 Acceptance:
@@ -233,6 +261,7 @@ Acceptance:
 - **DOC-2** Given two notes with the same `id`, then both stay searchable, a computed item names both, and an organize request targeting that ID is refused.
 - **DOC-3** Given a note with merge-conflict markers, then all automation skips it and a computed item lists it.
 - **DOC-4** Given a project with status `done`, then exactly one archive proposal exists for it until the user decides.
+- **DOC-5** Given a `remote_ok` open question whose body answers it, an `ask` open question and a `remote_ok` idea judged not abandoned, when the digest runs with System One configured, then exactly one proposal sets `status: answered` for the `remote_ok` question, the `ask` note's text is never sent, the idea gets no proposal, no note changes, and a second run sends nothing for unchanged notes; with System One down the run completes with only the static proposals.
 
 ## C6 Review
 
@@ -364,7 +393,7 @@ Acceptance:
 
 **Console and CLI** behave as in Blueprint §3.2 and §3.3.
 
-- **Free text**: the model Director may map only to catalog-allowed standardization preview, organize or enhance commands, not job, review or Work-management actions. It sees policy-filtered references to notes the user named, not note bodies; the Owner supplies paths and digests and performs static admission. Attempts to set criteria, budget, target authority, WorkSpec, input bindings or routes are authority violations: no corrective turn and no Work. Ordinary invalid drafts get one corrective turn; refusal, unavailable route or unknown outcome admits no Work and is reported explicitly.
+- **Free text**: when System One is configured, the Owner first sends only the request text to it as one `free_text_command` choice over the offered free-text commands plus `none_of_these`. A `none_of_these` answer at or above `min_confidence` refuses the request at once with no Director session and no Work, and the notice says System One found no KnowledgeOS command for it. Any other answer, or an unconfigured, failing, refusing or low-confidence System One, continues to the Director unchanged; the Director never sees the hint. The receipt outcome records the prefilter as `system_one` (`{choice, confidence}` or `unavailable`). The model Director may map only to catalog-allowed standardization preview, organize or enhance commands, not job, review or Work-management actions. It sees policy-filtered references to notes the user named, not note bodies; the Owner supplies paths and digests and performs static admission. Attempts to set criteria, budget, target authority, WorkSpec, input bindings or routes are authority violations: no corrective turn and no Work. Ordinary invalid drafts get one corrective turn; refusal, unavailable route or unknown outcome admits no Work and is reported explicitly.
 - **Read safety and recovery**: GETs never cause effects. After a lost response, the client looks up the original receipt; it may resend the identical request only after the Owner reports that the request was never recorded. A recorded unknown is not permission to replay.
 - **Console actions**: cancellation reports the observed application outcome after a bounded observation window, otherwise unknown. Reconciliation records an explicit human observation of applied or not applied without rewriting historical Work, receipts or unknown evidence.
 - **Owner lifecycle**: the Owner runs on the host as an on-demand macOS user service, so it outlives Obsidian. `knowledgeos install service --config FILE` writes its LaunchAgent plist (`RunAtLoad` and `KeepAlive` false, logs under Runtime) and loads it without starting it; `--dry-run` prints the plist and `launchctl` argv and changes nothing. `Owner 시작` kickstarts that launchd label and `Owner 중지` sends it SIGTERM; each reports only what `GET /api/health` then shows: started once health is ready, stopped once it stops answering, otherwise still running or unknown. They act only when the user invokes them and send no note text. `serve` closes the Owner and ExOps on SIGTERM.
@@ -380,6 +409,7 @@ Acceptance:
 - **SUR-7** Given `install service --dry-run` with a config, then the plist and `launchctl` argv are printed and nothing is written; given a real install, the plist is written and the service is loaded but not running.
 - **SUR-8** Given the user opens the sidebar repeatedly and switches between notes and the command tab, then one tab retains the visible note target, requests use that target's current path and digest, proposal decisions follow its current frontmatter, unavailable note actions cannot submit requests, and merely opening the tab never starts or stops the Owner.
 - **SUR-9** Given sidebar navigation, then function selection opens only inline controls without submitting requests or opening menus or modals; input validation, search results, outcome links and standardization confirmation remain inline, repeated confirmation submits once, and leaving a pending preview cancels its exact identity without applying it even if its response arrives late.
+- **SUR-10** Given System One answers `none_of_these` with confidence 0.9 for "오늘 날씨 알려줘", then the free-text request settles `refused` with no Work, the Director is never invoked and only the request text was sent; given it chooses a command, answers below the threshold or is down, then the Director is invoked and the outcome is as without System One.
 
 ## Follow-up: mobile
 

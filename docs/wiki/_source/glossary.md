@@ -35,10 +35,14 @@ KnowledgeOS 문서에는 영어 용어가 그대로 쓰입니다. 코드·명세
 | **Manager** | 팀의 Graph를 짜고 후속 구간과 TeamReview를 맡습니다. CurationManager(정리 팀)와 ThinkingManager(강화 팀)가 있습니다 | [[c1]], [[c4]] |
 | **Teammate(팀원)** | 한 종류의 중간 산출물만 만드는 역할. 정리 팀 `scout`·`classifier`·`linker`, 강화 팀 `retriever`·`connector`·`challenger`·`synthesizer` | [[c1]], [[c4]] |
 | **Team(팀)** | Manager 한 명과 팀원들. 정리 Team([[c1]])과 강화(Thinking) Team([[c4]])이 있습니다 | [[architecture]] |
-| **Officer** | 팀 없이 혼자 결과 하나를 책임지는 static 역할. StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer | [[c2]], [[c3]], [[c5]] |
+| **Officer** | 팀 없이 혼자 결과 하나를 책임지는 static 역할. StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer. 앞의 둘은 설정 시 System One에게 선택지·확률 질문을 합니다 | [[c2]], [[c3]], [[c5]] |
 | **EvalOfficer** | 독립 평가자. 모든 작업의 기준을 평가하고, 결과를 만들거나 고치지 않습니다. static 검사는 항상, 의미 기준만 모델이 판단합니다 | [[architecture]] |
 | **Scheduler** | 선언된 예약 작업을 트리거하는 Owner 안의 서비스 | [[c7]] |
 | **Notifier** | 만들어진 알림을 전달하는 호스트 서비스. 내용은 만들지 않습니다 | [[c8]] |
+| **System One** | Owner가 OpenAI Decisions API(모델 `gpt-6-luna`)에 직접 묻는 빠른 선택형 판단 서비스. 역할(role)이 아니고 Hermes profile도 없습니다. 고정된 선택지 중 하나(`choice`)나 확률(`predicate`)만 답하며, 쓰지도 글을 짓지도 않고 `ai_policy`·`sensitivity`는 결정하지 않습니다. 설정이 없거나 실패하면 모든 기능이 System One 없이 하던 대로 동작합니다 | [[c2]], [[c1]], [[c3]], [[c5]], [[c11]] |
+| **`choice` / `predicate`** | System One의 두 질문 형식. `choice`는 정해진 값 중 하나와 `none_of_these`(어느 것도 아님)를 고르게 하고, `predicate`는 "이 문장이 참인가"의 확률을 답하게 합니다 | [[c2]], [[c5]] |
+| **`min_confidence`** | System One의 `choice` 답을 쓰는 최소 확신도(기본 0.7). 미만이거나 `none_of_these`이면 아무것도 바꾸지 않습니다. 실제 노트로 조정할 시작값입니다 | [[c2]], [[c11]] |
+| **Vetted(거름 통과)** | 의미 이웃이 System One의 "정말 관련 있는가" 판정(`related_min_probability` 이상)을 통과해 `vetted: true`로 표시된 상태 | [[SRC-9]] |
 
 ## 저장소와 실행
 
@@ -79,7 +83,7 @@ KnowledgeOS 문서에는 영어 용어가 그대로 쓰입니다. 코드·명세
 | **Reconcile(확인 기록)** | 사람이 결과 불명 항목을 직접 확인해 "적용됨/적용 안 됨"을 기록하는 일. 과거 기록은 고치지 않습니다 | [[SUR-4]] |
 | **Snapshot(스냅숏)** | 접수 때 State에 잡아 둔 입력 노트의 정확한 바이트 | [[ENH-3]] |
 | **Fail closed** | 확인할 수 없으면 허용하지 않고 막는 방식 [해석: 원본의 "fails closed"] | [[architecture]] |
-| **Autofix** | 결정적 규격화가 노트에 직접 쓴 작은 변경 | [[c2]] |
+| **Autofix** | 규격화가 노트에 직접 쓴 작은 변경. 결정적 규칙 1~8과, System One이 충분한 확신으로 고른 규칙 9의 값을 포함합니다 | [[c2]] |
 | **Quiet period** | 최근 편집한 노트를 자동 규격화가 건너뛰는 기간(기본 10분) | [[STD-4]] |
 | **Conflict marker** | Git 병합 충돌 표시. 있는 노트는 모든 자동화가 건너뛰고 주의 항목이 됩니다 | [[DOC-3]] |
 | **Attention item(주의 항목)** | 사용자가 봐야 할 것. 노트로 저장하지 않고 Bases 보기나 콘솔·요약에서 계산합니다 | [[c5]] |

@@ -52,6 +52,14 @@ make wiki-check                  # 위키가 원본과 일치하고 링크가 �
 
 모든 개발 세션은 바뀐 범위에 맞춰 원본 문서와 위키 설명을 함께 갱신합니다. 끝내기 전에 `make wiki`로 위키를 다시 만들고, `make wiki-check`를 통과시킨 뒤, 바뀐 페이지를 브라우저로 열어 확인합니다. 설명 문장은 `docs/wiki/_source/`에서만 고치고, 생성된 HTML은 직접 고치지 않습니다. 위키를 갱신하다 명세 문서끼리 어긋나는 곳을 발견하면, 위키에 경고만 남기지 말고 같은 세션에서 우선순위가 낮은 문서(Blueprint, 사용자 기능 명세)를 고칩니다.
 
+### 모바일에서 위키 읽기
+
+위키는 휴대폰 브라우저에서도 읽을 수 있습니다. 좁은 화면에서는 검색창이 별도 줄을 쓰고 본문은 화면 폭에 맞춥니다. 넓은 표·코드는 영역 안에서 가로 스크롤하며, 그림은 **그림 크게 보기 / 그림 전체 보기**로 전환합니다.
+
+접속 경로는 **정적 위키 전용 비공개 HTTPS + Tailscale Serve**를 권장합니다. Mac이 켜져 있어야 하며 접근 규칙을 본인 기기로 제한해야 합니다. 배포·네트워크 설정은 변경하지 않습니다. 다른 선택지, 배포 파일 범위와 원문 링크의 한계는 [위키 운용 원칙](docs/wiki/philosophy.html)에 있습니다. Owner·관리 콘솔의 원격 노출은 포함하지 않습니다.
+
+### 기능 검증과 Owner 실행
+
 추적된 테스트 전체 실행:
 
 ```sh
@@ -83,7 +91,7 @@ knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgen
 
 예약 작업은 Owner가 켜져 있는 동안 Owner 안에서만 실행됩니다. Owner가 시작되고 `startup_delay_minutes`(기본 3분)가 지나면 꺼져 있는 동안 놓친 작업을 한 번씩 실행하고, 이후에는 정해진 시각에 실행합니다. `settings.C7`의 `scheduler_enabled`(기본 true)·`startup_delay_minutes`·`tick_seconds`(기본 30)로 조정합니다.
 
-의미 검색은 로컬 Ollama 임베딩과 State의 벡터 색인(`<State>/semantic/`)을 씁니다. Owner가 loopback HTTP로 Ollama를 직접 호출하며(loopback이 아닌 주소는 설정 오류), 게이트웨이나 원격 모델은 쓰지 않습니다. 기본값은 아래와 같고 `settings.C3.semantic`으로 바꿉니다(그 밖에 `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`, `related_min_score`). `ollama_url`이나 `model`을 비우면 의미 검색을 쓰지 않습니다.
+의미 검색은 로컬 Ollama 임베딩과 State의 벡터 색인(`<State>/semantic/`)을 씁니다. Owner가 loopback HTTP로 Ollama를 직접 호출하며(loopback이 아닌 주소는 설정 오류), 게이트웨이나 원격 모델은 쓰지 않습니다. 기본값은 아래와 같고 `settings.C3.semantic`으로 바꿉니다(그 밖에 `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`, `related_min_score`, System One 관련 노트 거르기 기준 `related_min_probability`). `ollama_url`이나 `model`을 비우면 의미 검색을 쓰지 않습니다.
 
 ```json
 "settings": {"C3": {"semantic": {"ollama_url": "http://127.0.0.1:11434", "model": "qwen3-embedding:8b-q4_K_M"}}}
@@ -92,6 +100,15 @@ knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgen
 - 예약 작업 `embed`(매시 30분)와 `knowledgeos index embed`(남은 노트가 없을 때까지 반복)가 같은 `index.embed` 요청을 처리합니다. 새 노트와 내용이 바뀐 노트만 임베딩하고, 삭제·이름 변경으로 사라졌거나 `deny`·제안(`type: proposal`)·`99_System/`·충돌 표시 때문에 대상이 아니게 된 노트의 벡터는 지웁니다. `local_only`·`confidential`·보고서 노트는 로컬 처리이므로 임베딩합니다.
 - 아직 임베딩되지 않았거나 수정된 노트는 다음 임베딩까지 의미 검색·관련 노트 결과에서 빠집니다. 모델을 바꾸면 다음 실행에서 모든 벡터를 새로 만들고, 그 전까지 의미 검색은 `unavailable`입니다. Ollama가 꺼져 있으면 작업이 실패로 남고(재시도 없음) 기존 벡터는 그대로 유지됩니다.
 - `knowledgeos index verify`의 `semantic`과 `GET /api/health`의 `search_semantic`으로 준비 상태와 범위(대상·임베딩·오래됨·누락 수)를 확인합니다.
+
+System One은 OpenAI Decisions API(`gpt-6-luna`)에 선택형 질문을 보내는 Owner 서비스입니다. 규격화 규칙 9(폴더로 못 정하는 `type`, 잘못된 `status`·`confidence`, 빠지거나 잘못된 `capture_kind`), 정리 `scout` 힌트, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 씁니다. `ai_policy`·`sensitivity`는 묻지 않고, 예약 작업은 `remote_ok` 노트만 보냅니다. API 키는 Git·Vault 밖의 0600 파일에 두고 경로만 설정합니다.
+
+```json
+"settings": {"system_one": {"api_key_file": "/path/to/States/System/OpenAI/knowledgeos-decisions.key"}}
+```
+
+- 그 밖의 설정: `model`(기본 `gpt-6-luna`), `min_confidence`(기본 0.7), `timeout_seconds`(기본 20), `max_input_chars`(기본 8000), `url`.
+- `GET /api/health`의 `system_one`이 `ready`·`unavailable`·`unconfigured`를 보여 줍니다. 꺼져 있거나 실패해도 각 기능은 System One 없이 동작합니다. 작업에 묶인 호출은 내용 없이 State `system_one.jsonl`에 기록됩니다.
 
 Owner를 Mac의 필요할 때 켜지는 사용자 서비스(LaunchAgent)로 등록하고 Obsidian에서 켜고 끕니다.
 

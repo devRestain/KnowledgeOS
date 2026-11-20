@@ -221,6 +221,7 @@ class Settings:
     max_notes: int = 100
     related_neighbors: int = 5
     related_min_score: float = 0.5
+    related_min_probability: float = 0.5
 
 
 def build(config: OwnerConfig, catalog: Catalog) -> SemanticStore | None:
@@ -240,6 +241,7 @@ def build(config: OwnerConfig, catalog: Catalog) -> SemanticStore | None:
         batch_size=values.get("batch_size", 16), timeout_seconds=values.get("timeout_seconds", 60),
         max_notes=values.get("max_notes", 100), related_neighbors=values.get("related_neighbors", 5),
         related_min_score=values.get("related_min_score", 0.5),
+        related_min_probability=values.get("related_min_probability", 0.5),
     )
     for name in ("batch_size", "max_notes"):
         value = getattr(settings, name)
@@ -251,6 +253,9 @@ def build(config: OwnerConfig, catalog: Catalog) -> SemanticStore | None:
     if not isinstance(settings.related_min_score, (int, float)) or isinstance(settings.related_min_score, bool) \
             or not -1 <= settings.related_min_score <= 1:
         raise ConfigError("C3.semantic related_min_score must be a cosine similarity between -1 and 1")
+    if not isinstance(settings.related_min_probability, (int, float)) \
+            or isinstance(settings.related_min_probability, bool) or not 0 <= settings.related_min_probability <= 1:
+        raise ConfigError("C3.semantic related_min_probability must be a probability between 0 and 1")
     if not isinstance(settings.timeout_seconds, (int, float)) or isinstance(settings.timeout_seconds, bool) \
             or settings.timeout_seconds <= 0:
         raise ConfigError("C3.semantic timeout_seconds must be positive")
@@ -269,6 +274,7 @@ class SemanticStore:
         self.max_notes = settings.max_notes
         self.related_neighbors = settings.related_neighbors
         self.related_min_score = float(settings.related_min_score)
+        self.related_min_probability = float(settings.related_min_probability)
         self.client = OllamaClient(settings.ollama_url, settings.model, self.timeout)
         self._write = threading.Lock()
         self._lock = threading.RLock()

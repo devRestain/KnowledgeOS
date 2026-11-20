@@ -122,7 +122,7 @@ knowledgeos install profiles --config owner.json    # 역할 profile과 발송 �
 <li><strong>실환경 Discord 전달</strong>: <code>KNOWLEDGEOS_REAL_ADOPTION.DISCORD</code>가 통과했습니다. <code>E_DISCORD_DELIVERED</code>는 요약 알림 하나가 Owner와 <code>kos-ops</code> 발송 경로를 거쳐 <code>knowledgeos</code> 채널에 전달된 기록입니다. 이에 앞서 봇이 서버에 들어오기 전에는 Discord API 403 Missing Access로 첫 요약이 <code>not_delivered</code>로 기록됐고(<code>E_DISCORD_MISSING_ACCESS</code>, 이력으로 보존), 봇 초대와 권한 부여로 <code>B_DISCORD_TOKEN</code>이 해결됐습니다.</li>
 <li><strong>알림 기록의 범위</strong>: <code>D_NOTICE_NO_FAILURE_REASON</code>에 따라 알림 기록에는 전달 실패 사유를 남기지 않습니다.</li>
 <li><strong>Hermes cron 제거</strong>: 예약은 Owner 안의 스케줄러만 맡습니다. <code>E_HERMES_CRON_REMOVED</code>는 <code>kos-ops</code>의 Hermes cron 작업 세 개를 지우고 발송 전용으로 다시 설치했음을 기록합니다.</li>
-<li><strong>PROJECT_STATE에 기록되지 않은 것</strong> ([INFERENCE] 기록에서 찾지 못했다는 뜻이며 일어나지 않았다는 뜻은 아닙니다): 정해진 08:00 슬롯에서 자연스럽게 돈 실제 요약 실행, 실제 환경에서 즉시 알림이 나간 사례는 증거 기록에 없습니다. 실환경 스케줄러 증거(<code>E_REAL_SCHEDULER_SLOT</code>)는 임시 <code>index.embed</code> 작업이며, 현재 인계 항목은 매시간 규격화·임베딩의 자연 실행 관찰입니다.</li>
+<li><strong>PROJECT_STATE에 기록되지 않은 것</strong> ([INFERENCE] 기록에서 찾지 못했다는 뜻이며 일어나지 않았다는 뜻은 아닙니다): 정해진 08:00 슬롯에서 자연스럽게 돈 실제 요약 실행, 실제 환경에서 즉시 알림이 나간 사례는 증거 기록에 없습니다. 실환경 스케줄러 증거(<code>E_REAL_SCHEDULER_SLOT</code>)는 임시 <code>index.embed</code> 작업이며, 현재 인계 항목은 열린 정리 제안 검토, 매시간 규격화의 자연 실행 관찰, 임계값 조정입니다.</li>
 </ul>
 <div class="callout callout-note">
 <p class="callout-title">참고</p>
@@ -140,7 +140,7 @@ knowledgeos install profiles --config owner.json    # 역할 profile과 발송 �
 </ul>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

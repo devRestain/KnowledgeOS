@@ -40,10 +40,10 @@
 <th>기본 주기 (Asia/Seoul)</th>
 <th>하는 일</th>
 </tr></thead><tbody>
-<tr><td><code>standardize</code></td><td>매시 정각</td><td><a class="wikilink" href="c2.html">C2</a> 자동 경로. 지난 실행 이후 바뀐 노트만 결정적으로 규격화</td></tr>
+<tr><td><code>standardize</code></td><td>매시 정각</td><td><a class="wikilink" href="c2.html">C2</a> 자동 경로. 지난 실행 이후 바뀐 노트만 규격화. 규칙 1~8은 결정적이고, 설정 시 <code>remote_ok</code> 노트의 선택지 값은 System One이 0.7 이상으로 확신할 때만 채움</td></tr>
 <tr><td><code>embed</code></td><td>매시 30분</td><td><a class="wikilink" href="c3.html">C3</a> <code>index.embed</code>. 새로 생기거나 바뀐 노트만 의미 검색용 벡터로 만듦</td></tr>
 <tr><td><code>curate</code></td><td>매일 06:00</td><td><a class="wikilink" href="c1.html">C1</a>을 새 포착과 종류 없는 <code>remote_ok</code> 노트에 실행. 한 번에 최대 10개</td></tr>
-<tr><td><code>digest</code></td><td>매일 08:00</td><td><a class="wikilink" href="c5.html">C5</a> 계산과 <a class="wikilink" href="c8.html">C8</a> Discord 요약</td></tr>
+<tr><td><code>digest</code></td><td>매일 08:00</td><td><a class="wikilink" href="c5.html">C5</a> 계산과 <a class="wikilink" href="c8.html">C8</a> Discord 요약. 설정 시 <code>remote_ok</code> 노트의 상태 변경 제안도 System One에게 물음</td></tr>
 </tbody></table></div>
 <h2 id="2-왜-이-명세가-필요한가">2. 왜 이 명세가 필요한가<a class="anchor" href="#2-왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
 <p><code>USER_FEATURE_SPEC.md</code>의 &quot;지키는 약속&quot; 중 이 기능이 지키는 것은 다음입니다.</p>
@@ -174,7 +174,7 @@ knowledgeos index embed                                # embed와 같은 index.e
 <li><strong>실환경 근거 (스케줄러):</strong> <code>KNOWLEDGEOS_REAL_ADOPTION.SCHEDULER</code>가 통과로 기록되어 있습니다. 근거(<code>E_REAL_SCHEDULER_SLOT</code>)는 임시 <code>20 40</code> <code>index.embed</code> 작업이 3분 시작 지연 뒤 한 번 실행되었고 요청 ID가 <code>schedule-schedulercheck-20261119T2040</code>이며, 그 뒤 임시 작업을 지우고 Owner를 재시작했다는 것입니다.</li>
 <li><strong>콘솔 일시정지·재개:</strong> 임시 Owner(합성 Vault·State)에서 <code>job.pause</code>와 <code>job.resume</code> 영수증이 브라우저에서 관찰되었습니다 (<code>E_CONSOLE_BROWSER</code>). 실제 Vault에 대한 관찰은 아닙니다.</li>
 <li><strong>Hermes cron 제거:</strong> <code>kos-ops</code> profile의 Hermes cron 작업 3개와 생성 스크립트를 제거하고 발송 전용으로 재설치했습니다 (<code>E_HERMES_CRON_REMOVED</code>). 이로써 예약은 Owner 한 곳에만 남았습니다.</li>
-<li><strong>남은 일 (<code>PROJECT_STATE.md</code> handoff, 미완):</strong> 실제 환경에서 Owner가 켜져 있는 동안 <strong>자연스러운 매시 <code>standardize</code>·<code>embed</code> 실행</strong>을 관찰하고, <code>related_min_score</code>를 실제 노트에 맞춰 조정하는 일이 남아 있습니다. 실환경 슬롯 검증은 위의 임시 작업 한 번뿐이므로, <code>standardize</code>·<code>curate</code>·<code>digest</code>가 실제 Vault에서 자기 주기로 도는 것은 이 문서 기준으로 관찰된 근거가 없습니다.</li>
+<li><strong>남은 일 (<code>PROJECT_STATE.md</code> handoff, 미완):</strong> 열린 정리 제안을 검토하고, 실제 환경에서 Owner가 켜져 있는 동안 <strong>자연스러운 매시 <code>standardize</code> 실행</strong>을 System One과 함께 관찰하며, <code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code>를 실제 노트에 맞춰 조정하는 일이 남아 있습니다. 실환경 슬롯 검증은 위의 임시 작업 한 번뿐이므로, <code>standardize</code>·<code>curate</code>·<code>digest</code>가 실제 Vault에서 자기 주기로 도는 것은 이 문서 기준으로 관찰된 근거가 없습니다.</li>
 <li><strong>열린 질문 (Blueprint §9):</strong> 기본 작업 주기가 실제 사용과 맞는지, <code>ask</code>가 기본 <code>ai_policy</code>로 맞는지(정리 작업이 자동으로 돌 때 영향)가 아직 정해지지 않았습니다.</li>
 </ul>
 <h2 id="8-관련-기능">8. 관련 기능<a class="anchor" href="#8-관련-기능" aria-label="이 제목 링크">#</a></h2>
@@ -189,7 +189,7 @@ knowledgeos index embed                                # embed와 같은 index.e
 </ul>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, NoReturn
 
-from . import core_records, roles, semantic
+from . import core_records, roles, semantic, system_one
 from .capabilities import Done, Refused, WorkDraft, build_registry
 from .catalog import Catalog
 from .config import OwnerConfig
@@ -263,6 +263,9 @@ class Director:
     def free_text(self, adm: Admission) -> Done:
         """``free_text {text}``: the model submits ``{command, params}`` or ``{refuse}``.
 
+        When System One is configured it first judges, from the request text alone, whether any
+        offered command could apply; a confident ``none_of_these`` refuses at once with no
+        Director session. Every other answer (and a failure) leaves the Director path unchanged.
         A valid draft is admitted as the derived request ``derived_request_id(request_id)``,
         processed in this worker, and this receipt settles with its outcome. A refusal, a
         draft still invalid after the corrective turn, or an unavailable route admits no Work.
@@ -274,6 +277,11 @@ class Director:
         # The model call may have effects outside the Owner's view: never re-admit after a stop.
         owner._update_receipt(adm.request_id, status="running")
         child_id = derived_request_id(adm.request_id)
+        decision, nothing_fits = self._prefilter(adm, text)
+        trail = {} if decision is None else {"system_one": decision}
+        if nothing_fits:
+            return self._unmapped(adm, "refused", "refused", None, trail,
+                                  "Free text not admitted: System One found no KnowledgeOS command for this request")
         drafted: dict[str, Any] = {}
         invocation: dict[str, Any] | None = None
         try:
@@ -292,28 +300,28 @@ class Director:
             roles.run_session(owner.runner, session)
         except roles.RoleOutcomeUnknown as error:
             unknown_id = owner.add_unknown("role_invocation", {"request_id": adm.request_id, "role": "director"})
-            return self._unmapped(adm, "unknown", "unknown", invocation, {"unknown_id": unknown_id},
+            return self._unmapped(adm, "unknown", "unknown", invocation, {**trail, "unknown_id": unknown_id},
                                   f"Director outcome unknown ({error}); not re-run, no Work admitted")
         except roles.RoleUnavailable as error:
-            return self._unmapped(adm, "failed", "unavailable", invocation, {},
+            return self._unmapped(adm, "failed", "unavailable", invocation, trail,
                                   f"Free text not admitted: the Director is unavailable ({error}); not retried or rerouted")
         except Exception as error:
             log.exception("director failed for %s", adm.request_id)
-            return self._unmapped(adm, "failed", "unavailable", invocation, {},
+            return self._unmapped(adm, "failed", "unavailable", invocation, trail,
                                   f"Free text not admitted: the Director failed ({type(error).__name__}); not retried")
         if not session.accepted:
             reason = f"authority violation: {session.violation}" if session.violation else (
                 "; ".join(session.diagnostics) or "no submission was made")
-            return self._unmapped(adm, "refused", "invalid", invocation, {},
+            return self._unmapped(adm, "refused", "invalid", invocation, trail,
                                   f"Free text not admitted: the Director could not form a valid request ({reason})")
         if "refuse" in session.submission:
-            return self._unmapped(adm, "refused", "refused", invocation, {},
+            return self._unmapped(adm, "refused", "refused", invocation, trail,
                                   f"Free text not admitted: {session.submission['refuse'].strip()}")
         derived = drafted["request"]
         try:
             _, created = owner.submit(derived, actor=adm.actor, process=False)
         except Conflict:
-            return self._unmapped(adm, "failed", "invalid", invocation, {},
+            return self._unmapped(adm, "failed", "invalid", invocation, trail,
                                   f"Free text not admitted: derived request {child_id} exists with other content")
         if created:
             owner._process(child_id)
@@ -324,10 +332,45 @@ class Director:
         return Done(
             status=status,
             outcome={"derived_request_id": child_id, "command": derived["command"], "invocation": invocation,
-                     "outcome": child.get("outcome")},
+                     "outcome": child.get("outcome"), **trail},
             notice=f"{mapped}: {child['notice']}" if child.get("notice") else mapped,
             work_id=child.get("work_id"),
         )
+
+    def _prefilter(self, adm: Admission, text: str) -> tuple[dict[str, Any] | str | None, bool]:
+        """System One's one closed question: which offered command could this request mean?
+
+        Only the request text is sent. Returns the decision for the receipt (None when System One
+        is unconfigured, ``unavailable`` on failure) and whether it confidently found no command."""
+        one = self.owner.system_one
+        if one is None:
+            return None, False
+        offered = {}
+        for item in self._catalog_view(text, adm.origin, {})["commands"]:
+            modes = f" (modes: {', '.join(item['modes'])})" if item["modes"] else ""
+            offered[item["command"]] = f"{item['name'] or item['command']}{modes}"
+        if not offered:
+            return None, False
+        question = system_one.choice(
+            "free_text_command",
+            "The input is a request a user typed into their personal knowledge-note assistant. Choose the one "
+            "command that could fulfil it, or none_of_these when the request is not about the user's "
+            "Markdown notes (for example weather, email or general chat).",
+            offered)
+        content = [{"type": "input_text", "text": text[:one.max_input_chars]}]
+        try:
+            answers = one.decide([{"role": "user", "content": content}], [question],
+                                 purpose="free_text", ref=adm.request_id)
+        except system_one.SystemOneUnavailable:
+            return "unavailable", False
+        answer = answers.get(question["name"]) or {}
+        _, reason = one.accepted(answer, question)
+        confidence = answer.get("confidence") if answer.get("type") == "choice" else None
+        decision = {"choice": answer.get("choice") if answer.get("type") == "choice" else None,
+                    "confidence": confidence}
+        confident = isinstance(confidence, (int, float)) and not isinstance(confidence, bool) \
+            and confidence >= one.min_confidence
+        return decision, reason == system_one.NONE_OF_THESE and confident
 
     def _unmapped(self, adm: Admission, status: str, feedback: str, invocation: dict[str, Any] | None,
                   extra: dict[str, Any], notice: str) -> Done:
@@ -469,6 +512,10 @@ class Owner:
         self.registry = build_registry(self.catalog)
         self.index = SearchIndex(self.vault, config.default_policy, observe=self._observe)
         self.index.semantic_backend = semantic.build(config, self.catalog)
+        self.system_one = system_one.build(
+            config.settings.get("system_one", {}),
+            lambda entry: self.store.append("system_one", {"at": iso(self.clock.now()), **entry}),
+        )
         self.engine = Engine(self)
         self.director = Director(self)
         self._caches: dict[str, Any] = {}
@@ -924,6 +971,7 @@ class Owner:
             blockers.append("core_adoption_invalid")
         dependencies = {
             "search_semantic": "ready" if self.index.semantic_ready() else "unavailable",
+            "system_one": self.system_one.status() if self.system_one else "unconfigured",
             "notifier": "configured" if self.notifier else "unconfigured",
             "hermestrace": "unconfigured",
             "role_runner": "configured" if self.runner else "unconfigured",
@@ -994,7 +1042,7 @@ class Owner:
                 path = self.vault.normalize(path)
             except VaultPathError as error:
                 raise BadRequest(str(error)) from error
-            return self.index.related(path, limit=limit)
+            return self.index.related(path, limit=limit, system_one=self.system_one, origin="user")
         query = body.get("query")
         if not isinstance(query, str) or not query.strip():
             raise BadRequest(f"{mode} search needs a query")

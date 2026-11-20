@@ -25,6 +25,7 @@
 <li><strong>입구는 셋</strong>: Obsidian Thin Client(명령·사이드바), 브라우저 콘솔, CLI. 셋 모두 <strong>같은 접수 경로</strong>(ExOps)로 Owner에 요청합니다.</li>
 <li><strong>Owner</strong>가 권한 판단·파일 쓰기·기록을 모두 맡고, 작업의 수명은 <strong>Temporal</strong>(내구성 있는 실행)과 <strong>LangGraph</strong>(Graph 실행)가 이끕니다.</li>
 <li><strong>모델이 필요한 단계</strong>는 역할마다 따로 둔 <strong>Hermes profile</strong>이 맡습니다. Discord로 나가는 알림은 모델 없는 <code>kos-ops</code> profile만 보냅니다.</li>
+<li><strong>빠른 선택형 판단</strong>은 역할이 아니라 Owner 서비스인 <strong>System One</strong>이 맡습니다. Owner가 OpenAI Decisions API(<code>gpt-6-luna</code>)에 직접 묻고 정해진 선택지나 확률만 받으며, Hermes profile은 쓰지 않습니다.</li>
 <li><strong>의미 검색용 임베딩</strong>은 Owner가 로컬 Ollama를 loopback HTTP로 직접 부릅니다.</li>
 <li><strong>데이터는 셋으로 갈립니다</strong>: 사용자의 Vault, 운영 기록인 State, 다시 만들 수 있는 Runtime.</li>
 </ul>
@@ -79,8 +80,9 @@
 <tr><td><strong>EvalOfficer</strong></td><td>독립 평가자. 결과를 만들거나 고치지 않고, Manager의 설명이나 팀원의 자기평가도 보지 않음</td><td>static 검사는 항상, 의미 기준만 model(<code>kos-eval</code>)</td></tr>
 <tr><td><strong>Scheduler</strong></td><td>정해진 작업을 때맞춰 트리거함</td><td>Owner 안 서비스</td></tr>
 <tr><td><strong>Notifier</strong></td><td>만들어진 알림을 전달함</td><td><code>kos-ops</code> profile</td></tr>
+<tr><td><strong>System One</strong></td><td>선택지 중 하나(<code>choice</code>)나 확률(<code>predicate</code>)만 답하는 빠른 판단. 쓰지도 글을 짓지도 않고 <code>ai_policy</code>·<code>sensitivity</code>는 정하지 않음</td><td>Owner 서비스(OpenAI Decisions API 직접 호출, profile 없음)</td></tr>
 </tbody></table></div>
-<p>검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 <strong>서비스</strong>입니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.</p>
+<p>검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 <strong>서비스</strong>입니다. System One도 역할이 아니라 Owner의 <strong>서비스</strong>입니다. 규격화 규칙 9(<a class="wikilink" href="c2.html">C2</a>), 정리 <code>scout</code> 힌트(<a class="wikilink" href="c1.html">C1</a>), 관련 노트 이웃 거르기(<a class="wikilink" href="c3.html">C3</a>), 문서 관리 상태 제안(<a class="wikilink" href="c5.html">C5</a>), 자유 요청 사전 거름(<a class="wikilink" href="c11.html">C11</a>)에서 Owner 코드가 질문하고, 답을 쓸지는 Owner 코드가 정합니다. 설정이 없거나 실패하면 이 기능들은 System One 없이 하던 대로 동작하며, 어떤 기능도 System One 때문에 실패하지 않습니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.</p>
 <h3 id="두-개의-팀">두 개의 팀<a class="anchor" href="#두-개의-팀" aria-label="이 제목 링크">#</a></h3>
 <div class="table-wrap"><table>
 <thead><tr>
@@ -92,7 +94,7 @@
 <tr><td>Curation Team</td><td><a class="wikilink" href="c1.html">C1</a> 정리</td><td>CurationManager</td><td><code>scout</code>(수집), <code>classifier</code>(분류), <code>linker</code>(연결)</td></tr>
 <tr><td>Thinking Team</td><td><a class="wikilink" href="c4.html">C4</a> 강화</td><td>ThinkingManager</td><td><code>retriever</code>(근거 수집), <code>connector</code>(연결·긴장), <code>challenger</code>(빈틈·반론), <code>synthesizer</code>(보고서)</td></tr>
 </tbody></table></div>
-<p>Officer로 처리되는 것은 <a class="wikilink" href="c2.html">C2</a> 규격화(StandardizationOfficer), <a class="wikilink" href="c5.html">C5</a> 문서 관리(StewardshipOfficer), <a class="wikilink" href="c3.html">C3</a>의 임베딩(EmbeddingOfficer)입니다.</p>
+<p>Officer로 처리되는 것은 <a class="wikilink" href="c2.html">C2</a> 규격화(StandardizationOfficer), <a class="wikilink" href="c5.html">C5</a> 문서 관리(StewardshipOfficer), <a class="wikilink" href="c3.html">C3</a>의 임베딩(EmbeddingOfficer)입니다. 앞의 둘은 코드로 움직이면서 설정 시 System One에게 선택 질문을 합니다.</p>
 <p>아래는 Blueprint의 원문입니다.</p>
 <section class="source-include">
 <header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 4.1 Responsibility map</header>
@@ -135,12 +137,13 @@
 <tr><td><code>connector</code></td><td>Thinking teammate</td><td>model (<code>kos-connector</code>)</td><td>What the user already wrote that relates, and connections and tensions between notes</td></tr>
 <tr><td><code>challenger</code></td><td>Thinking teammate</td><td>model (<code>kos-challenger</code>)</td><td>Gaps, counterpoints and open questions</td></tr>
 <tr><td><code>synthesizer</code></td><td>Thinking teammate</td><td>model (<code>kos-synthesizer</code>)</td><td>The final cited report, including next steps</td></tr>
-<tr><td>StandardizationOfficer</td><td>Officer (capability C2)</td><td>static</td><td>Deterministic conformance of one or more notes</td></tr>
-<tr><td>StewardshipOfficer</td><td>Officer (capability C5)</td><td>static</td><td>Attention items, lifecycle suggestions and digest content</td></tr>
+<tr><td>StandardizationOfficer</td><td>Officer (capability C2)</td><td>static; asks System One for rule-9 closed-set values</td><td>Conformance of one or more notes: deterministic rules plus confident System One enum choices</td></tr>
+<tr><td>StewardshipOfficer</td><td>Officer (capability C5)</td><td>static; asks System One for status predicates</td><td>Attention items, lifecycle suggestions and digest content</td></tr>
 <tr><td>EmbeddingOfficer</td><td>Officer (capability C3)</td><td>static; calls the local Ollama embedding model over loopback</td><td>Incremental vector index of eligible notes</td></tr>
 <tr><td>EvalOfficer</td><td>EvalOfficer</td><td>static checks always; model (<code>kos-eval</code>) for semantic criteria</td><td>Assessments for every Work</td></tr>
 <tr><td>Scheduler</td><td>Owner service</td><td>Static; slots from <code>config/jobs.json</code>, runs only while the Owner runs</td><td>Triggering declared jobs</td></tr>
 <tr><td>Notifier</td><td>Host service</td><td>Delivery through the operations profile <code>kos-ops</code></td><td>Delivery</td></tr>
+<tr><td>System One</td><td>Owner service</td><td>OpenAI Decisions API (<code>gpt-6-luna</code>) called directly by the Owner; no Hermes profile</td><td>Typed closed-set answers (<code>choice</code>, <code>predicate</code>) that Owner code acts on: C2 rule 9, C1 <code>scout</code> hints, C3 neighbor vetting, C5 status proposals, the C11 free-text prefilter. Never writes, authors text or decides <code>ai_policy</code>/<code>sensitivity</code></td></tr>
 </tbody></table></div>
 <p>Search (capability C3) is a service the Owner provides to people and to roles through tools. It is not a role; only keeping its vector index current is Officer work (EmbeddingOfficer).</p>
 <p>Adding or removing a role, teammate or Team is a spec change, reviewed by the user, and usually prompted by a TeamReview proposal.</p>
@@ -232,8 +235,9 @@
 <li><code>confidential</code> 노트는 <code>ai_policy</code>가 느슨해도 <code>local_only</code>처럼 다룹니다. 어긋남은 &quot;주의 항목&quot;으로 알려 주되 <strong>내 값을 고쳐 쓰지는 않습니다</strong>.</li>
 <li><strong>결과물은 입력 중 가장 엄격한 정책을 물려받습니다.</strong> 읽기만 했고 인용하지 않은 노트도 포함합니다(<a class="wikilink" href="c4.html#ENH-4">ENH-4</a>).</li>
 <li>정책은 공개하기 <strong>직전</strong>의 현재 내용으로 다시 확인하며, 옮겨지거나 지워지거나 새로 제한된 노트는 닫힌 채로 실패합니다.</li>
-<li>결정적 로컬 처리(규격화·임베딩)는 <code>deny</code>만 빼고 모두 할 수 있어서, <code>ask</code>·<code>local_only</code>·<code>confidential</code> 노트도 임베딩됩니다(<a class="wikilink" href="c3.html">C3</a>).</li>
+<li>결정적 로컬 처리(규격화 규칙 1~8·임베딩)는 <code>deny</code>만 빼고 모두 할 수 있어서, <code>ask</code>·<code>local_only</code>·<code>confidential</code> 노트도 임베딩됩니다(<a class="wikilink" href="c3.html">C3</a>).</li>
 <li>예약 정리(<a class="wikilink" href="c1.html">C1</a>)는 모델에 <code>remote_ok</code> 노트만 줍니다(<a class="wikilink" href="c1.html#ORG-3">ORG-3</a>). Gateway 조회는 <code>remote_ok</code> 노트만 내보냅니다(<a class="wikilink" href="c10.html#GW-2">GW-2</a>). 알림 제목·링크는 <code>remote_ok</code>·<code>ask</code>만 쓸 수 있습니다(<a class="wikilink" href="c8.html#NTF-1">NTF-1</a>).</li>
+<li><strong>System One은 원격 모델입니다.</strong> 같은 정책 열을 따르고 로컬 경로가 없습니다. 내가 직접 요청한 작업과 검색은 <code>remote_ok</code>·<code>ask</code> 노트를, 예약 작업과 Gateway 작업은 <code>remote_ok</code> 노트만 보내며, <code>local_only</code>·<code>confidential</code>·<code>deny</code> 노트는 어느 경로에서도 보내지 않습니다. 정책은 보내기 직전의 현재 값으로 다시 확인하고, <code>ai_policy</code>·<code>sensitivity</code> 자체는 System One에게 묻지 않습니다. 자격 증명은 Git과 Vault 밖의 호스트 소유 0600 파일에 있고 Hermes 하위 프로세스에는 전달되지 않습니다. 호출 기록(State <code>system_one</code>)에는 질문 이름·입력 해시·모델·토큰 수만 남고 노트 내용은 남지 않습니다(<a class="wikilink" href="c2.html">C2</a>).</li>
 </ul>
 <section class="source-include">
 <header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 5.4 Privacy</header>
@@ -259,6 +263,7 @@
 <li>Output inherits the strictest policy among the focal or target note and every note read in the Work, including notes not ultimately cited.</li>
 <li>Policy is checked against the note&#x27;s current content immediately before disclosure. A moved, deleted or newly restricted source fails closed.</li>
 <li>Discord digests and immediate alerts may disclose note titles and links only for <code>remote_ok</code> and <code>ask</code> notes, never body text or identifying information from <code>deny</code>, <code>local_only</code> or <code>confidential</code> notes.</li>
+<li>System One is a remote model: it follows the model-use columns with no local route. Its credential is a host-owned 0600 file outside Git and the Vault, and no secret reaches Hermes subprocesses.</li>
 </ul>
 </section>
 <h2 id="제안보고서-그리고-안전하게-쓰기">제안·보고서, 그리고 안전하게 쓰기<a class="anchor" href="#제안보고서-그리고-안전하게-쓰기" aria-label="이 제목 링크">#</a></h2>
@@ -406,7 +411,7 @@
 </section>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="glossary.html">용어</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

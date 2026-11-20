@@ -25,6 +25,29 @@
 <li>원본에 없는 내용은 해설로 쓰더라도 &quot;해석&quot; 또는 &quot;기록 없음&quot;으로 표시합니다.</li>
 <li>위키와 원본이 어긋나면 <strong>원본이 맞고</strong>, 위키는 다시 생성해서 바로잡습니다.</li>
 </ul>
+<h2 id="휴대폰에서-읽기">휴대폰에서 읽기<a class="anchor" href="#휴대폰에서-읽기" aria-label="이 제목 링크">#</a></h2>
+<p>휴대폰 브라우저에서도 같은 HTML을 읽습니다. 좁은 화면에서는 위쪽 메뉴 버튼으로 전체 목차를 열고, 그 아래 한 줄을 차지하는 검색창으로 페이지·제목·본문을 찾습니다. 본문은 화면 폭에 맞춰 줄을 바꾸며 브라우저 확대를 막지 않습니다.</p>
+<ul>
+<li><strong>표·코드</strong>: 글자를 화면에 억지로 줄이지 않습니다. 가로로 넘치는 영역 앞에 안내가 나타나며 그 영역 안에서 좌우로 이동합니다.</li>
+<li><strong>그림</strong>: 먼저 전체 구조를 화면 폭으로 봅니다. <strong>그림 크게 보기</strong>를 누르면 글자를 읽을 수 있는 크기로 바뀌고 좌우로 이동할 수 있습니다. <strong>그림 전체 보기</strong>로 돌아옵니다.</li>
+<li><strong>메뉴</strong>: 링크의 터치 영역을 넓혔습니다. 메뉴 밖을 누르거나 메뉴 버튼을 다시 누르면 닫힙니다.</li>
+</ul>
+<h3 id="모바일-접속-경로-제안">모바일 접속 경로 제안<a class="anchor" href="#모바일-접속-경로-제안" aria-label="이 제목 링크">#</a></h3>
+<p>아래는 <strong>배포 제안</strong>이며, 접속 주소를 설치하거나 외부에 공개했다는 뜻은 아닙니다. 정적 위키 열람과 KnowledgeOS 실행·관리 API의 원격 접속은 별개입니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>경로</th>
+<th>적합한 경우</th>
+<th>조건·주의</th>
+</tr></thead><tbody>
+<tr><td><strong>비공개 HTTPS + Tailscale Serve (권장)</strong></td><td>집 밖에서도 본인 휴대폰으로 최신 위키 열람</td><td>정적 위키 전용 loopback 서버와 기기별 Tailscale 연결, HTTPS 활성화 필요. 접근 규칙을 본인 기기로 제한. Mac이 켜져 있어야 함. Owner·관리 콘솔은 연결하지 않음</td></tr>
+<tr><td>같은 Wi-Fi의 정적 서버</td><td>집 안에서 임시 확인</td><td>휴대폰의 <code>localhost</code>는 Mac이 아님. Mac의 LAN 주소 사용. 공유기 포트 포워딩 없이 사용하고 다른 LAN 기기에도 노출될 수 있음을 고려</td></tr>
+<tr><td>파일 묶음을 휴대폰으로 복사</td><td>오프라인 보관</td><td>HTML과 <code>assets/</code>를 함께 복사. iOS 파일 미리보기는 여러 파일 간 탐색·스크립트를 제한할 수 있어 실제 사용할 뷰어에서 확인 필요</td></tr>
+<tr><td>공개 정적 호스팅</td><td>공개용 문서 배포</td><td>현재 위키를 그대로 공개하지 않음. 상태·검색 색인·SVG에 포함된 내부 정보까지 선별한 공개용 묶음 필요</td></tr>
+</tbody></table></div>
+<p>권장 구성은 <strong>정적 HTML·assets만 담은 배포 폴더 → 별도 정적 파일 서버 → 비공개 HTTPS 주소 → 휴대폰 브라우저</strong>입니다. 홈 화면에 바로가기를 추가하면 재접속하기 쉽습니다. 서비스 워커나 오프라인 캐시는 추가하지 않으므로 오프라인 앱처럼 동작하지는 않습니다.</p>
+<p>저장소 원문으로 가는 링크는 위키 폴더 밖의 상대 경로입니다. HTML·assets만 배포할 때는 그 원문 링크가 열리지 않으며, 원문이 필요하면 승인된 문서를 함께 배포하고 경로를 맞춰야 합니다. 원문 링크를 살리려고 저장소 전체를 서버 루트로 노출하지 않습니다. 외부 연결·배포는 별도 승인이 필요하고 ExOps의 loopback·Host/Origin 보호는 바꾸지 않습니다.</p>
+<p><a class="external" href="https://tailscale.com/kb/1312/serve" rel="noopener noreferrer">Tailscale Serve 공식 안내</a>에 따르면 Serve는 tailnet 내부 공유이며 접근 규칙이 적용됩니다. 공개 인터넷으로 여는 Funnel은 이 권장안에 포함하지 않습니다. macOS 클라이언트별 디렉터리 직접 제공 제약을 피하기 위해 별도 loopback 정적 서버의 포트를 연결하는 방식을 제안합니다.</p>
 <h2 id="여섯-개의-원본-문서">여섯 개의 원본 문서<a class="anchor" href="#여섯-개의-원본-문서" aria-label="이 제목 링크">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr>
@@ -90,8 +113,8 @@
 <li><strong>유지보수는 가능한 한 오픈소스에 맡깁니다.</strong> 화면·보기·템플릿·버튼은 plugin을 쓰고, Thin Client는 커지지 않게 유지합니다.</li>
 <li><strong>자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong>
 <ul>
-<li>빠진 frontmatter를 채우는 결정적 규격화만 자동입니다.</li>
-<li>판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.</li>
+<li>빠진 frontmatter를 채우는 규격화만 자동입니다. 정해진 선택지(enum) 안에서 고르는 값은 System One이 충분히 확신할 때만 고릅니다.</li>
+<li>그 밖에 판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.</li>
 </ul></li>
 <li><strong>Git이 백업이자 이력입니다.</strong>
 <ul>
@@ -145,12 +168,12 @@
 <p>생성 결과는 시각·난수·환경에 따라 바뀌는 값을 넣지 않아서, 같은 원본이면 항상 같은 바이트가 나옵니다. 아래 목록은 이 위키가 읽은 원본 문서와 그 digest(sha256)입니다. 위키가 어느 판의 원본에서 만들어졌는지 확인할 때 씁니다.</p>
 <div class="table-wrap"><table class="sources">
 <thead><tr><th>문서</th><th>경로</th><th>SHA-256</th></tr></thead><tbody>
-<tr><td>기능 명세</td><td><a class="repo" href="../CAPABILITIES.md"><code>docs/CAPABILITIES.md</code></a></td><td><code>f4998296a6c97003</code></td></tr>
-<tr><td>인수 예시 추적표</td><td><a class="repo" href="../CAPABILITY_TRACE.md"><code>docs/CAPABILITY_TRACE.md</code></a></td><td><code>2df9491c68d2bdb3</code></td></tr>
-<tr><td>프로젝트 상태</td><td><a class="repo" href="../../PROJECT_STATE.md"><code>PROJECT_STATE.md</code></a></td><td><code>cac270451c3a375b</code></td></tr>
-<tr><td>사용자 기능 명세</td><td><a class="repo" href="../../USER_FEATURE_SPEC.md"><code>USER_FEATURE_SPEC.md</code></a></td><td><code>7ab798837a0f2a37</code></td></tr>
-<tr><td>Blueprint</td><td><a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md"><code>OBSIDIAN_VAULT_BLUEPRINT.md</code></a></td><td><code>92ea8631e4573d4f</code></td></tr>
-<tr><td>README</td><td><a class="repo" href="../../README.md"><code>README.md</code></a></td><td><code>ff91be3dd18cbff0</code></td></tr>
+<tr><td>기능 명세</td><td><a class="repo" href="../CAPABILITIES.md"><code>docs/CAPABILITIES.md</code></a></td><td><code>741676e21cc97a2f</code></td></tr>
+<tr><td>인수 예시 추적표</td><td><a class="repo" href="../CAPABILITY_TRACE.md"><code>docs/CAPABILITY_TRACE.md</code></a></td><td><code>edc7dfab212cb2d9</code></td></tr>
+<tr><td>프로젝트 상태</td><td><a class="repo" href="../../PROJECT_STATE.md"><code>PROJECT_STATE.md</code></a></td><td><code>6cb831fe17f35243</code></td></tr>
+<tr><td>사용자 기능 명세</td><td><a class="repo" href="../../USER_FEATURE_SPEC.md"><code>USER_FEATURE_SPEC.md</code></a></td><td><code>57ddf6dc8d0f5a99</code></td></tr>
+<tr><td>Blueprint</td><td><a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md"><code>OBSIDIAN_VAULT_BLUEPRINT.md</code></a></td><td><code>76344f2910470453</code></td></tr>
+<tr><td>README</td><td><a class="repo" href="../../README.md"><code>README.md</code></a></td><td><code>109c75891888eac9</code></td></tr>
 </tbody></table></div>
 <h3 id="원고에-쓰는-문법">원고에 쓰는 문법<a class="anchor" href="#원고에-쓰는-문법" aria-label="이 제목 링크">#</a></h3>
 <p>해설 문장은 Markdown의 일부(제목, 목록, 표, 코드 블록, 인용, 굵게·기울임·코드, 링크)와 아래 규칙만 씁니다.</p>
@@ -217,7 +240,7 @@
 </div>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

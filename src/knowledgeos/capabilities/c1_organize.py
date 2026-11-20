@@ -9,9 +9,10 @@ from ..capabilities import Done, WorkDraft
 from ..evidence import Unavailable, chunks
 from ..notes import parse
 from ..owner import Admission
-from ..policy import model_may_read
+from ..policy import effective, model_may_read, strictest
 from ..search import SearchIndex, role_filter
 from ..standardize import FOLDER_TYPES, LINK_KEYS, STATUSES
+from ..system_one import SystemOneUnavailable, choice, may_send, note_input
 from ..util import iso
 from ..vault import RESERVED_REQUESTS, Vault, VaultPathError
 from .c4_enhance import keyword_candidates
@@ -19,6 +20,25 @@ from .c4_enhance import keyword_candidates
 CAPABILITY = "C1"
 TEAM = "curation"
 LIMIT = 10
+
+ADVISORY = "System One suggestion; advisory only. Decide from the note's content."
+TYPE_MEANING = {
+    "capture": "Raw, quickly written input still to be processed.",
+    "idea": "An idea or hypothesis the user is developing.",
+    "knowledge": "A claim or understanding the user holds.",
+    "question": "An open question worth returning to.",
+    "project": "A project hub note.",
+    "source": "Material the user read or referenced.",
+}
+STATUS_MEANING = {
+    "unprocessed": "Not yet processed.", "processed": "Already processed.",
+    "seed": "Just started.", "developing": "Being worked out.", "mature": "Well developed.",
+    "dropped": "No longer pursued.", "evergreen": "Settled and maintained.",
+    "open": "Not yet answered.", "answered": "Answered.",
+    "planned": "Not started.", "active": "In progress.", "paused": "On hold.", "done": "Finished.",
+    "unread": "Not read yet.", "reading": "Being read.", "read": "Fully read.",
+    "archived": "Kept only for the record.",
+}
 
 
 def register(reg):
@@ -113,16 +133,68 @@ def vocabulary(ctx):
 
 
 def team_context(ctx, by):
+    hints = _hints(ctx)
     targets = []
     for item in ctx.inputs():
         note = ctx.snapshot(item["path"])
         handles = ctx.evidence.note_handles(note.path, by=by)
-        targets.append({"target": handles[0], "handles": handles, "title": note.title, "type": note.type,
-                        "status": note.status, "tags": note.list_value("tags"), "folders": folders(note)})
+        target = {"target": handles[0], "handles": handles, "title": note.title, "type": note.type,
+                  "status": note.status, "tags": note.list_value("tags"), "folders": folders(note)}
+        if handles[0] in hints:
+            target["system_one"] = {"advisory": ADVISORY, **hints[handles[0]]}
+        targets.append(target)
     return {"objective": "Propose classification and supported links for each target; never change the source notes.",
             "targets": targets, "tag_vocabulary": vocabulary(ctx),
             "statuses": {kind: [*values, "archived"] for kind, values in STATUSES.items()},
             "link_properties": list(LINK_KEYS)}
+
+
+def _hints(ctx):
+    """System One hints the scout recorded for this Work's targets, by target handle."""
+    found = {}
+    for segment in ctx.work["segments"]:
+        for step in segment["steps"]:
+            if step["role"] == "scout" and step["status"] == "completed" and step.get("artifact"):
+                payload = ctx.owner.store.get_json_blob(step["artifact"]["blob"])
+                found = {row["target"]: row["system_one"] for row in payload["targets"] if row.get("system_one")}
+    return found
+
+
+def _top(answer):
+    rows = [row for row in answer.get("probabilities") or []
+            if isinstance(row, dict) and isinstance(row.get("probability"), (int, float))]
+    return [{"value": row.get("value"), "probability": row["probability"]}
+            for row in sorted(rows, key=lambda row: -row["probability"])[:3]]
+
+
+def system_one_hint(ctx, item, note):
+    """Advisory type/status choices from System One for one target, or None.
+
+    Sent only when the note's current policy allows remote model use for this Work's origin;
+    an unconfigured, unavailable, refusing or unconfident System One yields no hint."""
+    system_one = ctx.owner.system_one
+    current = ctx.owner.vault.read(note.path) if system_one else None
+    if current is None:
+        return None
+    policy = strictest([effective(current, ctx.owner.config.default_policy), item["policy"]])
+    if not may_send(policy, ctx.workspec["origin"]):
+        return None
+    questions = [choice("type", "Which note type best describes this note?", TYPE_MEANING)]
+    if note.type in STATUSES:
+        questions.append(choice("status", f"Which status fits this {note.type} note now?",
+                                {value: STATUS_MEANING[value] for value in (*STATUSES[note.type], "archived")}))
+    try:
+        answers = system_one.decide(note_input(note, system_one.max_input_chars), questions,
+                                    purpose="curation_hint", ref=ctx.work_id)
+    except SystemOneUnavailable:
+        return None
+    hint = {}
+    for question in questions:
+        answer = answers.get(question["name"])
+        value, _ = system_one.accepted(answer, question)
+        if value is not None:
+            hint[question["name"]] = {"choice": value, "confidence": answer["confidence"], "top": _top(answer)}
+    return hint or None
 
 
 def scout(ctx):
@@ -134,7 +206,8 @@ def scout(ctx):
         note = ctx.snapshot(item["path"])
         handles = evidence.read_note(note.path, by="scout")
         candidates = {}
-        for hit in ctx.owner.index.related(note.path, audience="role", allow=allow, limit=limit * 2)["results"]:
+        for hit in ctx.owner.index.related(note.path, audience="role", allow=allow, limit=limit * 2,
+                                           system_one=ctx.owner.system_one, origin=ctx.workspec["origin"])["results"]:
             candidates[hit["path"]] = hit.get("reasons", [])
         for path, why in keyword_candidates(ctx.owner, note.title + " " + note.body[:600], ctx.workspec["origin"], limit * 2):
             candidates.setdefault(path, why)
@@ -153,7 +226,11 @@ def scout(ctx):
                 entry = evidence.get(picked[0])
                 collected.append({"handles": picked, "title": entry["title"], "type": entry["type"],
                                   "reasons": why, "excerpt": evidence.chunk_text(picked[0])[:160]})
-        found.append({"target": handles[0], "candidates": collected})
+        row = {"target": handles[0], "candidates": collected}
+        hint = system_one_hint(ctx, item, note)
+        if hint:
+            row["system_one"] = hint
+        found.append(row)
     return {"targets": found, "tag_vocabulary": vocabulary(ctx)}
 
 

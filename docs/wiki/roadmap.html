@@ -52,12 +52,13 @@
 <th>상태</th>
 <th>다음 작업</th>
 </tr></thead><tbody>
-<tr id="handoff-1"><td>1</td><td><span class="badge badge-incomplete">incomplete</span></td><td>Observe the first natural hourly standardize and embed runs while the Owner is running and tune related_min_score against real notes</td></tr>
+<tr id="handoff-1"><td>1</td><td><span class="badge badge-incomplete">incomplete</span></td><td>Review the open organize proposal for the KOS generation effect smoke note observe the first natural hourly standardize run with System One and tune related_min_score related_min_probability and min_confidence against real notes</td></tr>
 </tbody></table></div>
-<p>풀어 쓰면 두 가지입니다.</p>
+<p>풀어 쓰면 세 가지입니다.</p>
 <ol>
-<li><strong>첫 자연 실행 관찰</strong>: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다(<a class="wikilink" href="status.html#E_REAL_SCHEDULER_SLOT">E_REAL_SCHEDULER_SLOT</a>). Owner가 켜져 있는 동안 선언된 <code>standardize</code>(매시 정각)와 <code>embed</code>(매시 30분)가 제 시각에 저절로 도는지 지켜봅니다. 설명은 <a class="wikilink" href="c7.html">C7</a>, 방법은 <a class="wikilink" href="usage.html">사용 가이드</a>를 보세요.</li>
-<li><strong><code>related_min_score</code> 조정</strong>: 관련 노트에 의미 이웃을 올리는 기준 점수(기본 0.5)는 &quot;설정한 모델에 맞춰 조정할 시작값&quot;이라고 명세에 적혀 있습니다. 실제 노트로 보고 알맞게 고칩니다(<a class="wikilink" href="c3.html">C3</a>).</li>
+<li><strong>열린 정리 제안 검토</strong>: 실제 Obsidian 사이드바의 <strong>정리</strong>가 만든 <code>01_AI_Review/Proposals/KOS 점검 - 생성 효과 — organize.md</code>가 사용자의 적용·거절을 기다립니다(<a class="wikilink" href="status.html#E_SYSTEM_ONE_CLIENT_GUI">E_SYSTEM_ONE_CLIENT_GUI</a>). 결정은 사용자가 <a class="wikilink" href="c6.html">C6</a>에서 합니다.</li>
+<li><strong>첫 자연 실행 관찰</strong>: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다(<a class="wikilink" href="status.html#E_REAL_SCHEDULER_SLOT">E_REAL_SCHEDULER_SLOT</a>). Owner가 켜져 있는 동안 선언된 <code>standardize</code>(매시 정각)가 System One과 함께 제 시각에 저절로 도는지 지켜봅니다. 설명은 <a class="wikilink" href="c7.html">C7</a>, 방법은 <a class="wikilink" href="usage.html">사용 가이드</a>를 보세요.</li>
+<li><strong>임계값 조정</strong>: 관련 노트에 의미 이웃을 올리는 <code>related_min_score</code>(기본 0.5), System One이 이웃을 거르는 <code>related_min_probability</code>(기본 0.5), 선택 질문의 <code>min_confidence</code>(기본 0.7)는 모두 실제 노트로 보고 알맞게 고칠 시작값입니다(<a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c2.html">C2</a>).</li>
 </ol>
 <h2 id="아직-확인하지-못한-것">아직 확인하지 못한 것<a class="anchor" href="#아직-확인하지-못한-것" aria-label="이 제목 링크">#</a></h2>
 <p>&quot;실패했다&quot;가 아니라 <strong>&quot;이 종류의 증거가 아직 <code>PROJECT_STATE.md</code>에 없다&quot;</strong>는 뜻입니다. 기록이 없다는 점은 사실이지만, 실제로 일어났는지는 [해석]으로 남습니다. 근거의 종류는 <a class="wikilink" href="status.html">현재 상태</a>의 &quot;근거의 종류&quot;를 보세요.</p>
@@ -75,6 +76,8 @@
 <tr><td>실제 Owner의 관리 콘솔 사용</td><td>일회용 합성 환경의 콘솔 관찰만 있음</td><td><code>E_CONSOLE_BROWSER</code></td></tr>
 <tr><td>제안 거절·낡은 제안·자동 변경 되돌리기의 실제 사용</td><td>제안 적용 1건만 있음</td><td><code>E_USER_PROPOSAL_APPLY</code></td></tr>
 <tr><td>모델 응답의 품질·꾸준함</td><td>모든 모델 역할을 스모크 노트 세 개로 한 번씩 돌린 기록</td><td><code>E_REAL_ROLE_SMOKE</code></td></tr>
+<tr><td>System One의 문서 관리 상태 제안(DOC-5)·자동 <code>standardize</code> 값 쓰기·예약 <code>curate</code>의 힌트</td><td>실제 호출은 규격화 수동 미리보기, 자유 요청 거름, 관련 노트 거르기, 사이드바 정리 한 번(힌트 기록)만 있음</td><td><code>E_SYSTEM_ONE_LIVE</code>, <code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
+<tr><td>1.3.0 사이드바의 관련 노트·의미 검색 화면과 화면 잠금 없는 시각 확인</td><td>규격화 미리보기만 사이드바 영역의 CDP 렌더로 관찰(macOS 화면이 잠겨 있었음)</td><td><code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
 <tr><td>모바일 흐름 M1~M3</td><td>시작 전</td><td>명세의 모바일 후속</td></tr>
 </tbody></table></div>
 <div class="callout callout-note">
@@ -102,7 +105,7 @@
 </section>
 <p>각 질문이 무엇을 기다리는지 한 줄씩 풀면 [해석]:</p>
 <ul>
-<li><strong>Semantic ranking</strong>: 위 인계 2번과 같은 일입니다. 실제 노트로 <code>related_min_score</code>와 이웃 수를 보고 정합니다.</li>
+<li><strong>Semantic ranking</strong>: 위 인계 3번과 같은 일입니다. 실제 노트로 <code>related_min_score</code>·<code>related_min_probability</code>와 이웃 수를 보고 정합니다.</li>
 <li><strong>Default <code>ai_policy</code></strong>: 예약 정리(<code>curate</code>)를 실제로 쓰기 시작한 뒤에야 <code>ask</code>가 맞는 기본값인지 판단할 수 있습니다. <code>ask</code> 노트는 예약 작업의 모델에게 보이지 않습니다(<a class="wikilink" href="c1.html#ORG-3">ORG-3</a>).</li>
 <li><strong>Schedules</strong>: 선언된 주기가 실제 사용과 맞는지는 자연 실행을 지켜본 뒤 판단합니다(<a class="wikilink" href="c7.html">C7</a>).</li>
 <li><strong>Plugin choices</strong>: Obsidian 코어 Bases만으로 문서 관리 목록이 충분한지, 다른 커뮤니티 플러그인이 필요한지(<a class="wikilink" href="c5.html">C5</a>).</li>
@@ -194,8 +197,9 @@
 <th>과제</th>
 <th>출처</th>
 </tr></thead><tbody>
-<tr><td>A1</td><td>Owner가 켜져 있는 동안 매시 <code>standardize</code>·<code>embed</code>의 첫 자연 실행 관찰</td><td><code>PROJECT_STATE.md</code> handoff</td></tr>
-<tr><td>A2</td><td><code>related_min_score</code>를 실제 노트로 조정</td><td><code>PROJECT_STATE.md</code> handoff, <code>docs/CAPABILITIES.md</code> C3(&quot;시작값&quot;), Blueprint §9 Semantic ranking</td></tr>
+<tr><td>A1</td><td>열린 정리 제안 <code>KOS 점검 - 생성 효과 — organize.md</code>를 검토(적용·거절)</td><td><code>PROJECT_STATE.md</code> handoff, <code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
+<tr><td>A2</td><td>Owner가 켜져 있는 동안 매시 <code>standardize</code>의 첫 자연 실행을 System One과 함께 관찰</td><td><code>PROJECT_STATE.md</code> handoff</td></tr>
+<tr><td>A3</td><td><code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code>를 실제 노트로 조정</td><td><code>PROJECT_STATE.md</code> handoff, <code>docs/CAPABILITIES.md</code> C3(&quot;시작값&quot;)·System One, Blueprint §9 Semantic ranking</td></tr>
 </tbody></table></div>
 <h3 id="b-확인되지-않은-실제-환경-구성">B. 확인되지 않은 실제 환경 구성<a class="anchor" href="#b-확인되지-않은-실제-환경-구성" aria-label="이 제목 링크">#</a></h3>
 <div class="table-wrap"><table>
@@ -244,7 +248,7 @@
 </tbody></table></div>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

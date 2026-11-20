@@ -5,6 +5,6 @@
   "budget": {"segments": 1, "producer_invocations": 1},
   "commands": {"digest.run": {"origins": ["schedule"], "params": {}}},
   "modes": {"digest": {"criteria": ["ntf.stewardship"]}},
-  "criteria": {"ntf.stewardship": {"runtime": "static", "text": "Each lifecycle proposal follows an admitted done-project or dropped-idea rule, with one planned proposal per target"}},
+  "criteria": {"ntf.stewardship": {"runtime": "static", "text": "Each lifecycle proposal follows an admitted done-project or dropped-idea rule or a System One status judgment of a sendable note, with one planned proposal per target"}},
   "settings": {"notifier_command": [], "notifier_timeout_seconds": 10}
 }

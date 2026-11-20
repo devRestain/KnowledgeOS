@@ -298,7 +298,8 @@ class Evidence:
             return {"status": "unavailable", "results": [], "reason": str(error)}
         found = self.owner.index.related(
             entry["path"], audience="role", allow=lambda doc: self._may_read(doc.policy, local),
-            limit=max(1, min(int(limit), 20))
+            limit=max(1, min(int(limit), 20)), system_one=self.owner.system_one,
+            origin=self._work()["workspec"]["origin"],
         )
         return {"status": found["status"], "results": self._results(found["results"], by, local)}
 
@@ -321,6 +322,8 @@ class Evidence:
             }
             if "reasons" in result:
                 item["reasons"] = result["reasons"]
+            if result.get("vetted"):
+                item["vetted"] = True
             shown.append(item)
         return shown
 

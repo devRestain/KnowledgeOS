@@ -17,16 +17,16 @@
 <article class="page">
 <h1 id="top">C2 규격화 (Standardize)</h1>
 <h2 id="1-한눈에-보기">1. 한눈에 보기<a class="anchor" href="#1-한눈에-보기" aria-label="이 제목 링크">#</a></h2>
-<p>규격화는 노트가 Vault 계약(<code>id</code>·<code>type</code>·<code>created</code>·<code>status</code>·<code>ai_policy</code> 같은 frontmatter)에 맞도록 <strong>결정적이고 최소한으로</strong> 고쳐 주는 기능입니다. 담당인 StandardizationOfficer는 모델을 쓰지 않는 Owner 코드이고, 같은 입력이면 늘 같은 결과가 나옵니다. 판단이 필요한 필드(종류를 알 수 없는 노트의 <code>type</code> 등)는 건드리지 않고 <a class="wikilink" href="c1.html">C1</a> 정리에 맡깁니다.</p>
+<p>규격화는 노트가 Vault 계약(<code>id</code>·<code>type</code>·<code>created</code>·<code>status</code>·<code>ai_policy</code> 같은 frontmatter)에 맞도록 <strong>작고 최소한으로</strong> 고쳐 주는 기능입니다. 담당인 StandardizationOfficer는 Owner 코드이고, 규칙 1~8은 같은 입력이면 늘 같은 결과를 내는 결정적 규칙입니다. 규칙 9만은 <strong>System One</strong>(<a class="wikilink" href="glossary.html">용어</a>)에게 선택지가 고정된 값을 묻습니다. 폴더로 정할 수 없는 <code>type</code>, 올바르지 않은 <code>status</code>·<code>confidence</code>, 빠졌거나 잘못된 <code>capture_kind</code>가 그 대상이며, System One은 선택지 안에서 고르기만 하고 쓰는 것은 Owner입니다. 제목·태그·링크·폴더나 이미 유효한 <code>type</code>을 다시 분류하는 일, 그리고 <code>ai_policy</code>·<code>sensitivity</code>는 묻지 않으며 <a class="wikilink" href="c1.html">C1</a> 정리(또는 사용자)의 몫입니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
 <th>항목</th>
 <th>내용</th>
 </tr></thead><tbody>
 <tr><td>트리거</td><td>작성할 때(QuickAdd·Templater 템플릿), 수동(Thin Client &quot;규격화 미리보기&quot;, CLI <code>standardize</code>), 자동(<code>standardize</code> 예약 작업, 매시간 :00)</td></tr>
-<tr><td>담당</td><td>StandardizationOfficer(Officer, static)와 정적 EvalOfficer. Team·Manager·모델 없음</td></tr>
+<tr><td>담당</td><td>StandardizationOfficer(Officer, static; 규칙 9는 System One에게 질문)와 정적 EvalOfficer. Team·Manager·Hermes 모델 역할 없음</td></tr>
 <tr><td>결과물</td><td>노트 자체의 작은 frontmatter 변경: 자동 경로는 Autofix, 수동 경로는 확인을 거친 변경</td></tr>
-<tr><td>사용자 결정 여부</td><td>자동 경로는 불필요. 수동 경로는 diff를 보고 확인 또는 취소. 판단이 필요한 필드는 아예 다루지 않음</td></tr>
+<tr><td>사용자 결정 여부</td><td>자동 경로는 불필요(확신도가 기준 이상인 값만 적용). 수동 경로는 System One이 고른 값과 확신도가 diff 위에 나오고, 확인 또는 취소. 판단이 필요한 나머지 필드는 다루지 않음</td></tr>
 </tbody></table></div>
 <p>(출처: CAPABILITIES 요약표와 C2. 아래 &quot;원본 명세&quot;에 전문이 있습니다. <em>Autofix</em>, <em>Officer</em>, <em>Work</em> 같은 용어는 <a class="wikilink" href="glossary.html">용어</a>를 참고하세요.)</p>
 <h2 id="2-왜-이-명세가-필요한가">2. 왜 이 명세가 필요한가<a class="anchor" href="#2-왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
@@ -36,7 +36,7 @@
 <li><strong>Vault는 사용자의 것입니다.</strong> frontmatter·폴더 없이 쓴 Markdown도 그대로 유효하므로, 규격화는 일반 Markdown을 폴더만으로 제외하지 않으면서도(Vault 맨 위에 쓴 노트 포함) 사용자의 기존 줄은 그대로 둡니다.</li>
 <li><strong>Git이 백업이자 이력입니다.</strong> diff가 작고 읽기 쉬워야 하므로 최소 diff만 씁니다(<a class="wikilink" href="philosophy.html">운용 원칙</a>).</li>
 </ul>
-<p>규격화가 없다면 결과는 둘 중 하나입니다. 사람이 <code>id</code>·<code>type</code>을 일일이 채우거나, 규격이 없는 노트가 검색·정리·문서 관리에서 빠집니다. 반대로 규격화가 모델의 추측으로 <code>type</code>을 정한다면 &quot;자동 변경은 기계적인 것뿐&quot;이라는 약속이 깨집니다. 그래서 알 수 없는 <code>type</code>이나 올바른 값을 정할 수 없는 <code>status</code>는 추측하지 않습니다.</p>
+<p>규격화가 없다면 결과는 둘 중 하나입니다. 사람이 <code>id</code>·<code>type</code>을 일일이 채우거나, 규격이 없는 노트가 검색·정리·문서 관리에서 빠집니다. 반대로 규격화가 모델의 추측을 아무 제한 없이 받아쓴다면 &quot;자동 변경은 기계적인 것뿐&quot;이라는 약속이 깨집니다. 그래서 선택지가 고정된 값(enum)만 System One에게 묻고, 확신도가 기준(기본 0.7) 미만이거나 <code>none_of_these</code>, 거절이면 그 필드는 <strong>바꾸지 않고</strong> 이유와 함께 &quot;정하지 못함&quot;으로 남깁니다. 사용자가 직접 쓴 <code>daily</code> 같은 기존 종류와 <code>ai_policy</code>·<code>sensitivity</code> 같은 개인정보 필드는 아예 묻지 않습니다.</p>
 <h2 id="3-어떻게-쓰는가">3. 어떻게 쓰는가<a class="anchor" href="#3-어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
 <h3 id="31-작성할-때-플러그인">3.1 작성할 때 (플러그인)<a class="anchor" href="#31-작성할-때-플러그인" aria-label="이 제목 링크">#</a></h3>
 <p>QuickAdd 선택지와 Templater 템플릿(<code>99_System/Templates/</code>)으로 노트를 만들면 처음부터 규격에 맞는 frontmatter가 들어갑니다. KnowledgeOS 호출은 없고 플러그인이 쓰는 경로입니다(Blueprint §3.1). 템플릿으로 만든 노트에는 규격화가 변경을 제안하지 않아야 하며(<a class="wikilink" href="#STD-7">STD-7</a>), 모바일의 Apple 단축어 후속 과제 M1도 같은 기준을 목표로 합니다.</p>
@@ -47,14 +47,38 @@
 <li>사이드바에서는 같은 기능 창에 diff와 <strong>적용 / 취소</strong>가 표시됩니다. 명령 팔레트·문맥 메뉴에서는 기존 미리보기 창에서 확인합니다. 명시적으로 적용하거나 취소할 때까지 기다립니다.</li>
 <li>적용하면 바뀌지 않은 대상만 각각 반영됩니다. 그사이 바뀐 대상은 쓰지 않고 &quot;달성 못함&quot;으로 보고합니다(<a class="wikilink" href="#STD-3">STD-3</a>). 취소하면 아무것도 쓰지 않고 변경 기록도 남지 않습니다(<a class="wikilink" href="#STD-8">STD-8</a>).</li>
 <li>방금 편집한 노트도 수동 경로에서는 규격화할 수 있습니다(<a class="wikilink" href="#STD-4">STD-4</a>).</li>
+<li><strong>System One이 고른 값</strong>: <code>type</code>이나 <code>status</code>가 비었거나 잘못된 노트의 미리보기에는 System One이 고른 값과 확신도(예: <code>status: draft</code> → <code>seed</code>, 93%)가 diff 위에 나옵니다. 확인하기 전에는 아무것도 쓰지 않습니다(<a class="wikilink" href="#STD-9">STD-9</a>). 사이드바에서는 Thin Client 1.3.0이 diff 위에 &quot;System One: 항목 → 값 (NN%)&quot; 줄을 그립니다. 1.3.0은 활성 Obsidian 플러그인 폴더에 설치되었고, 실제 사이드바에서 &quot;System One: status → seed (93%)&quot;와 적용/취소가 모달·메뉴 없이 보이는 것을 확인했습니다(<code>E_SYSTEM_ONE_CLIENT_INSTALL</code>, <code>E_SYSTEM_ONE_CLIENT_GUI</code>).</li>
 </ol>
-<p>자유 요청에서도 모델 Director는 규격화 <em>미리보기</em>만 매핑할 수 있고, 작업·검토·예약 관리 명령은 매핑하지 못합니다(C11).</p>
+<p>자유 요청에서도 모델 Director는 규격화 <em>미리보기</em>만 매핑할 수 있고, 작업·검토·예약 관리 명령은 매핑하지 못합니다(C11). 자유 요청이 KnowledgeOS와 무관해 보이면 Director에 가기 전에 System One이 먼저 걸러 낼 수도 있습니다(<a class="wikilink" href="c11.html">C11</a>, <a class="wikilink" href="c11.html#SUR-10">SUR-10</a>).</p>
 <h3 id="33-수동-cli-일괄-처리">3.3 수동: CLI 일괄 처리<a class="anchor" href="#33-수동-cli-일괄-처리" aria-label="이 제목 링크">#</a></h3>
 <pre><code class="language-sh">knowledgeos standardize PATH --dry-run   # 계획된 변경만 출력, 아무것도 쓰지 않음
 knowledgeos standardize PATH --apply     # 같은 Owner 접수와 효과 규칙으로 적용</code></pre>
 <p>폴더 전체에 <code>--dry-run</code>을 먼저 돌려 계획을 보는 것이 권장 순서입니다. <code>--dry-run</code>은 아무것도 쓰지 않습니다(<a class="wikilink" href="c11.html#SUR-5">SUR-5</a>). 명령 형태는 README의 &quot;사용&quot; 절에서 가져왔습니다.</p>
 <h3 id="34-자동-standardize-예약-작업">3.4 자동: <code>standardize</code> 예약 작업<a class="anchor" href="#34-자동-standardize-예약-작업" aria-label="이 제목 링크">#</a></h3>
 <p>Owner가 켜져 있는 동안 매시간 :00에 <a class="wikilink" href="c7.html">C7</a>의 <code>standardize</code> 작업이 마지막 실행 이후 <em>내용 해시가 바뀐</em> 노트에 규칙을 적용합니다(Git 이력이나 실행 이력으로 판단하지 않습니다). 최근 10분(기본 조용한 시간) 안에 편집한 노트는 건너뛰고 다음 실행에서 다시 검토합니다. Owner가 꺼져 있으면 실행되지 않으며, 켜진 뒤 시작 지연이 지나면 놓친 슬롯을 한 번만 실행합니다(<a class="wikilink" href="c7.html#JOB-4">JOB-4</a>). 수동으로 지금 실행하려면 <code>knowledgeos job run standardize</code>를 씁니다.</p>
+<h3 id="341-규칙-9-system-one이-값을-고르는-방식">3.4.1 규칙 9: System One이 값을 고르는 방식<a class="anchor" href="#341-규칙-9-system-one이-값을-고르는-방식" aria-label="이 제목 링크">#</a></h3>
+<p>노트 하나에 대해 요청 하나를 보내고, 필드마다 선택 질문 하나(계약의 값 + <code>none_of_these</code>)를 담습니다. 노트 본문은 설정한 길이(기본 8,000자)까지만 보냅니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>묻는 필드</th>
+<th>묻는 조건</th>
+</tr></thead><tbody>
+<tr><td><code>type</code></td><td>없고 폴더로도 정해지지 않을 때</td></tr>
+<tr><td><code>status</code></td><td>그 <code>type</code>의 유효한 값(또는 <code>archived</code>)이 아니고 대소문자만의 차이도 아닐 때. 방금 <code>type</code>을 정했다면 규칙 5의 초기 <code>status</code>를 쓰거나, 기존 <code>status</code>가 틀렸을 때는 두 번째 요청으로 묻습니다</td></tr>
+<tr><td><code>confidence</code></td><td><code>knowledge</code> 노트에 있지만 값이 잘못됐을 때</td></tr>
+<tr><td><code>capture_kind</code></td><td><code>capture</code> 노트에서 없거나 잘못됐을 때</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>수동·일괄 경로</strong>는 <code>remote_ok</code>와 <code>ask</code> 노트를 보낼 수 있고, <strong>자동 경로</strong>(<code>standardize</code> 예약 작업)는 <code>remote_ok</code> 노트만 보냅니다. <code>local_only</code>·<code>confidential</code>·<code>deny</code>는 어느 경로에서도 보내지 않습니다. 정책은 보내기 직전의 현재 값으로 다시 확인합니다.</li>
+<li>선택지 안의 값이고 <code>none_of_these</code>가 아니며 확신도가 기준 이상일 때만 일반 변경(규칙 <code>system_one</code>)이 됩니다. 확신도와 함께 변경 기록에 남아 되돌리기(<a class="wikilink" href="c6.html">C6</a>)가 가능합니다.</li>
+<li>정하지 못한 필드는 바뀌지 않고 이유가 붙습니다: <code>unconfigured</code>, <code>unavailable</code>, <code>deferred</code>(활동 시간 창이 끝나 갈 때 미룸), <code>policy</code>, <code>refused</code>, <code>none_of_these</code>, <code>low_confidence</code>.</li>
+<li><code>unavailable</code>·<code>deferred</code>로 끝난 노트는 &quot;정해지지 않은&quot; 것이라 <strong>다음 실행에서 다시 묻습니다</strong>. 다른 이유로 끝난 노트는 내용이 바뀔 때까지 다시 묻지 않습니다(<a class="wikilink" href="#STD-10">STD-10</a>, <a class="wikilink" href="#STD-11">STD-11</a>).</li>
+<li>System One이 꺼져 있거나 실패해도 규칙 1~8은 그대로 적용되고, 한 요청 안에서 다시 시도하지도 않습니다. 이 호출의 기록(<code>system_one</code> State)에는 질문 이름·입력 해시·토큰 수만 남고 노트 내용은 남지 않습니다.</li>
+</ul>
+<div class="callout callout-note">
+<p class="callout-title">참고</p>
+<p>독립 평가자는 정적 기준 <code>decisions_grounded</code>로 모든 <code>system_one</code> 변경이 (1) 규칙 9 필드의 허용된 값이고 (2) 기록된 기준 이상의 답과 같으며 (3) 그 요청의 출처에 대해 원격 모델 사용이 허용된 노트의 것인지 확인합니다.</p>
+</div>
 <h3 id="35-되돌리기">3.5 되돌리기<a class="anchor" href="#35-되돌리기" aria-label="이 제목 링크">#</a></h3>
 <p>Thin Client의 <strong>자동 변경 되돌리기</strong>는 마지막 Autofix나 수동 규격화의 기록된 preimage를 복원합니다(<a class="wikilink" href="c6.html">C6</a>). 노트가 그 변경의 결과와 같을 때만 동작하며, 그 뒤 사용자가 고쳤다면 거절하고 Git 이력을 안내합니다(<a class="wikilink" href="c6.html#REV-3">REV-3</a>).</p>
 <h3 id="36-작은-예">3.6 작은 예<a class="anchor" href="#36-작은-예" aria-label="이 제목 링크">#</a></h3>
@@ -79,7 +103,7 @@ ai_policy: ask
 <ol>
 <li><strong>요청</strong>: Thin Client, CLI, 또는 <code>schedule/standardize</code> 예약 실행이 요청 ID와 함께 들어옵니다.</li>
 <li><strong>Director 접수</strong>: 정형 요청이므로 모델 없이 정적 코드가 WorkSpec으로 접수합니다. 접수 시점에 대상 노트의 정확한 바이트를 State에 스냅샷합니다.</li>
-<li><strong>StandardizationOfficer</strong>: 규칙을 적용해 계획(변경 목록)을 만듭니다.</li>
+<li><strong>StandardizationOfficer</strong>: 규칙 1~8을 적용하고, 규칙 9에 해당하는 필드가 있으면 System One에게 한 번 묻습니다(노트마다 요청 하나, 필요하면 <code>status</code>용 두 번째). 답이 기준을 넘으면 계획(변경 목록)에 <code>system_one</code> 규칙으로 넣습니다.</li>
 <li><strong>정적 EvalOfficer</strong>: 계획을 독립적으로 평가합니다. Officer는 1 segment 예산입니다.</li>
 <li><strong>확인(수동만)</strong>: 미리보기가 사람의 확인 또는 취소를 기록할 때까지 기다립니다. 자동 경로는 이 단계가 없습니다.</li>
 <li><strong>Owner 쓰기</strong>: 쓰기 직전 현재 SHA-256이 예상 preimage와 같은지 확인하고 원자적으로 교체합니다. 다르면 쓰지 않고, 병합·재시도도 없습니다. 쓰기 전에 의도를 기록하고, 쓴 뒤 preimage·결과 digest와 정확한 delta를 변경 기록에 남겨 되돌리기(<a class="wikilink" href="c6.html">C6</a>)를 가능하게 합니다.</li>
@@ -92,7 +116,7 @@ ai_policy: ask
 <section class="source-include">
 <header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C2 Standardize</header>
 <h3 id="c2-standardize">C2 Standardize<a class="anchor" href="#c2-standardize" aria-label="이 제목 링크">#</a></h3>
-<p>The StandardizationOfficer makes notes conform to the Vault contract with deterministic, minimal edits. No model is involved. Fields that need judgment belong to capability C1.</p>
+<p>The StandardizationOfficer makes notes conform to the Vault contract with minimal edits. Rules 1-8 are deterministic. Rule 9 lets System One map closed-set (enum) values that need judgment; every other judgment, such as title, tags, links, folder or reclassifying a valid type, belongs to capability C1.</p>
 <p><strong>Three paths:</strong></p>
 <div class="table-wrap"><table>
 <thead><tr>
@@ -117,7 +141,7 @@ ai_policy: ask
 <li><code>40_Knowledge/Questions/</code> → <code>question</code></li>
 <li><code>40_Knowledge/Sources/</code> → <code>source</code></li>
 <li><code>20_Projects/&lt;name&gt;/&lt;name&gt;.md</code> → <code>project</code></li>
-<li>Anywhere else, leave <code>type</code> to C1.</li>
+<li>Anywhere else, rule 9.</li>
 </ul></li>
 <li>Add <code>created</code>: the first time KnowledgeOS observed the file.</li>
 <li>Add the type&#x27;s initial <code>status</code>.</li>
@@ -130,8 +154,16 @@ ai_policy: ask
 <li>Enum values use their canonical case.</li>
 </ul></li>
 <li>Move trailing body lines that are frontmatter keys of known list properties (such as <code>tags:</code> or <code>related:</code>) into frontmatter. Merge them with existing values without duplicates, and remove only those lines.</li>
+<li><p>Ask System One for closed-set values that need judgment, one request per note with one <code>choice</code> question per field over the contract&#x27;s values (Blueprint §5.2, §5.3) plus <code>none_of_these</code>:</p>
+<ul>
+<li><code>type</code> when it is missing and rule 3 derives none;</li>
+<li><code>status</code> when it is neither a valid value of the note&#x27;s type (or <code>archived</code>) nor one up to case;</li>
+<li><code>confidence</code> of a <code>knowledge</code> note when present but invalid;</li>
+<li><code>capture_kind</code> of a <code>capture</code> when missing or invalid.</li>
+</ul>
+<p>A <code>type</code> decided this way gets the initial <code>status</code> by rule 5, or a second request when its existing <code>status</code> is invalid for that type. An accepted answer (System One section) becomes an ordinary planned change with rule <code>system_one</code>, recorded with its confidence; anything else leaves the field unchanged and is listed as undecided with its reason (<code>unconfigured</code>, <code>unavailable</code>, <code>deferred</code> near the Activity window&#x27;s end, <code>policy</code>, <code>refused</code>, <code>none_of_these</code> or <code>low_confidence</code>). Manual and batch Work may send <code>remote_ok</code> and <code>ask</code> notes; the automatic path only <code>remote_ok</code>. An existing unknown <code>type</code> (for example a user&#x27;s own <code>daily</code>), a missing <code>confidence</code>, <code>ai_policy</code>, <code>sensitivity</code> and every non-enum field are never judged.</p></li>
 </ol>
-<p>An unknown <code>type</code> or a <code>status</code> with no valid canonical value needs C1 judgment and is not guessed. Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as <code>home</code> or <code>system</code> are excluded as navigation.</p>
+<p>Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as <code>home</code> or <code>system</code> are excluded as navigation.</p>
 <p><strong>Never</strong>:</p>
 <ul>
 <li>Change other body text.</li>
@@ -143,9 +175,10 @@ ai_policy: ask
 <ul>
 <li>The automatic path skips notes modified within the quiet period (default 10 minutes).</li>
 <li>All paths skip notes with conflict markers, unparseable YAML or a duplicate ID. These become attention items.</li>
-<li>The automatic path detects changes by content hash, not by Git history or the mere occurrence of a prior run.</li>
+<li>The automatic path detects changes by content hash, not by Git history or the mere occurrence of a prior run. A note whose rule-9 question was <code>unavailable</code> or <code>deferred</code> is not settled, so the next run asks again; other outcomes settle it until its content changes.</li>
 </ul>
-<p><strong>Write</strong>: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta in the change log, which supports undo (C6).</p>
+<p><strong>Write</strong>: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation and shows each System One value with its confidence above the diff. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta, including System One decisions, in the change log, which supports undo (C6).</p>
+<p><strong>Static criteria</strong> (EvalOfficer): skips respected, result valid, properties preserved, minimal diff, and decisions grounded: every <code>system_one</code> change is an offered value of a rule-9 field, equals an accepted answer at or above the recorded threshold, and belongs to a note whose admitted policy allows remote model use for the Work origin.</p>
 <p>Acceptance:</p>
 <ul>
 <li><strong><a class="wikilink" href="#STD-1">STD-1</a></strong> Given a frontmatter-less note in <code>40_Knowledge/Ideas/</code>, when standardize runs, then it gains <code>id</code>, <code>type: idea</code>, <code>created</code>, <code>status: seed</code> and <code>ai_policy: ask</code>, and its body bytes are unchanged.</li>
@@ -156,10 +189,13 @@ ai_policy: ask
 <li><strong><a class="wikilink" href="#STD-6">STD-6</a></strong> Given frontmatter with custom keys and quoted values, then only missing keys are appended, and existing lines stay byte-identical.</li>
 <li><strong><a class="wikilink" href="#STD-7">STD-7</a></strong> Given a note created from each type template, then standardization proposes zero changes.</li>
 <li><strong><a class="wikilink" href="#STD-8">STD-8</a></strong> Given a manual preview that the user cancels, then nothing is written and no change-log entry exists.</li>
+<li><strong><a class="wikilink" href="#STD-9">STD-9</a></strong> Given a note at the Vault root with <code>status: 초안</code> and no <code>type</code>, when a manual preview runs with System One answering <code>knowledge</code> (0.92) and then <code>developing</code> (0.81), then two requests are sent (type, then status), the preview shows both values with their confidence, nothing is written until confirmation, <code>sensitivity</code> and <code>ai_policy</code> are never asked, and the <code>system_one</code> State records carry the Work ID but no note text.</li>
+<li><strong><a class="wikilink" href="#STD-10">STD-10</a></strong> Given <code>remote_ok</code> notes with invalid statuses or a missing <code>capture_kind</code>, an <code>ask</code> note and a low-confidence answer, when the automatic path runs, then only confident answers are written as autofix, the <code>ask</code> note&#x27;s text is never sent, the low-confidence field is left unchanged, and a second run sends nothing for the settled notes.</li>
+<li><strong><a class="wikilink" href="#STD-11">STD-11</a></strong> Given System One is down, when the automatic path runs, then rules 1-8 still apply, the rule-9 field stays unchanged with reason <code>unavailable</code>, and the next run after recovery asks again and applies the answer.</li>
 </ul>
 </section>
 <h2 id="6-인수-시나리오와-검증">6. 인수 시나리오와 검증<a class="anchor" href="#6-인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
-<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트이며, 아래 표는 각 ID에 대응하는 구현 위치와 테스트 노드(CAPABILITY_TRACE.md)를 보여 줍니다. 규격화는 모델을 쓰지 않으므로 스크립트 대역 모델 응답과 상관없이 결정적으로 검증됩니다.</p>
+<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트이며, 아래 표는 각 ID에 대응하는 구현 위치와 테스트 노드(CAPABILITY_TRACE.md)를 보여 줍니다. 규칙 1~8은 결정적으로 검증되고, 규칙 9(STD-9~STD-11)는 같은 컴퓨터의 loopback에서 도는 가짜 Decisions API로 System One 응답을 흉내 내어 검증합니다. 실제 호출은 아래 &quot;실환경 근거&quot;에 따로 있습니다.</p>
 <div class="table-wrap"><table class="acceptance">
 <thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
 <tr><td class="acc-id"><a class="acc-id" id="STD-1" href="#STD-1">STD-1</a></td><td class="acc-example">Given a frontmatter-less note in <code>40_Knowledge/Ideas/</code>, when standardize runs, then it gains <code>id</code>, <code>type: idea</code>, <code>created</code>, <code>status: seed</code> and <code>ai_policy: ask</code>, and its body bytes are unchanged.</td><td class="acc-impl"><code>src/knowledgeos/standardize.py::plan</code><br><code>src/knowledgeos/capabilities/c2_standardize.py::officer_step</code><br><code>src/knowledgeos/temporal_workflow.py::WorkWorkflow</code></td><td class="acc-tests"><details><summary>테스트 7개</summary><ul><li><code>tests/test_c2_standardize.py::test_STD_1_frontmatterless_idea_note</code></li><li><code>tests/test_c2_standardize.py::test_STD_1_ordinary_root_note_is_standardized_without_inventing_type</code></li><li><code>tests/test_c2_standardize.py::test_STD_1_actual_root_navigation_is_unchanged</code></li><li><code>tests/test_vault_boundaries.py::test_STD_1_http_and_cli_refuse_absolute_and_traversal_targets</code></li><li><code>tests/test_core_conformance.py::test_CORE_3_officer_work_and_human_action_are_core_records</code></li><li><code>tests/test_runtime_lifecycle.py::test_runtime_different_state_roots_use_isolated_stable_queues</code></li><li><code>tests/test_core_conformance.py::test_CORE_7_native_history_proves_distinct_durable_graph_boundaries</code></li></ul></details></td></tr>
@@ -170,18 +206,21 @@ ai_policy: ask
 <tr><td class="acc-id"><a class="acc-id" id="STD-6" href="#STD-6">STD-6</a></td><td class="acc-example">Given frontmatter with custom keys and quoted values, then only missing keys are appended, and existing lines stay byte-identical.</td><td class="acc-impl"><code>src/knowledgeos/standardize.py::plan</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c2_standardize.py::test_STD_6_custom_keys_and_quoted_values_stay_byte_identical</code></li><li><code>tests/test_c2_standardize.py::test_STD_6_malformed_id_is_replaced_without_rewriting_other_lines</code></li><li><code>tests/test_c2_standardize.py::test_STD_6_valid_uuid_and_quoted_property_lines_remain_identical</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="STD-7" href="#STD-7">STD-7</a></td><td class="acc-example">Given a note created from each type template, then standardization proposes zero changes.</td><td class="acc-impl"><code>src/knowledgeos/standardize.py::plan</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c2_standardize.py::test_STD_7_template_notes_need_no_changes</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="STD-8" href="#STD-8">STD-8</a></td><td class="acc-example">Given a manual preview that the user cancels, then nothing is written and no change-log entry exists.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c2_standardize.py::admit_cancel</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c2_standardize.py::test_STD_8_cancelled_preview_writes_nothing</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="STD-9" href="#STD-9">STD-9</a></td><td class="acc-example">Given a note at the Vault root with <code>status: 초안</code> and no <code>type</code>, when a manual preview runs with System One answering <code>knowledge</code> (0.92) and then <code>developing</code> (0.81), then two requests are sent (type, then status), the preview shows both values with their confidence, nothing is written until confirmation, <code>sensitivity</code> and <code>ai_policy</code> are never asked, and the <code>system_one</code> State records carry the Work ID but no note text.</td><td class="acc-impl"><code>src/knowledgeos/standardize.py::plan</code><br><code>src/knowledgeos/standardize.py::Question</code><br><code>src/knowledgeos/capabilities/c2_standardize.py::officer_step</code><br><code>thin-client/main.js::decisionLines</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c2_system_one.py::test_STD_9_manual_preview_maps_type_then_status_and_applies_after_confirmation</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="STD-10" href="#STD-10">STD-10</a></td><td class="acc-example">Given <code>remote_ok</code> notes with invalid statuses or a missing <code>capture_kind</code>, an <code>ask</code> note and a low-confidence answer, when the automatic path runs, then only confident answers are written as autofix, the <code>ask</code> note&#x27;s text is never sent, the low-confidence field is left unchanged, and a second run sends nothing for the settled notes.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c2_standardize.py::_Judge</code><br><code>src/knowledgeos/capabilities/c2_standardize.py::check_decisions</code><br><code>src/knowledgeos/system_one.py::may_send</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c2_system_one.py::test_STD_10_automatic_path_applies_confident_answers_only_for_remote_ok_notes</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="STD-11" href="#STD-11">STD-11</a></td><td class="acc-example">Given System One is down, when the automatic path runs, then rules 1-8 still apply, the rule-9 field stays unchanged with reason <code>unavailable</code>, and the next run after recovery asks again and applies the answer.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c2_standardize.py::finish</code><br><code>src/knowledgeos/system_one.py::SystemOne.status</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c2_system_one.py::test_STD_11_unavailable_system_one_keeps_deterministic_rules_and_asks_again_next_run</code></li><li><code>tests/test_c2_system_one.py::test_system_one_unconfigured_leaves_judgment_fields_and_reports_health</code></li><li><code>tests/test_c2_system_one.py::test_system_one_key_file_must_be_private</code></li></ul></details></td></tr>
 </tbody></table></div>
 <h2 id="7-현재-상태와-남은-일">7. 현재 상태와 남은 일<a class="anchor" href="#7-현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
 <ul>
-<li><strong>명세·구현·추적</strong>: C2의 STD-1~STD-8은 모두 추적표에 구현 심볼과 테스트 노드가 있습니다. 추적표는 최초 59개(<code>E_CAPABILITY_TRACE</code>), 사이드바 추가 후 60개(<code>E_SIDEBAR_TRACE</code>), 인라인형 추가 후 61개 인수 예시와 61행·171개 pytest 노드의 연결(<code>E_SIDEBAR_INLINE_TRACE</code>)을 확인했습니다. 전체 테스트 통과는 248개 시점의 <code>E_TRACED_TESTS</code> 기록이며, 이후 인라인형 사이드바는 별도 집중 검사 5개가 통과했습니다(<code>E_SIDEBAR_INLINE_TESTS</code>). 추적표 일치와 테스트 실행 근거는 구분합니다.</li>
-<li><strong>실환경 근거</strong>: PROJECT_STATE에는 C2 미리보기·적용 실행을 별도로 식별한 근거가 없습니다. <code>E_REAL_ROLE_SMOKE</code>는 정리·강화·자유 요청을 기록하지만 자유 요청의 최종 매핑 명령을 명시하지 않으므로, 이 기록만으로 C2 포함 여부를 판정할 수 없습니다. <code>E_VAULT_CONFIG_CLEANUP</code>은 실제 Vault의 <code>T10_Daily</code> 정비와 <code>vault-check</code> 근거이며 C2 실행 증거와는 구분합니다. 테스트 통과와 실환경 관찰도 서로 다른 근거입니다.</li>
-<li><strong>남은 일</strong>: 현재 인계(handoff)는 &quot;첫 자연 시각의 매시간 <code>standardize</code>와 <code>embed</code> 실행을 Owner가 켜진 상태에서 관찰하고 <code>related_min_score</code>를 조정&quot;하는 것입니다(<code>incomplete</code>). 실제 시각에 도는 예약 슬롯 자체는 임시 <code>index.embed</code> 작업으로만 관찰했습니다(<code>E_REAL_SCHEDULER_SLOT</code>). <code>standardize</code> 슬롯은 아직 자연 실행을 확인하지 않았습니다.</li>
+<li><strong>명세·구현·추적</strong>: C2의 STD-1~STD-11은 모두 추적표에 구현 심볼과 테스트 노드가 있습니다. System One 추가 후 추적표는 68개 인수 예시와 68행·195개 pytest 노드의 연결을 확인했고(<code>E_SYSTEM_ONE_TRACE</code>), 전체 테스트 277개가 통과했습니다(<code>E_SYSTEM_ONE_TESTS</code>). 이전 기록은 최초 59개(<code>E_CAPABILITY_TRACE</code>), 사이드바 추가 후 60개(<code>E_SIDEBAR_TRACE</code>), 인라인형 추가 후 61개(<code>E_SIDEBAR_INLINE_TRACE</code>)이며, 248개 시점의 <code>E_TRACED_TESTS</code>와 인라인형 집중 검사 5개(<code>E_SIDEBAR_INLINE_TESTS</code>)도 별도 기록으로 남아 있습니다. 추적표 일치와 테스트 실행 근거는 구분합니다.</li>
+<li><strong>실환경 근거</strong>: 실제 Owner를 <code>system_one</code>을 설정해 다시 시작하자 health가 <code>system_one: ready</code>를 보고했고, 실제 노트 <code>40_Knowledge/Notes/KOS 점검 - 생성 효과.md</code>의 수동 미리보기가 <code>status: draft</code>를 <code>seed</code>(확신도 0.93)로 매핑했습니다. 미리보기는 적용하지 않고 취소했으며 Vault Markdown 22개의 해시는 그대로였습니다(<code>E_SYSTEM_ONE_LIVE</code>, <code>E_SYSTEM_ONE_PRESERVATION</code>, 목표 <code>KNOWLEDGEOS_REAL_ADOPTION.SYSTEM_ONE</code>). 이 한 번의 관찰은 <strong>수동 미리보기 경로</strong>이며, 자동 <code>standardize</code>가 System One 값을 쓰는 실제 실행은 기록이 없습니다. 그 밖에 PROJECT_STATE에는 C2 적용 실행을 따로 식별한 근거가 없습니다. <code>E_REAL_ROLE_SMOKE</code>는 정리·강화·자유 요청을 기록하지만 자유 요청의 최종 매핑 명령을 명시하지 않으므로, 이 기록만으로 C2 포함 여부를 판정할 수 없습니다. <code>E_VAULT_CONFIG_CLEANUP</code>은 실제 Vault의 <code>T10_Daily</code> 정비와 <code>vault-check</code> 근거이며 C2 실행 증거와는 구분합니다. 테스트 통과와 실환경 관찰도 서로 다른 근거입니다.</li>
+<li><strong>남은 일</strong>: 현재 인계(handoff)는 &quot;열린 정리 제안을 검토하고, 첫 자연 시각의 매시간 <code>standardize</code> 실행을 System One과 함께 관찰하며, <code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code>를 실제 노트에 맞춰 조정&quot;하는 것입니다(<code>incomplete</code>). 실제 시각에 도는 예약 슬롯 자체는 임시 <code>index.embed</code> 작업으로만 관찰했습니다(<code>E_REAL_SCHEDULER_SLOT</code>). <code>standardize</code> 슬롯은 아직 자연 실행을 확인하지 않았습니다. 확신도 기준 0.7은 시작값입니다. 사이드바 GUI 관찰은 macOS 화면이 잠겨 있어 사이드바 영역의 CDP 렌더만 확인한 것입니다. 이 미리보기는 &quot;Preview cancelled; nothing written&quot;으로 취소했습니다.</li>
 <li><strong>열린 질문</strong>: Blueprint §9에서 C2에 직접 걸린 항목은 기본 <code>ai_policy</code>(지금은 <code>ask</code>)가 예약 정리를 쓰기 시작한 뒤에도 맞는지, 그리고 예약 작업 기본 주기가 실제 사용과 맞는지입니다. 규격화 규칙 자체에 대해 열린 질문은 기록되어 있지 않습니다.</li>
 <li><strong>후속 과제</strong>: 모바일 M1(템플릿 노트가 STD-7을 통과해야 함)과 M2(<code>kos_request</code> 표시를 C2 쓰기 경로로 지우는 것)가 이 기능에 기대지만 아직 시작 전입니다. 자세한 것은 <a class="wikilink" href="roadmap.html">로드맵</a>와 <a class="wikilink" href="status.html">현재 상태</a>를 보세요.</li>
 </ul>
 <h2 id="8-관련-기능">8. 관련 기능<a class="anchor" href="#8-관련-기능" aria-label="이 제목 링크">#</a></h2>
 <ul>
-<li><a class="wikilink" href="c1.html">C1</a> 정리: 규격화가 건드리지 않는 판단 필드(알 수 없는 <code>type</code>, <code>status</code>, 제목, 태그 등)를 제안으로 맡습니다.</li>
+<li><a class="wikilink" href="c1.html">C1</a> 정리: 규격화가 건드리지 않는 판단 필드(이미 유효한 <code>type</code>의 재분류, 제목, 태그, 링크, 폴더 등)를 제안으로 맡습니다. 같은 System One이 정리의 <code>scout</code> 단계에 참고용 힌트를 주기도 합니다(<a class="wikilink" href="c1.html#ORG-7">ORG-7</a>).</li>
 <li><a class="wikilink" href="c5.html">C5</a> 문서 관리: 충돌 표시·YAML 오류·중복 ID로 규격화가 건너뛴 노트를 주의 항목으로 보여 줍니다.</li>
 <li><a class="wikilink" href="c6.html">C6</a> 검토: &quot;자동 변경 되돌리기&quot;가 마지막 Autofix나 수동 규격화를 되돌립니다.</li>
 <li><a class="wikilink" href="c7.html">C7</a> 예약 작업: 매시간 <code>standardize</code> 작업이 자동 경로를 실행합니다.</li>
@@ -191,7 +230,7 @@ ai_policy: ask
 </ul>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

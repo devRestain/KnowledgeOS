@@ -40,6 +40,8 @@
 | 실제 외부 서비스 한 번의 성공 (`external_service`) | 그 구성에서 **조립이 된다**는 것(모델 경로, 전달 경로, 임베딩 경로) | 품질이나 꾸준한 신뢰성. 예: 모델 역할 스모크는 라벨이 붙은 스모크 노트 세 개로 한 번씩 돌린 것입니다 |
 | 실제 장치에서의 관찰 (`device`) | 그 장치·그 시점·그 버전에서 그것이 보이고 동작함 | 다른 버전이나 관찰하지 않은 부분. 예: 1.2.0의 인라인 GUI 관찰([[E_SIDEBAR_INLINE_GUI]])이 앞선 1.1.0 팝업 메뉴의 미확인 이력([[E_SIDEBAR_NATIVE_MENUS]])을 바꾸지는 않습니다 |
 | 브라우저 대역 렌더링 | 사이드바 소스가 DOM 대역에서 그려지고 넘침이 없음([[E_SIDEBAR_PREVIEW]]) | 실제 Obsidian 플러그인 설치와 GUI 관찰은 **별개**입니다(README) |
+| System One 실제 호출 (`external_service`) | 실제 Owner가 OpenAI Decisions API에 닿아 `system_one: ready`를 보고하고, 실제 노트의 규격화 미리보기·자유 요청 거름·관련 노트 거르기가 한 번씩 동작함([[E_SYSTEM_ONE_LIVE]]) | 자동 `standardize`가 실제로 값을 쓰는 것, 문서 관리 상태 제안, 확신도 기준이 실제 노트에 맞는지. 테스트(`E_SYSTEM_ONE_TESTS`)의 System One 응답은 loopback 가짜 Decisions API입니다 |
+| 1.3.0 사이드바의 System One 결정 줄 (`deployment` + `device`) | 소스와 일치하는 1.3.0이 활성 플러그인 폴더에 설치·재로드되었고([[E_SYSTEM_ONE_CLIENT_INSTALL]]), 실제 Obsidian 사이드바에서 "System One: status → seed (93%)"가 적용/취소와 함께 모달·메뉴 없이 보였으며 취소가 아무것도 쓰지 않음([[E_SYSTEM_ONE_CLIENT_GUI]]) | macOS 화면이 잠겨 있어 시각 확인은 사이드바 영역의 CDP 렌더뿐이고, 정리 완료는 Owner State에서 읽은 것입니다. 관련 노트·의미 검색 화면은 1.3.0에서 따로 관찰하지 않았습니다 |
 
 그래서 [[roadmap]]의 "아직 확인하지 못한 것"은 "실패했다"가 아니라 "이 종류의 증거가 아직 없다"는 뜻입니다.
 
@@ -55,17 +57,17 @@
 
 | 기능 | 실제 환경에서 확인된 것 | 기록 없음·남은 것 |
 |---|---|---|
-| [[c1]] 정리 | Obsidian에서 정리 요청 → 제안 노트 하나 생성([[E_REAL_ROLE_SMOKE]]). 사용자가 제안을 적용(체크한 변경 7개, [[E_USER_PROPOSAL_APPLY]]) | 예약 `curate`(06:00)의 자연 실행 |
-| [[c2]] 규격화 | 실제 Vault의 `vault-check`가 깨진 YAML 없음을 보도록 `T10_Daily`를 규격에 맞춤([[E_VAULT_CONFIG_CLEANUP]]) | 매시 `standardize`의 자연 실행(인계 사항) |
-| [[c3]] 검색 | 로컬 Ollama로 노트 7개를 조각 21개로 임베딩하고 Obsidian에서 줄 위치가 달린 의미 검색 결과 확인([[E_REAL_SEMANTIC]]) | `related_min_score` 조정, 매시 30분 `embed`의 자연 실행 |
+| [[c1]] 정리 | Obsidian에서 정리 요청 → 제안 노트 하나 생성([[E_REAL_ROLE_SMOKE]]). 사용자가 제안을 적용(체크한 변경 7개, [[E_USER_PROPOSAL_APPLY]]). 사이드바 정리가 System One `scout` 힌트(type knowledge 1.0, status developing 0.74)를 `kos-classifier`에 전달해 열린 제안 하나를 남김([[E_SYSTEM_ONE_CLIENT_GUI]]) | 예약 `curate`(06:00)의 자연 실행. 남은 열린 제안의 사용자 결정(인계) |
+| [[c2]] 규격화 | 실제 Vault의 `vault-check`가 깨진 YAML 없음을 보도록 `T10_Daily`를 규격에 맞춤([[E_VAULT_CONFIG_CLEANUP]]). 실제 Owner(`system_one: ready`)의 수동 미리보기가 실제 노트의 `status: draft`를 `seed`(0.93)로 매핑하고 취소해 Vault 22개 해시 보존([[E_SYSTEM_ONE_LIVE]], [[E_SYSTEM_ONE_PRESERVATION]]). 설치된 1.3.0 사이드바가 같은 값을 diff 위에 표시([[E_SYSTEM_ONE_CLIENT_GUI]]) | 매시 `standardize`의 자연 실행(인계 사항), 자동 경로의 System One 적용 실관찰 없음 |
+| [[c3]] 검색 | 로컬 Ollama로 노트 7개를 조각 21개로 임베딩하고 Obsidian에서 줄 위치가 달린 의미 검색 결과 확인([[E_REAL_SEMANTIC]]). 실제 관련 노트 검색이 후보를 System One으로 0.3초에 거름([[E_SYSTEM_ONE_LIVE]]) | `related_min_score`·`related_min_probability` 조정, 매시 30분 `embed`의 자연 실행 |
 | [[c4]] 강화 | Obsidian에서 강화 요청 → 보고서 하나 생성([[E_REAL_ROLE_SMOKE]]) | — |
-| [[c5]] 문서 관리 | 요약 알림 하나가 전달됨([[E_DISCORD_DELIVERED]]) | Bases 보기·주의 항목의 실제 사용 기록 없음 |
+| [[c5]] 문서 관리 | 요약 알림 하나가 전달됨([[E_DISCORD_DELIVERED]]) | Bases 보기·주의 항목의 실제 사용 기록 없음. System One 상태 제안(DOC-5)의 실제 관찰 기록 없음 |
 | [[c6]] 검토 | 사용자가 제안을 적용([[E_USER_PROPOSAL_APPLY]]), 제안 전용 도구 모음 구성([[E_VAULT_CONFIG_CLEANUP]]) | 거절·되돌리기의 실제 사용 기록 없음 |
 | [[c7]] 예약 작업 | 임시 작업이 시작 지연 뒤 슬롯에서 한 번 실행([[E_REAL_SCHEDULER_SLOT]]), Hermes cron 제거([[E_HERMES_CRON_REMOVED]]) | 선언된 네 작업의 자연 실행 |
 | [[c8]] 알림 | 요약 하나가 `kos-ops`를 통해 Discord 채널에 전달([[E_DISCORD_DELIVERED]]). 처음의 403 실패는 기록으로 남음([[E_DISCORD_MISSING_ACCESS]]) | 즉시 알림(충돌·결과 불명·실패)의 실제 전달 기록 없음 |
 | [[c9]] 학습·Experience | TeamReview 제안은 로컬 관찰로 두기로 결정·정리([[E_C9_CATEGORY_CONFLICT]]) | 실제 HermesTrace 수신기 확인은 README가 "별도 확인 필요"로 둔 항목이며 기록 없음 |
 | [[c10]] Gateway | — | 실제 환경 기록 없음(테스트만) |
-| [[c11]] 호출·관리 화면 | Obsidian에서 Owner 시작·중지([[E_OBSIDIAN_OWNER_LIFECYCLE]]), 사이드바 1.2.0 설치·인라인 입력·실제 의미 검색 결과·밝은/어두운 테마·242px 레이아웃 관찰([[E_SIDEBAR_INLINE_INSTALL]], [[E_SIDEBAR_INLINE_GUI]]), Vault·설정 보존([[E_SIDEBAR_INLINE_PRESERVATION]]), 일회용 Owner 콘솔([[E_CONSOLE_BROWSER]]) | 실제 Owner 콘솔 사용 기록 없음. 1.1.0의 팝업 메뉴 미확인은 역사적 기록이며 현재 UI의 후속 과제가 아님 |
+| [[c11]] 호출·관리 화면 | Obsidian에서 Owner 시작·중지([[E_OBSIDIAN_OWNER_LIFECYCLE]]), 사이드바 1.2.0 설치·인라인 입력·실제 의미 검색 결과·밝은/어두운 테마·242px 레이아웃 관찰([[E_SIDEBAR_INLINE_INSTALL]], [[E_SIDEBAR_INLINE_GUI]]), Vault·설정 보존([[E_SIDEBAR_INLINE_PRESERVATION]]), 일회용 Owner 콘솔([[E_CONSOLE_BROWSER]]). 1.3.0 설치와 System One 결정 줄 GUI 관찰([[E_SYSTEM_ONE_CLIENT_INSTALL]], [[E_SYSTEM_ONE_CLIENT_GUI]]). 실제 Owner가 자유 요청 "오늘 서울 날씨 알려줘"를 System One `none_of_these`(0.95)로 Work 없이 거절([[E_SYSTEM_ONE_LIVE]]) | 1.3.0 GUI 관찰은 화면 잠금으로 사이드바 영역의 CDP 렌더뿐. 실제 Owner 콘솔 사용 기록 없음. 1.1.0의 팝업 메뉴 미확인은 역사적 기록이며 현재 UI의 후속 과제가 아님 |
 
 ## 목표
 

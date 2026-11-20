@@ -512,3 +512,119 @@ def organize_scripts(runner, *, graph=("scout", "classifier", "linker"), success
     runner.script("classifier", classifier_script(note_type, status, title, tags))
     runner.script("linker", linker_script(link=link))
     runner.script("eval_officer", evaluator_script())
+
+
+# ------------------------------------------------------------------ System One (Decisions API)
+
+
+class FakeDecisions:
+    """``POST /v1/decisions`` on 127.0.0.1 with the OpenAI Decisions response shape.
+
+    ``rules`` maps a question name to an answer function ``(question, body) -> dict`` (without
+    ``name``/``type``); questions without a rule are refused. ``down`` answers HTTP 503.
+    ``calls`` logs every accepted request body: what reached System One is what the Owner sent.
+    """
+
+    def __init__(self) -> None:
+        self.rules: dict[str, Any] = {}
+        self.calls: list[dict[str, Any]] = []
+        self.keys: list[str] = []
+        self.down = False
+        self._lock = threading.Lock()
+        self._server: Any = None
+        self.port = 0
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.port}/v1/decisions"
+
+    def start(self) -> FakeDecisions:
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        fake = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args) -> None:
+                pass
+
+            def do_POST(self) -> None:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+                status, payload = fake.answer(self.path, self.headers.get("Authorization", ""), body)
+                data = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.port = self._server.server_address[1]
+        threading.Thread(target=self._server.serve_forever, daemon=True).start()
+        return self
+
+    def stop(self) -> None:
+        if self._server is not None:
+            self._server.shutdown()
+            self._server.server_close()
+            self._server = None
+
+    def choose(self, name: str, value: Any, confidence: float = 0.95) -> None:
+        """Answer the choice question ``name`` with ``value`` (or ``value(question, body)``)."""
+        def rule(question, body):
+            picked = value(question, body) if callable(value) else value
+            return {"choice": picked, "confidence": confidence,
+                    "probabilities": [{"value": option["value"], "probability": confidence if option["value"] == picked
+                                       else (1 - confidence) / (len(question["choices"]) - 1)}
+                                      for option in question["choices"]]}
+        self.rules[name] = rule
+
+    def predict(self, name: str, probability: Any) -> None:
+        """Answer predicate questions named ``name`` (or ``name*`` as a prefix) with a probability."""
+        self.rules[name] = lambda question, body: {
+            "probability": probability(question, body) if callable(probability) else probability}
+
+    def _rule(self, name: str) -> Any:
+        if name in self.rules:
+            return self.rules[name]
+        return next((rule for key, rule in self.rules.items() if key.endswith("*") and name.startswith(key[:-1])), None)
+
+    def answer(self, path: str, authorization: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        with self._lock:
+            if path != "/v1/decisions":
+                return 404, {"error": {"message": "not found"}}
+            if self.down:
+                return 503, {"error": {"message": "service unavailable"}}
+            self.calls.append(body)
+            self.keys.append(authorization)
+            answers = []
+            for question in body["questions"]:
+                rule = self._rule(question["name"])
+                if rule is None:
+                    answers.append({"type": "refusal", "name": question["name"]})
+                else:
+                    answers.append({"type": question["type"], "name": question["name"], **rule(question, body)})
+            return 200, {"model": body["model"], "answers": answers,
+                         "usage": {"input_tokens": 10, "output_tokens": 0, "total_tokens": 10}}
+
+    def questions(self) -> list[str]:
+        return [question["name"] for call in self.calls for question in call["questions"]]
+
+    def sent_text(self) -> str:
+        """Everything sent, as one string, to assert what was (not) disclosed."""
+        return "\n".join(json.dumps(call, ensure_ascii=False) for call in self.calls)
+
+
+@pytest.fixture
+def decisions():
+    fake = FakeDecisions().start()
+    yield fake
+    fake.stop()
+
+
+def system_one_settings(decisions: FakeDecisions, tmp_path: Path, **values: Any) -> dict[str, Any]:
+    """``settings.system_one`` for a fake Decisions server with a private key file."""
+    key = tmp_path / "decisions.key"
+    if not key.exists():
+        key.write_text("sk-test-key\n")
+        key.chmod(0o600)
+    return {"api_key_file": str(key), "url": decisions.url, "model": "gpt-6-luna", **values}

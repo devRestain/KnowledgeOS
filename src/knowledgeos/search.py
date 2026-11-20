@@ -9,11 +9,14 @@ excludes reports unless the user changed their type, and applies the Work's poli
 Semantic search needs a ready local vector index (``knowledgeos.semantic``); without one, or
 when the query cannot be embedded, it answers ``unavailable`` and never substitutes keyword
 results. Semantic neighbors join the related labels. Every semantic result passes the same
-audience and policy filter as keyword results.
+audience and policy filter as keyword results. When System One is configured, semantic neighbors
+are vetted before they are labeled (``SearchIndex._vet``).
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -22,10 +25,15 @@ from typing import Any, Protocol
 from .notes import WIKILINK_RE, Note
 from .policy import DEFAULT_POLICY, effective, model_may_read
 from .standardize import normalize_tags
+from .system_one import SystemOne, SystemOneUnavailable, may_send, note_input, predicate
 from .util import sha256
 from .vault import PROPOSALS_DIR, SYSTEM_ROOT, Vault, VaultPathError
 
 EXCERPT_CHARS = 160
+CANDIDATE_CHARS = 600
+VERDICT_CACHE = 4096
+
+log = logging.getLogger("knowledgeos.search")
 
 
 @dataclass(frozen=True)
@@ -74,6 +82,8 @@ class SemanticBackend(Protocol):
         self, query: str, docs: dict[str, Doc], limit: int, accept: Callable[[Doc], bool]
     ) -> list[SemanticHit]: ...
 
+    related_min_probability: float
+
     def neighbors(
         self, path: str, docs: dict[str, Doc], limit: int, accept: Callable[[Doc], bool]
     ) -> list[SemanticHit]: ...
@@ -104,6 +114,7 @@ class SearchIndex:
         self.default_policy = default_policy
         self.observe = observe
         self.semantic_backend: SemanticBackend | None = None
+        self._verdicts: dict[tuple[str, str, str], float] = {}
         self._docs: dict[str, Doc] = {}
         self._by_name: dict[str, list[str]] = {}
         self._lock = threading.RLock()
@@ -318,9 +329,11 @@ class SearchIndex:
         return {"status": "ok", "results": [self.chunk_result(docs[hit.path], hit) for hit in hits]}
 
     def related(
-        self, path: str, *, audience: str = "people", allow: Allow | None = None, limit: int = 20
+        self, path: str, *, audience: str = "people", allow: Allow | None = None, limit: int = 20,
+        system_one: SystemOne | None = None, origin: str = "user",
     ) -> dict[str, Any]:
-        """Links, backlinks, shared tags and semantic neighbors, each labeled by reason."""
+        """Links, backlinks, shared tags and semantic neighbors, each labeled by reason. With
+        ``system_one``, semantic neighbors are vetted for the Work ``origin`` (see ``_vet``)."""
         docs = self.refresh()
         focal = docs.get(path)
         if focal is None or not self.visible(focal, audience, allow):
@@ -352,16 +365,92 @@ class SearchIndex:
                     break
             for tag in sorted(focal_tags & {tag.casefold() for tag in doc.tags}):
                 add(doc.path, f"tag:{tag}")
+        vetted: set[str] = set()
         if self.semantic_ready():
             assert self.semantic_backend is not None
             accept = lambda doc: self.visible(doc, audience, allow)
-            for hit in self.semantic_backend.neighbors(focal.path, docs, limit, accept):
+            hits = self.semantic_backend.neighbors(focal.path, docs, limit, accept)
+            verdicts = self._vet(system_one, origin, focal, hits, docs) if system_one and hits else {}
+            for hit in hits:
+                if verdicts.get(hit.path) is False:
+                    continue
                 add(hit.path, "semantic", hit.start)
                 similarity[hit.path] = hit.score
+                if hit.path in verdicts:
+                    vetted.add(hit.path)
         ranked = sorted(reasons.items(), key=lambda item: (-len(item[1]), -similarity.get(item[0], 0.0), item[0]))
         results = []
         for other, labels in ranked:
             doc = docs[other]
             if self.visible(doc, audience, allow):
-                results.append(self.result(doc, lines.get(other, doc.body_start), labels))
+                item = self.result(doc, lines.get(other, doc.body_start), labels)
+                if other in vetted:
+                    item["vetted"] = True
+                results.append(item)
         return {"status": "ok", "results": results[:limit]}
+
+    def _vet(
+        self, system_one: SystemOne, origin: str, focal: Doc, hits: list[SemanticHit], docs: dict[str, Doc]
+    ) -> dict[str, bool]:
+        """System One's verdict per semantic neighbor path: is it substantively related to the
+        focal note, not merely sharing generic words? One Decisions request carries the focal
+        note and one predicate per neighbor that has no cached verdict. The focal note and each
+        candidate are reread and their current policy checked right before sending; any that
+        may not go to a remote model, and every unavailable or refused answer, have no verdict,
+        so that neighbor stays a plain cosine neighbor. Reads never write State (``ref=None``).
+        Verdicts are cached in memory by focal sha, candidate sha and System One model."""
+        assert self.semantic_backend is not None
+        threshold = float(self.semantic_backend.related_min_probability)
+        model = system_one.settings.model
+        known: dict[str, float] = {}
+        pending: list[tuple[str, SemanticHit, tuple[str, str, str], Note]] = []
+        focal_note = self._sendable(focal, origin)
+        if focal_note is None:
+            return {}
+        for hit in hits:
+            doc = docs[hit.path]
+            key = (focal.sha or "", doc.sha or "", model)
+            with self._lock:
+                cached = self._verdicts.get(key)
+            if cached is not None:
+                known[hit.path] = cached
+                continue
+            candidate = self._sendable(doc, origin)
+            if candidate is not None:
+                pending.append((f"related_{len(pending) + 1}", hit, key, candidate))
+        if pending:
+            questions = [predicate(name, (
+                "Is the candidate note substantively related to the focal note (the same subject, argument, "
+                "project or source), not merely sharing generic words? Candidate note: "
+                + json.dumps({"title": note.title[:200], "excerpt": "\n".join(
+                    note.text.splitlines()[hit.start - 1 : hit.end])[:CANDIDATE_CHARS]}, ensure_ascii=False)
+            )) for name, hit, _, note in pending]
+            try:
+                answers = system_one.decide(
+                    note_input(focal_note, system_one.max_input_chars, "focal note"), questions,
+                    purpose="C3.related", ref=None,
+                )
+            except SystemOneUnavailable as error:
+                log.info("related neighbors stay unvetted: %s", error)
+                answers = {}
+            for name, hit, key, _ in pending:
+                answer = answers.get(name)
+                if answer is None or system_one.holds(answer, threshold) is None:
+                    continue
+                known[hit.path] = float(answer["probability"])
+                with self._lock:
+                    if len(self._verdicts) >= VERDICT_CACHE:
+                        self._verdicts.clear()
+                    self._verdicts[key] = known[hit.path]
+        return {path: probability >= threshold for path, probability in known.items()}
+
+    def _sendable(self, doc: Doc, origin: str) -> Note | None:
+        """The note reread from the Vault when it is still the indexed content and its current
+        policy lets a remote model read it in ``origin``."""
+        try:
+            note = self.vault.read(doc.path)
+        except VaultPathError:
+            return None
+        if note is None or note.sha != doc.sha or not may_send(effective(note, self.default_policy), origin):
+            return None
+        return note

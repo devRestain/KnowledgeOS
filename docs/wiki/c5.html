@@ -17,7 +17,7 @@
 <article class="page">
 <h1 id="top">C5 문서 관리</h1>
 <h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
-<p>문서 관리는 Vault가 건강한지 살피고 <em>지금 사용자가 눈여겨봐야 할 것</em>을 골라 보여 주는 기능입니다. 담당은 <strong>StewardshipOfficer</strong>이며, 모델 없이 결정적 규칙(static code)으로만 움직입니다. 이 기능이 <strong>쓰는 것은 보관 같은 생활주기 제안(lifecycle proposal)뿐</strong>이고, 노트를 만들거나 옮기거나 지우는 일은 하지 않습니다.</p>
+<p>문서 관리는 Vault가 건강한지 살피고 <em>지금 사용자가 눈여겨봐야 할 것</em>을 골라 보여 주는 기능입니다. 담당은 <strong>StewardshipOfficer</strong>이며, 결정적 규칙(static code)으로 움직이는 Owner 코드입니다. 다만 System One이 설정되어 있으면 생활주기 제안에 한해 상태 변경이 필요한지를 System One에게 확률로 묻습니다. 이 기능이 <strong>쓰는 것은 보관 같은 생활주기 제안(lifecycle proposal)뿐</strong>이고, 노트를 만들거나 옮기거나 지우는 일은 하지 않습니다. System One이 판단해도 노트 자체는 절대 바뀌지 않으며, 결과는 늘 사용자가 결정하는 제안입니다.</p>
 <p>주의가 필요한 것은 두 곳에 나뉘어 나타납니다. Obsidian Bases로 표현할 수 있는 것(오래된 포착, 오래 안 본 아이디어 등)은 Bases 화면에, Bases로 표현할 수 없는 것(중복 ID, 충돌 표시, 결과 불명 등)은 관리 콘솔과 Discord 요약에 <em>계산된 주의 항목</em>으로 나타납니다. 주의 항목은 노트로 저장되지 않습니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
@@ -25,7 +25,7 @@
 <th>내용</th>
 </tr></thead><tbody>
 <tr><td>트리거</td><td>Bases 화면은 Vault를 열어 볼 때 항상 보입니다. 주의 항목 계산은 예약 작업 <code>digest</code>(매일 08:00, <a class="wikilink" href="c7.html">C7</a>)가 시작하며, 콘솔에서도 볼 수 있습니다. 보관 제안도 같은 계산에서 만들어집니다.</td></tr>
-<tr><td>담당</td><td>StewardshipOfficer(static)와 EvalOfficer(static)</td></tr>
+<tr><td>담당</td><td>StewardshipOfficer(static; 설정 시 System One에게 상태 판단 질문)와 EvalOfficer(static)</td></tr>
 <tr><td>결과물</td><td>Bases 화면, 콘솔·요약의 주의 항목, 보관 등 생활주기 제안 노트(<code>01_AI_Review/Proposals/</code>)</td></tr>
 <tr><td>사용자 결정 여부</td><td>제안은 사용자가 <a class="wikilink" href="c6.html">C6</a>에서 적용하거나 거절합니다. 주의 항목은 알림일 뿐 자동으로 바꾸는 것이 없습니다.</td></tr>
 </tbody></table></div>
@@ -33,7 +33,7 @@
 <p><a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC</a>의 &#x27;지키는 약속&#x27; 중 이 기능이 지키는 것은 세 가지입니다.</p>
 <ol>
 <li><strong>Vault는 사용자의 것입니다.</strong> 노트 생성·이동·이름 변경·삭제는 계속 Obsidian에서 사용자가 합니다. KnowledgeOS가 이를 대신하지 않으므로 Vault를 마음대로 쓰고 옮겨도 시스템이 깨지지 않습니다. 이동은 ID로 따라가고, 지워진 대상의 제안은 낡은(stale) 것으로 취급합니다.</li>
-<li><strong>자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong> 판단이 필요한 보관 결정은 직접 바꾸지 않고 제안으로 만들며, 적용은 사용자가 정합니다. 이 운용 방식은 <a class="wikilink" href="philosophy.html">운용 원칙</a>에서 다룹니다.</li>
+<li><strong>자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong> 판단이 필요한 보관·상태 결정은 직접 바꾸지 않고 제안으로 만들며, 적용은 사용자가 정합니다. System One이 낸 상태 제안도 예외가 아닙니다. 이 운용 방식은 <a class="wikilink" href="philosophy.html">운용 원칙</a>에서 다룹니다.</li>
 <li><strong>근거를 밝힙니다.</strong> 어느 노트가 왜 주의 항목인지(예: 같은 <code>id</code>를 가진 두 노트의 경로) 이름을 들어 보여 줍니다.</li>
 </ol>
 <p>이 기능이 없으면 처리하지 않은 포착, 방치된 아이디어, 깨진 YAML이나 충돌 표시가 있는 노트, <code>confidential</code>인데 <code>ai_policy</code>가 느슨한 노트가 눈에 띄지 않은 채 쌓입니다. 자동화는 그런 노트를 건너뛰기만 하므로, 사용자에게 알려 주는 일은 이 기능이 맡습니다. 용어는 <a class="wikilink" href="glossary.html">용어</a>의 <em>제안(Proposal)</em>, <em>주의 항목(attention item)</em>, <code>ai_policy</code>를 참고하세요.</p>
@@ -72,12 +72,24 @@
 <p class="callout-title">작업 예시</p>
 <p>월요일에 프로젝트 노트 하나의 <code>status</code>를 <code>done</code>으로 바꿉니다. 다음 <code>digest</code> 계산에서 StewardshipOfficer가 이 노트에 대한 보관 제안을 <code>01_AI_Review/Proposals/</code>에 하나 만듭니다(<a class="wikilink" href="#DOC-4">DOC-4</a>). 같은 노트에 제안은 사용자가 결정할 때까지 정확히 하나뿐이며, 요약에는 &#x27;검토 대기&#x27;로 한 번 집계됩니다. 제안 노트를 열어 체크리스트와 diff를 보고 <strong>적용</strong>하면 <a class="wikilink" href="c6.html">C6</a>에 따라 대상이 그 사이 바뀌지 않았을 때만 반영되고, <strong>거절</strong>하면 제안 파일이 지워집니다. 마음에 들지 않으면 아무것도 하지 않아도 됩니다. 그 사이 대상이 바뀌어도 열린 제안이 Owner가 쓴 그대로이면 같은 자리에서 다시 만들어지고, 사용자가 고친 제안은 덮어쓰거나 중복 생성하지 않습니다(<a class="wikilink" href="c6.html">C6</a> 보존 규칙).</p>
 </div>
+<p><strong>System One 상태 제안 (설정 시)</strong> — 같은 <code>digest</code> 계산이 후보 노트마다 질문 하나(predicate)를 System One에게 보내, 확률이 <code>min_confidence</code>(기본 0.7) 이상일 때만 상태 변경을 제안합니다(<a class="wikilink" href="#DOC-5">DOC-5</a>).</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>노트</th>
+<th>System One에게 묻는 것</th>
+<th>제안하는 변경</th>
+</tr></thead><tbody>
+<tr><td><code>open</code> 질문</td><td>본문이 이미 답을 담고 있는가</td><td><code>status: answered</code></td></tr>
+<tr><td><code>planned</code>·<code>active</code>·<code>paused</code> 프로젝트</td><td>끝났다고 스스로 밝히는가</td><td><code>status: done</code></td></tr>
+<tr><td><code>seed</code>·<code>developing</code>·<code>mature</code> 아이디어</td><td>작성자가 포기했는가</td><td><code>status: dropped</code></td></tr>
+</tbody></table></div>
+<p>각 제안은 일반 단일 대상 생활주기 제안이고, 체크리스트 항목에 System One과 확률이 적힙니다. 사용자는 <a class="wikilink" href="c6.html">C6</a>에서 평소처럼 적용·거절합니다. <code>remote_ok</code> 노트만 보내며(예약 출처), <code>deny</code>·충돌 표시·ID 중복·시스템·검토 노트는 보내지 않습니다. 이미 열린 제안이나 낡은 제안이 있는 대상은 묻지도 제안하지도 않습니다. 내용이 바뀌지 않은 노트는 다시 묻지 않고(State <code>lifecycle_seen</code>), 호출이 실패하면 기록하지 않으므로 다음 실행에서 다시 묻습니다. System One이 꺼져 있으면 정적 제안만으로 요약이 완성됩니다.</p>
 <h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
 <p>이 기능에 맞는 계약의 이름 있는 도식은 없어, 짧은 흐름으로 정리합니다.</p>
 <ol>
 <li><code>digest</code> 작업이 시작됩니다. 모든 요청과 마찬가지로 Director가 정적 코드로 접수합니다(<a class="wikilink" href="c7.html">C7</a>).</li>
 <li>StewardshipOfficer가 Vault를 읽어 주의 항목을 계산합니다. 충돌 표시가 있는 노트는 모든 자동화가 건너뜁니다(<a class="wikilink" href="#DOC-3">DOC-3</a>).</li>
-<li>정적 규칙으로 생활주기 제안을 만듭니다. 같은 노트에 열린 제안이 있으면 새로 만들지 않습니다.</li>
+<li>정적 규칙으로 생활주기 제안을 만듭니다. System One이 설정되어 있으면 후보 노트에 상태 질문을 보내 기준을 넘는 답도 같은 제안 형식으로 더합니다. 같은 노트에 열린 제안이 있으면 새로 만들지 않습니다.</li>
 <li>정적 EvalOfficer가 결과를 독립적으로 평가합니다.</li>
 <li>같은 계산이 <a class="wikilink" href="c8.html">C8</a> 요약의 내용이 되고, 충돌·결과 불명·작업 실패는 즉시 알림으로도 나갑니다.</li>
 <li>사용자가 <a class="wikilink" href="c6.html">C6</a>에서 제안을 결정하거나, Bases 화면에서 노트를 고쳐 항목을 사라지게 합니다(<a class="wikilink" href="#DOC-1">DOC-1</a>).</li>
@@ -111,6 +123,7 @@
 <li>A small rotating &quot;revisit&quot; set of older ideas and open questions for the digest.</li>
 </ul></li>
 <li><strong>Lifecycle proposals</strong> come from static rules. For example, a <code>done</code> project or a <code>dropped</code> idea gets a proposal to become <code>archived</code> in <code>90_Archive/</code>.</li>
+<li><strong>System One status proposals</strong>: when System One is configured, the digest run also asks one predicate per candidate note and proposes a status change only when it holds at <code>min_confidence</code>: an <code>open</code> question that already contains its answer becomes <code>answered</code>; a <code>planned</code>, <code>active</code> or <code>paused</code> project that states it is finished becomes <code>done</code>; a <code>seed</code>, <code>developing</code> or <code>mature</code> idea whose author abandoned it becomes <code>dropped</code>. Each is an ordinary single-target lifecycle proposal whose checklist item names System One and the probability; the note itself is never written. Only notes whose current policy is <code>remote_ok</code> are sent (scheduled origin), never <code>deny</code>, conflict, duplicate-ID, system or review notes, and a target with an open or stale proposal is neither asked about nor proposed again. A note is asked again only when its content changed since it was last asked (State <code>lifecycle_seen</code>, written after the Work&#x27;s effects); a failed call records nothing, so the next run asks again.</li>
 <li><strong>Ordinary note operations</strong> (create, move, rename, delete) stay in Obsidian. KnowledgeOS follows moves by ID and treats a deleted target&#x27;s proposals as stale.</li>
 </ul>
 <p>Acceptance:</p>
@@ -119,6 +132,7 @@
 <li><strong><a class="wikilink" href="#DOC-2">DOC-2</a></strong> Given two notes with the same <code>id</code>, then both stay searchable, a computed item names both, and an organize request targeting that ID is refused.</li>
 <li><strong><a class="wikilink" href="#DOC-3">DOC-3</a></strong> Given a note with merge-conflict markers, then all automation skips it and a computed item lists it.</li>
 <li><strong><a class="wikilink" href="#DOC-4">DOC-4</a></strong> Given a project with status <code>done</code>, then exactly one archive proposal exists for it until the user decides.</li>
+<li><strong><a class="wikilink" href="#DOC-5">DOC-5</a></strong> Given a <code>remote_ok</code> open question whose body answers it, an <code>ask</code> open question and a <code>remote_ok</code> idea judged not abandoned, when the digest runs with System One configured, then exactly one proposal sets <code>status: answered</code> for the <code>remote_ok</code> question, the <code>ask</code> note&#x27;s text is never sent, the idea gets no proposal, no note changes, and a second run sends nothing for unchanged notes; with System One down the run completes with only the static proposals.</li>
 </ul>
 </section>
 <h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
@@ -129,12 +143,13 @@
 <tr><td class="acc-id"><a class="acc-id" id="DOC-2" href="#DOC-2">DOC-2</a></td><td class="acc-example">Given two notes with the same <code>id</code>, then both stay searchable, a computed item names both, and an organize request targeting that ID is refused.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c5_stewardship.py::attention</code><br><code>src/knowledgeos/owner.py::Admission.resolve</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c5_stewardship.py::test_DOC_2_duplicate_ids_stay_searchable_and_ambiguous_targets_refused</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="DOC-3" href="#DOC-3">DOC-3</a></td><td class="acc-example">Given a note with merge-conflict markers, then all automation skips it and a computed item lists it.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c5_stewardship.py::attention</code><br><code>src/knowledgeos/capabilities/c2_standardize.py::officer_step</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c5_stewardship.py::test_DOC_3_conflict_is_skipped_and_attention_names_it</code></li><li><code>tests/test_c2_standardize.py::test_skips_conflicts_invalid_yaml_duplicates_and_deny</code></li><li><code>tests/test_c1_organize.py::test_ORG_refuses_deny_conflict_ambiguous_id_but_allows_ordinary_root_markdown</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="DOC-4" href="#DOC-4">DOC-4</a></td><td class="acc-example">Given a project with status <code>done</code>, then exactly one archive proposal exists for it until the user decides.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c5_stewardship.py::finish</code><br><code>src/knowledgeos/capabilities/c5_stewardship.py::maintain_proposals</code><br><code>src/knowledgeos/proposals.py::write_or_regenerate</code></td><td class="acc-tests"><details><summary>테스트 8개</summary><ul><li><code>tests/test_c5_stewardship.py::test_DOC_4_done_project_has_exactly_one_archive_proposal</code></li><li><code>tests/test_c5_stewardship.py::test_user_edited_open_proposal_is_never_overwritten_or_duplicated</code></li><li><code>tests/test_c5_stewardship.py::test_proposal_state_loss_does_not_authorize_overwriting_existing_output</code></li><li><code>tests/test_c5_stewardship.py::test_open_lifecycle_proposal_regenerates_in_place_when_target_changes</code></li><li><code>tests/test_c5_stewardship.py::test_target_change_marks_stale_then_expires_after_seven_days</code></li><li><code>tests/test_c5_stewardship.py::test_deleted_target_becomes_stale_and_moved_id_target_does_not</code></li><li><code>tests/test_vault_boundaries.py::test_STD_1_public_output_creation_refuses_excluded_review_folders</code></li><li><code>tests/test_vault_boundaries.py::test_STD_1_output_name_collision_keeps_existing_bytes_and_uses_suffix</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="DOC-5" href="#DOC-5">DOC-5</a></td><td class="acc-example">Given a <code>remote_ok</code> open question whose body answers it, an <code>ask</code> open question and a <code>remote_ok</code> idea judged not abandoned, when the digest runs with System One configured, then exactly one proposal sets <code>status: answered</code> for the <code>remote_ok</code> question, the <code>ask</code> note&#x27;s text is never sent, the idea gets no proposal, no note changes, and a second run sends nothing for unchanged notes; with System One down the run completes with only the static proposals.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c5_stewardship.py::_judge</code><br><code>src/knowledgeos/capabilities/c5_stewardship.py::lifecycle_targets</code><br><code>src/knowledgeos/capabilities/c5_stewardship.py::check</code></td><td class="acc-tests"><details><summary>테스트 4개</summary><ul><li><code>tests/test_c5_system_one.py::test_DOC_5_system_one_proposes_status_changes_for_sendable_notes_only</code></li><li><code>tests/test_c5_system_one.py::test_DOC_5_project_and_idea_judgments_become_proposals_and_open_proposals_reserve_targets</code></li><li><code>tests/test_c5_system_one.py::test_DOC_5_unavailable_system_one_leaves_static_proposals_and_asks_again_later</code></li><li><code>tests/test_c5_system_one.py::test_DOC_5_unconfigured_system_one_changes_nothing</code></li></ul></details></td></tr>
 </tbody></table></div>
 <h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
 <ul>
-<li><strong>명세 대비 구현</strong>: DOC-1부터 DOC-4까지 모두 추적표에 구현 위치와 테스트 노드가 있습니다. <code>PROJECT_STATE.md</code>는 현재 전체 61개 인수 예시·61행·171개 pytest 노드의 연결(<code>E_SIDEBAR_INLINE_TRACE</code>)과 248개 시점의 전체 테스트 통과(<code>E_TRACED_TESTS</code>)를 따로 기록합니다. 테스트의 스크립트 대역·합성 Vault 근거를 실환경 관찰로 보아서는 안 됩니다(<a class="wikilink" href="status.html">현재 상태</a>).</li>
+<li><strong>명세 대비 구현</strong>: DOC-1부터 DOC-5까지 모두 추적표에 구현 위치와 테스트 노드가 있습니다. <code>PROJECT_STATE.md</code>는 현재 전체 68개 인수 예시·68행·195개 pytest 노드의 연결(<code>E_SYSTEM_ONE_TRACE</code>)과 277개 전체 테스트 통과(<code>E_SYSTEM_ONE_TESTS</code>)를 기록합니다. 테스트의 스크립트 대역·합성 Vault 근거를 실환경 관찰로 보아서는 안 됩니다(<a class="wikilink" href="status.html">현재 상태</a>). DOC-5의 System One 응답은 loopback 가짜 Decisions API입니다.</li>
 <li><strong>실환경 근거</strong>: 이 기능에 직접 연결된 기록은 두 가지입니다. 하나는 실제 Vault 설정 정리 후 <code>vault-check</code>가 깨진 YAML을 보고하지 않았다는 기록(E_VAULT_CONFIG_CLEANUP)이고, 다른 하나는 요약 알림이 실제 Discord에 전달되었다는 기록(E_DISCORD_DELIVERED, <a class="wikilink" href="c8.html">C8</a>)입니다.</li>
-<li><strong>확인되지 않은 것</strong>: <code>PROJECT_STATE.md</code>에는 실제 Obsidian에서 Bases 여섯 화면을 관찰한 기록이나, 자연 스케줄(매일 08:00 <code>digest</code>)로 실행된 요약과 실제 보관 제안을 관찰한 기록이 없습니다. 열린 인계 항목(handoff)은 매시간 규격화·임베딩의 첫 자연 실행 관찰이며, 문서 관리에 대한 별도 열린 항목은 기록되어 있지 않습니다.</li>
+<li><strong>확인되지 않은 것</strong>: <code>PROJECT_STATE.md</code>에는 실제 Obsidian에서 Bases 여섯 화면을 관찰한 기록이나, 자연 스케줄(매일 08:00 <code>digest</code>)로 실행된 요약과 실제 보관 제안을 관찰한 기록이 없습니다. System One 상태 제안(DOC-5)도 실제 Owner·실제 노트에서 관찰한 기록이 없으며, <code>E_SYSTEM_ONE_LIVE</code>의 실제 호출은 규격화·자유 요청·관련 노트에 대한 것입니다. 열린 인계 항목(handoff)에는 <code>min_confidence</code> 조정이 들어 있으므로 이 기능의 기준값도 실제 노트로 보정할 시작값입니다.</li>
 <li><strong>열린 질문</strong>: Blueprint §9는 문서 관리 화면에 핵심 Bases로 충분한지, 추가 커뮤니티 plugin이 필요한지를 아직 정하지 않은 질문으로 둡니다. 요약 주기(C7 기본값)가 실제 사용과 맞는지도 열린 질문입니다.</li>
 <li><strong>모바일</strong>: 후속 과제 M3(GitHub Actions)가 push 시 YAML·충돌 표시·중복 ID 같은 결정적 점검을 맡을 후보로 적혀 있으나 아직 구현 전입니다. 자세한 것은 <a class="wikilink" href="roadmap.html">로드맵</a>에서 봅니다.</li>
 </ul>
@@ -148,9 +163,9 @@
 <li><a class="wikilink" href="c8.html">C8</a> 알림: 요약과 즉시 알림의 내용을 이 기능이 구성합니다.</li>
 <li><a class="wikilink" href="c11.html">C11</a> 호출·관리 화면: 콘솔이 주의 항목을 보여 주고 결과 불명 확인 기록을 받습니다.</li>
 </ul>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

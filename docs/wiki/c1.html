@@ -36,7 +36,7 @@
 <li><strong>약속 4 · 자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong> 종류·제목·링크·위치는 판단이 필요한 변경이므로 자동 적용 대상이 아닙니다. 매일 자동으로 도는 <code>curate</code>도 제안까지만 만듭니다.</li>
 <li><strong>약속 7 · 근거를 밝힙니다.</strong> 모든 분류와 링크는 이번 Work에서 실제로 읽은 노트 내용에 기대야 하고, 독립 평가자가 그 근거를 따로 확인합니다.</li>
 </ul>
-<p>개인정보 경계(<a class="wikilink" href="philosophy.html">운용 원칙</a>의 <code>ai_policy</code> 설명과 <a class="wikilink" href="glossary.html">용어</a> 참고)도 이 명세에 들어 있습니다. 예약 실행과 Gateway 실행은 <code>remote_ok</code> 노트만 모델에 보여 줍니다.</p>
+<p>개인정보 경계(<a class="wikilink" href="philosophy.html">운용 원칙</a>의 <code>ai_policy</code> 설명과 <a class="wikilink" href="glossary.html">용어</a> 참고)도 이 명세에 들어 있습니다. 예약 실행과 Gateway 실행은 <code>remote_ok</code> 노트만 모델에 보여 줍니다. System One(<a class="wikilink" href="glossary.html">용어</a>)에게 힌트를 물을 때도 같은 규칙입니다. 예약 <code>curate</code>는 <code>ask</code> 노트를 System One에 보내지 않습니다.</p>
 <h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
 <h3 id="obsidian-thin-client-사이드바명령">Obsidian Thin Client (사이드바·명령)<a class="anchor" href="#obsidian-thin-client-사이드바명령" aria-label="이 제목 링크">#</a></h3>
 <ol>
@@ -60,7 +60,7 @@
 <ol>
 <li><code>00_Inbox/</code>에 frontmatter 없이 쓴 메모가 있습니다.</li>
 <li>사용자가 사이드바에서 <strong>정리</strong>를 선택하고 아래 기능 창의 <strong>정리 요청</strong>을 누릅니다.</li>
-<li><code>scout</code>가 대상 노트, 관련 후보 노트, 기존 태그 목록을 모으고, <code>classifier</code>가 종류·상태·제목·태그·폴더를, <code>linker</code>가 기존 노트와의 링크를 정합니다.</li>
+<li><code>scout</code>가 대상 노트, 관련 후보 노트(의미 이웃은 C3의 이웃 거르기를 거친 것), 기존 태그 목록을 모읍니다. System One이 설정되어 있으면 이때 보낼 수 있는 대상마다 <code>type</code>을 고르게 하고, 종류가 정해지면 <code>status</code>도 고르게 해 그 답을 <strong>참고용 힌트</strong>로 기록합니다(<a class="wikilink" href="#ORG-7">ORG-7</a>). 이어서 <code>classifier</code>가 종류·상태·제목·태그·폴더를, <code>linker</code>가 기존 노트와의 링크를 정합니다.</li>
 <li>평가를 통과하면 제안 노트 하나가 생기고, 원래 메모는 그대로입니다(<a class="wikilink" href="#ORG-1">ORG-1</a>).</li>
 <li>사용자가 제안에서 &quot;폴더 이동&quot;만 체크 해제하고 <strong>적용</strong>하면, 나머지 변경은 반영되고 파일은 제자리에 남습니다(<a class="wikilink" href="#ORG-4">ORG-4</a>).</li>
 </ol>
@@ -82,6 +82,7 @@
 <ul>
 <li>CurationManager는 Work에 필요한 팀원만 고릅니다. 예를 들어 관련 노트가 없을 법한 포착에는 <code>linker</code>를 건너뛸 수 있습니다.</li>
 <li>평가자는 Manager의 지시를 받지 않습니다. Manager의 그래프 제안에 EvalOfficer에게 주는 지시가 들어 있으면 Owner는 제안을 거부하고 어떤 구간도 시작하지 않습니다(<a class="wikilink" href="#ORG-5">ORG-5</a>).</li>
+<li><strong>System One 힌트는 조언일 뿐입니다.</strong> <code>classifier</code>는 작업 맥락에서 힌트(확신도와 상위 확률 포함)를 보지만, 그대로 따를 의무가 없고 Owner 코드가 힌트를 노트나 제안에 직접 쓰는 일도 없습니다. 예를 들어 힌트가 <code>idea</code>(0.9)여도 <code>classifier</code>가 <code>question</code>을 제출하면 제안에는 <code>question</code>이 적히고 노트는 그대로입니다. System One이 꺼져 있으면 힌트 없이 Work가 끝납니다(<a class="wikilink" href="#ORG-7">ORG-7</a>).</li>
 <li>평가에서 분류 하나가 근거 부족으로 판정되면, CurationManager가 해당 대상에 <code>classifier</code>만 다시 돌리는 후속 구간 하나를 예산 안에서 구성합니다(<a class="wikilink" href="#ORG-6">ORG-6</a>).</li>
 <li>제안은 사용자가 결정할 때까지 같은 대상에 대해 하나만 열려 있습니다. 다시 요청하면 Owner가 쓴 바이트 그대로인 제안만 제자리 갱신되고, 사용자가 고친 제안은 보존됩니다(아래 &quot;거부와 보존&quot; 참고).</li>
 </ul>
@@ -95,8 +96,8 @@
 <li><strong>Input</strong>: up to 10 target notes per Work. Scheduled and Gateway-triggered Work only gives models notes whose effective policy is <code>remote_ok</code>.</li>
 <li><strong>Team pool</strong>:
 <ul>
-<li><code>scout</code> (static): collects the target notes, candidate related notes and the tag vocabulary.</li>
-<li><code>classifier</code> (model): decides type, status, title, tags and conventional folder per note.</li>
+<li><code>scout</code> (static): collects the target notes, candidate related notes (semantic neighbors vetted as in C3) and the tag vocabulary. When System One is configured, it also asks, per target that may be sent for the Work&#x27;s origin, a <code>type</code> choice and, for a known type, a <code>status</code> choice, and records accepted answers with confidence and top probabilities as advisory per-target hints.</li>
+<li><code>classifier</code> (model): decides type, status, title, tags and conventional folder per note. It sees System One hints in its work context as advice only; Owner code never writes a hint to a note or proposal.</li>
 <li><code>linker</code> (model): decides links and typed relations to existing notes, and whether a capture should attach to an existing note.</li>
 </ul></li>
 <li><strong>Manager</strong>: CurationManager picks the teammates the Work needs. For example, a capture with no plausible related notes may skip <code>linker</code>.</li>
@@ -124,6 +125,7 @@
 <li><strong><a class="wikilink" href="#ORG-4">ORG-4</a></strong> Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.</li>
 <li><strong><a class="wikilink" href="#ORG-5">ORG-5</a></strong> Given the CurationManager&#x27;s Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.</li>
 <li><strong><a class="wikilink" href="#ORG-6">ORG-6</a></strong> Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only <code>classifier</code> for that target, within budget.</li>
+<li><strong><a class="wikilink" href="#ORG-7">ORG-7</a></strong> Given System One is configured and a user organize request targets an untyped <code>remote_ok</code> note in <code>00_Inbox/</code> that System One classifies as <code>idea</code> at 0.9 confidence, then the <code>classifier</code>&#x27;s work context carries that advisory hint, and if the <code>classifier</code> submits <code>question</code> the proposal says <code>question</code> and the note is unchanged. A scheduled <code>curate</code> run never sends an <code>ask</code> note to System One, and with System One unavailable the Work completes without hints.</li>
 </ul>
 </section>
 <h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
@@ -136,6 +138,7 @@
 <tr><td class="acc-id"><a class="acc-id" id="ORG-4" href="#ORG-4">ORG-4</a></td><td class="acc-example">Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c6_review.py::apply</code><br><code>src/knowledgeos/proposals.py::apply</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_4_unchecked_move_keeps_file_in_place</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ORG-5" href="#ORG-5">ORG-5</a></td><td class="acc-example">Given the CurationManager&#x27;s Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._compose</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_5_manager_cannot_instruct_evaluation</code></li><li><code>tests/test_team_engine.py::test_team_graph_addressing_the_eval_officer_is_rejected_without_a_segment</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ORG-6" href="#ORG-6">ORG-6</a></td><td class="acc-example">Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only <code>classifier</code> for that target, within budget.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._compose</code><br><code>src/knowledgeos/capabilities/c1_organize.py::team_context</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c1_organize.py::test_ORG_6_unsupported_target_gets_only_classifier_successor</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ORG-7" href="#ORG-7">ORG-7</a></td><td class="acc-example">Given System One is configured and a user organize request targets an untyped <code>remote_ok</code> note in <code>00_Inbox/</code> that System One classifies as <code>idea</code> at 0.9 confidence, then the <code>classifier</code>&#x27;s work context carries that advisory hint, and if the <code>classifier</code> submits <code>question</code> the proposal says <code>question</code> and the note is unchanged. A scheduled <code>curate</code> run never sends an <code>ask</code> note to System One, and with System One unavailable the Work completes without hints.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c1_organize.py::system_one_hint</code><br><code>src/knowledgeos/system_one.py::SystemOne.decide</code></td><td class="acc-tests"><details><summary>테스트 5개</summary><ul><li><code>tests/test_c1_system_one.py::test_ORG_7_hint_is_advisory_and_classifier_still_decides</code></li><li><code>tests/test_c1_system_one.py::test_ORG_7_known_type_also_asks_for_status</code></li><li><code>tests/test_c1_system_one.py::test_ORG_7_scheduled_run_never_sends_ask_note</code></li><li><code>tests/test_c1_system_one.py::test_ORG_7_unavailable_system_one_leaves_work_unchanged</code></li><li><code>tests/test_c1_system_one.py::test_ORG_7_unconfigured_system_one_adds_no_hints</code></li></ul></details></td></tr>
 </tbody></table></div>
 <h3 id="거부와-보존-명세-요약">거부와 보존 (명세 요약)<a class="anchor" href="#거부와-보존-명세-요약" aria-label="이 제목 링크">#</a></h3>
 <ul>
@@ -147,19 +150,20 @@
 <h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
 <p>PROJECT_STATE.md와 CAPABILITY_TRACE.md가 말하는 사실만 적습니다.</p>
 <ul>
-<li><strong>구현·추적</strong>: C1의 인수 ID ORG-1~ORG-6은 모두 추적표에 구현 위치와 pytest 노드가 연결되어 있습니다. 현재 추적 기록은 전체 61개 인수 예시·61행·171개 pytest 노드의 연결을 확인합니다(<code>E_SIDEBAR_INLINE_TRACE</code>). 전체 테스트 통과는 248개 시점의 <code>E_TRACED_TESTS</code> 기록이며, 이후 인라인 사이드바의 집중 검사 5개는 <code>E_SIDEBAR_INLINE_TESTS</code>에 따로 있습니다.</li>
+<li><strong>구현·추적</strong>: C1의 인수 ID ORG-1~ORG-7은 모두 추적표에 구현 위치와 pytest 노드가 연결되어 있습니다. 현재 추적 기록은 전체 68개 인수 예시·68행·195개 pytest 노드의 연결을 확인하고(<code>E_SYSTEM_ONE_TRACE</code>), 전체 테스트 277개 통과는 <code>E_SYSTEM_ONE_TESTS</code>에 있습니다. 앞선 기록(61개·171노드의 <code>E_SIDEBAR_INLINE_TRACE</code>, 248개 시점의 <code>E_TRACED_TESTS</code>, 인라인 사이드바 집중 검사 5개의 <code>E_SIDEBAR_INLINE_TESTS</code>)은 별도로 남아 있습니다.</li>
 <li><strong>실환경 근거</strong>:
 <ul>
 <li>실제 Vault에서 Obsidian으로 요청한 정리·강화·자유 요청이 완료되어, 열린 제안 하나와 보고서 하나가 만들어졌습니다. Hermes 세션은 Director·Manager·평가에 <code>gpt-6.1-sol</code>, 팀원에 <code>gpt-6.1-terra</code>를 썼습니다(<code>E_REAL_ROLE_SMOKE</code>).</li>
 <li>사용자가 그 스모크 제안을 체크 항목 7개로 적용해 포착이 <code>40_Knowledge/Questions</code>로 옮겨지고 제안이 삭제된 것이 기록되어 있습니다(<code>E_USER_PROPOSAL_APPLY</code>).</li>
+<li>System One 힌트(ORG-7): 실제 Obsidian 사이드바의 <strong>정리</strong>가 <code>40_Knowledge/Notes/KOS 점검 - 생성 효과.md</code>에 Work <code>work-c039e95fc1836189</code>를 돌렸습니다. <code>scout</code>가 System One 힌트(<code>type</code> knowledge 1.0, <code>status</code> developing 0.74)를 기록했고, 다시 설치한 <code>kos-classifier</code>(<code>gpt-6.1-terra</code>)가 이를 참고용 힌트로 받아 <code>status: developing</code>·제목·태그 <code>기억</code>·관련 링크 둘을 제안했습니다. 제안 <code>01_AI_Review/Proposals/KOS 점검 - 생성 효과 — organize.md</code> 하나가 사용자의 결정을 기다리며 열려 있습니다(<code>E_SYSTEM_ONE_CLIENT_GUI</code>). 화면이 잠겨 있어 완료 여부는 Owner State로 읽었습니다.</li>
 </ul></li>
-<li><strong>아직 확인되지 않은 것</strong>: PROJECT_STATE.md의 남은 인계는 자연 발생한 매시간 규격화·임베딩 실행 관찰과 <code>related_min_score</code> 조정입니다. 매일 06:00 <code>curate</code>의 자연 실행을 관찰했다는 기록은 PROJECT_STATE.md에 없습니다. 예약 시각 실행의 실환경 확인은 임시 <code>index.embed</code> 작업 하나로 이루어졌습니다(<code>E_REAL_SCHEDULER_SLOT</code>).</li>
+<li><strong>아직 확인되지 않은 것</strong>: PROJECT_STATE.md의 남은 인계는 위의 열린 정리 제안 검토, 자연 발생한 매시간 규격화 실행 관찰, 그리고 <code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code> 조정입니다. 매일 06:00 <code>curate</code>의 자연 실행을 관찰했다는 기록은 PROJECT_STATE.md에 없고, 힌트 관찰은 사이드바에서 직접 요청한 한 번뿐입니다. 예약 시각 실행의 실환경 확인은 임시 <code>index.embed</code> 작업 하나로 이루어졌습니다(<code>E_REAL_SCHEDULER_SLOT</code>).</li>
 <li><strong>열린 질문(Blueprint §9)</strong>: 예약 정리를 쓰기 시작한 뒤에도 기본 <code>ai_policy</code>를 <code>ask</code>로 두는 것이 맞는지, 그리고 C7의 기본 작업 주기가 실제 사용과 맞는지는 아직 정해지지 않았습니다.</li>
 </ul>
 <p>로드맵 전체는 <a class="wikilink" href="roadmap.html">로드맵</a>, 검증 근거 전체는 <a class="wikilink" href="status.html">현재 상태</a>에서 볼 수 있습니다.</p>
 <h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
 <ul>
-<li><a class="wikilink" href="c2.html">C2</a> 규격화: 정리의 앞 단계입니다. 결정적 규칙으로 빠진 frontmatter를 채우고, 판단이 필요한 변경만 정리가 제안으로 맡습니다.</li>
+<li><a class="wikilink" href="c2.html">C2</a> 규격화: 정리의 앞 단계입니다. 규칙으로 빠진 frontmatter를 채우고(선택지가 고정된 값은 System One이 확신할 때만 고름), 그 밖의 판단이 필요한 변경만 정리가 제안으로 맡습니다.</li>
 <li><a class="wikilink" href="c6.html">C6</a> 검토: 정리가 만든 제안을 적용·거절·되돌리는 곳이며 ORG-4의 적용 동작을 담당합니다.</li>
 <li><a class="wikilink" href="c7.html">C7</a> 예약 작업: <code>curate</code>가 매일 정리를 요청합니다(최대 10개, 모델 경로가 없으면 눈에 띄게 실패하고 자동 재시도하지 않습니다, <a class="wikilink" href="c7.html#JOB-3">JOB-3</a>).</li>
 <li><a class="wikilink" href="c10.html">C10</a> Gateway: 다른 Operation이 보낸 정보가 포착 노트로 들어와 정리 대상이 됩니다.</li>
@@ -169,7 +173,7 @@
 </ul>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

@@ -30,6 +30,7 @@ Curation teammate (C1). For each target note, decide the judgment fields: `type`
 3. Titles follow the note's language and stay short.
 4. Cite as `evidence` the handles whose content supports the decision.
 5. Check `feedback`: avoid the kinds of changes the user unchecked or rejected before.
+6. A target's `system_one` entry is an advisory hint from a fast model; weigh it against the note, never copy it.
 
 ## Submission
 

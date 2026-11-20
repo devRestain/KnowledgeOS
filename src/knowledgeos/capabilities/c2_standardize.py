@@ -11,23 +11,45 @@ Paths (docs/CAPABILITIES.md C2):
 
 Every write records preimage and result digests, the exact delta and the preimage blob in
 ``changes/<change_id>.json`` for undo (C6).
+
+Rule 9 (closed-set judgment fields) is asked of System One inside the Officer step, only for
+notes whose current policy allows remote model use for the Work's origin. Accepted values are
+ordinary planned changes on every path; anything else leaves the field unchanged. A note whose
+question could not be asked because System One failed or the Activity window ran out is not
+settled by the automatic cursor, so the next run asks again.
 """
 
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 from ..capabilities import Done, Registry, WorkDraft
 from ..engine import EffectContext, StepContext
-from ..notes import parse
+from ..notes import Note, parse
 from ..owner import Admission, Owner
-from ..standardize import diff, note_skip_reason, path_skip_reason, plan, verify
+from ..policy import effective
+from ..standardize import (
+    JUDGED_KEYS,
+    STATUSES,
+    Question,
+    diff,
+    note_skip_reason,
+    path_skip_reason,
+    plan,
+    verify,
+)
+from ..system_one import SystemOneUnavailable, may_send, note_input
 from ..util import iso, new_id, new_uuid, sha256
+from ..vault import VaultPathError
 
 CAPABILITY = "C2"
 OFFICER = "StandardizationOfficer"
 PERMANENT_SKIPS = ("conflict", "not_utf8", "invalid_yaml", "duplicate_id", "navigation")
+RETRY_REASONS = ("unavailable", "deferred")  # asked again by the next automatic run
+ACTIVITY_SECONDS = 120
+SLACK_SECONDS = 10
 
 
 def register(reg: Registry) -> None:
@@ -41,6 +63,7 @@ def register(reg: Registry) -> None:
     reg.check("std.result_valid", lambda ctx, artifact: _verified(ctx, artifact, "result_valid"))
     reg.check("std.properties_preserved", lambda ctx, artifact: _verified(ctx, artifact, "properties_preserved"))
     reg.check("std.minimal_diff", lambda ctx, artifact: _verified(ctx, artifact, "minimal_diff"))
+    reg.check("std.decisions_grounded", check_decisions)
     reg.view("changes", list_changes, get_change)
 
 
@@ -103,23 +126,37 @@ def _preview(adm: Admission) -> dict[str, Any]:
 
 
 def officer_step(ctx: StepContext) -> dict[str, Any]:
-    """Plan every snapshotted input. Result bytes are stored as State blobs."""
+    """Plan every snapshotted input; rule-9 questions go to System One. Results are State blobs."""
     duplicate_ids = set(ctx.owner.index.duplicate_ids())
+    judge = _Judge(ctx)
     notes: list[dict[str, Any]] = []
     unchanged: list[str] = []
+    undecided: list[dict[str, str]] = []
     skipped = list(ctx.workspec["skipped"])
     for item in ctx.inputs():
         path = item["path"]
         note = ctx.snapshot(path)
-        planned = plan(
-            path,
-            note,
-            policy=item["policy"],
-            created=ctx.first_seen(path),
-            new_id=new_uuid,
-            default_policy=ctx.owner.config.default_policy,
-            duplicate_ids=duplicate_ids,
-        )
+        uuid = new_uuid()  # one id per note across re-plans
+        rules = {"policy": item["policy"], "created": ctx.first_seen(path), "new_id": lambda value=uuid: value,
+                 "default_policy": ctx.owner.config.default_policy, "duplicate_ids": duplicate_ids}
+        planned = plan(path, note, **rules)
+        decisions: dict[str, str] = {}
+        records: list[dict[str, Any]] = []
+        asked: set[str] = set()
+        # A type decision may raise a status question, so re-plan until nothing new is decided.
+        while pending := [question for question in planned.questions if question.key not in asked]:
+            asked.update(question.key for question in pending)
+            accepted = []
+            for record in judge.ask(path, note, pending):
+                if record["value"] is None:
+                    undecided.append({"path": path, "key": record["key"], "reason": record["reason"]})
+                else:
+                    accepted.append(record)
+            if not accepted:
+                break
+            records.extend(accepted)
+            decisions.update({record["key"]: record["value"] for record in accepted})
+            planned = plan(path, note, decisions=decisions, **rules)
         if planned.skip:
             skipped.append({"path": path, "reason": planned.skip})
         elif not planned.changed:
@@ -133,9 +170,66 @@ def officer_step(ctx: StepContext) -> dict[str, Any]:
                     "result": ctx.put_blob(planned.result),
                     "changes": [change.as_dict() for change in planned.changes],
                     "diff": diff(path, note.raw, planned.result),
+                    "decisions": records,
                 }
             )
-    return {"mode": ctx.mode, "notes": notes, "unchanged": unchanged, "skipped": skipped}
+    return {"mode": ctx.mode, "notes": notes, "unchanged": unchanged, "skipped": skipped, "undecided": undecided,
+            "system_one": judge.state, "min_confidence": judge.min_confidence}
+
+
+class _Judge:
+    """System One for one Officer step: one request per note, stopped after the first failure or
+    when the Activity window is nearly spent."""
+
+    def __init__(self, ctx: StepContext):
+        self.ctx = ctx
+        self.system_one = ctx.owner.system_one
+        self.min_confidence = self.system_one.min_confidence if self.system_one else None
+        self.state = "ready" if self.system_one else "unconfigured"
+        window = int(ctx.owner.config.settings.get("runtime", {}).get("activity_timeout_seconds", ACTIVITY_SECONDS))
+        timeout = float(self.system_one.settings.timeout_seconds) if self.system_one else 0.0
+        self.deadline = time.monotonic() + max(1.0, window - timeout - SLACK_SECONDS)
+
+    def ask(self, path: str, note: Note, questions: list[Question]) -> list[dict[str, Any]]:
+        """One record per question: ``{key, before, value, confidence, reason}``; ``value`` is the
+        accepted choice or None."""
+        def records(reason: str, answers: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+            out = []
+            for question in questions:
+                answer = (answers or {}).get(question.key)
+                value, why = (self.system_one.accepted(answer, question.ask()) if answers is not None
+                              else (None, reason))
+                out.append({"key": question.key, "before": question.current, "value": value,
+                            "confidence": (answer or {}).get("confidence"), "reason": why})
+            return out
+
+        if self.system_one is None:
+            return records("unconfigured")
+        if self.state != "ready":
+            return records("unavailable")
+        if time.monotonic() > self.deadline:
+            return records("deferred")
+        if not _sendable(self.ctx, path):
+            return records("policy")
+        try:
+            answers = self.system_one.decide(
+                note_input(note, self.system_one.max_input_chars), [question.ask() for question in questions],
+                purpose="standardize", ref=self.ctx.work_id)
+        except SystemOneUnavailable as error:
+            self.state = f"unavailable: {error}"
+            return records("unavailable")
+        return records("", answers)
+
+
+def _sendable(ctx: StepContext, path: str) -> bool:
+    """The note's current policy allows remote model use for this Work's origin (checked just
+    before sending; a moved, deleted or newly restricted note fails closed)."""
+    try:
+        current = ctx.owner.vault.read(path)
+    except VaultPathError:
+        return False
+    return current is not None and may_send(effective(current, ctx.owner.config.default_policy),
+                                            ctx.workspec["origin"])
 
 
 def finish(ctx: EffectContext, artifact: dict[str, Any]) -> Done:
@@ -165,6 +259,9 @@ def finish(ctx: EffectContext, artifact: dict[str, Any]) -> Done:
         for entry in artifact["notes"]:
             if entry["path"] in applied:
                 settled[entry["path"]] = entry["result"]  # blob key == result sha
+        for item in artifact.get("undecided", []):
+            if item["reason"] in RETRY_REASONS:
+                settled.pop(item["path"], None)  # its question is asked again next run
         _advance(ctx.owner, settled)
     return _applied_done(applied, not_applied, planned)
 
@@ -207,7 +304,7 @@ def _apply(ctx: EffectContext, artifact: dict[str, Any], kind: str) -> tuple[lis
                 "preimage_blob": entry["preimage"],
                 "result_sha": sha256(data),
                 "result_blob": entry["result"],
-                "delta": {"changes": entry["changes"], "diff": entry["diff"]},
+                "delta": {"changes": entry["changes"], "diff": entry["diff"], "decisions": entry.get("decisions", [])},
                 "at": iso(ctx.clock.now()),
                 "undone_at": None,
             },
@@ -232,16 +329,22 @@ def _planned_outcome(work_id: str, artifact: dict[str, Any]) -> dict[str, Any]:
     return {
         "preview_id": work_id,
         "notes": [
-            {"path": entry["path"], "changes": entry["changes"], "diff": entry["diff"]} for entry in artifact["notes"]
+            {"path": entry["path"], "changes": entry["changes"], "diff": entry["diff"],
+             "decisions": entry.get("decisions", [])}
+            for entry in artifact["notes"]
         ],
         "skipped": artifact["skipped"],
         "unchanged": len(artifact["unchanged"]),
+        "undecided": artifact.get("undecided", []),
+        "system_one": artifact.get("system_one", "unconfigured"),
     }
 
 
 def _summary(text: str, artifact: dict[str, Any]) -> str:
     skipped = len(artifact["skipped"])
-    return f"{text}; {skipped} skipped" if skipped else text
+    text = f"{text}; {skipped} skipped" if skipped else text
+    state = artifact.get("system_one", "unconfigured")
+    return f"{text}; System One {state}" if state.startswith("unavailable") else text
 
 
 def _input_sha(ctx: StepContext, path: str) -> str | None:
@@ -304,6 +407,36 @@ def _verified(ctx: StepContext, artifact: dict[str, Any], aspect: str) -> list[d
             memo[path] = verify(path, ctx.snapshot(path), ctx.blob(entry["result"]), changed)
         problem = memo[path][aspect]
         judgments.append(_judgment(path, problem is None, problem or "ok"))
+    return judgments
+
+
+def check_decisions(ctx: StepContext, artifact: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every System One change is an offered value of a judged field, matches an accepted answer
+    at or above the recorded confidence threshold, and its note was sendable for the Work origin."""
+    policies = {item["path"]: item["policy"] for item in ctx.inputs()}
+    threshold = artifact.get("min_confidence")
+    judgments = []
+    for entry in artifact["notes"]:
+        path = entry["path"]
+        judged = [change for change in entry["changes"] if change["rule"] == "system_one"]
+        if not judged:
+            continue
+        note_type = parse(path, ctx.blob(entry["result"])).type
+        records = {record["key"]: record for record in entry.get("decisions", [])}
+        problem = None
+        if not may_send(policies.get(path, "deny"), ctx.workspec["origin"]):
+            problem = "a System One value was decided for a note its policy keeps from remote models"
+        for change in judged:
+            record = records.get(change["key"])
+            if problem:
+                break
+            if change["key"] not in JUDGED_KEYS or (change["key"] == "status" and note_type not in STATUSES) \
+                    or change["after"] not in Question(change["key"], None, note_type).choices():
+                problem = f"{change['key']} is not a System One field with {change['after']!r} on offer"
+            elif record is None or record["value"] != change["after"] or threshold is None \
+                    or not isinstance(record.get("confidence"), (int, float)) or record["confidence"] < threshold:
+                problem = f"{change['key']} has no accepted System One answer at confidence {threshold}"
+        judgments.append(_judgment(path, problem is None, problem or "grounded"))
     return judgments
 
 

@@ -34,9 +34,9 @@
     }
   },
   "modes": {
-    "manual": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]},
-    "batch": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]},
-    "automatic": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff"]}
+    "manual": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff", "std.decisions_grounded"]},
+    "batch": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff", "std.decisions_grounded"]},
+    "automatic": {"criteria": ["std.skips_respected", "std.result_valid", "std.properties_preserved", "std.minimal_diff", "std.decisions_grounded"]}
   },
   "criteria": {
     "std.skips_respected": {
@@ -54,6 +54,10 @@
     "std.minimal_diff": {
       "runtime": "static",
       "text": "Untouched frontmatter lines stay byte-identical and the body only loses rule-8 trailing list lines"
+    },
+    "std.decisions_grounded": {
+      "runtime": "static",
+      "text": "Every System One value is an offered value of a rule-9 field, equals an accepted answer at or above the recorded confidence threshold, and belongs to a note whose policy allows remote model use for the Work origin"
     }
   },
   "settings": {"quiet_period_minutes": 10}

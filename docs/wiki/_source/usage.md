@@ -62,7 +62,7 @@ Thin Client 플러그인의 `main.js`·`manifest.json`·`styles.css`를 Vault �
 | 규격화 미리보기 | 노트·선택·폴더 | [[c2]] 수동 경로 |
 | 정리 요청 | 노트·선택·폴더 | [[c1]] |
 | 강화: 발전 / 묻기 / 돌아보기 | 노트, 질문 입력, 날짜 범위 | [[c4]] |
-| 자유 요청 | 자유 문장 | Director가 분류 |
+| 자유 요청 | 자유 문장 | System One 사전 거름 뒤 Director가 분류 |
 | 관련 노트 · 의미 검색 | 노트, 질문 입력 | [[c3]] |
 | 적용 · 거절 | 제안 노트 | [[c6]] |
 | 자동 변경 되돌리기 | 노트 | [[c6]] |
@@ -80,7 +80,7 @@ Thin Client 플러그인의 `main.js`·`manifest.json`·`styles.css`를 Vault �
 알아둘 점:
 
 - **빠졌거나 잘못된 값만** 채웁니다. 본문과 다른 속성, 파일 위치는 바꾸지 않습니다. 이미 규격에 맞는 노트는 아무 일도 일어나지 않습니다([[STD-5]]).
-- 폴더로 `type`을 유추합니다. 예: `40_Knowledge/Ideas/`의 frontmatter 없는 노트는 `id`(새 UUIDv4)·`type: idea`·`created`·`status: seed`·`ai_policy: ask`가 추가되고 본문은 한 바이트도 바뀌지 않습니다([[STD-1]]). 알 수 없는 종류는 추측하지 않고 정리([[c1]])에 맡깁니다.
+- 폴더로 `type`을 유추합니다. 예: `40_Knowledge/Ideas/`의 frontmatter 없는 노트는 `id`(새 UUIDv4)·`type: idea`·`created`·`status: seed`·`ai_policy: ask`가 추가되고 본문은 한 바이트도 바뀌지 않습니다([[STD-1]]). 폴더로 정할 수 없는 `type`(예: Vault 맨 위의 노트)이나 올바르지 않은 `status`·`confidence`, 빠졌거나 잘못된 `capture_kind`는 System One이 선택지 안에서 고르고, 미리보기에는 고른 값과 확신도가 diff 위에 나옵니다([[STD-9]]). 자동(매시간) 경로는 `remote_ok` 노트의 값을 확신도 0.7 이상일 때만 적용합니다([[STD-10]]). System One이 꺼져 있으면 그 필드는 그대로 두고 다음 실행에서 다시 묻습니다([[STD-11]]). `ai_policy`·`sensitivity`, 사용자가 쓴 `daily` 같은 기존 종류, 제목·태그 같은 자유 값은 묻지 않으며 정리([[c1]])의 몫입니다.
 - 본문 끝에 잘못 들어간 `tags: [a, b]` 같은 줄은 frontmatter의 `tags`로 합쳐지고(중복 없이) 그 줄만 지워집니다([[STD-2]]).
 - 미리보기 뒤 확인하기 전에 노트가 바뀌었다면 **쓰지 않고** 바뀌었다고 알려 줍니다([[STD-3]]).
 - 방금 편집한 노트도 수동으로는 가능합니다. 자동(매시간) 경로만 최근 10분 안에 편집한 노트를 건너뜁니다([[STD-4]]).
@@ -148,10 +148,11 @@ Thin Client 플러그인의 `main.js`·`manifest.json`·`styles.css`를 Vault �
 
 ### 1.8 자유 요청 ([[c11]])
 
-**더보기**의 인라인 **자유 요청** 입력란에 문장을 적고 **요청**을 누르면 `kos-director` 모델이 읽고, 표준 요청(규격화 미리보기·정리·강화) 중 하나로 매핑합니다.
+**더보기**의 인라인 **자유 요청** 입력란에 문장을 적고 **요청**을 누르면, System One이 설정되어 있을 때 먼저 요청 문장**만** System One에게 보내 KnowledgeOS 명령과 무관한지 가립니다. 무관하다고 충분히 확신하면 Work 없이 바로 거절하고, 그렇지 않으면 `kos-director` 모델이 읽고 표준 요청(규격화 미리보기·정리·강화) 중 하나로 매핑합니다([[SUR-10]]).
 
 - 모델은 내가 이름 붙인 노트의 **경로 참조**(정책으로 걸러진)만 보고 본문은 보지 못합니다. 경로와 digest는 Owner가 채웁니다.
 - 작업·검토·예약 관리는 자유 요청으로 할 수 없습니다.
+- 예: "오늘 서울 날씨 알려줘"는 System One이 `none_of_these`로 거절해 Director도 Work도 만들어지지 않았습니다(실제 Owner 관찰, [[status#E_SYSTEM_ONE_LIVE|E_SYSTEM_ONE_LIVE]]).
 - 매핑할 수 없으면 작업을 만들지 않고 **이유를 알려 줍니다**([[SUR-3]]).
 
 ### 1.9 Owner 시작·중지
@@ -285,7 +286,7 @@ Owner가 **켜져 있는 동안** Owner 안의 스케줄러가 아래 작업을 
 "settings": {"C3": {"semantic": {"ollama_url": "http://127.0.0.1:11434", "model": "qwen3-embedding:8b-q4_K_M"}}}
 ```
 
-그 밖에 `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`(기본 5), `related_min_score`(기본 0.5)를 조정할 수 있습니다. `ollama_url`이나 `model`을 비우면 의미 검색을 쓰지 않습니다.
+그 밖에 `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`(기본 5), `related_min_score`(기본 0.5), `related_min_probability`(기본 0.5, System One의 이웃 거르기 기준)를 조정할 수 있습니다. `ollama_url`이나 `model`을 비우면 의미 검색을 쓰지 않습니다.
 
 사용 순서:
 
@@ -306,6 +307,19 @@ Owner가 **켜져 있는 동안** Owner 안의 스케줄러가 아래 작업을 
 
 > [!status]
 > 실제 호스트에서 대상 노트 7개를 조각 21개로 임베딩하는 데 27초 걸렸고(`qwen3-embedding` 8b q4_K_M), Obsidian Thin Client에서 줄 위치가 달린 의미 검색 결과가 나왔습니다([[status#E_REAL_SEMANTIC|E_REAL_SEMANTIC]], external_service pass). `related_min_score`(기본 0.5)는 **시작값**이고 실제 노트로 조정하는 일이 남아 있습니다([[roadmap]]).
+
+### System One(빠른 선택형 판단) 설정
+
+System One은 Owner가 OpenAI Decisions API(`gpt-6-luna`)에 직접 묻는 서비스입니다([[glossary]]). 규격화 규칙 9([[c2]]), 정리 힌트([[c1]]), 관련 노트 거르기([[c3]]), 문서 관리 상태 제안([[c5]]), 자유 요청 사전 거름([[c11]])이 씁니다. 쓰지도 글을 짓지도 않고 `ai_policy`·`sensitivity`는 정하지 않습니다. Hermes 모델 역할과는 별개이며 profile을 설치할 필요가 없습니다.
+
+- **설정**(`settings.system_one`): `api_key_file`(Git과 Vault 밖의 0600 비공개 파일의 절대 경로, 없으면 미설정), `url`(기본 OpenAI Decisions 엔드포인트, 평문 `http`는 loopback만), `model`(기본 `gpt-6-luna`), `timeout_seconds`(기본 20), `min_confidence`(기본 0.7), `max_input_chars`(기본 8000, 노트마다 보내는 본문 길이).
+- **확인**: `GET /api/health`의 `system_one`이 `ready`, `unavailable`(쓸 수 없는 키 파일), `unconfigured`로 알려 줍니다. 이 확인은 요청을 보내지 않습니다.
+- **보내는 노트**: 직접 요청한 작업과 검색은 `remote_ok`·`ask` 노트, 예약·Gateway 작업은 `remote_ok` 노트만 보냅니다. `local_only`·`confidential`·`deny`는 보내지 않습니다.
+- **실패해도 괜찮습니다**: 설정이 없거나 실패하면 모든 기능이 System One 없이 하던 대로 동작하고, 한 요청 안에서 다시 시도하지 않습니다.
+- **기록**: 호출마다 질문 이름·입력 해시·모델·토큰 수만 State `system_one`에 남고 내용은 남지 않습니다. 검색 같은 읽기는 State를 쓰지 않고 로그만 남깁니다.
+
+> [!status]
+> 실제 Owner를 `system_one`을 설정해 다시 시작하자 health가 `ready`를 보고했습니다([[status#E_SYSTEM_ONE_LIVE|E_SYSTEM_ONE_LIVE]], external_service pass). Thin Client 1.3.0은 활성 플러그인 폴더에 설치되어 사이드바 규격화 미리보기에 "System One: 항목 → 값 (NN%)" 줄이 나오는 것을 관찰했습니다([[status#E_SYSTEM_ONE_CLIENT_GUI|E_SYSTEM_ONE_CLIENT_GUI]], device pass, 화면 잠금으로 사이드바 영역의 CDP 렌더). 확신도 기준 `min_confidence`·`related_min_probability`는 **시작값**입니다([[roadmap]]).
 
 ## 6. Discord 요약과 알림
 

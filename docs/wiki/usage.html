@@ -81,7 +81,7 @@
 <tr><td>규격화 미리보기</td><td>노트·선택·폴더</td><td><a class="wikilink" href="c2.html">C2</a> 수동 경로</td></tr>
 <tr><td>정리 요청</td><td>노트·선택·폴더</td><td><a class="wikilink" href="c1.html">C1</a></td></tr>
 <tr><td>강화: 발전 / 묻기 / 돌아보기</td><td>노트, 질문 입력, 날짜 범위</td><td><a class="wikilink" href="c4.html">C4</a></td></tr>
-<tr><td>자유 요청</td><td>자유 문장</td><td>Director가 분류</td></tr>
+<tr><td>자유 요청</td><td>자유 문장</td><td>System One 사전 거름 뒤 Director가 분류</td></tr>
 <tr><td>관련 노트 · 의미 검색</td><td>노트, 질문 입력</td><td><a class="wikilink" href="c3.html">C3</a></td></tr>
 <tr><td>적용 · 거절</td><td>제안 노트</td><td><a class="wikilink" href="c6.html">C6</a></td></tr>
 <tr><td>자동 변경 되돌리기</td><td>노트</td><td><a class="wikilink" href="c6.html">C6</a></td></tr>
@@ -98,7 +98,7 @@
 <p>알아둘 점:</p>
 <ul>
 <li><strong>빠졌거나 잘못된 값만</strong> 채웁니다. 본문과 다른 속성, 파일 위치는 바꾸지 않습니다. 이미 규격에 맞는 노트는 아무 일도 일어나지 않습니다(<a class="wikilink" href="c2.html#STD-5">STD-5</a>).</li>
-<li>폴더로 <code>type</code>을 유추합니다. 예: <code>40_Knowledge/Ideas/</code>의 frontmatter 없는 노트는 <code>id</code>(새 UUIDv4)·<code>type: idea</code>·<code>created</code>·<code>status: seed</code>·<code>ai_policy: ask</code>가 추가되고 본문은 한 바이트도 바뀌지 않습니다(<a class="wikilink" href="c2.html#STD-1">STD-1</a>). 알 수 없는 종류는 추측하지 않고 정리(<a class="wikilink" href="c1.html">C1</a>)에 맡깁니다.</li>
+<li>폴더로 <code>type</code>을 유추합니다. 예: <code>40_Knowledge/Ideas/</code>의 frontmatter 없는 노트는 <code>id</code>(새 UUIDv4)·<code>type: idea</code>·<code>created</code>·<code>status: seed</code>·<code>ai_policy: ask</code>가 추가되고 본문은 한 바이트도 바뀌지 않습니다(<a class="wikilink" href="c2.html#STD-1">STD-1</a>). 폴더로 정할 수 없는 <code>type</code>(예: Vault 맨 위의 노트)이나 올바르지 않은 <code>status</code>·<code>confidence</code>, 빠졌거나 잘못된 <code>capture_kind</code>는 System One이 선택지 안에서 고르고, 미리보기에는 고른 값과 확신도가 diff 위에 나옵니다(<a class="wikilink" href="c2.html#STD-9">STD-9</a>). 자동(매시간) 경로는 <code>remote_ok</code> 노트의 값을 확신도 0.7 이상일 때만 적용합니다(<a class="wikilink" href="c2.html#STD-10">STD-10</a>). System One이 꺼져 있으면 그 필드는 그대로 두고 다음 실행에서 다시 묻습니다(<a class="wikilink" href="c2.html#STD-11">STD-11</a>). <code>ai_policy</code>·<code>sensitivity</code>, 사용자가 쓴 <code>daily</code> 같은 기존 종류, 제목·태그 같은 자유 값은 묻지 않으며 정리(<a class="wikilink" href="c1.html">C1</a>)의 몫입니다.</li>
 <li>본문 끝에 잘못 들어간 <code>tags: [a, b]</code> 같은 줄은 frontmatter의 <code>tags</code>로 합쳐지고(중복 없이) 그 줄만 지워집니다(<a class="wikilink" href="c2.html#STD-2">STD-2</a>).</li>
 <li>미리보기 뒤 확인하기 전에 노트가 바뀌었다면 <strong>쓰지 않고</strong> 바뀌었다고 알려 줍니다(<a class="wikilink" href="c2.html#STD-3">STD-3</a>).</li>
 <li>방금 편집한 노트도 수동으로는 가능합니다. 자동(매시간) 경로만 최근 10분 안에 편집한 노트를 건너뜁니다(<a class="wikilink" href="c2.html#STD-4">STD-4</a>).</li>
@@ -167,10 +167,11 @@
 <li><code>deny</code> 노트와 제안은 어떤 검색에도 나오지 않습니다(<a class="wikilink" href="c3.html#SRC-2">SRC-2</a>). 보고서는 사람에게는 보이고 역할에게는 보이지 않습니다(<a class="wikilink" href="c4.html#ENH-5">ENH-5</a>).</li>
 </ul>
 <h3 id="18-자유-요청-c11">1.8 자유 요청 (<a class="wikilink" href="c11.html">C11</a>)<a class="anchor" href="#18-자유-요청-c11" aria-label="이 제목 링크">#</a></h3>
-<p><strong>더보기</strong>의 인라인 <strong>자유 요청</strong> 입력란에 문장을 적고 <strong>요청</strong>을 누르면 <code>kos-director</code> 모델이 읽고, 표준 요청(규격화 미리보기·정리·강화) 중 하나로 매핑합니다.</p>
+<p><strong>더보기</strong>의 인라인 <strong>자유 요청</strong> 입력란에 문장을 적고 <strong>요청</strong>을 누르면, System One이 설정되어 있을 때 먼저 요청 문장<strong>만</strong> System One에게 보내 KnowledgeOS 명령과 무관한지 가립니다. 무관하다고 충분히 확신하면 Work 없이 바로 거절하고, 그렇지 않으면 <code>kos-director</code> 모델이 읽고 표준 요청(규격화 미리보기·정리·강화) 중 하나로 매핑합니다(<a class="wikilink" href="c11.html#SUR-10">SUR-10</a>).</p>
 <ul>
 <li>모델은 내가 이름 붙인 노트의 <strong>경로 참조</strong>(정책으로 걸러진)만 보고 본문은 보지 못합니다. 경로와 digest는 Owner가 채웁니다.</li>
 <li>작업·검토·예약 관리는 자유 요청으로 할 수 없습니다.</li>
+<li>예: &quot;오늘 서울 날씨 알려줘&quot;는 System One이 <code>none_of_these</code>로 거절해 Director도 Work도 만들어지지 않았습니다(실제 Owner 관찰, <a class="wikilink" href="status.html#E_SYSTEM_ONE_LIVE">E_SYSTEM_ONE_LIVE</a>).</li>
 <li>매핑할 수 없으면 작업을 만들지 않고 <strong>이유를 알려 줍니다</strong>(<a class="wikilink" href="c11.html#SUR-3">SUR-3</a>).</li>
 </ul>
 <h3 id="19-owner-시작중지">1.9 Owner 시작·중지<a class="anchor" href="#19-owner-시작중지" aria-label="이 제목 링크">#</a></h3>
@@ -335,7 +336,7 @@ knowledgeos install service --config owner.json             # plist 작성 후 �
 <th>기본 주기</th>
 <th>하는 일</th>
 </tr></thead><tbody>
-<tr><td>규격화</td><td>매시간</td><td>바뀐 노트를 결정적으로 규격화</td></tr>
+<tr><td>규격화</td><td>매시간</td><td>바뀐 노트를 규격화. <code>remote_ok</code> 노트의 고정 선택지 값은 System One이 확신할 때만 채움</td></tr>
 <tr><td>임베딩</td><td>매시간 30분</td><td>새로 생기거나 바뀐 노트의 의미 검색용 벡터를 만듦</td></tr>
 <tr><td>정리</td><td>매일 06:00</td><td>새 포착과 종류 없는 <code>remote_ok</code> 노트에 정리 제안. 한 번에 최대 10개</td></tr>
 <tr><td>요약</td><td>매일 08:00</td><td>Discord로 요약 발송</td></tr>
@@ -355,7 +356,7 @@ knowledgeos install service --config owner.json             # plist 작성 후 �
 </figure>
 <p>기본 설정(<code>settings.C3.semantic</code>):</p>
 <pre><code class="language-json">&quot;settings&quot;: {&quot;C3&quot;: {&quot;semantic&quot;: {&quot;ollama_url&quot;: &quot;http://127.0.0.1:11434&quot;, &quot;model&quot;: &quot;qwen3-embedding:8b-q4_K_M&quot;}}}</code></pre>
-<p>그 밖에 <code>batch_size</code>, <code>timeout_seconds</code>, <code>max_notes</code>, <code>related_neighbors</code>(기본 5), <code>related_min_score</code>(기본 0.5)를 조정할 수 있습니다. <code>ollama_url</code>이나 <code>model</code>을 비우면 의미 검색을 쓰지 않습니다.</p>
+<p>그 밖에 <code>batch_size</code>, <code>timeout_seconds</code>, <code>max_notes</code>, <code>related_neighbors</code>(기본 5), <code>related_min_score</code>(기본 0.5), <code>related_min_probability</code>(기본 0.5, System One의 이웃 거르기 기준)를 조정할 수 있습니다. <code>ollama_url</code>이나 <code>model</code>을 비우면 의미 검색을 쓰지 않습니다.</p>
 <p>사용 순서:</p>
 <ol>
 <li>Ollama가 설정한 임베딩 모델을 제공할 수 있어야 합니다.</li>
@@ -378,6 +379,19 @@ knowledgeos install service --config owner.json             # plist 작성 후 �
 <div class="callout callout-status">
 <p class="callout-title">상태</p>
 <p>실제 호스트에서 대상 노트 7개를 조각 21개로 임베딩하는 데 27초 걸렸고(<code>qwen3-embedding</code> 8b q4_K_M), Obsidian Thin Client에서 줄 위치가 달린 의미 검색 결과가 나왔습니다(<a class="wikilink" href="status.html#E_REAL_SEMANTIC">E_REAL_SEMANTIC</a>, external_service pass). <code>related_min_score</code>(기본 0.5)는 <strong>시작값</strong>이고 실제 노트로 조정하는 일이 남아 있습니다(<a class="wikilink" href="roadmap.html">로드맵</a>).</p>
+</div>
+<h3 id="system-one빠른-선택형-판단-설정">System One(빠른 선택형 판단) 설정<a class="anchor" href="#system-one빠른-선택형-판단-설정" aria-label="이 제목 링크">#</a></h3>
+<p>System One은 Owner가 OpenAI Decisions API(<code>gpt-6-luna</code>)에 직접 묻는 서비스입니다(<a class="wikilink" href="glossary.html">용어</a>). 규격화 규칙 9(<a class="wikilink" href="c2.html">C2</a>), 정리 힌트(<a class="wikilink" href="c1.html">C1</a>), 관련 노트 거르기(<a class="wikilink" href="c3.html">C3</a>), 문서 관리 상태 제안(<a class="wikilink" href="c5.html">C5</a>), 자유 요청 사전 거름(<a class="wikilink" href="c11.html">C11</a>)이 씁니다. 쓰지도 글을 짓지도 않고 <code>ai_policy</code>·<code>sensitivity</code>는 정하지 않습니다. Hermes 모델 역할과는 별개이며 profile을 설치할 필요가 없습니다.</p>
+<ul>
+<li><strong>설정</strong>(<code>settings.system_one</code>): <code>api_key_file</code>(Git과 Vault 밖의 0600 비공개 파일의 절대 경로, 없으면 미설정), <code>url</code>(기본 OpenAI Decisions 엔드포인트, 평문 <code>http</code>는 loopback만), <code>model</code>(기본 <code>gpt-6-luna</code>), <code>timeout_seconds</code>(기본 20), <code>min_confidence</code>(기본 0.7), <code>max_input_chars</code>(기본 8000, 노트마다 보내는 본문 길이).</li>
+<li><strong>확인</strong>: <code>GET /api/health</code>의 <code>system_one</code>이 <code>ready</code>, <code>unavailable</code>(쓸 수 없는 키 파일), <code>unconfigured</code>로 알려 줍니다. 이 확인은 요청을 보내지 않습니다.</li>
+<li><strong>보내는 노트</strong>: 직접 요청한 작업과 검색은 <code>remote_ok</code>·<code>ask</code> 노트, 예약·Gateway 작업은 <code>remote_ok</code> 노트만 보냅니다. <code>local_only</code>·<code>confidential</code>·<code>deny</code>는 보내지 않습니다.</li>
+<li><strong>실패해도 괜찮습니다</strong>: 설정이 없거나 실패하면 모든 기능이 System One 없이 하던 대로 동작하고, 한 요청 안에서 다시 시도하지 않습니다.</li>
+<li><strong>기록</strong>: 호출마다 질문 이름·입력 해시·모델·토큰 수만 State <code>system_one</code>에 남고 내용은 남지 않습니다. 검색 같은 읽기는 State를 쓰지 않고 로그만 남깁니다.</li>
+</ul>
+<div class="callout callout-status">
+<p class="callout-title">상태</p>
+<p>실제 Owner를 <code>system_one</code>을 설정해 다시 시작하자 health가 <code>ready</code>를 보고했습니다(<a class="wikilink" href="status.html#E_SYSTEM_ONE_LIVE">E_SYSTEM_ONE_LIVE</a>, external_service pass). Thin Client 1.3.0은 활성 플러그인 폴더에 설치되어 사이드바 규격화 미리보기에 &quot;System One: 항목 → 값 (NN%)&quot; 줄이 나오는 것을 관찰했습니다(<a class="wikilink" href="status.html#E_SYSTEM_ONE_CLIENT_GUI">E_SYSTEM_ONE_CLIENT_GUI</a>, device pass, 화면 잠금으로 사이드바 영역의 CDP 렌더). 확신도 기준 <code>min_confidence</code>·<code>related_min_probability</code>는 <strong>시작값</strong>입니다(<a class="wikilink" href="roadmap.html">로드맵</a>).</p>
 </div>
 <h2 id="6-discord-요약과-알림">6. Discord 요약과 알림<a class="anchor" href="#6-discord-요약과-알림" aria-label="이 제목 링크">#</a></h2>
 <p>Discord는 <strong>알림만</strong> 합니다. 메시지·반응·답장·링크 방문으로는 아무것도 승인되지 않고 명령도 받지 않습니다.</p>
@@ -425,6 +439,10 @@ make state-check                 # PROJECT_STATE.md 검증
 make wiki                        # 원본 문서와 docs/wiki/_source/로 위키 HTML 생성
 make wiki-check                  # 위키가 원본과 일치하고 링크가 모두 열리는지 검사</code></pre>
 <p>모든 개발 세션은 바뀐 범위에 맞춰 원본 문서와 위키 설명을 함께 갱신합니다. 끝내기 전에 <code>make wiki</code>로 위키를 다시 만들고, <code>make wiki-check</code>를 통과시킨 뒤, 바뀐 페이지를 브라우저로 열어 확인합니다. 설명 문장은 <code>docs/wiki/_source/</code>에서만 고치고, 생성된 HTML은 직접 고치지 않습니다. 위키를 갱신하다 명세 문서끼리 어긋나는 곳을 발견하면, 위키에 경고만 남기지 말고 같은 세션에서 우선순위가 낮은 문서(Blueprint, 사용자 기능 명세)를 고칩니다.</p>
+<h5 id="모바일에서-위키-읽기">모바일에서 위키 읽기<a class="anchor" href="#모바일에서-위키-읽기" aria-label="이 제목 링크">#</a></h5>
+<p>위키는 휴대폰 브라우저에서도 읽을 수 있습니다. 좁은 화면에서는 검색창이 별도 줄을 쓰고 본문은 화면 폭에 맞춥니다. 넓은 표·코드는 영역 안에서 가로 스크롤하며, 그림은 <strong>그림 크게 보기 / 그림 전체 보기</strong>로 전환합니다.</p>
+<p>접속 경로는 <strong>정적 위키 전용 비공개 HTTPS + Tailscale Serve</strong>를 권장합니다. Mac이 켜져 있어야 하며 접근 규칙을 본인 기기로 제한해야 합니다. 배포·네트워크 설정은 변경하지 않습니다. 다른 선택지, 배포 파일 범위와 원문 링크의 한계는 <a href="philosophy.html">위키 운용 원칙</a>에 있습니다. Owner·관리 콘솔의 원격 노출은 포함하지 않습니다.</p>
+<h5 id="기능-검증과-owner-실행">기능 검증과 Owner 실행<a class="anchor" href="#기능-검증과-owner-실행" aria-label="이 제목 링크">#</a></h5>
 <p>추적된 테스트 전체 실행:</p>
 <pre><code class="language-sh">make test TESTS=&quot;$(make -s trace-check | tail -n 1)&quot;</code></pre>
 <p>Owner 실행과 유지보수 CLI(<code>python -m knowledgeos.cli</code> 또는 설치된 <code>knowledgeos</code>):</p>
@@ -443,12 +461,18 @@ knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgen
   &quot;settings&quot;: {&quot;runtime&quot;: {&quot;address&quot;: &quot;127.0.0.1:7233&quot;, &quot;namespace&quot;: &quot;default&quot;}}
 }</code></pre>
 <p>예약 작업은 Owner가 켜져 있는 동안 Owner 안에서만 실행됩니다. Owner가 시작되고 <code>startup_delay_minutes</code>(기본 3분)가 지나면 꺼져 있는 동안 놓친 작업을 한 번씩 실행하고, 이후에는 정해진 시각에 실행합니다. <code>settings.C7</code>의 <code>scheduler_enabled</code>(기본 true)·<code>startup_delay_minutes</code>·<code>tick_seconds</code>(기본 30)로 조정합니다.</p>
-<p>의미 검색은 로컬 Ollama 임베딩과 State의 벡터 색인(<code>&lt;State&gt;/semantic/</code>)을 씁니다. Owner가 loopback HTTP로 Ollama를 직접 호출하며(loopback이 아닌 주소는 설정 오류), 게이트웨이나 원격 모델은 쓰지 않습니다. 기본값은 아래와 같고 <code>settings.C3.semantic</code>으로 바꿉니다(그 밖에 <code>batch_size</code>, <code>timeout_seconds</code>, <code>max_notes</code>, <code>related_neighbors</code>, <code>related_min_score</code>). <code>ollama_url</code>이나 <code>model</code>을 비우면 의미 검색을 쓰지 않습니다.</p>
+<p>의미 검색은 로컬 Ollama 임베딩과 State의 벡터 색인(<code>&lt;State&gt;/semantic/</code>)을 씁니다. Owner가 loopback HTTP로 Ollama를 직접 호출하며(loopback이 아닌 주소는 설정 오류), 게이트웨이나 원격 모델은 쓰지 않습니다. 기본값은 아래와 같고 <code>settings.C3.semantic</code>으로 바꿉니다(그 밖에 <code>batch_size</code>, <code>timeout_seconds</code>, <code>max_notes</code>, <code>related_neighbors</code>, <code>related_min_score</code>, System One 관련 노트 거르기 기준 <code>related_min_probability</code>). <code>ollama_url</code>이나 <code>model</code>을 비우면 의미 검색을 쓰지 않습니다.</p>
 <pre><code class="language-json">&quot;settings&quot;: {&quot;C3&quot;: {&quot;semantic&quot;: {&quot;ollama_url&quot;: &quot;http://127.0.0.1:11434&quot;, &quot;model&quot;: &quot;qwen3-embedding:8b-q4_K_M&quot;}}}</code></pre>
 <ul>
 <li>예약 작업 <code>embed</code>(매시 30분)와 <code>knowledgeos index embed</code>(남은 노트가 없을 때까지 반복)가 같은 <code>index.embed</code> 요청을 처리합니다. 새 노트와 내용이 바뀐 노트만 임베딩하고, 삭제·이름 변경으로 사라졌거나 <code>deny</code>·제안(<code>type: proposal</code>)·<code>99_System/</code>·충돌 표시 때문에 대상이 아니게 된 노트의 벡터는 지웁니다. <code>local_only</code>·<code>confidential</code>·보고서 노트는 로컬 처리이므로 임베딩합니다.</li>
 <li>아직 임베딩되지 않았거나 수정된 노트는 다음 임베딩까지 의미 검색·관련 노트 결과에서 빠집니다. 모델을 바꾸면 다음 실행에서 모든 벡터를 새로 만들고, 그 전까지 의미 검색은 <code>unavailable</code>입니다. Ollama가 꺼져 있으면 작업이 실패로 남고(재시도 없음) 기존 벡터는 그대로 유지됩니다.</li>
 <li><code>knowledgeos index verify</code>의 <code>semantic</code>과 <code>GET /api/health</code>의 <code>search_semantic</code>으로 준비 상태와 범위(대상·임베딩·오래됨·누락 수)를 확인합니다.</li>
+</ul>
+<p>System One은 OpenAI Decisions API(<code>gpt-6-luna</code>)에 선택형 질문을 보내는 Owner 서비스입니다. 규격화 규칙 9(폴더로 못 정하는 <code>type</code>, 잘못된 <code>status</code>·<code>confidence</code>, 빠지거나 잘못된 <code>capture_kind</code>), 정리 <code>scout</code> 힌트, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 씁니다. <code>ai_policy</code>·<code>sensitivity</code>는 묻지 않고, 예약 작업은 <code>remote_ok</code> 노트만 보냅니다. API 키는 Git·Vault 밖의 0600 파일에 두고 경로만 설정합니다.</p>
+<pre><code class="language-json">&quot;settings&quot;: {&quot;system_one&quot;: {&quot;api_key_file&quot;: &quot;/path/to/States/System/OpenAI/knowledgeos-decisions.key&quot;}}</code></pre>
+<ul>
+<li>그 밖의 설정: <code>model</code>(기본 <code>gpt-6-luna</code>), <code>min_confidence</code>(기본 0.7), <code>timeout_seconds</code>(기본 20), <code>max_input_chars</code>(기본 8000), <code>url</code>.</li>
+<li><code>GET /api/health</code>의 <code>system_one</code>이 <code>ready</code>·<code>unavailable</code>·<code>unconfigured</code>를 보여 줍니다. 꺼져 있거나 실패해도 각 기능은 System One 없이 동작합니다. 작업에 묶인 호출은 내용 없이 State <code>system_one.jsonl</code>에 기록됩니다.</li>
 </ul>
 <p>Owner를 Mac의 필요할 때 켜지는 사용자 서비스(LaunchAgent)로 등록하고 Obsidian에서 켜고 끕니다.</p>
 <pre><code class="language-sh">knowledgeos install service --config owner.json --dry-run   # plist와 launchctl argv만 출력, 아무것도 쓰지 않음
@@ -483,7 +507,7 @@ knowledgeos install service --config owner.json             # ~/Library/LaunchAg
 </section>
 <section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="architecture.html">구조</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

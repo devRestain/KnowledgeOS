@@ -256,7 +256,9 @@ def retriever(ctx: StepContext) -> dict[str, Any]:
         allow = role_filter(ctx.workspec["origin"], False)
         ranked: dict[str, list[str]] = {}
         if focal is not None:
-            for hit in ctx.owner.index.related(focal, audience="role", allow=allow, limit=limit * 2)["results"]:
+            for hit in ctx.owner.index.related(focal, audience="role", allow=allow, limit=limit * 2,
+                                               system_one=ctx.owner.system_one,
+                                               origin=ctx.workspec["origin"])["results"]:
                 ranked[hit["path"]] = list(hit.get("reasons", []))
         text = ctx.params["question"] if ctx.mode == "ask" else inputs[0]["title"]
         for path, why in keyword_candidates(ctx.owner, text, ctx.workspec["origin"], limit * 2):

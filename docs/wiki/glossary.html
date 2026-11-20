@@ -29,8 +29,9 @@
 <li><strong>Handoff</strong>: a teammate&#x27;s intermediate artifact, readable by later teammates in the same Work.</li>
 <li><strong>Report</strong>: a create-only Markdown note in <code>01_AI_Review/Reports/</code>.</li>
 <li><strong>Proposal</strong>: a change set for one target note in <code>01_AI_Review/Proposals/</code>, applied only by the user. It is create-only except for exact-preimage regeneration of an unchanged Owner-written proposal (Blueprint §5.6, §6.2).</li>
-<li><strong>Autofix</strong>: a deterministic standardization change written directly under capability C2 rules.</li>
+<li><strong>Autofix</strong>: a standardization change written directly under capability C2 rules: deterministic rules 1-8 and rule-9 values System One decided with sufficient confidence.</li>
 <li><strong>Attention item</strong>: something that needs the user&#x27;s eye. It is shown either as a Bases view over Vault metadata or as a computed entry in the console and the digest. It is never stored as a note.</li>
+<li><strong>System One</strong>: the Owner&#x27;s fast closed-set judgment service (below). It answers typed questions; Owner code acts on the answers.</li>
 </ul>
 </section>
 <h2 id="요청과-작업">요청과 작업<a class="anchor" href="#요청과-작업" aria-label="이 제목 링크">#</a></h2>
@@ -66,10 +67,14 @@
 <tr><td><strong>Manager</strong></td><td>팀의 Graph를 짜고 후속 구간과 TeamReview를 맡습니다. CurationManager(정리 팀)와 ThinkingManager(강화 팀)가 있습니다</td><td><a class="wikilink" href="c1.html">C1</a>, <a class="wikilink" href="c4.html">C4</a></td></tr>
 <tr><td><strong>Teammate(팀원)</strong></td><td>한 종류의 중간 산출물만 만드는 역할. 정리 팀 <code>scout</code>·<code>classifier</code>·<code>linker</code>, 강화 팀 <code>retriever</code>·<code>connector</code>·<code>challenger</code>·<code>synthesizer</code></td><td><a class="wikilink" href="c1.html">C1</a>, <a class="wikilink" href="c4.html">C4</a></td></tr>
 <tr><td><strong>Team(팀)</strong></td><td>Manager 한 명과 팀원들. 정리 Team(<a class="wikilink" href="c1.html">C1</a>)과 강화(Thinking) Team(<a class="wikilink" href="c4.html">C4</a>)이 있습니다</td><td><a class="wikilink" href="architecture.html">구조</a></td></tr>
-<tr><td><strong>Officer</strong></td><td>팀 없이 혼자 결과 하나를 책임지는 static 역할. StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer</td><td><a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c5.html">C5</a></td></tr>
+<tr><td><strong>Officer</strong></td><td>팀 없이 혼자 결과 하나를 책임지는 static 역할. StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer. 앞의 둘은 설정 시 System One에게 선택지·확률 질문을 합니다</td><td><a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c5.html">C5</a></td></tr>
 <tr><td><strong>EvalOfficer</strong></td><td>독립 평가자. 모든 작업의 기준을 평가하고, 결과를 만들거나 고치지 않습니다. static 검사는 항상, 의미 기준만 모델이 판단합니다</td><td><a class="wikilink" href="architecture.html">구조</a></td></tr>
 <tr><td><strong>Scheduler</strong></td><td>선언된 예약 작업을 트리거하는 Owner 안의 서비스</td><td><a class="wikilink" href="c7.html">C7</a></td></tr>
 <tr><td><strong>Notifier</strong></td><td>만들어진 알림을 전달하는 호스트 서비스. 내용은 만들지 않습니다</td><td><a class="wikilink" href="c8.html">C8</a></td></tr>
+<tr><td><strong>System One</strong></td><td>Owner가 OpenAI Decisions API(모델 <code>gpt-6-luna</code>)에 직접 묻는 빠른 선택형 판단 서비스. 역할(role)이 아니고 Hermes profile도 없습니다. 고정된 선택지 중 하나(<code>choice</code>)나 확률(<code>predicate</code>)만 답하며, 쓰지도 글을 짓지도 않고 <code>ai_policy</code>·<code>sensitivity</code>는 결정하지 않습니다. 설정이 없거나 실패하면 모든 기능이 System One 없이 하던 대로 동작합니다</td><td><a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c1.html">C1</a>, <a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c5.html">C5</a>, <a class="wikilink" href="c11.html">C11</a></td></tr>
+<tr><td><strong><code>choice</code> / <code>predicate</code></strong></td><td>System One의 두 질문 형식. <code>choice</code>는 정해진 값 중 하나와 <code>none_of_these</code>(어느 것도 아님)를 고르게 하고, <code>predicate</code>는 &quot;이 문장이 참인가&quot;의 확률을 답하게 합니다</td><td><a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c5.html">C5</a></td></tr>
+<tr><td><strong><code>min_confidence</code></strong></td><td>System One의 <code>choice</code> 답을 쓰는 최소 확신도(기본 0.7). 미만이거나 <code>none_of_these</code>이면 아무것도 바꾸지 않습니다. 실제 노트로 조정할 시작값입니다</td><td><a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c11.html">C11</a></td></tr>
+<tr><td><strong>Vetted(거름 통과)</strong></td><td>의미 이웃이 System One의 &quot;정말 관련 있는가&quot; 판정(<code>related_min_probability</code> 이상)을 통과해 <code>vetted: true</code>로 표시된 상태</td><td><a class="wikilink" href="c3.html#SRC-9">SRC-9</a></td></tr>
 </tbody></table></div>
 <h2 id="저장소와-실행">저장소와 실행<a class="anchor" href="#저장소와-실행" aria-label="이 제목 링크">#</a></h2>
 <div class="table-wrap"><table>
@@ -116,7 +121,7 @@
 <tr><td><strong>Reconcile(확인 기록)</strong></td><td>사람이 결과 불명 항목을 직접 확인해 &quot;적용됨/적용 안 됨&quot;을 기록하는 일. 과거 기록은 고치지 않습니다</td><td><a class="wikilink" href="c11.html#SUR-4">SUR-4</a></td></tr>
 <tr><td><strong>Snapshot(스냅숏)</strong></td><td>접수 때 State에 잡아 둔 입력 노트의 정확한 바이트</td><td><a class="wikilink" href="c4.html#ENH-3">ENH-3</a></td></tr>
 <tr><td><strong>Fail closed</strong></td><td>확인할 수 없으면 허용하지 않고 막는 방식 [해석: 원본의 &quot;fails closed&quot;]</td><td><a class="wikilink" href="architecture.html">구조</a></td></tr>
-<tr><td><strong>Autofix</strong></td><td>결정적 규격화가 노트에 직접 쓴 작은 변경</td><td><a class="wikilink" href="c2.html">C2</a></td></tr>
+<tr><td><strong>Autofix</strong></td><td>규격화가 노트에 직접 쓴 작은 변경. 결정적 규칙 1~8과, System One이 충분한 확신으로 고른 규칙 9의 값을 포함합니다</td><td><a class="wikilink" href="c2.html">C2</a></td></tr>
 <tr><td><strong>Quiet period</strong></td><td>최근 편집한 노트를 자동 규격화가 건너뛰는 기간(기본 10분)</td><td><a class="wikilink" href="c2.html#STD-4">STD-4</a></td></tr>
 <tr><td><strong>Conflict marker</strong></td><td>Git 병합 충돌 표시. 있는 노트는 모든 자동화가 건너뛰고 주의 항목이 됩니다</td><td><a class="wikilink" href="c5.html#DOC-3">DOC-3</a></td></tr>
 <tr><td><strong>Attention item(주의 항목)</strong></td><td>사용자가 봐야 할 것. 노트로 저장하지 않고 Bases 보기나 콘솔·요약에서 계산합니다</td><td><a class="wikilink" href="c5.html">C5</a></td></tr>
@@ -210,9 +215,9 @@
 <tr><td><strong>blocker</strong></td><td>진행을 막는 것의 기록. 해결되면 <code>resolved</code>가 됩니다</td><td><a class="wikilink" href="roadmap.html">로드맵</a></td></tr>
 <tr><td><strong>handoff</strong></td><td>다음 세션이 이어받을 일</td><td><a class="wikilink" href="roadmap.html">로드맵</a></td></tr>
 </tbody></table></div>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="architecture.html">구조</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>465b239456191fd6</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

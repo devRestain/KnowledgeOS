@@ -1,10 +1,12 @@
-"""Capability C2 deterministic standardization rules (pure: no I/O, no clock).
+"""Capability C2 standardization rules (pure: no I/O, no clock).
 
-Each rule applies only where a value is missing or malformed and a deterministic fix
-exists; values that need judgment (an unknown type, an invalid status, a non-UUID id)
-are left to capability C1. Edits go through ``FrontmatterEditor`` so untouched lines
-keep their exact bytes, missing keys are appended at the end of the frontmatter and the
-body changes only by removing rule-8 trailing list lines.
+Each rule applies only where a value is missing or malformed. Rules 1-8 are deterministic.
+Rule 9 names the closed-set values that need judgment (a missing type no folder determines, an
+invalid status, confidence or capture kind) as ``Plan.questions``; the caller asks System One and
+re-plans with the accepted ``decisions``. Privacy fields (``ai_policy``, ``sensitivity``), an
+unknown existing type and a non-UUID id are never judged here. Edits go through
+``FrontmatterEditor`` so untouched lines keep their exact bytes, missing keys are appended at the
+end of the frontmatter and the body changes only by removing rule-8 trailing list lines.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from typing import Any
 
 import yaml
 
+from . import system_one
 from .notes import KEY_RE, UUID4_RE, Change, FrontmatterEditor, Note, load_yaml, parse
 from .policy import DEFAULT_POLICY, ORDER
 from .vault import RESERVED_REQUESTS, Vault
@@ -50,6 +53,70 @@ FOLDER_TYPES = (
     ("40_Knowledge/Questions/", "question"),
     ("40_Knowledge/Sources/", "source"),
 )
+# Rule 9: closed-set fields System One may decide, with the meanings it is shown (Blueprint §5.2, §5.3).
+JUDGED_KEYS = ("type", "status", "confidence", "capture_kind")
+TYPE_MEANINGS = {
+    "capture": "Raw, quickly written input still to be processed.",
+    "idea": "An idea or hypothesis the author is developing.",
+    "knowledge": "A claim or understanding the author holds.",
+    "question": "An open question worth returning to.",
+    "project": "The hub note of one project.",
+    "source": "Material the author read or referenced.",
+}
+STATUS_MEANINGS = {
+    "unprocessed": "Not yet processed into the knowledge structure.",
+    "processed": "Already processed: converted, filed or attached.",
+    "seed": "Just started; a first rough form.",
+    "developing": "Being actively worked out or expanded.",
+    "mature": "Well developed and stable.",
+    "evergreen": "Settled, refined understanding the author maintains.",
+    "dropped": "Abandoned; no longer pursued.",
+    "open": "Not yet answered.",
+    "answered": "Answered.",
+    "planned": "Planned but not started.",
+    "active": "In progress.",
+    "paused": "On hold.",
+    "done": "Finished.",
+    "unread": "Not read yet.",
+    "reading": "Being read.",
+    "read": "Read.",
+    "archived": "No longer active; kept for reference.",
+}
+ENUM_MEANINGS = {
+    "confidence": {"low": "Tentative.", "medium": "Fairly sure.", "high": "Firmly held."},
+    "capture_kind": {"text": "Written text.", "link": "A link or URL to something else.",
+                     "voice": "A voice memo or its transcript.", "image": "An image, photo or screenshot."},
+}
+
+
+@dataclass(frozen=True)
+class Question:
+    """One rule-9 field to judge: ``current`` is the value as written (None when missing)."""
+
+    key: str
+    current: Any
+    note_type: str | None
+
+    def choices(self) -> dict[str, str]:
+        if self.key == "type":
+            return dict(TYPE_MEANINGS)
+        if self.key == "status":
+            return {value: STATUS_MEANINGS[value] for value in (*STATUSES[self.note_type or ""], "archived")}
+        return dict(ENUM_MEANINGS[self.key])
+
+    def ask(self) -> dict[str, Any]:
+        """The System One ``choice`` question (with the ``none_of_these`` fallback)."""
+        written = "missing" if self.current is None else f"{self.current!r}, which is not an allowed value"
+        instructions = {
+            "type": "This note has no type property and its folder does not determine one. "
+                    "Which note type fits it?",
+            "status": f"This {self.note_type} note's status is {written}. "
+                      "Which allowed status did the author mean, judging from that value and the note?",
+            "confidence": f"This knowledge note's confidence is {written}. Which level did the author mean?",
+            "capture_kind": f"This capture's capture_kind is {written}. What kind of capture is it?",
+        }[self.key]
+        return system_one.choice(self.key, instructions, self.choices())
+
 
 ISO_OFFSET_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$")
 LOOSE_DATETIME_RE = re.compile(
@@ -70,6 +137,7 @@ class Plan:
     result: bytes | None = None
     changes: list[Change] = field(default_factory=list)
     skip: str | None = None
+    questions: list[Question] = field(default_factory=list)
 
     @property
     def changed(self) -> bool:
@@ -155,6 +223,11 @@ def _canonical_enum(value: Any, allowed: Iterable[str]) -> str | None:
         return None
     lowered = value.strip().lower()
     return lowered if lowered in tuple(allowed) and lowered != value else None
+
+
+def _allowed(value: Any, allowed: Iterable[str]) -> bool:
+    """Whether value is an allowed enum value up to case and surrounding spaces."""
+    return isinstance(value, str) and value.strip().lower() in tuple(allowed)
 
 
 def _scalar_items(items: list[Any]) -> list[str] | None:
@@ -358,8 +431,13 @@ def plan(
     new_id: Callable[[], str],
     default_policy: str = DEFAULT_POLICY,
     duplicate_ids: Iterable[str] = (),
+    decisions: dict[str, str] | None = None,
 ) -> Plan:
-    """Apply rules 1-8 to one note snapshot. ``created`` is the first-observed time."""
+    """Apply rules 1-9 to one note snapshot. ``created`` is the first-observed time.
+
+    ``decisions`` holds System One's accepted rule-9 values by key; a judged field without one
+    is returned in ``questions`` and left unchanged."""
+    decisions = decisions or {}
     result = Plan(path=path, preimage=note.sha)
     result.skip = path_skip_reason(path) or note_skip_reason(note, policy, duplicate_ids)
     if result.skip:
@@ -367,10 +445,20 @@ def plan(
     data = note.data
     editor = FrontmatterEditor(note)
     changes: list[Change] = []
+    questions = result.questions
 
     def change(key: str, rule: str, after: Any, keep_block: bool = False) -> None:
         changes.append(Change(key, rule, data.get(key), after))
         editor.set(key, after, keep_block=keep_block)
+
+    def judge(question: Question) -> str | None:
+        """Rule 9: apply an accepted decision for ``question`` or ask it."""
+        value = decisions.get(question.key)
+        if value in question.choices():
+            change(question.key, "system_one", value)
+            return value
+        questions.append(question)
+        return None
 
     if not note.has_frontmatter:
         changes.append(Change("frontmatter", "frontmatter", None, "created"))
@@ -387,6 +475,8 @@ def plan(
         note_type = derive_type(path)
         if note_type:
             change("type", "type", note_type)
+        else:
+            note_type = judge(Question("type", None, None))
     elif (canonical := _canonical_enum(data["type"], KNOWN_TYPES)) is not None:
         change("type", "shape", canonical)
     # rule 4
@@ -402,6 +492,8 @@ def plan(
             change("status", "status", INITIAL_STATUS[note_type])
         elif (canonical := _canonical_enum(data["status"], (*STATUSES[note_type], "archived"))) is not None:
             change("status", "shape", canonical)
+        elif not _allowed(data["status"], (*STATUSES[note_type], "archived")):
+            judge(Question("status", data["status"], note_type))
     # rule 6
     if _missing(data.get("ai_policy")):
         change("ai_policy", "ai_policy", default_policy)
@@ -409,6 +501,13 @@ def plan(
     for key, allowed in ENUMS.items():
         if key in data and (canonical := _canonical_enum(data[key], allowed)) is not None:
             change(key, "shape", canonical)
+    # rule 9: invalid confidence of a knowledge note, missing or invalid capture kind of a capture
+    for key, owner_type in (("confidence", "knowledge"), ("capture_kind", "capture")):
+        value = data.get(key)
+        if note_type != owner_type or (key == "confidence" and _missing(value)):
+            continue
+        if _missing(value) or (_canonical_enum(value, ENUMS[key]) is None and not _allowed(value, ENUMS[key])):
+            judge(Question(key, None if _missing(value) else value, note_type))
     # rule 7 list shapes, merged with rule 8 trailing lines
     body_lines, moved, moved_indexes = extract_trailing_lists(note.body)
     removed: set[int] = set()

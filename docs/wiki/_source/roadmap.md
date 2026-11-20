@@ -25,10 +25,11 @@
 
 {{state:handoff}}
 
-풀어 쓰면 두 가지입니다.
+풀어 쓰면 세 가지입니다.
 
-1. **첫 자연 실행 관찰**: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다([[status#E_REAL_SCHEDULER_SLOT|E_REAL_SCHEDULER_SLOT]]). Owner가 켜져 있는 동안 선언된 `standardize`(매시 정각)와 `embed`(매시 30분)가 제 시각에 저절로 도는지 지켜봅니다. 설명은 [[c7]], 방법은 [[usage]]를 보세요.
-2. **`related_min_score` 조정**: 관련 노트에 의미 이웃을 올리는 기준 점수(기본 0.5)는 "설정한 모델에 맞춰 조정할 시작값"이라고 명세에 적혀 있습니다. 실제 노트로 보고 알맞게 고칩니다([[c3]]).
+1. **열린 정리 제안 검토**: 실제 Obsidian 사이드바의 **정리**가 만든 `01_AI_Review/Proposals/KOS 점검 - 생성 효과 — organize.md`가 사용자의 적용·거절을 기다립니다([[status#E_SYSTEM_ONE_CLIENT_GUI|E_SYSTEM_ONE_CLIENT_GUI]]). 결정은 사용자가 [[c6]]에서 합니다.
+2. **첫 자연 실행 관찰**: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다([[status#E_REAL_SCHEDULER_SLOT|E_REAL_SCHEDULER_SLOT]]). Owner가 켜져 있는 동안 선언된 `standardize`(매시 정각)가 System One과 함께 제 시각에 저절로 도는지 지켜봅니다. 설명은 [[c7]], 방법은 [[usage]]를 보세요.
+3. **임계값 조정**: 관련 노트에 의미 이웃을 올리는 `related_min_score`(기본 0.5), System One이 이웃을 거르는 `related_min_probability`(기본 0.5), 선택 질문의 `min_confidence`(기본 0.7)는 모두 실제 노트로 보고 알맞게 고칠 시작값입니다([[c3]], [[c2]]).
 
 ## 아직 확인하지 못한 것
 
@@ -44,6 +45,8 @@
 | 실제 Owner의 관리 콘솔 사용 | 일회용 합성 환경의 콘솔 관찰만 있음 | `E_CONSOLE_BROWSER` |
 | 제안 거절·낡은 제안·자동 변경 되돌리기의 실제 사용 | 제안 적용 1건만 있음 | `E_USER_PROPOSAL_APPLY` |
 | 모델 응답의 품질·꾸준함 | 모든 모델 역할을 스모크 노트 세 개로 한 번씩 돌린 기록 | `E_REAL_ROLE_SMOKE` |
+| System One의 문서 관리 상태 제안(DOC-5)·자동 `standardize` 값 쓰기·예약 `curate`의 힌트 | 실제 호출은 규격화 수동 미리보기, 자유 요청 거름, 관련 노트 거르기, 사이드바 정리 한 번(힌트 기록)만 있음 | `E_SYSTEM_ONE_LIVE`, `E_SYSTEM_ONE_CLIENT_GUI` |
+| 1.3.0 사이드바의 관련 노트·의미 검색 화면과 화면 잠금 없는 시각 확인 | 규격화 미리보기만 사이드바 영역의 CDP 렌더로 관찰(macOS 화면이 잠겨 있었음) | `E_SYSTEM_ONE_CLIENT_GUI` |
 | 모바일 흐름 M1~M3 | 시작 전 | 명세의 모바일 후속 |
 
 > [!note]
@@ -57,7 +60,7 @@
 
 각 질문이 무엇을 기다리는지 한 줄씩 풀면 [해석]:
 
-- **Semantic ranking**: 위 인계 2번과 같은 일입니다. 실제 노트로 `related_min_score`와 이웃 수를 보고 정합니다.
+- **Semantic ranking**: 위 인계 3번과 같은 일입니다. 실제 노트로 `related_min_score`·`related_min_probability`와 이웃 수를 보고 정합니다.
 - **Default `ai_policy`**: 예약 정리(`curate`)를 실제로 쓰기 시작한 뒤에야 `ask`가 맞는 기본값인지 판단할 수 있습니다. `ask` 노트는 예약 작업의 모델에게 보이지 않습니다([[ORG-3]]).
 - **Schedules**: 선언된 주기가 실제 사용과 맞는지는 자연 실행을 지켜본 뒤 판단합니다([[c7]]).
 - **Plugin choices**: Obsidian 코어 Bases만으로 문서 관리 목록이 충분한지, 다른 커뮤니티 플러그인이 필요한지([[c5]]).
@@ -106,8 +109,9 @@
 
 | # | 과제 | 출처 |
 |---|---|---|
-| A1 | Owner가 켜져 있는 동안 매시 `standardize`·`embed`의 첫 자연 실행 관찰 | `PROJECT_STATE.md` handoff |
-| A2 | `related_min_score`를 실제 노트로 조정 | `PROJECT_STATE.md` handoff, `docs/CAPABILITIES.md` C3("시작값"), Blueprint §9 Semantic ranking |
+| A1 | 열린 정리 제안 `KOS 점검 - 생성 효과 — organize.md`를 검토(적용·거절) | `PROJECT_STATE.md` handoff, `E_SYSTEM_ONE_CLIENT_GUI` |
+| A2 | Owner가 켜져 있는 동안 매시 `standardize`의 첫 자연 실행을 System One과 함께 관찰 | `PROJECT_STATE.md` handoff |
+| A3 | `related_min_score`·`related_min_probability`·`min_confidence`를 실제 노트로 조정 | `PROJECT_STATE.md` handoff, `docs/CAPABILITIES.md` C3("시작값")·System One, Blueprint §9 Semantic ranking |
 
 ### B. 확인되지 않은 실제 환경 구성
 

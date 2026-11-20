@@ -20,8 +20,8 @@ KnowledgeOS는 사용자가 KnowledgeHub Vault에 자유롭게 쓴 아이디어�
    - 관리는 브라우저 콘솔과 CLI가 맡고, 문서 작업은 거기서 하지 않습니다.
 3. **유지보수는 가능한 한 오픈소스에 맡깁니다.** 화면·보기·템플릿·버튼은 plugin을 쓰고, Thin Client는 커지지 않게 유지합니다.
 4. **자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.**
-   - 빠진 frontmatter를 채우는 결정적 규격화만 자동입니다.
-   - 판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.
+   - 빠진 frontmatter를 채우는 규격화만 자동입니다. 정해진 선택지(enum) 안에서 고르는 값은 System One이 충분히 확신할 때만 고릅니다.
+   - 그 밖에 판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.
 5. **Git이 백업이자 이력입니다.**
    - Vault는 GitHub private repo와 동기화됩니다. 맥은 사용자의 동기화 방식으로, iOS는 Working Copy로 합니다.
    - KnowledgeOS는 git 명령을 실행하지 않고, diff가 작고 읽기 쉽게 씁니다.
@@ -48,9 +48,10 @@ KnowledgeOS는 사용자가 KnowledgeHub Vault에 자유롭게 쓴 아이디어�
 | 수동 | Thin Client "규격화 미리보기"(노트·선택·폴더) | 바뀔 diff를 먼저 보여주고 확인하면 적용. 방금 편집한 노트도 가능. 대량 정리는 CLI `--dry-run`/`--apply` |
 | 자동 | 매시간 예약 작업 | 최근 10분 안에 편집한 노트는 건너뜀 |
 
-세 경로 모두 결정적 규칙만 적용합니다.
+규칙 1-8은 결정적입니다. 폴더로 정할 수 없는 `type`, 잘못된 `status`·`confidence`, 빠지거나 잘못된 `capture_kind`처럼 **선택지가 고정된 값**은 System One(아래)이 고릅니다.
 
-- 본문의 다른 부분, 관련 없는 기존 속성, 파일 위치는 바꾸지 않습니다. 빠졌거나 형식이 잘못된 UUID처럼 기계적으로 판별할 수 있는 값은 고치되, 알 수 없는 종류나 상태를 임의로 정하지 않습니다.
+- 수동 미리보기에서는 System One이 고른 값과 확신도를 diff 위에 보여주고, 확인해야 적용합니다. 자동 경로는 확신도가 기준(기본 0.7) 이상인 값만 적용하고 나머지는 그대로 둡니다.
+- 본문의 다른 부분, 관련 없는 기존 속성, 파일 위치는 바꾸지 않습니다. `ai_policy`·`sensitivity`, 사용자가 쓴 `daily` 같은 기존 종류, 제목·태그 같은 자유 값은 System One에게 묻지 않습니다.
 - `deny` 노트, 충돌 표시가 있는 노트, YAML이 깨진 노트는 건드리지 않고 알려줍니다.
 - 바뀐 것은 "자동 변경 되돌리기"로 되돌립니다. 그 뒤 노트를 고쳤다면 Git 이력으로 되돌립니다.
 - Vault 맨 위나 임의의 폴더에 썼다는 이유만으로 일반 Markdown을 건너뛰지 않습니다.
@@ -103,8 +104,9 @@ KnowledgeOS는 사용자가 KnowledgeHub Vault에 자유롭게 쓴 아이디어�
 | Director | 요청을 작업 명세(WorkSpec)로 접수. 정형 요청은 코드가, 자유 요청만 모델이 해석 |
 | CurationManager와 teammate(`scout`·`classifier`·`linker`) | **정리** Team. Manager는 필요한 teammate와 순서를 정하고, teammate는 각자 수집·분류·연결만 함 |
 | ThinkingManager와 teammate(`retriever`·`connector`·`challenger`·`synthesizer`) | **강화** Team. 근거 수집, 연결·긴장, 빈틈·반론, 보고서 작성을 나눠 맡음 |
-| StandardizationOfficer | **규격화**(결정적 코드) |
-| StewardshipOfficer | **문서 관리**: 주의 항목, 보관 제안, 요약 내용(결정적 코드) |
+| StandardizationOfficer | **규격화**(결정적 코드, 선택지가 고정된 값은 System One에게 물음) |
+| StewardshipOfficer | **문서 관리**: 주의 항목, 보관 제안, 요약 내용(결정적 코드). System One이 판단한 상태 변경(답한 질문·끝난 프로젝트·버린 아이디어)도 제안으로 만듦 |
+| System One | Owner가 OpenAI Decisions API로 묻는 빠른 선택형 판단. 선택지·확률만 답하고 쓰지 않음. 정리 힌트, 관련 노트 거르기, 자유 요청 사전 분류에도 씀 |
 | EvalOfficer | 모든 작업 결과를 독립적으로 평가. 만들거나 고치지 않음 |
 | Owner | 권한·정책, 파일 쓰기, 기록. 내용을 판단하지 않음 |
 
@@ -118,7 +120,7 @@ Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시�
 
 | 작업 | 기본 주기 | 하는 일 |
 |---|---|---|
-| 규격화 | 매시간 | 바뀐 노트를 결정적으로 규격화 |
+| 규격화 | 매시간 | 바뀐 노트를 규격화. `remote_ok` 노트의 고정 선택지 값은 System One이 확신할 때만 채움 |
 | 임베딩 | 매시간 30분 | 새로 생기거나 바뀐 노트의 의미 검색용 벡터를 만듦 |
 | 정리 | 매일 06:00 | 새 포착과 종류 없는 `remote_ok` 노트에 정리 제안. 한 번에 최대 10개 |
 | 요약 | 매일 08:00 | Discord로 요약 발송 |
@@ -141,6 +143,7 @@ Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시�
 - `confidential` 노트는 `ai_policy`와 관계없이 `local_only`로 다룹니다.
 - 결과물은 입력 중 가장 엄격한 정책을 물려받습니다.
 - `ai_policy`는 모델·자동화의 사용 범위만 정합니다. GitHub 동기화 여부는 Vault의 `.gitignore`가 정합니다.
+- System One은 원격 모델입니다. 직접 요청한 작업과 검색은 `remote_ok`·`ask` 노트를, 예약 작업은 `remote_ok` 노트만 보냅니다. `local_only`·`confidential`·`deny`는 보내지 않습니다.
 
 ## 모바일
 
