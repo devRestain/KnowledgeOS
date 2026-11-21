@@ -123,12 +123,12 @@ def _fenced(language: str, text: str) -> str:
 
 def render(target_note: Note, changes: list[dict[str, Any]], *, work_id: str, capability: str,
            created: str, inputs: list[Note] | None = None, proposal_id: str | None = None,
-           status: str = "open", kind: str = "organize", default_policy: str = "ask") -> bytes:
+           status: str = "open", kind: str = "organize") -> bytes:
     changes = _changes(changes)
     if status not in ("open", "stale"):
         raise ValueError("invalid proposal status")
     sources = [target_note, *(inputs or [])]
-    policy = strictest(effective(note, default_policy) for note in sources)
+    policy = strictest(effective(note) for note in sources)
     if policy == "deny":
         raise ValueError("deny input")
     fields = {
@@ -194,7 +194,7 @@ def open_for_target(owner, target_path_or_id: str) -> list[str]:
     paths = []
     for path in owner.vault.iter_paths(PROPOSALS_DIR):
         note = owner.vault.read(path)
-        if note is None or effective(note, owner.config.default_policy) == "deny":
+        if note is None or effective(note) == "deny":
             continue
         if note.type == "proposal" and note.status == "open" and (
             note.data.get("target_path") == key or (target_id is not None and note.data.get("target_id") == target_id)
@@ -215,11 +215,11 @@ def write_or_regenerate(effect_ctx, target_note: Note, changes: list[dict[str, A
     identity = target_note.note_id or target_note.path
     with owner.store.lock(f"proposal-target/{digest(identity)}"):
         current = owner.vault.read(target_note.path)
-        if current is None or current.sha != target_note.sha or effective(current, owner.config.default_policy) == "deny":
+        if current is None or current.sha != target_note.sha or effective(current) == "deny":
             return {"status": "target_changed", "path": None}
         for source in inputs or []:
             observed = owner.vault.read(source.path)
-            if observed is None or ORDER.index(effective(observed, owner.config.default_policy)) > ORDER.index(effective(source, owner.config.default_policy)):
+            if observed is None or ORDER.index(effective(observed)) > ORDER.index(effective(source)):
                 return {"status": "input_restricted", "path": None}
         existing = open_for_target(owner, target_note.path)
         if not existing:
@@ -244,7 +244,6 @@ def write_or_regenerate(effect_ctx, target_note: Note, changes: list[dict[str, A
             "capability": capability or effect_ctx.capability,
             "created": old.data.get("created", iso(effect_ctx.clock.now())) if old else iso(effect_ctx.clock.now()),
             "proposal_id": old.note_id if old else None, "inputs": inputs, "kind": kind,
-            "default_policy": owner.config.default_policy,
         }
         raw = render(target_note, changes, **options)
         if old and raw == old.raw:

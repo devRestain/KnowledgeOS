@@ -42,7 +42,7 @@ def test_DOC_2_duplicate_ids_stay_searchable_and_ambiguous_targets_refused(kos, 
     shared = str(uuid.uuid4())
     paths = ["40_Knowledge/Ideas/Twin A.md", "40_Knowledge/Ideas/Twin B.md"]
     for path in paths:
-        vault.write(path, f"---\nid: {shared}\ntype: idea\nai_policy: ask\n---\nShared duplicate token.\n")
+        vault.write(path, f"---\nid: {shared}\ntype: idea\nai_policy: approve\n---\nShared duplicate token.\n")
     results = kos.search(mode="keyword", query="Shared duplicate token")["results"]
     assert sorted(item["path"] for item in results) == paths
     duplicates = [item for item in kos.get("/api/attention")[1] if item["kind"] == "duplicate_id"]
@@ -136,12 +136,12 @@ def test_deleted_target_becomes_stale_and_moved_id_target_does_not(kos, vault):
     assert parse(path, vault.read(path)).status == "stale"
 
 
-def test_confidential_mismatch_and_recent_autofix_are_attention_only(kos, vault):
+def test_recent_autofix_is_attention_without_confidential_policy_coupling(kos, vault):
     vault.write("40_Knowledge/Ideas/Secret.md", conforming_note("idea", "seed", extra="sensitivity: confidential\n"))
     vault.write("00_Inbox/Fix.md", "Needs standardization.\n", age=timedelta(hours=1))
     kos.run("standardize.auto", {}, actor="schedule/standardize")
     items = kos.get("/api/attention")[1]
-    assert any(item["kind"] == "confidential_policy" for item in items)
+    assert not any(item["kind"] == "confidential_policy" for item in items)
     assert any(item["kind"] == "autofix" and item["paths"] == ["00_Inbox/Fix.md"] for item in items)
 
 

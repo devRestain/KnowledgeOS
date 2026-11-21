@@ -12,162 +12,130 @@
 <header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
 <div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
 <div class="layout">
-<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html" aria-current="page">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html" aria-current="page">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
 <main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C4 강화</span></nav>
 <article class="page">
 <h1 id="top">C4 강화 (Enhance)</h1>
-<h2 id="1-한눈에-보기">1. 한눈에 보기<a class="anchor" href="#1-한눈에-보기" aria-label="이 제목 링크">#</a></h2>
-<p>강화는 지금까지 Vault에 쌓인 생각을 이용해 <strong>지금 하고 있는 생각을 더 단단하게</strong> 만드는 기능입니다. 노트 하나나 질문 하나를 받아, Vault에서 읽은 근거만으로 &quot;내가 이미 쓴 것 / 연결과 긴장 / 빈틈과 반론 / 다음 걸음&quot;을 정리한 <strong>인용 달린 보고서</strong>를 만듭니다. 보고서는 내가 쓴 내용과 추론을 분명히 나눠서 보여 줍니다.</p>
-<p>강화는 Thinking Team이 맡습니다. Team은 ThinkingManager가 구성하고, <code>retriever</code>·<code>connector</code>·<code>challenger</code>·<code>synthesizer</code> 네 teammate와 독립 평가자(EvalOfficer)가 함께 일합니다. 용어는 <a class="wikilink" href="glossary.html">용어</a>를 참고하세요.</p>
+<p><strong>강화</strong>는 Vault에 이미 쌓여 있는 노트들을 근거로 삼아 지금 다루는 생각·질문·프로젝트를 더 단단하게 정리한 <strong>인용 보고서</strong>를 <code>01_AI_Review/Reports/</code>에 새로 만드는 기능입니다. Thinking Team이 맡으며, 원본 노트는 건드리지 않고 내가 이미 쓴 근거(<code>인용</code>), 모델의 생각(<code>추론</code>), Vault가 다루지 않는 영역(<code>찾지 못함</code>)을 문장마다 분명히 나눠 적습니다. 공통 실행 구조·역할별 모델 경로·보안 경계는 <a class="wikilink" href="architecture.html">구조</a>를, 용어는 <a class="wikilink" href="glossary.html">용어</a>를 참고하세요.</p>
+<h2 id="세-가지-모드-발전-묻기-돌아보기">세 가지 모드: 발전 · 묻기 · 돌아보기<a class="anchor" href="#세-가지-모드-발전-묻기-돌아보기" aria-label="이 제목 링크">#</a></h2>
+<p>강화는 Obsidian 사이드바·명령 팔레트·문맥 메뉴에서 직접 고르는 정형 요청(<code>enhance</code>)이나 자유 요청(<code>free_text</code>)으로만 시작하며, 예약 작업이나 CLI 실행 경로는 없습니다.</p>
+<ul>
+<li><strong>정형 요청</strong>: 클라이언트는 노트 본문 대신 경로·마지막으로 본 파일 해시·질문·기간만 보냅니다(<a class="wikilink" href="c11.html#SUR-1">SUR-1</a>). 모델 Director를 부르지 않고 코드가 바로 접수합니다.</li>
+<li><strong>자유 요청</strong>: &quot;이 아이디어의 반론을 찾아 발전시켜 줘&quot;처럼 보내면, System One이 설정된 경우 먼저 무관한 요청을 거른 뒤 <code>kos-director</code> 모델이 정형 <code>enhance</code> 요청 초안으로 바꿔 같은 접수 검사를 통과시킵니다(<a class="wikilink" href="c11.html#SUR-3">SUR-3</a>).</li>
+</ul>
+<p>세 모드는 같은 팀을 쓰지만 <strong>필수 입력, 접수 단계의 분기, <code>retriever</code>의 후보 수집, 평가 기준, 보고서 절과 언어 판별</strong>이 코드에서 뚜렷하게 갈립니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>항목</th>
-<th>내용</th>
+<th>구분</th>
+<th><code>develop</code> (발전)</th>
+<th><code>ask</code> (묻기)</th>
+<th><code>review</code> (돌아보기)</th>
 </tr></thead><tbody>
-<tr><td>트리거</td><td>Thin Client &quot;강화&quot;(현재 노트에서 모드 선택), 또는 Director가 강화로 해석한 자유 요청</td></tr>
-<tr><td>담당</td><td>Thinking Team: ThinkingManager, <code>retriever</code>(코드), <code>connector</code>·<code>challenger</code>·<code>synthesizer</code>(모델), EvalOfficer</td></tr>
-<tr><td>결과물</td><td><code>01_AI_Review/Reports/</code>에 새로 만들어지는 보고서 노트 (Work 완료 뒤 TeamReview도 남음)</td></tr>
-<tr><td>사용자 결정 여부</td><td>요청 자체가 사용자의 결정입니다. 보고서는 만들어진 뒤 사용자의 문서이며, 적용·거절 단계는 없습니다. 원본 노트는 바꾸지 않습니다</td></tr>
+<tr><td>입력</td><td>노트 1개(아이디어·지식·질문 등)</td><td>질문(선택적으로 질문 노트 1개 첨부)</td><td><code>type: project</code> 노트 1개 + 해석 기간(<code>from</code>~<code>to</code>)</td></tr>
+<tr><td>접수 시 분기</td><td><code>deny</code>·오류·충돌·중복 ID·<code>report</code>·<code>proposal</code> 거절</td><td><strong>노트 없이 질문만 보냈는데 일치하는 공개 노트가 0건이면 Work·Temporal·모델 없이 즉시 &quot;다루지 않음&quot;으로 완료</strong></td><td>프로젝트 노트가 아니거나 날짜 형식이 잘못됐거나 시작일이 종료일보다 늦으면 즉시 거절</td></tr>
+<tr><td><code>retriever</code> 후보 수집 (최대 8개)</td><td>대상 노트 + 관련 노트(System One 이웃 거름 포함) + <strong>제목</strong> 키워드</td><td>노트가 있으면 관련 노트(이웃 거름 포함) + <strong>질문</strong> 키워드, 없으면 <strong>질문</strong> 키워드만</td><td>관련 노트(최대 100개, <strong>이웃 거름 미사용</strong>) + <strong>프로젝트 폴더 하위 노트</strong> 중 수정일 또는 <code>created</code>가 기간 안인 것만 최신순으로 추림</td></tr>
+<tr><td>평가 기준</td><td>5개 (읽은 인용, 주장 라벨, 절 구성, 초점 충족, <strong>긴장 근거</strong>)</td><td>5개 (읽은 인용, 주장 라벨, 절 구성, 초점 충족, <strong>긴장 근거</strong>)</td><td><strong>4개</strong> (긴장 근거 기준 제외)</td></tr>
+<tr><td>보고서 언어와 절</td><td>대상 노트 언어 기준 5절: 핵심·이미 쓴 관련 생각·연결과 긴장·빈틈과 열린 질문·다음 걸음</td><td>질문 언어 기준 4절: 답·뒷받침하는 노트·상충하는 노트·Vault가 다루지 않는 것</td><td>프로젝트 노트 언어 기준 4절: 움직인 것·멈춘 것·열린 결정·다음 행동</td></tr>
 </tbody></table></div>
-<p>세 가지 모드가 있습니다(원문은 5절에 그대로 실려 있습니다).</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>모드</th>
-<th>입력</th>
-<th>보고서 구성</th>
-</tr></thead><tbody>
-<tr><td><code>develop</code> (발전)</td><td>아이디어·지식·질문 노트</td><td>내 말로 다시 쓴 핵심(인용), 이미 써 둔 관련 내용, 연결과 긴장, 빈틈과 열린 질문, 가능한 다음 걸음</td></tr>
-<tr><td><code>ask</code> (묻기)</td><td>질문</td><td>답, 뒷받침하는 노트, 충돌하는 노트, Vault가 다루지 않는 것</td></tr>
-<tr><td><code>review</code> (돌아보기)</td><td>프로젝트 노트와 해석 기간(날짜)</td><td>움직인 것, 멈춘 것, 열린 결정, 다음 행동</td></tr>
-</tbody></table></div>
-<h2 id="2-왜-이-명세가-필요한가">2. 왜 이 명세가 필요한가<a class="anchor" href="#2-왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
-<p><a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC</a>의 &#x27;지키는 약속&#x27; 중 이 기능이 직접 지키는 것은 다음입니다.</p>
-<ul>
-<li><strong>7. 근거를 밝힙니다.</strong> 결과는 이미 쓴 노트를 정확히 인용하고 근거·추론·근거 없음을 구분합니다. 그래서 모든 주장에 <code>cited</code>/<code>inference</code>/<code>not found</code> 라벨이 붙고, 모든 인용이 이 Work에서 실제로 읽은 바이트로 이어져야 합니다 (<a class="wikilink" href="#ENH-1">ENH-1</a>, <a class="wikilink" href="#ENH-2">ENH-2</a>).</li>
-<li><strong>1. Vault는 사용자의 것입니다.</strong> 강화는 원본 노트를 직접 바꾸지 않습니다(<a class="wikilink" href="#ENH-1">ENH-1</a>). 보고서는 한 번 만들어진 뒤에는 내 문서이고, 다시 쓰이거나 덮어써지지 않습니다. 또 이전 보고서는 어떤 역할의 검색에도 나오지 않아(<a class="wikilink" href="#ENH-5">ENH-5</a>) 모델이 자기 요약을 다시 근거로 삼는 일이 없습니다.</li>
-<li><strong>개인정보 (<code>ai_policy</code>)</strong>. 보고서는 읽은 모든 입력 중 가장 엄격한 정책을 물려받습니다(<a class="wikilink" href="#ENH-4">ENH-4</a>). 자세한 값은 <a class="wikilink" href="glossary.html">용어</a>를 보세요.</li>
-</ul>
-<p>이 약속이 없다면 모델이 그럴듯하지만 근거 없는 말을 섞어 쓰거나, 쓰는 도중 내가 고친 노트와 다른 버전을 인용하거나, 이전 보고서를 다시 근거로 삼아 생각이 맴돌 수 있습니다. 기본 원칙은 <a class="wikilink" href="philosophy.html">운용 원칙</a>에도 정리되어 있습니다.</p>
-<h2 id="3-어떻게-쓰는가">3. 어떻게 쓰는가<a class="anchor" href="#3-어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
-<h3 id="obsidian-thin-client-사이드바">Obsidian Thin Client / 사이드바<a class="anchor" href="#obsidian-thin-client-사이드바" aria-label="이 제목 링크">#</a></h3>
-<ol>
-<li>강화하고 싶은 노트를 엽니다. (사이드바 탭에는 마지막으로 활성이던 노트 이름이 표시되고, 탭으로 초점을 옮겨도 대상은 유지됩니다.)</li>
-<li>사이드바에서 <strong>강화</strong>를 선택한 뒤 아래 기능 창에서 <strong>발전 / 묻기 / 돌아보기</strong> 중 하나를 고릅니다. 발전은 <strong>발전 요청</strong>을 눌러 실행합니다. 기능·모드 선택만으로는 작업을 제출하지 않습니다. 명령 팔레트·문맥 메뉴에서는 해당 명령을 바로 실행합니다.</li>
-<li>사이드바의 묻기는 질문, 돌아보기는 기간(날짜)을 같은 영역에 입력해 제출합니다. 명령 팔레트·문맥 메뉴는 기존 입력창을 사용합니다. 노트가 없어도 묻기·자유 요청은 쓸 수 있습니다 (<a class="wikilink" href="c11.html">C11</a>).</li>
-<li>요청에는 노트 경로와 마지막으로 본 내용의 해시만 가고, 본문은 가지 않습니다 (<a class="wikilink" href="c11.html#SUR-1">SUR-1</a>).</li>
-<li>사이드바의 완료 상태·결과 링크 또는 명령 실행의 완료 알림을 확인한 뒤 <code>01_AI_Review/Reports/</code>의 보고서 노트를 엽니다. 필요하면 자유롭게 고치고 옮기고 지울 수 있고, <code>type</code>을 바꾸면 내 지식으로 편입됩니다. 편입 전에는 근거로 쓰이지 않습니다 (Blueprint §5.6).</li>
-</ol>
-<h3 id="자유-요청">자유 요청<a class="anchor" href="#자유-요청" aria-label="이 제목 링크">#</a></h3>
-<p>&quot;이 아이디어를 더 발전시켜 줘&quot;처럼 쓰면 모델 Director가 허용된 강화 명령으로 해석합니다. 해석할 수 없으면 Work가 만들어지지 않고 이유가 알려집니다 (<a class="wikilink" href="c11.html#SUR-3">SUR-3</a>). Director는 기준·예산·경로를 정할 수 없습니다.</p>
-<h3 id="관리-콘솔">관리 콘솔<a class="anchor" href="#관리-콘솔" aria-label="이 제목 링크">#</a></h3>
-<p>작업 이력에서 해당 Work의 Graph, 역할별 호출과 모델, 평가, 남은 작업, TeamReview를 볼 수 있습니다. 진행 중인 Work는 콘솔에서 취소할 수 있습니다 (<a class="wikilink" href="c11.html#SUR-4">SUR-4</a>).</p>
-<h3 id="자동-경로와-cli">자동 경로와 CLI<a class="anchor" href="#자동-경로와-cli" aria-label="이 제목 링크">#</a></h3>
-<ul>
-<li><strong>자동 실행은 없습니다.</strong> 예약 작업(C7)은 C1·C2·C3·C5만 시작하므로 강화는 내가 요청할 때만 돕니다.</li>
-<li>README의 CLI 목록(<code>standardize</code>, <code>index</code>, <code>job run standardize|embed|curate|digest</code> 등)에는 강화 명령이 없습니다. 강화는 Obsidian 쪽에서 요청합니다.</li>
-</ul>
-<h3 id="사용-예">사용 예<a class="anchor" href="#사용-예" aria-label="이 제목 링크">#</a></h3>
-<blockquote>
-<p>아이디어 노트 <code>40_Knowledge/Ideas/…</code>와 관련 노트 세 개가 있다고 합시다. 아이디어 노트에서 사이드바의 <strong>강화 → 발전</strong>을 선택하고 <strong>발전 요청</strong>을 누릅니다.</p>
-<p>잠시 뒤 <code>01_AI_Review/Reports/</code>에 보고서가 생깁니다. 핵심은 내 문장으로 인용되고, 관련 노트의 인용은 <code>[[경로|제목]] (L3-5, 1a2b3c4d)</code>처럼 노트 링크 뒤에 줄 범위와 짧은 해시가 붙습니다. 각 주장에는 &quot;인용 / 추론 / 찾지 못함&quot; 라벨이 붙습니다. 아이디어 노트는 한 바이트도 바뀌지 않습니다 (<a class="wikilink" href="#ENH-1">ENH-1</a>).</p>
-<p>요청한 뒤 아이디어 노트를 고쳤다면 보고서는 요청 시점의 스냅샷을 인용하고, 그 사이 입력이 바뀌었음을 보고서에 밝힙니다 (<a class="wikilink" href="#ENH-3">ENH-3</a>).</p>
-</blockquote>
-<h2 id="4-동작-흐름">4. 동작 흐름<a class="anchor" href="#4-동작-흐름" aria-label="이 제목 링크">#</a></h2>
-<p>강화는 Team 대상 Work이므로 공통 Work 흐름을 따릅니다. 강화에 해당하는 부분은 Manager가 <code>retriever</code>/<code>connector</code>/<code>challenger</code>/<code>synthesizer</code> 중에서 순서를 정하고, <code>synthesizer</code>가 항상 마지막 생산자라는 점입니다.</p>
-<figure class="diagram diagram-work-flow">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 400" width="100%" preserveAspectRatio="xMidYMid meet"><title>Work 흐름: 요청에서 Director 승인, 실행, 평가, Owner 효과, TeamReview까지</title><defs><marker id="d-arrow-work-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M170,150 L210,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M360,150 L380,150 L380,60 L400,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M380,150 L380,240 L400,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="372" y="104" text-anchor="end" font-size="13">Officer 대상</text><text class="d-label-small" x="372" y="200" text-anchor="end" font-size="13">Team 대상</text><path class="d-edge" d="M550,240 L590,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M665,212 L665,178" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M550,60 L635,60 L635,122" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M740,150 L780,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="760" y="140" text-anchor="middle" font-size="13">충족</text><path class="d-edge" d="M855,178 L855,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge d-edge-dashed" d="M590,150 L475,150 L475,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="530" y="142" text-anchor="middle" font-size="13">미충족 · 예산 내</text><path class="d-edge d-edge-dashed" d="M710,122 L710,60 L780,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="745" y="48" text-anchor="middle" font-size="13">예산 소진</text><rect class="d-box-muted" x="20" y="122" width="150" height="56" rx="8"/><text class="d-label" x="95" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="95" dy="0" font-size="14">요청</tspan><tspan class="d-label-small" x="95" dy="18" font-size="13">표면·작업·Gateway</tspan></text><rect class="d-box-accent" x="210" y="122" width="150" height="56" rx="8"/><text class="d-label" x="285" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="285" dy="0" font-size="14">Director 승인</tspan><tspan class="d-label-small" x="285" dy="18" font-size="13">WorkSpec 확정</tspan></text><rect class="d-box" x="400" y="32" width="150" height="56" rx="8"/><text class="d-label" x="475" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Officer 단계</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">정적 · 단독 결과</tspan></text><rect class="d-box" x="400" y="212" width="150" height="56" rx="8"/><text class="d-label" x="475" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Manager</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">그래프·후속 구간</tspan></text><rect class="d-box" x="590" y="212" width="150" height="56" rx="8"/><text class="d-label" x="665" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">팀원 단계</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">handoff 산출</tspan></text><rect class="d-box-accent" x="590" y="122" width="150" height="56" rx="8"/><text class="d-label" x="665" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">EvalOfficer</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">독립 평가</tspan></text><rect class="d-box-ok" x="780" y="122" width="150" height="56" rx="8"/><text class="d-label" x="855" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">Owner 효과</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">기록 · 영수증</tspan></text><rect class="d-box-warn" x="780" y="32" width="150" height="56" rx="8"/><text class="d-label" x="855" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">사용자에게 표시</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">새 요청이 필요</tspan></text><rect class="d-box-muted" x="780" y="212" width="150" height="56" rx="8"/><text class="d-label" x="855" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">TeamReview</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">팀원 평가·제안</tspan></text><rect class="d-lane" x="20" y="290" width="920" height="96" rx="10"/><text class="d-label" x="480" y="325" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner가 검증하고 기록한다 · 모델은 판단만 담당한다</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정적 검사 먼저, EvalOfficer 모델은 의미 기준만 판단 · 기본 예산: Team 2구간·생산 6회, Officer 1구간</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">같은 미충족이 연속 두 체크포인트에 남으면 Work는 미충족으로 종료 · 대상이 바뀌면 새 Director 승인</tspan></text></svg>
-</figure>
 <div class="callout callout-note">
-<p class="callout-title">참고</p>
-<p>평가에서 &quot;긴장이 근거로 뒷받침되지 않는다&quot;는 판정이 나오면 ThinkingManager가 <code>connector</code>와 <code>synthesizer</code>만 넣은 후속 구간을 한 번 구성하고, 최종 보고서는 그 후속 구간에서 나옵니다 (<a class="wikilink" href="#ENH-6">ENH-6</a>). 예산(기본: Team 2구간, 생산자 호출 6회)을 넘기면 Work는 미충족으로 끝나고 보고서는 쓰이지 않습니다.</p>
+<p class="callout-title"><code>review</code>의 해석 기간은 할 일 완료 필터가 아닙니다</p>
+<p>시작일과 종료일은 서울 시간 기준 하루의 시작과 끝으로 적용됩니다. 그 기간에 새로 만들었거나(<code>created</code>) 수정한(<code>mtime</code>) 프로젝트 관련 노트를 추려, 해당 기간 동안 프로젝트에서 무엇이 움직이고 멈췄는지 해석하는 범위입니다.</p>
 </div>
-<h2 id="5-원본-명세">5. 원본 명세<a class="anchor" href="#5-원본-명세" aria-label="이 제목 링크">#</a></h2>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C4 Enhance</header>
-<h3 id="c4-enhance">C4 Enhance<a class="anchor" href="#c4-enhance" aria-label="이 제목 링크">#</a></h3>
-<p>The Thinking Team uses the accumulated Vault to strengthen the user&#x27;s thinking about one note or question. The output is a cited report that separates what the user already wrote from inference.</p>
-<ul>
-<li><strong>Trigger</strong>: Thin Client &quot;강화&quot; on the current note in a chosen mode, or a free-text request routed by the Director.</li>
-<li><strong>Modes</strong>:</li>
-</ul>
+<p>접수가 통과해 Work가 만들어지면 Owner는 대상 노트의 정확한 바이트를 스냅숏으로 고정합니다.</p>
+<h2 id="thinking-team-구성과-역할별-실제-작업">Thinking Team 구성과 역할별 실제 작업<a class="anchor" href="#thinking-team-구성과-역할별-실제-작업" aria-label="이 제목 링크">#</a></h2>
+<p>모델별 실제 경로와 추론 설정(<code>config/roles.json</code>)은 <a class="wikilink" href="architecture.html">구조</a>에서 확인하세요.</p>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>Mode</th>
-<th>Input</th>
-<th>Report sections</th>
+<th>역할과 Hermes Profile</th>
+<th>맡는 일</th>
+<th>넘기는 결과</th>
 </tr></thead><tbody>
-<tr><td><code>develop</code></td><td>An idea, knowledge or question note</td><td>Core restated in the user&#x27;s own words (cited); related things already written; connections and tensions; gaps and open questions; possible next steps</td></tr>
-<tr><td><code>ask</code></td><td>A question</td><td>Answer; supporting notes; conflicting notes; what the Vault does not cover</td></tr>
-<tr><td><code>review</code></td><td>A project note and an interpretation window (dates)</td><td>What moved; what stalled; open decisions; next actions</td></tr>
+<tr><td>ThinkingManager (<code>kos-thinking-manager</code>)</td><td>노트 본문을 읽지 않고 모드·예산·미충족 기준에 따라 팀원 순서를 편성, 완료 후 TeamReview 작성</td><td>구간 Graph 제안, 완료 후 팀원 평점과 조언 제안(최대 3개)</td></tr>
+<tr><td><code>retriever</code> (Hermes profile 없음 · 코드)</td><td>모드별 규칙에 따라 대상 노트와 관련 후보(최대 8개)를 정적으로 수집</td><td>미리 읽은 대상·후보의 근거 핸들과 짧은 발췌</td></tr>
+<tr><td><code>connector</code> (<code>kos-connector</code>)</td><td>이미 써 둔 관련 생각, 서로 이어지는 연결, 서로 부딪히는 긴장을 도출</td><td>근거 핸들이 붙은 관련·연결·긴장 주장 목록</td></tr>
+<tr><td><code>challenger</code> (<code>kos-challenger</code>)</td><td>가정의 빈틈, Vault 안의 반론, 다시 물을 열린 질문을 도출</td><td>근거 핸들이 붙은 빈틈·반론·열린 질문 목록</td></tr>
+<tr><td><code>synthesizer</code> (<code>kos-synthesizer</code>, 항상 마지막)</td><td>앞선 인계물과 자신이 읽은 노트를 종합해 모드별 전체 보고서를 작성</td><td>모든 절과 <code>인용</code>/<code>추론</code>/<code>찾지 못함</code> 라벨이 붙은 보고서</td></tr>
+<tr><td>EvalOfficer (<code>kos-eval</code>)</td><td>Manager 설명이나 팀원 자기평가 없이 정적 검사 결과와 인용 발췌만 보고 독립 평가</td><td>초점 충족 및(모드별) 긴장 근거 판정</td></tr>
 </tbody></table></div>
+<p>아이디어 노트에서 <strong>발전</strong>을 누르거나 질문을 입력해 <strong>묻기</strong>를 시작하면 팀 안에서는 다음 순서로 근거와 해석이 쌓입니다.</p>
+<h3 id="1-retriever의-근거-수집과-이전-보고서-차단-코드-실행">1. <code>retriever</code>의 근거 수집과 이전 보고서 차단 (코드 실행)<a class="anchor" href="#1-retriever의-근거-수집과-이전-보고서-차단-코드-실행" aria-label="이 제목 링크">#</a></h3>
+<p><code>retriever</code>는 모델 없이 Owner 코드로 돕니다. 대상 노트 스냅숏과 모드별 기준에 맞는 후보(최대 8개)를 조각(최대 40줄, frontmatter 제외)으로 나눠 근거 핸들(<code>e1</code>, <code>e2</code> 등)을 붙이고 미리 읽음 상태로 등록합니다.</p>
 <ul>
-<li><strong>Team pool</strong>:
-<ul>
-<li><code>retriever</code> (static): evidence candidates through C3, within the Work&#x27;s policy. User-requested Work may read <code>remote_ok</code> and <code>ask</code> notes.</li>
-<li><code>connector</code> (model): related prior thinking, connections and tensions.</li>
-<li><code>challenger</code> (model): gaps, counterpoints and open questions.</li>
-<li><code>synthesizer</code> (model): the report.</li>
-</ul></li>
-<li><strong>Manager</strong>: ThinkingManager composes the Graph. The <code>synthesizer</code> is always the last producer.</li>
-<li><strong>Report</strong>: rendered by the Owner from the <code>synthesizer</code> submission.
-<ul>
-<li>Its language follows the source note.</li>
-<li>Citations render as wikilinks with line locators and short content hashes.</li>
-<li>Every claim is labeled cited, inference or not found.</li>
-<li>Its inputs and inherited policy cover the focal note and every note read in the Work, not only the notes ultimately cited.</li>
-<li>It states when any version of an input read in the Work differs from the current note.</li>
-</ul></li>
-<li><strong>Review window</strong>: in <code>review</code> mode, notes linked to the project or in its folder are selected when their creation or modification time falls in the window. It is not a task-completion filter.</li>
-<li><strong>Criteria</strong>:
-<ul>
-<li>Static: every citation handle was read in this Work; every claim is labeled; the mode&#x27;s sections are present.</li>
-<li>Semantic: the report addresses the focal note or question, and its stated tensions are supported by the cited notes.</li>
-</ul></li>
-<li><strong>Refuses</strong>: a <code>deny</code> or missing input, or a focal input for which no admitted model route satisfies its policy. A question with no readable notes completes at admission as &quot;not covered&quot; with no Work and no report.</li>
+<li><code>develop</code>은 대상 노트의 관련 노트(System One 이웃 거름 포함)와 제목 키워드로 후보를 모읍니다.</li>
+<li><code>ask</code>는 질문에서 한글 조사와 불용어를 떼어 낸 키워드로 후보를 찾고, 질문 노트가 함께 주어졌을 때만 관련 노트까지 합칩니다.</li>
+<li><code>review</code>는 프로젝트 노트의 관련 노트(이웃 거름 없이 최대 100개)와 프로젝트 폴더 하위 노트를 모은 뒤, 수정일이나 생성일이 기간 안에 드는 노트만 최신순으로 추립니다.</li>
+<li><strong>이전 보고서 차단</strong>: 역할 검색은 <code>deny</code>·시스템·제안뿐 아니라 <strong>과거에 만들어진 <code>type: report</code> 보고서도 모두 제외</strong>합니다. 사용자가 보고서의 <code>type</code>을 바꿔 자기 지식으로 편입하기 전에는 이전 보고서가 다시 근거로 순환하지 않습니다(<a class="wikilink" href="#ENH-5">ENH-5</a>).</li>
 </ul>
-<p>Acceptance:</p>
+<h3 id="2-connector와-challenger의-중간-정리">2. <code>connector</code>와 <code>challenger</code>의 중간 정리<a class="anchor" href="#2-connector와-challenger의-중간-정리" aria-label="이 제목 링크">#</a></h3>
+<p>두 모델 팀원은 <code>retriever</code>가 모아 둔 후보를 읽고, 더 확인해야 하면 역할 전용 검색(<code>search</code>·<code>related</code>)으로 후보를 넓힙니다. 검색 결과는 바로 인용할 수 없고 실제로 <code>read</code>로 열어 본 노트만 인용할 수 있습니다.</p>
 <ul>
-<li><strong><a class="wikilink" href="#ENH-1">ENH-1</a></strong> Given an idea note and three related notes, when <code>develop</code> runs, then a report exists in <code>01_AI_Review/Reports/</code> whose every citation resolves to bytes read in this Work, and the idea note is unchanged.</li>
-<li><strong><a class="wikilink" href="#ENH-2">ENH-2</a></strong> Given the <code>synthesizer</code> submits an unlabeled, uncited claim, then the submission fails validation once, and if it fails again the Work ends unmet with no report written.</li>
-<li><strong><a class="wikilink" href="#ENH-3">ENH-3</a></strong> Given the user edits the idea note while the Work runs, then the report cites the snapshot and states that the input changed.</li>
-<li><strong><a class="wikilink" href="#ENH-4">ENH-4</a></strong> Given input notes with <code>ai_policy: ask</code> and <code>remote_ok</code>, then the report&#x27;s <code>ai_policy</code> is <code>ask</code>.</li>
-<li><strong><a class="wikilink" href="#ENH-5">ENH-5</a></strong> Given an earlier report in <code>01_AI_Review/Reports/</code>, then no role&#x27;s search returns it.</li>
-<li><strong><a class="wikilink" href="#ENH-6">ENH-6</a></strong> Given the EvalOfficer finds the tensions unsupported, then the ThinkingManager composes one successor with <code>connector</code> and <code>synthesizer</code> addressing only that gap, and the final report comes from that successor.</li>
-<li><strong><a class="wikilink" href="#ENH-7">ENH-7</a></strong> Given a completed Work, then a TeamReview exists that rates each producing teammate and changes no role, catalog entry or assessment.</li>
+<li><code>connector</code>는 대상과 같은 주제를 다룬 기존 노트, 서로 이어지는 연결, 서로 어긋나는 긴장을 뽑아 모든 주장에 근거 핸들을 붙여 넘깁니다.</li>
+<li><code>challenger</code>는 대상과 앞선 인계물을 보고 논리의 빈틈, Vault 안의 반론, 다시 생각해 볼 열린 질문을 근거 핸들과 함께 넘깁니다.</li>
 </ul>
-</section>
-<h2 id="6-인수-시나리오와-검증">6. 인수 시나리오와 검증<a class="anchor" href="#6-인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
-<p>인수 시나리오는 공개 인터페이스를 통해 실행되는 테스트이며, 모델 단계는 스크립트로 정한 역할 응답을 씁니다(실환경 smoke 제외). 아래 표에 각 예시와 구현 위치, 테스트 노드가 있습니다.</p>
+<h3 id="3-synthesizer의-최종-보고서-조립">3. <code>synthesizer</code>의 최종 보고서 조립<a class="anchor" href="#3-synthesizer의-최종-보고서-조립" aria-label="이 제목 링크">#</a></h3>
+<p><code>synthesizer</code>는 앞선 모든 단계·구간에서 완료된 인계물과 자신이 읽은 노트를 바탕으로 모드에 정해진 절 전체를 채웁니다.</p>
+<ul>
+<li>모든 문장에는 <code>인용</code>(읽은 노트가 직접 말하는 내용), <code>추론</code>(노트를 바탕으로 확장한 해석), <code>찾지 못함</code>(Vault가 다루지 않는 내용) 중 하나의 라벨을 붙입니다. Vault가 다루지 않는 절이라도 억지로 채우지 않고 <code>찾지 못함</code> 주장으로 명시해야 합니다.</li>
+<li><code>인용</code> 라벨이 붙은 주장에는 반드시 이번 작업에서 실제로 읽은 핸들이 달려야 합니다. 라벨이나 인용이 빠진 보고서를 교정 턴까지 두 번 연속 제출하면 <code>synthesizer</code> 단계가 실패해 보고서가 쓰이지 않고 작업이 미충족으로 끝납니다(<a class="wikilink" href="#ENH-2">ENH-2</a>).</li>
+</ul>
+<h3 id="4-조언-전용-system_one-도구">4. 조언 전용 <code>system_one</code> 도구<a class="anchor" href="#4-조언-전용-system_one-도구" aria-label="이 제목 링크">#</a></h3>
+<p><code>connector</code>·<code>challenger</code>·<code>synthesizer</code>는 이번 작업에서 이미 읽은 노트에 대해 빠른 모델(<code>gpt-6-luna</code>)에게 닫힌 질문(선택지 중 고르기 또는 예/아니오 확률)을 단계당 최대 10번까지 물을 수 있습니다(<a class="wikilink" href="#ENH-8">ENH-8</a>). 보내기 직전 현재 파일이 여전히 <code>approve</code>인지 다시 확인하며, 답은 조언일 뿐 Owner가 보고서에 적지 않습니다. System One이 꺼져 있거나 실패해도 작업은 그대로 진행됩니다.</p>
+<ul>
+<li>현재 실제 Hermes 연결에서 선택지 배열(<code>choices</code>)을 넘길 때 거절되는 제한은 <a class="wikilink" href="status.html">현재 상태</a>를 참고하세요.</li>
+</ul>
+<h2 id="동적-graph-구성-독립-평가와-후속-구간">동적 Graph 구성, 독립 평가와 후속 구간<a class="anchor" href="#동적-graph-구성-독립-평가와-후속-구간" aria-label="이 제목 링크">#</a></h2>
+<p>ThinkingManager는 노트 본문을 읽지 않고 모드, 팀원 풀, 남은 예산(기본 2구간, 생산자 호출 6회), 이전 평가 결과만 보고 구간을 동적으로 짭니다. C1과 달리 <strong><code>synthesizer</code>가 항상 마지막 생산자</strong>로 고정되므로, 1구간이든 후속 구간이든 마지막 단계는 반드시 <code>synthesizer</code>입니다.</p>
+<ul>
+<li><strong><code>develop</code> 전체 1구간 예시</strong>: <code>retriever → connector → challenger → synthesizer</code> (생산자 4회 소모, 후속용 2회 남음)</li>
+<li><strong>가벼운 <code>ask</code>·<code>review</code> 1구간 예시</strong>: <code>retriever → connector → synthesizer</code>, <code>retriever → challenger → synthesizer</code>, 또는 <code>retriever → synthesizer</code>처럼 모드와 필요에 따라 중간 팀원을 줄일 수 있습니다.</li>
+<li><strong>긴장 근거만 부족할 때 2구간 예시</strong>: 1구간 4단계 뒤 평가자가 보고서의 긴장 근거만 부족하다고 판정하면, 남은 2회 예산 안에서 <code>connector → synthesizer</code>만 다시 수행하는 2구간을 짭니다. <code>synthesizer</code>는 앞 구간의 다른 인계물과 새로 보강된 <code>connector</code> 인계물을 함께 받아 최종 보고서를 다시 만듭니다(<a class="wikilink" href="#ENH-6">ENH-6</a>). 이 후속 구간에는 긴장 기준과 무관한 <code>retriever</code>나 <code>challenger</code>를 넣을 수 없습니다.</li>
+<li><strong>초점·형식 보완 2구간 예시</strong>: 초점 이탈만 지적되면 <code>challenger → synthesizer</code>(또는 <code>synthesizer</code> 단독), 라벨·절 누락만 지적되면 <code>synthesizer</code> 단독으로 다시 수행합니다.</li>
+</ul>
+<p>Manager가 EvalOfficer에게 지시를 주거나 평가 위치를 바꾸려 하면 교정 턴 없이 즉시 거절되어 구간이 시작되지 않고 작업이 실패합니다.</p>
+<p>실행 접점에서 각 구간은 Temporal <code>WorkWorkflow</code>가 사전 등록된 LangGraph 구간을 따라 실행하고, 항상 가장 최근 완료된 <code>synthesizer</code> 보고서를 대상으로 정적 검사(읽은 인용, 주장 라벨, 모드별 절 구성)와 <code>kos-eval</code>의 독립 의미 평가(초점 충족 및 <code>develop</code>·<code>ask</code>의 긴장 근거)를 거쳐 Owner가 최종 판정을 내립니다. Temporal·LangGraph·Hermes 세션·교정 턴의 공통 규칙은 <a class="wikilink" href="architecture.html">구조</a>를 보세요.</p>
+<h2 id="보고서-생성-정책-상속-teamreview와-사후-관찰">보고서 생성, 정책 상속, TeamReview와 사후 관찰<a class="anchor" href="#보고서-생성-정책-상속-teamreview와-사후-관찰" aria-label="이 제목 링크">#</a></h2>
+<p>평가를 통과하면 Owner가 <code>01_AI_Review/Reports/YYYY-MM-DD &lt;제목&gt;.md</code> 파일을 <strong>생성 전용</strong>으로 씁니다. 기존 보고서를 덮어쓰지 않고 원본 노트도 건드리지 않으며, 만들어진 직후부터 사용자의 문서가 됩니다(<a class="wikilink" href="#ENH-1">ENH-1</a>).</p>
+<ul>
+<li><strong>문장 형식과 인용 펼침</strong>: 각 주장은 <code>[인용]</code>·<code>[추론]</code>·<code>[찾지 못함]</code>(영어 노트나 영어 질문은 <code>[cited]</code>·<code>[inference]</code>·<code>[not found]</code>) 라벨로 시작하고, 인용 핸들은 Owner가 <code>[[경로|제목]] (줄 범위, 8자리 해시)</code> 형식으로 펼쳐 줍니다.</li>
+<li><strong>정책 상속과 입력 기록</strong>: 보고서 frontmatter의 <code>inputs</code> 목록과 <code>ai_policy</code>는 최종 보고서에 인용된 노트뿐 아니라 <strong>대상 노트와 이번 작업에서 읽은 모든 노트</strong>를 합쳐 가장 엄격한 정책을 물려받습니다(<a class="wikilink" href="#ENH-4">ENH-4</a>).</li>
+<li><strong>작업 도중 원본이 바뀐 경우</strong>: 보고서를 쓰기 직전, 작업에서 읽은 노트의 현재 파일 해시를 스냅숏과 비교합니다. 도중에 수정되거나 사라진 노트가 있으면 보고서 맨 위에 어떤 노트가 바뀌었는지 안내 인용구를 넣고, 본문 인용은 작업이 실제로 읽은 스냅숏 바이트를 그대로 유지합니다(<a class="wikilink" href="#ENH-3">ENH-3</a>).</li>
+<li><strong>TeamReview와 보고서 사후 관찰</strong>: 보고서가 쓰인 뒤 ThinkingManager가 산출물을 낸 팀원(<code>retriever</code> 포함)마다 1~5점 평점과 메모, 최대 3개의 개선 제안을 남깁니다. 이 제안은 조언 기록일 뿐 역할·카탈로그·평가를 바꾸지 않습니다(<a class="wikilink" href="#ENH-7">ENH-7</a>, <a class="wikilink" href="c9.html">C9</a>). 또한 Owner는 생성된 보고서를 지켜보다가 사용자가 수정하거나, <code>type</code>을 바꿔 자기 지식으로 편입하거나, 삭제하면 그 사실만 본문 없이 <code>synthesizer</code>의 <code>feedback</code>에 기록합니다.</li>
+</ul>
+<h2 id="막히거나-실패했을-때-보이는-결과">막히거나 실패했을 때 보이는 결과<a class="anchor" href="#막히거나-실패했을-때-보이는-결과" aria-label="이 제목 링크">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>상황</th>
+<th>사용자에게 보이는 결과와 파일 변화</th>
+</tr></thead><tbody>
+<tr><td><code>deny</code>·미지원 정책·없는 파일·<code>report</code>/<code>proposal</code> 대상·비프로젝트 <code>review</code>·잘못된 기간</td><td>Work 없이 즉시 <code>refused</code>와 사유 표시, 보고서 미생성</td></tr>
+<tr><td>대상 노트 없는 <code>ask</code>에서 일치하는 공개 노트 0건</td><td>Work·모델 호출 없이 즉시 <code>completed</code>(&quot;Vault가 다루지 않음&quot;), 보고서 미생성</td></tr>
+<tr><td><code>synthesizer</code> 교정 포함 2회 연속 검증 실패, 예산 소진, 또는 같은 미충족 반복</td><td>Work <code>unmet</code>과 미충족 기준 표시, 보고서 미생성(<a class="wikilink" href="#ENH-2">ENH-2</a>)</td></tr>
+<tr><td>Manager의 평가자 권한 위반 Graph 제출</td><td>구간 미시작, Work <code>failed</code>, 보고서 미생성</td></tr>
+<tr><td>Hermes profile·모델·자격 증명 불가 또는 Activity 시간 초과/중단</td><td>재시도·대체 없이 Work <code>failed</code> 또는 재실행 없는 <code>unknown</code>, 보고서 미생성</td></tr>
+<tr><td>작업 도중 사용자가 입력 노트를 수정</td><td>보고서 정상 생성 + 상단에 입력 변경 사실 안내, 원본 노트 유지(<a class="wikilink" href="#ENH-3">ENH-3</a>)</td></tr>
+</tbody></table></div>
+<h2 id="현재-상태와-참고-원본">현재 상태와 참고 원본<a class="anchor" href="#현재-상태와-참고-원본" aria-label="이 제목 링크">#</a></h2>
+<p>인수 시나리오(ENH-1~ENH-8) 추적 결과, 합성 노트 스모크, 공유 <code>system_one</code> 도구 설치와 실제 모델 미실행 범위, 선택지 배열 제한, 그리고 <code>ask</code>·<code>review</code> 실환경 관찰 현황은 <a class="wikilink" href="status.html">현재 상태</a>와 <a class="wikilink" href="roadmap.html">로드맵</a>에서 최신 상태로 확인합니다.</p>
+<ul>
+<li>명세·설정: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a>, <a class="repo" href="../../config/capabilities/C4.json">C4.json</a>, <a class="repo" href="../../config/roles.json">roles.json</a></li>
+<li>구현: <a class="repo" href="../../src/knowledgeos/capabilities/c4_enhance.py">c4_enhance.py</a>, <a class="repo" href="../../src/knowledgeos/engine.py">engine.py</a>, <a class="repo" href="../../src/knowledgeos/temporal_workflow.py">temporal_workflow.py</a>, <a class="repo" href="../../src/knowledgeos/roles.py">roles.py</a>, <a class="repo" href="../../src/knowledgeos/role_questions.py">role_questions.py</a>, <a class="repo" href="../../src/knowledgeos/evidence.py">evidence.py</a>, <a class="repo" href="../../src/knowledgeos/learning.py">learning.py</a></li>
+<li>관련 기능: <a class="wikilink" href="c1.html">C1</a> 정리, <a class="wikilink" href="c3.html">C3</a> 검색, <a class="wikilink" href="c6.html">C6</a> 검토, <a class="wikilink" href="c7.html">C7</a> 예약 작업, <a class="wikilink" href="c9.html">C9</a> 학습, <a class="wikilink" href="c11.html">C11</a> 호출 표면</li>
+</ul>
+<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
 <div class="table-wrap"><table class="acceptance">
 <thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-1" href="#ENH-1">ENH-1</a></td><td class="acc-example">Given an idea note and three related notes, when <code>develop</code> runs, then a report exists in <code>01_AI_Review/Reports/</code> whose every citation resolves to bytes read in this Work, and the idea note is unchanged.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c4_enhance.py::finish</code><br><code>src/knowledgeos/evidence.py::Evidence</code><br><code>src/knowledgeos/temporal_workflow.py::WorkWorkflow</code></td><td class="acc-tests"><details><summary>테스트 10개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_1_develop_report_cites_bytes_read_and_leaves_the_idea_unchanged</code></li><li><code>tests/test_hermes_adapter.py::test_ENH_1_hermes_acp_submits_through_real_mcp_and_bound_owner</code></li><li><code>tests/test_hermes_adapter.py::test_ENH_1_end_turn_without_accepted_submission_is_not_success</code></li><li><code>tests/test_hermes_adapter.py::test_JOB_3_unavailable_hermes_route_fails_visibly_without_reroute</code></li><li><code>tests/test_hermes_adapter.py::test_ENH_1_lost_acp_transport_retains_unknown_without_resending</code></li><li><code>tests/test_runtime_lifecycle.py::test_runtime_receipt_precedes_evaluation_and_report_application</code></li><li><code>tests/test_runtime_lifecycle.py::test_runtime_running_work_reattaches_without_duplicate_report_or_review</code></li><li><code>tests/test_runtime_lifecycle.py::test_runtime_unknown_model_result_is_retained_without_reinvocation</code></li><li><code>tests/test_core_conformance.py::test_CORE_4_team_work_report_citations_and_teamreview_are_core_records</code></li><li><code>tests/test_team_engine.py::test_roles_never_receive_paths_ids_or_digests</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-2" href="#ENH-2">ENH-2</a></td><td class="acc-example">Given the <code>synthesizer</code> submits an unlabeled, uncited claim, then the submission fails validation once, and if it fails again the Work ends unmet with no report written.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c4_enhance.py::validate_report</code><br><code>src/knowledgeos/roles.py::run_session</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_2_unlabeled_uncited_claim_fails_twice_and_nothing_is_written</code></li><li><code>tests/test_team_engine.py::test_team_handoff_failing_twice_fails_the_step_and_leaves_its_criteria_unmet</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-3" href="#ENH-3">ENH-3</a></td><td class="acc-example">Given the user edits the idea note while the Work runs, then the report cites the snapshot and states that the input changed.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c4_enhance.py::finish</code><br><code>src/knowledgeos/evidence.py::Evidence</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_3_edit_during_work_report_cites_snapshot_and_states_change</code></li></ul></details></td></tr>
-<tr><td class="acc-id"><a class="acc-id" id="ENH-4" href="#ENH-4">ENH-4</a></td><td class="acc-example">Given input notes with <code>ai_policy: ask</code> and <code>remote_ok</code>, then the report&#x27;s <code>ai_policy</code> is <code>ask</code>.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c4_enhance.py::finish</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_4_report_policy_is_the_strictest_input</code></li><li><code>tests/test_policy_boundaries.py::test_c4_local_role_keeps_local_only_access</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ENH-4" href="#ENH-4">ENH-4</a></td><td class="acc-example">Given input notes with <code>ai_policy: approve</code> and with no <code>ai_policy</code>, then the report&#x27;s <code>ai_policy</code> is <code>approve</code>.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c4_enhance.py::finish</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_4_report_policy_is_approve_for_approved_and_default_inputs</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-5" href="#ENH-5">ENH-5</a></td><td class="acc-example">Given an earlier report in <code>01_AI_Review/Reports/</code>, then no role&#x27;s search returns it.</td><td class="acc-impl"><code>src/knowledgeos/search.py::SearchIndex.visible</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_5_earlier_report_is_never_returned_to_roles</code></li><li><code>tests/test_c3_search.py::test_people_corpus_includes_reports_but_not_proposals_or_system</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-6" href="#ENH-6">ENH-6</a></td><td class="acc-example">Given the EvalOfficer finds the tensions unsupported, then the ThinkingManager composes one successor with <code>connector</code> and <code>synthesizer</code> addressing only that gap, and the final report comes from that successor.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._compose</code><br><code>src/knowledgeos/engine.py::Engine.compile_assessment</code><br><code>src/knowledgeos/temporal_workflow.py::WorkWorkflow</code></td><td class="acc-tests"><details><summary>테스트 7개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_6_unsupported_tensions_get_one_connector_synthesizer_successor</code></li><li><code>tests/test_team_engine.py::test_team_successor_is_limited_to_remaining_work_and_budget</code></li><li><code>tests/test_team_engine.py::test_team_budget_exhausted_ends_unmet_and_writes_nothing</code></li><li><code>tests/test_team_engine.py::test_team_invalid_graph_gets_one_corrective_turn</code></li><li><code>tests/test_team_engine.py::test_team_invalid_graph_twice_fails_without_a_segment</code></li><li><code>tests/test_core_conformance.py::test_CORE_4_team_work_report_citations_and_teamreview_are_core_records</code></li><li><code>tests/test_core_conformance.py::test_CORE_5_unmet_team_work_reports_remaining_work</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="ENH-7" href="#ENH-7">ENH-7</a></td><td class="acc-example">Given a completed Work, then a TeamReview exists that rates each producing teammate and changes no role, catalog entry or assessment.</td><td class="acc-impl"><code>src/knowledgeos/engine.py::Engine._team_review</code><br><code>src/knowledgeos/capabilities/c11_console.py::considered</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c4_enhance.py::test_ENH_7_teamreview_rates_each_producer_and_changes_nothing_else</code></li><li><code>tests/test_c11_console.py::test_SUR_4_teamreview_consideration_marks_only_the_selected_proposal</code></li><li><code>tests/test_c9_learning.py::test_LRN_manager_assessments_teamreview_and_synthesizer_edits</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="ENH-8" href="#ENH-8">ENH-8</a></td><td class="acc-example">Given System One is configured and a <code>develop</code> Work, when the <code>connector</code> calls <code>system_one</code> with choices and then without choices on a related note it read, then it gets a choice and a predicate answer computed from that note&#x27;s content, an unread handle answers <code>not_read</code> with nothing sent, the eleventh request in the step answers <code>limit_reached</code>, a note that turned <code>deny</code> answers <code>denied</code> with nothing sent, and no answer text appears in the report.</td><td class="acc-impl"><code>src/knowledgeos/role_questions.py::ask</code><br><code>src/knowledgeos/engine.py::Engine._run_model_step</code><br><code>src/knowledgeos/roles.py::tool_manifest</code></td><td class="acc-tests"><details><summary>테스트 4개</summary><ul><li><code>tests/test_c4_system_one.py::test_ENH_8_teammate_asks_choice_and_predicate_about_read_notes</code></li><li><code>tests/test_c4_system_one.py::test_ENH_8_denied_note_and_step_limit_send_nothing_more</code></li><li><code>tests/test_c1_system_one.py::test_linker_can_ask_system_one_about_a_read_note</code></li><li><code>tests/test_c1_system_one.py::test_ORG_7_cached_suggestion_is_withheld_after_policy_changes</code></li></ul></details></td></tr>
 </tbody></table></div>
-<h2 id="7-현재-상태와-남은-일">7. 현재 상태와 남은 일<a class="anchor" href="#7-현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
-<ul>
-<li><strong>명세 구현:</strong> 모든 인수 예시(ENH-1~7)는 추적표에 구현 심볼과 테스트 노드가 연결되어 있습니다. 현재 전체 인수 ID 61개와 추적표 61행·171개 pytest 노드의 연결은 <code>E_SIDEBAR_INLINE_TRACE</code>에 기록되어 있습니다(<a class="wikilink" href="status.html">현재 상태</a>). 이 추적 결과 자체가 전체 테스트 재실행이나 실환경 검증을 뜻하지는 않습니다.</li>
-<li><strong>실환경 근거:</strong> <code>E_REAL_ROLE_SMOKE</code>가 Obsidian에서 organize·enhance·자유 요청을 라벨 붙은 KOS smoke 노트 세 개에 실행해, director·managers·eval은 <code>gpt-6.1-sol</code>, teammate는 <code>gpt-6.1-terra</code> Hermes 세션으로 완료되고 제안 하나와 보고서 하나가 만들어졌음을 기록합니다. 이것은 합성 노트 기준 한 번의 확인입니다.</li>
-<li><strong>별도 실환경 기록이 없는 것:</strong> PROJECT_STATE는 실제 Vault에서 <code>ask</code>·<code>review</code> 모드나 EvalOfficer 후속 구간(ENH-6)을 따로 관찰한 기록을 담고 있지 않습니다. 이 위키에서 확인할 수 있는 근거는 계약 테스트이며, 기록 부재가 실행하지 않았다는 증거는 아닙니다.</li>
-<li><strong>열린 일:</strong> 현재 <code>PROJECT_STATE</code>의 인계(handoff)는 열린 정리 제안 검토, 시간별 규격화 관찰, <code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code> 조정이며, 강화에만 해당하는 열린 항목은 기록되어 있지 않습니다. <code>retriever</code>가 쓰는 관련 후보는 System One 이웃 거르기를 거칩니다(<a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c3.html#SRC-9">SRC-9</a>). Blueprint §9의 열린 질문(기본 <code>ai_policy</code>가 <code>ask</code>로 충분한지 등)은 강화에도 간접적으로 걸려 있습니다.</li>
-</ul>
-<p>전체 진행과 후속 과제는 <a class="wikilink" href="roadmap.html">로드맵</a>과 <a class="wikilink" href="status.html">현재 상태</a>에서 봅니다.</p>
-<h2 id="8-관련-기능">8. 관련 기능<a class="anchor" href="#8-관련-기능" aria-label="이 제목 링크">#</a></h2>
-<ul>
-<li><a class="wikilink" href="c3.html">C3</a> 검색: <code>retriever</code>가 C3를 통해 근거 후보를 모읍니다. 보고서는 역할 검색에서 제외됩니다(<a class="wikilink" href="#ENH-5">ENH-5</a>).</li>
-<li><a class="wikilink" href="c1.html">C1</a> 정리: 같은 Team 구조(Manager+teammate)를 쓰는 다른 Team이며, 제안을 만듭니다. 강화는 보고서를 만듭니다.</li>
-<li><a class="wikilink" href="c6.html">C6</a> 검토: 제안의 적용·거절은 C6의 일입니다. 강화 보고서는 제안이 아니어서 적용 단계가 없습니다.</li>
-<li><a class="wikilink" href="c9.html">C9</a> 학습: TeamReview와 보고서 편집·삭제가 <code>synthesizer</code> 등의 피드백이 됩니다(<a class="wikilink" href="#ENH-7">ENH-7</a>).</li>
-<li><a class="wikilink" href="c11.html">C11</a> 호출 화면: 사이드바와 명령으로 강화를 요청하고, 콘솔에서 Work와 TeamReview를 봅니다.</li>
-<li><a class="wikilink" href="c7.html">C7</a> 예약 작업: 예약 작업은 C1·C2·C3·C5만 시작하며 강화는 시작하지 않습니다.</li>
-</ul>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>c32a17ba1d767976</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

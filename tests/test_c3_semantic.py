@@ -10,14 +10,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import shutil
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from conftest import conforming_note, enhance_scripts, organize_scripts
 
-from knowledgeos.config import ROOT, ConfigError
+from knowledgeos.config import ConfigError
 
 IDEAS = "40_Knowledge/Ideas/"
 NOTES = "40_Knowledge/Notes/"
@@ -116,24 +115,12 @@ def semantic_kos(make_kos, ollama, model="fake-embed", **semantic):
     return make_kos(settings=semantic_settings(ollama, model, **semantic))
 
 
-def local_roles_control(tmp_path):
-    """A disposable control root whose model roles all run on a local route."""
-    control = tmp_path / "control"
-    shutil.copytree(ROOT / "config", control / "config")
-    shutil.copytree(ROOT / "roles", control / "roles")
-    declarations_path = control / "config/roles.json"
-    declarations = json.loads(declarations_path.read_text())
-    for declaration in declarations["roles"].values():
-        declaration["local"] = True
-    declarations_path.write_text(json.dumps(declarations))
-    return control
-
 
 def paths(result):
     return [item["path"] for item in result["results"]]
 
 
-def note(body: str, policy: str = "ask", kind: str = "idea", status: str = "seed", extra: str = "") -> str:
+def note(body: str, policy: str = "approve", kind: str = "idea", status: str = "seed", extra: str = "") -> str:
     return conforming_note(kind, status, body=body, extra=extra, policy=policy)
 
 
@@ -194,26 +181,27 @@ def test_SRC_6_ineligible_notes_are_never_embedded_and_dropped_when_they_become_
     kos = semantic_kos(make_kos, ollama)
     ineligible = {
         NOTES + "Denied.md": ("denymarker", note("denymarker alpha\n", policy="deny")),
+        NOTES + "Local.md": ("localmarker", note("localmarker body\n", policy="local_only")),
+        NOTES + "Legacy.md": ("legacymarker", note("legacymarker body\n", policy="ask")),
         "99_System/Templates/Tmpl.md": ("systemmarker", "systemmarker template\n"),
         "01_AI_Review/Proposals/P1.md": ("proposalmarker", note("proposalmarker one\n", kind="proposal", status="open")),
         NOTES + "Moved.md": ("movedmarker", note("movedmarker two\n", kind="proposal", status="open")),
         IDEAS + "Conflict.md": ("conflictmarker", "<<<<<<< HEAD\nconflictmarker ours\n=======\ntheirs\n>>>>>>> b\n"),
     }
     eligible = {
-        NOTES + "Local.md": ("localmarker", note("localmarker body\n", policy="local_only")),
         NOTES + "Confidential.md": (
             "confidentialmarker",
-            note("confidentialmarker body\n", policy="remote_ok", extra="sensitivity: confidential\n"),
+            note("confidentialmarker body\n", policy="approve", extra="sensitivity: confidential\n"),
         ),
         "01_AI_Review/Reports/Report.md": ("reportmarker", note("reportmarker body\n", kind="report", status="draft")),
         NOTES + "Ask.md": ("askmarker", note("askmarker body\n")),
-        NOTES + "Remote.md": ("remotemarker", note("remotemarker body\n", policy="remote_ok")),
+        NOTES + "Remote.md": ("remotemarker", note("remotemarker body\n", policy="approve")),
     }
     for path, (_, text) in {**ineligible, **eligible}.items():
         vault.write(path, text)
 
     run = kos.run("index.embed", {})
-    assert run["status"] == "completed" and run["outcome"]["embedded"] == 5, run
+    assert run["status"] == "completed" and run["outcome"]["embedded"] == 4, run
     sent = "\n".join(ollama.documents())
     for marker, _ in ineligible.values():
         assert marker not in sent, marker
@@ -223,7 +211,7 @@ def test_SRC_6_ineligible_notes_are_never_embedded_and_dropped_when_they_become_
         assert not set(paths(kos.search(mode="semantic", query=marker))) & set(ineligible), marker
     for path in eligible:
         assert not set(paths(kos.search(mode="related", path=path))) & set(ineligible), path
-    assert semantic_state(kos)["eligible"] == 5 and semantic_state(kos)["extra"] == 0
+    assert semantic_state(kos)["eligible"] == 4 and semantic_state(kos)["extra"] == 0
 
     sent_before = len(ollama.documents())
     vault.write(NOTES + "Remote.md", note("remotemarker body\n", policy="deny"))
@@ -235,7 +223,7 @@ def test_SRC_6_ineligible_notes_are_never_embedded_and_dropped_when_they_become_
     for query in ("remotemarker body", "askmarker body"):
         assert not {NOTES + "Remote.md", NOTES + "Ask.md"} & set(paths(kos.search(mode="semantic", query=query)))
     assert kos.run("index.embed", {})["work_id"] is None
-    assert semantic_state(kos)["embedded"] == 3
+    assert semantic_state(kos)["embedded"] == 2
 
 
 def test_SRC_7_semantic_results_rank_by_similarity_with_chunk_locators(make_kos, ollama, vault):
@@ -271,11 +259,11 @@ BASE = "garden soil tomato plants water"
 
 
 def write_neighbors(vault):
-    """Notes near ``BASE`` under every policy: remote_ok, ask, local_only, a report and a deny note."""
-    vault.write(NOTES + "Remote.md", note(BASE + " remote\n", policy="remote_ok", kind="knowledge", status="draft"))
+    """Approved and retired-policy neighbors, plus report and denied-note exclusions."""
+    vault.write(NOTES + "Remote.md", note(BASE + " remote\n", policy="approve", kind="knowledge", status="draft"))
     vault.write(NOTES + "Ask.md", note(BASE + " ask\n", kind="knowledge", status="draft"))
     vault.write(NOTES + "Local.md", note(BASE + " local\n", policy="local_only", kind="knowledge", status="draft"))
-    vault.write("01_AI_Review/Reports/Rep.md", note(BASE + " report\n", policy="remote_ok", kind="report", status="draft"))
+    vault.write("01_AI_Review/Reports/Rep.md", note(BASE + " report\n", policy="approve", kind="report", status="draft"))
     vault.write(NOTES + "Secret.md", note(BASE + " secret\n", policy="deny", kind="knowledge", status="draft"))
 
 
@@ -293,13 +281,13 @@ def test_SRC_7_people_and_gateway_search_keep_their_audiences(make_kos, ollama, 
     }}}
     kos = make_kos(settings=settings)
     focal = NOTES + "Focal.md"
-    vault.write(focal, note(BASE + " focal\n", policy="remote_ok", kind="knowledge", status="draft"))
+    vault.write(focal, note(BASE + " focal\n", policy="approve", kind="knowledge", status="draft"))
     write_neighbors(vault)
-    assert kos.run("index.embed", {})["outcome"]["embedded"] == 5
+    assert kos.run("index.embed", {})["outcome"]["embedded"] == 4
 
     related = kos.search(mode="related", path=focal)
     assert {item["path"]: item["reasons"] for item in related["results"]} == {
-        NOTES + "Remote.md": ["semantic"], NOTES + "Ask.md": ["semantic"], NOTES + "Local.md": ["semantic"],
+        NOTES + "Remote.md": ["semantic"], NOTES + "Ask.md": ["semantic"],
         "01_AI_Review/Reports/Rep.md": ["semantic"],
     }
     assert all(item["line"] >= 8 for item in related["results"])
@@ -308,26 +296,23 @@ def test_SRC_7_people_and_gateway_search_keep_their_audiences(make_kos, ollama, 
         "sender_operation_id": "research", "purpose": "consultation", "query": "garden soil tomato",
     })
     assert status == 200, exported
-    assert sorted(paths(exported)) == [focal, NOTES + "Remote.md"]
+    assert sorted(paths(exported)) == sorted([focal, NOTES + "Ask.md", NOTES + "Remote.md"])
 
 
-@pytest.mark.parametrize("local", [False, True])
-def test_SRC_7_scheduled_curation_role_tools_get_only_remote_ok_semantic_neighbors(
-    make_kos, ollama, vault, tmp_path, local,
+def test_SRC_7_scheduled_curation_role_tools_get_only_approve_semantic_neighbors(
+    make_kos, ollama, vault,
 ):
     target = "00_Inbox/Target.md"
-    vault.write(target, conforming_note("capture", "unprocessed", policy="remote_ok", body=BASE + " target\n"))
+    vault.write(target, conforming_note("capture", "unprocessed", policy="approve", body=BASE + " target\n"))
     write_neighbors(vault)
-    roles = {"root": local_roles_control(tmp_path)} if local else {}
-    kos = make_kos(settings=semantic_settings(ollama), **roles)
-    assert kos.run("index.embed", {})["outcome"]["embedded"] == 5
+    kos = make_kos(settings=semantic_settings(ollama))
+    assert kos.run("index.embed", {})["outcome"]["embedded"] == 4
 
     organize_scripts(kos.runner)
     seen = {}
     original = kos.runner.scripts["linker"]
 
     def linker(session):
-        assert session.binding.local is local
         context = session.call("work_context")
         seen["related"] = session.call("related", handle=context["targets"][0]["target"])
         seen["search"] = session.call("search", query="garden soil tomato")
@@ -336,31 +321,28 @@ def test_SRC_7_scheduled_curation_role_tools_get_only_remote_ok_semantic_neighbo
     kos.runner.script("linker", linker)
     receipt = kos.run("organize.auto", {}, actor="schedule/curate")
     assert receipt["status"] == "completed", receipt
-    assert neighbors(seen["related"]) == ["Remote"]
+    assert neighbors(seen["related"]) == ["Ask", "Remote"]
     assert seen["search"]["status"] == "ok"
-    assert sorted(item["title"] for item in seen["search"]["results"]) == ["Remote", "Target"]
+    assert sorted(item["title"] for item in seen["search"]["results"]) == ["Ask", "Remote", "Target"]
     work = kos.get(f"/api/works/{receipt['work_id']}")[1]
     assert work["workspec"]["origin"] == "schedule"
-    assert {entry["path"] for entry in work["evidence"].values()} == {target, NOTES + "Remote.md"}
+    assert {entry["path"] for entry in work["evidence"].values()} == {target, NOTES + "Ask.md", NOTES + "Remote.md"}
 
 
-@pytest.mark.parametrize("local", [False, True])
-def test_SRC_7_user_work_role_tools_get_semantic_neighbors_by_route_and_policy(
-    make_kos, ollama, vault, tmp_path, local,
+def test_SRC_7_user_work_role_tools_get_only_approve_semantic_neighbors(
+    make_kos, ollama, vault,
 ):
     focal = NOTES + "Focal.md"
     vault.write(focal, note(BASE + " focal\n", kind="knowledge", status="draft"))
     write_neighbors(vault)
-    roles = {"root": local_roles_control(tmp_path)} if local else {}
-    kos = make_kos(settings=semantic_settings(ollama), **roles)
-    assert kos.run("index.embed", {})["outcome"]["embedded"] == 5
+    kos = make_kos(settings=semantic_settings(ollama))
+    assert kos.run("index.embed", {})["outcome"]["embedded"] == 4
 
     enhance_scripts(kos.runner)
     seen = {}
     original = kos.runner.scripts["connector"]
 
     def connector(session):
-        assert session.binding.local is local
         context = session.call("work_context")
         seen["related"] = session.call("related", handle=context["focus"]["handles"][0])
         seen["search"] = session.call("search", query="garden soil tomato")
@@ -369,12 +351,9 @@ def test_SRC_7_user_work_role_tools_get_semantic_neighbors_by_route_and_policy(
     kos.runner.script("connector", connector)
     receipt = kos.run("enhance", {"mode": "develop", "path": focal})
     assert receipt["status"] == "completed", receipt
-    # ask notes are readable by user Work, local_only only on a local route; never a report or deny note
-    assert neighbors(seen["related"]) == (["Ask", "Local", "Remote"] if local else ["Ask", "Remote"])
+    assert neighbors(seen["related"]) == ["Ask", "Remote"]
     assert seen["search"]["status"] == "ok"
-    assert sorted(item["title"] for item in seen["search"]["results"]) == (
-        ["Ask", "Focal", "Local", "Remote"] if local else ["Ask", "Focal", "Remote"]
-    )
+    assert sorted(item["title"] for item in seen["search"]["results"]) == ["Ask", "Focal", "Remote"]
 
 
 def test_SRC_8_service_down_fails_visibly_keeps_vectors_and_resumes_incrementally(make_kos, ollama, vault):

@@ -56,7 +56,7 @@ def _note(adm):
     note = adm.owner.vault.read(path)
     if note is None:
         adm.refuse("note no longer exists; read the original request receipt for its outcome")
-    if effective(note, adm.owner.config.default_policy) == "deny":
+    if effective(note) == "deny":
         adm.refuse("ai_policy deny")
     if not note.valid or note.conflict:
         adm.refuse("invalid or conflict-marked note")
@@ -184,7 +184,7 @@ def apply(adm):
 def _apply(adm, effects, note, proposal):
     path = target_path(adm.owner, proposal)
     target = adm.owner.vault.read(path) if path else None
-    if target is None or target.sha != proposal.target_sha or effective(target, adm.owner.config.default_policy) == "deny":
+    if target is None or target.sha != proposal.target_sha or effective(target) == "deny":
         return _stale(adm, effects, note, proposal)
     if not target.valid or target.conflict or Vault.ignored(path) or Vault.system(path) or Vault.review(path) or path.startswith(RESERVED_REQUESTS):
         return Done(status="refused", outcome={"state": "not_applied"}, notice="Target is invalid, conflict-marked or reserved; nothing applied")

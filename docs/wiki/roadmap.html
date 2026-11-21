@@ -12,26 +12,69 @@
 <header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
 <div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
 <div class="layout">
-<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html" aria-current="page">로드맵</a></li></ul></div></nav>
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html" aria-current="page">로드맵</a></li></ul></div></nav>
 <main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>현황</span> › <span aria-current="page">로드맵</span></nav>
 <article class="page">
-<h1 id="top">로드맵: 막힘 · 시작 전 · 후속 과제</h1>
-<p>이 페이지는 <strong>무엇이 막혀 있고, 무엇이 아직 시작 전이며, 다음에 무엇을 할 것인가</strong>를 한곳에 모읍니다. 이미 되어 있는 것과 그 근거는 <a class="wikilink" href="status.html">현재 상태</a>에 있습니다.</p>
+<h1 id="top">남은 확인과 아직 만들지 않은 기능</h1>
+<p>현재 남은 일은 기능 자체의 설명과 분리해 이곳에 모읍니다. <strong>구현되어 있지만 실제 사용을 더 봐야 하는 일</strong>과 <strong>아직 구현하지 않은 모바일 요청 기능</strong>은 다릅니다. 완료 근거는 <a class="wikilink" href="status.html">현재 상태</a>에서 확인할 수 있습니다.</p>
+<h2 id="다음에-이어갈-일">다음에 이어갈 일<a class="anchor" href="#다음에-이어갈-일" aria-label="이 제목 링크">#</a></h2>
+<p>현재 인계 기록은 다음과 같습니다.</p>
+<div class="table-wrap"><table class="state state-handoff">
+<thead><tr>
+<th>#</th>
+<th>상태</th>
+<th>다음 작업</th>
+</tr></thead><tbody>
+<tr id="handoff-1"><td>1</td><td><span class="badge badge-incomplete">incomplete</span></td><td>Open Home and the Tasks dashboard in Obsidian to confirm daily tasks render and forwarded items stay hidden then review the open organize proposal and tune related_min_score related_min_probability and min_confidence against real notes</td></tr>
+</tbody></table></div>
+<p>읽기 쉽게 풀면 세 가지입니다.</p>
+<ol>
+<li><strong>Home·Tasks 화면 확인.</strong> 데일리의 기한 없는 할 일이 실제 Obsidian 보기에서 나타나고, 과거 노트의 <code>[&gt;]</code> 이월 항목은 숨겨지는지 확인합니다. 파일 처리와 Discord 전달은 실행 기록이 있지만 최신 보기의 장치 관찰은 남아 있습니다(<a class="wikilink" href="status.html#E_HOME_TASKS_DEVICE">E_HOME_TASKS_DEVICE</a>, <a class="wikilink" href="c12.html">C12</a>).</li>
+<li><strong>열린 정리 제안의 사용자 검토.</strong> 제안을 적용할지 거절할지는 사용자가 결정합니다. 에이전트가 문서를 정비한다는 이유로 대신 결정하지 않습니다(<a class="wikilink" href="c6.html">C6</a>).</li>
+<li><strong>관련 노트·선택 질문 문턱 조정.</strong> <code>related_min_score</code>, <code>related_min_probability</code>, <code>min_confidence</code>를 실제 노트 결과와 비교합니다. 각각 벡터 후보 문턱, 관련성 판단 확률 문턱, 선택형 답의 채택 문턱입니다(<a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c2.html">C2</a>).</li>
+</ol>
+<h2 id="별도-실행-근거가-필요한-경로">별도 실행 근거가 필요한 경로<a class="anchor" href="#별도-실행-근거가-필요한-경로" aria-label="이 제목 링크">#</a></h2>
+<p>먼저 <strong>공유 System One의 선택지 배열 전달</strong>을 바로잡을 필요가 있습니다. 내부 도구는 선택지 목록을 받지만 Hermes→Owner의 HTTP 검사는 현재 배열을 거절합니다. 문자열·객체·정수와 구별해 배열을 검사하고, 실제 도구 HTTP 경계를 지나는 검증을 추가하는 것이 다음 구현 범위입니다. 이번에는 소스 대조만 했고 동작은 바꾸지 않았습니다(<a class="wikilink" href="status.html">현재 상태</a>).</p>
+<p>공개 인터페이스 테스트가 있어도 다음 실환경 근거까지 생긴 것은 아닙니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>구분</th>
-<th>뜻</th>
-<th>이 페이지의 절</th>
+<th>확인할 경로</th>
+<th>지금 구별해야 할 한계</th>
 </tr></thead><tbody>
-<tr><td><strong>막힘</strong></td><td>진행을 막는 것으로 기록된 일</td><td>지금 막힌 것</td></tr>
-<tr><td><strong>인계</strong></td><td>다음 세션이 이어받을 일</td><td>다음 세션이 이어받을 일</td></tr>
-<tr><td><strong>미확인</strong></td><td>이 종류의 증거가 아직 없는 것</td><td>아직 확인하지 못한 것</td></tr>
-<tr><td><strong>열린 질문</strong></td><td>명세가 아직 정하지 않은 것</td><td>Blueprint §9의 열린 질문</td></tr>
-<tr><td><strong>시작 전</strong></td><td>명세에 자리만 잡아 둔 모바일 후속</td><td>시작 전: 모바일 후속 과제</td></tr>
-<tr><td><strong>후속 구현 과제</strong></td><td>위를 한 목록으로 모으고 출처를 단 것</td><td>후속 구현 과제</td></tr>
+<tr><td>공유 System One 도구를 쓰는 네 모델 팀원</td><td>도구 설치·집중 테스트는 있으나 <code>linker</code>·<code>connector</code>·<code>challenger</code>·<code>synthesizer</code>의 새 실제 모델 호출은 미실행(<a class="wikilink" href="status.html#E_SHARED_SYSTEM_ONE_MODELS">E_SHARED_SYSTEM_ONE_MODELS</a>)</td></tr>
+<tr><td>기본 다섯 작업의 자연 실행과 지속 사용</td><td>임시 예약 슬롯·수동 실행·따라잡기 기록이 모든 기본 시각의 장기 관찰은 아님</td></tr>
+<tr><td>문서 관리의 상태·보관 제안</td><td>실제 System One 상태 제안과 실제 Bases 사용 관찰은 별도</td></tr>
+<tr><td>제안 거절·낡은 제안·자동 변경 되돌리기</td><td>실제 제안 적용 기록이 이 분기들까지 증명하지 않음</td></tr>
+<tr><td>Gateway의 다른 Operation과의 왕복</td><td>구현·테스트와 실제 송신자/수신자 연동은 별개</td></tr>
+<tr><td>HermesTrace 수신기</td><td>로컬 사건·Candidate 생성과 실제 수신 확인은 별개</td></tr>
+<tr><td>충돌·효과 결과 불명의 즉시 Discord 전달</td><td>요약·데일리 메시지 전달이 즉시 경고 조건의 실행 근거는 아님</td></tr>
+<tr><td>실제 Owner의 관리 콘솔</td><td>기존 브라우저 관찰은 일회용 합성 환경</td></tr>
 </tbody></table></div>
-<h2 id="지금-막힌-것">지금 막힌 것<a class="anchor" href="#지금-막힌-것" aria-label="이 제목 링크">#</a></h2>
-<p><code>PROJECT_STATE.md</code>의 막힘(blocker) 기록입니다. <code>state</code>가 <code>resolved</code>이면 해결된 기록이며, 이력으로 남겨 둔 것입니다. <strong>열린 막힘이 없다면 모든 행이 <code>resolved</code>입니다.</strong></p>
+<p>과거 Gemma 분류의 시간 초과나 사이드바 1.1.0의 팝업 미확인은 당시 구성의 이력입니다. 현재 분류기는 Terra high이고, 사이드바는 인라인 방식입니다. 과거 구성을 다시 검증하는 일을 현재 과제로 만들지 않습니다.</p>
+<h2 id="실제-사용으로-정할-세-가지">실제 사용으로 정할 세 가지<a class="anchor" href="#실제-사용으로-정할-세-가지" aria-label="이 제목 링크">#</a></h2>
+<p>Blueprint §9에 남아 있는 열린 질문입니다.</p>
+<ul>
+<li><strong>검색 품질:</strong> 기본 관련성 점수와 이웃 수가 실제 노트에서 적절한가.</li>
+<li><strong>예약 주기:</strong> 지금의 다섯 작업 시각·주기가 실제 사용에 맞는가.</li>
+<li><strong>보기 도구:</strong> 문서 관리에 Obsidian 코어 Bases만으로 충분한가.</li>
+</ul>
+<p>이는 기능이 없다는 뜻이 아니라 기본값과 도구 선택의 적합성을 평가하는 일입니다. <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md#9-open-questions-and-follow-ups">Blueprint의 열린 질문</a>이 원본입니다.</p>
+<h2 id="아직-구현하지-않은-모바일-요청-기능">아직 구현하지 않은 모바일 요청 기능<a class="anchor" href="#아직-구현하지-않은-모바일-요청-기능" aria-label="이 제목 링크">#</a></h2>
+<p>현재 모바일에서는 Obsidian으로 노트를 쓰고 Working Copy 등으로 동기화합니다. Mac이 그 파일을 받은 뒤 기존 예약 작업이 처리하는 흐름은 사용할 수 있지만, <strong>모바일에 요청 표시를 붙여 KnowledgeOS를 호출하는 아래 경로는 아직 비활성</strong>입니다.</p>
+<div class="table-wrap"><table>
+<thead><tr>
+<th>후속 기능</th>
+<th>만들려는 것</th>
+<th>시작 전에 정할 것</th>
+</tr></thead><tbody>
+<tr><td>M1 템플릿·동기화 단축어</td><td>Apple 단축어로 표준 노트를 만들고 Working Copy 동기화를 실행</td><td>생성 노트가 규격화 계약을 만족하는 인수 기준</td></tr>
+<tr><td>M2 Vault를 통한 요청</td><td><code>kos_request</code> 또는 <code>00_Inbox/Requests/</code>를 Mac이 읽어 접수</td><td>기기 간 요청 신원, 중복 방지, 결과 알림</td></tr>
+<tr><td>M3 GitHub Actions</td><td>push된 노트의 YAML·충돌·중복 ID를 결정적으로 검사</td><td>결과 전달 방식; Git 작성자를 늘릴 경우 계약 개정</td></tr>
+</tbody></table></div>
+<p>M2의 속성과 폴더는 예약만 되어 있습니다. 지금 노트에 표시를 적는다고 요청이 실행되지는 않습니다. 모바일 전용 KnowledgeOS 앱, 원격 관리 API 개방, Actions의 모델 호출이나 자격 증명 보관을 이 계획에 포함하지 않습니다.</p>
+<p>원본 범위는 <a class="repo" href="../CAPABILITIES.md#follow-up-mobile">기능 명세의 모바일 후속</a>과 <a class="repo" href="../../USER_FEATURE_SPEC.md#모바일">사용자 모바일 흐름</a>에서 확인할 수 있습니다.</p>
+<h2 id="막힘-기록">막힘 기록<a class="anchor" href="#막힘-기록" aria-label="이 제목 링크">#</a></h2>
+<p>아래는 PROJECT_STATE의 blocker 기록입니다. 해결된 행은 과거 장애가 해소되었음을 뜻하며 현재 작업을 막는 것으로 읽지 않습니다.</p>
 <div class="table-wrap"><table class="state state-blockers">
 <thead><tr>
 <th>ID</th>
@@ -43,212 +86,9 @@
 <tr id="B_C9_TEAMREVIEW_CATEGORY"><td><code>B_C9_TEAMREVIEW_CATEGORY</code></td><td><span class="badge badge-resolved">resolved</span></td><td>Keep ordinary TeamReview proposals local and extract Candidates only from genuinely eligible events under existing Core categories</td><td><code>user_request</code></td></tr>
 <tr id="B_DISCORD_TOKEN"><td><code>B_DISCORD_TOKEN</code></td><td><span class="badge badge-resolved">resolved</span></td><td>Invite the KnowledgeOS bot to the server and grant View Channel and Send Messages on the configured channel</td><td><code>user_request</code></td></tr>
 </tbody></table></div>
-<p><strong>과거의 미확인 기록</strong>도 남아 있습니다. 사이드바 1.1.0의 macOS 기본 팝업 메뉴는 접근성 자동화가 거부되고 렌더러 DOM에도 나타나지 않아 확인하지 못했습니다(<a class="wikilink" href="status.html#E_SIDEBAR_NATIVE_MENUS">E_SIDEBAR_NATIVE_MENUS</a>, blocked). 이 이력은 지우지 않습니다. 현재 1.2.0은 팝업 대신 인라인 입력·검색 결과·미리보기 결정을 사용하며(<a class="wikilink" href="status.html#D_SIDEBAR_INLINE">D_SIDEBAR_INLINE</a>), 실제 Obsidian에서 인라인 기능과 의미 검색 결과 7개, 밝은/어두운 테마와 242px 레이아웃을 확인했습니다(<a class="wikilink" href="status.html#E_SIDEBAR_INLINE_GUI">E_SIDEBAR_INLINE_GUI</a>). 따라서 과거 팝업의 검증을 현재 UI의 후속 과제로 두지 않습니다.</p>
-<h2 id="다음-세션이-이어받을-일">다음 세션이 이어받을 일<a class="anchor" href="#다음-세션이-이어받을-일" aria-label="이 제목 링크">#</a></h2>
-<p><code>PROJECT_STATE.md</code>의 인계(handoff) 기록입니다.</p>
-<div class="table-wrap"><table class="state state-handoff">
-<thead><tr>
-<th>#</th>
-<th>상태</th>
-<th>다음 작업</th>
-</tr></thead><tbody>
-<tr id="handoff-1"><td>1</td><td><span class="badge badge-incomplete">incomplete</span></td><td>Review the open organize proposal for the KOS generation effect smoke note observe the first natural hourly standardize run with System One and tune related_min_score related_min_probability and min_confidence against real notes</td></tr>
-</tbody></table></div>
-<p>풀어 쓰면 세 가지입니다.</p>
-<ol>
-<li><strong>열린 정리 제안 검토</strong>: 실제 Obsidian 사이드바의 <strong>정리</strong>가 만든 <code>01_AI_Review/Proposals/KOS 점검 - 생성 효과 — organize.md</code>가 사용자의 적용·거절을 기다립니다(<a class="wikilink" href="status.html#E_SYSTEM_ONE_CLIENT_GUI">E_SYSTEM_ONE_CLIENT_GUI</a>). 결정은 사용자가 <a class="wikilink" href="c6.html">C6</a>에서 합니다.</li>
-<li><strong>첫 자연 실행 관찰</strong>: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다(<a class="wikilink" href="status.html#E_REAL_SCHEDULER_SLOT">E_REAL_SCHEDULER_SLOT</a>). Owner가 켜져 있는 동안 선언된 <code>standardize</code>(매시 정각)가 System One과 함께 제 시각에 저절로 도는지 지켜봅니다. 설명은 <a class="wikilink" href="c7.html">C7</a>, 방법은 <a class="wikilink" href="usage.html">사용 가이드</a>를 보세요.</li>
-<li><strong>임계값 조정</strong>: 관련 노트에 의미 이웃을 올리는 <code>related_min_score</code>(기본 0.5), System One이 이웃을 거르는 <code>related_min_probability</code>(기본 0.5), 선택 질문의 <code>min_confidence</code>(기본 0.7)는 모두 실제 노트로 보고 알맞게 고칠 시작값입니다(<a class="wikilink" href="c3.html">C3</a>, <a class="wikilink" href="c2.html">C2</a>).</li>
-</ol>
-<h2 id="아직-확인하지-못한-것">아직 확인하지 못한 것<a class="anchor" href="#아직-확인하지-못한-것" aria-label="이 제목 링크">#</a></h2>
-<p>&quot;실패했다&quot;가 아니라 <strong>&quot;이 종류의 증거가 아직 <code>PROJECT_STATE.md</code>에 없다&quot;</strong>는 뜻입니다. 기록이 없다는 점은 사실이지만, 실제로 일어났는지는 [해석]으로 남습니다. 근거의 종류는 <a class="wikilink" href="status.html">현재 상태</a>의 &quot;근거의 종류&quot;를 보세요.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>아직 확인하지 못한 것</th>
-<th>지금 있는 기록</th>
-<th>출처</th>
-</tr></thead><tbody>
-<tr><td>선언된 예약 작업(<code>standardize</code> 매시 정각, <code>embed</code> 매시 30분)의 자연 실행</td><td>임시 작업의 슬롯 실행 1회</td><td>인계 기록, <code>E_REAL_SCHEDULER_SLOT</code></td></tr>
-<tr><td>예약 <code>curate</code>(06:00)·<code>digest</code>(08:00)의 자연 실행</td><td>기록 없음 [해석: 임시 작업과 수동 요약 전달만 있음]</td><td><code>PROJECT_STATE.md</code></td></tr>
-<tr><td>실제 HermesTrace 수신기와의 연동</td><td>README가 &quot;별도로 확인해야 한다&quot;고 한 항목이며 기록 없음</td><td>README &quot;검증 범위&quot;, <a class="wikilink" href="c9.html">C9</a></td></tr>
-<tr><td>즉시 알림(충돌·결과 불명·작업 실패)의 실제 Discord 전달</td><td>요약 알림 1건 전달만 있음</td><td><code>E_DISCORD_DELIVERED</code></td></tr>
-<tr><td>Gateway(<a class="wikilink" href="c10.html">C10</a>)의 실제 다른 Operation과의 송수신</td><td>기록 없음(테스트만)</td><td>추적표, <code>PROJECT_STATE.md</code></td></tr>
-<tr><td>실제 Owner의 관리 콘솔 사용</td><td>일회용 합성 환경의 콘솔 관찰만 있음</td><td><code>E_CONSOLE_BROWSER</code></td></tr>
-<tr><td>제안 거절·낡은 제안·자동 변경 되돌리기의 실제 사용</td><td>제안 적용 1건만 있음</td><td><code>E_USER_PROPOSAL_APPLY</code></td></tr>
-<tr><td>모델 응답의 품질·꾸준함</td><td>모든 모델 역할을 스모크 노트 세 개로 한 번씩 돌린 기록</td><td><code>E_REAL_ROLE_SMOKE</code></td></tr>
-<tr><td>System One의 문서 관리 상태 제안(DOC-5)·자동 <code>standardize</code> 값 쓰기·예약 <code>curate</code>의 힌트</td><td>실제 호출은 규격화 수동 미리보기, 자유 요청 거름, 관련 노트 거르기, 사이드바 정리 한 번(힌트 기록)만 있음</td><td><code>E_SYSTEM_ONE_LIVE</code>, <code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
-<tr><td>1.3.0 사이드바의 관련 노트·의미 검색 화면과 화면 잠금 없는 시각 확인</td><td>규격화 미리보기만 사이드바 영역의 CDP 렌더로 관찰(macOS 화면이 잠겨 있었음)</td><td><code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
-<tr><td>모바일 흐름 M1~M3</td><td>시작 전</td><td>명세의 모바일 후속</td></tr>
-</tbody></table></div>
-<div class="callout callout-note">
-<p class="callout-title">참고</p>
-<p>추적표 문서의 머리말은 &quot;네이티브 Hermes/모델 호출, 실제 Discord, 실제 Owner 서비스 배포, Obsidian/장치 검증은 돌리지 않았다&quot;고 적습니다. 그 문장은 <strong>추적표가 가리키는 테스트</strong>에 대한 것이고, 그중 일부는 이후 실제 환경 스모크로 확인되었습니다(<a class="wikilink" href="status.html">현재 상태</a>). 위 표는 <strong>지금도</strong> 기록이 없는 것만 남겼습니다.</p>
-</div>
-<h2 id="blueprint-9의-열린-질문">Blueprint §9의 열린 질문<a class="anchor" href="#blueprint-9의-열린-질문" aria-label="이 제목 링크">#</a></h2>
-<p>명세가 아직 정하지 않은 것입니다. 실제 사용으로 답이 나면 같은 세션에서 §9에서 <strong>지웁니다</strong>(<a class="wikilink" href="philosophy.html">운용 원칙</a>).</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 9. Open questions and follow-ups</header>
-<h3 id="9-open-questions-and-follow-ups">9. Open questions and follow-ups<a class="anchor" href="#9-open-questions-and-follow-ups" aria-label="이 제목 링크">#</a></h3>
-<p>Open questions:</p>
-<ul>
-<li><strong>Semantic ranking.</strong> Whether the default <code>related_min_score</code> and neighbor count in capability C3 match real notes.</li>
-<li><strong>Default <code>ai_policy</code>.</strong> Whether <code>ask</code> remains the right default once scheduled curation is in use.</li>
-<li><strong>Schedules.</strong> Whether the default job intervals in capability C7 match actual use.</li>
-<li><strong>Plugin choices.</strong> Whether core Bases suffices for document management views or a further community plugin is worth adopting.</li>
-</ul>
-<p>Follow-up M (mobile; specified when started, see <code>docs/CAPABILITIES.md</code> follow-ups):</p>
-<ul>
-<li><strong>M1 Templates and sync shortcuts.</strong> Apple Shortcuts that create notes from the Vault templates with conforming frontmatter and drive Working Copy pull, commit and push.</li>
-<li><strong>M2 Vault-borne requests.</strong> Mobile marks a note with <code>kos_request</code>, or adds a request note in <code>00_Inbox/Requests/</code>. The Mac KnowledgeOS admits it after the next pull and writes results that sync back.</li>
-<li><strong>M3 GitHub Actions.</strong> Possible deterministic checks on push (YAML validity, conflict markers, duplicate IDs) reported back to the user. Any Action that commits makes it another Git writer and requires a revision of §5.7. Actions never call models and receive no KnowledgeOS credentials.</li>
-</ul>
-</section>
-<p>각 질문이 무엇을 기다리는지 한 줄씩 풀면 [해석]:</p>
-<ul>
-<li><strong>Semantic ranking</strong>: 위 인계 3번과 같은 일입니다. 실제 노트로 <code>related_min_score</code>·<code>related_min_probability</code>와 이웃 수를 보고 정합니다.</li>
-<li><strong>Default <code>ai_policy</code></strong>: 예약 정리(<code>curate</code>)를 실제로 쓰기 시작한 뒤에야 <code>ask</code>가 맞는 기본값인지 판단할 수 있습니다. <code>ask</code> 노트는 예약 작업의 모델에게 보이지 않습니다(<a class="wikilink" href="c1.html#ORG-3">ORG-3</a>).</li>
-<li><strong>Schedules</strong>: 선언된 주기가 실제 사용과 맞는지는 자연 실행을 지켜본 뒤 판단합니다(<a class="wikilink" href="c7.html">C7</a>).</li>
-<li><strong>Plugin choices</strong>: Obsidian 코어 Bases만으로 문서 관리 목록이 충분한지, 다른 커뮤니티 플러그인이 필요한지(<a class="wikilink" href="c5.html">C5</a>).</li>
-</ul>
-<h2 id="시작-전-모바일-후속-과제">시작 전: 모바일 후속 과제<a class="anchor" href="#시작-전-모바일-후속-과제" aria-label="이 제목 링크">#</a></h2>
-<p>모바일에서도 처리는 <strong>언제나 Mac의 KnowledgeOS</strong>가 합니다. 모바일은 만들고, 고치고, 표시하고, 동기화만 합니다. 아래 세 가지(M1~M3)는 <strong>시작 전</strong>이며 명세는 시작할 때 구체화합니다. 모바일 전용 KnowledgeOS 앱은 하지 않기로 한 범위 밖입니다(<a class="wikilink" href="philosophy.html">운용 원칙</a>).</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · Follow-up: mobile</header>
-<h3 id="follow-up-mobile">Follow-up: mobile<a class="anchor" href="#follow-up-mobile" aria-label="이 제목 링크">#</a></h3>
-<p>These are reserved and specified when started. Processing always happens in the Mac KnowledgeOS. Mobile only creates, edits, marks and syncs.</p>
-<ul>
-<li><strong>M1 Templates and sync shortcuts.</strong> Apple Shortcuts create capture, idea and question notes from the Vault templates, with conforming frontmatter including <code>id</code>, and drive Working Copy pull, commit and push. Acceptance to be written: a Shortcut-created note passes STD-7.</li>
-<li><strong>M2 Vault-borne requests.</strong> A note marked <code>kos_request: &lt;capability[:mode]&gt;</code>, or a request note in <code>00_Inbox/Requests/</code>, is admitted by the Director after the Mac pulls. Results are written as usual, and the request marker is cleared through the C2 write path. To decide: request identity across devices, duplicate marks, and how the result is announced (digest or alert).</li>
-<li><strong>M3 GitHub Actions.</strong> Candidates are deterministic checks on push (YAML validity, conflict markers, duplicate IDs) reported as a check status or issue. Constraints: no model calls, no KnowledgeOS credentials, and no commits unless Blueprint §5.7 is revised to admit a second Git writer.</li>
-</ul>
-</section>
-<p>쉬운 말로 정리하면 이렇습니다.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>과제</th>
-<th>무엇</th>
-<th>아직 정해야 할 것 (원본)</th>
-</tr></thead><tbody>
-<tr><td><strong>M1 템플릿·동기화 단축어</strong></td><td>Apple 단축어로 포착·아이디어·질문 노트를 Vault 템플릿에서 만들고 Working Copy의 pull·commit·push를 구동</td><td>인수 기준을 써야 함: 단축어로 만든 노트가 <a class="wikilink" href="c2.html#STD-7">STD-7</a>을 통과해야 함</td></tr>
-<tr><td><strong>M2 Vault를 통한 요청</strong></td><td>노트에 <code>kos_request: &lt;기능[:모드]&gt;</code>를 표시하거나 <code>00_Inbox/Requests/</code>에 요청 노트를 두면, Mac이 pull한 뒤 Director가 접수. 결과는 평소처럼 쓰이고 요청 표시는 규격화 쓰기 경로로 지움</td><td>기기 간 요청 신원, 중복 표시, 결과를 요약으로 알릴지 즉시 알림으로 알릴지</td></tr>
-<tr><td><strong>M3 GitHub Actions</strong></td><td>push 때의 결정적 점검(YAML 유효성, 충돌 표시, 중복 ID)을 점검 상태나 이슈로 보고</td><td>제약: 모델 호출 없음, KnowledgeOS 자격 증명 없음, Blueprint §5.7을 고쳐 두 번째 Git 작성자를 인정하기 전에는 commit 없음</td></tr>
-</tbody></table></div>
-<p><code>kos_request</code> 속성과 <code>00_Inbox/Requests/</code> 폴더는 이 용도로 <strong>예약</strong>되어 있어 비활성이며, 다른 용도로 쓰지 않습니다. 지금 모바일에서 하는 일(Obsidian으로 쓰고 Working Copy로 동기화하면 Mac이 예약 작업으로 규격화·정리)은 아래 원문의 &quot;지금&quot; 부분입니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC.md</a> · 모바일</header>
-<h3 id="모바일">모바일<a class="anchor" href="#모바일" aria-label="이 제목 링크">#</a></h3>
-<p><strong>지금:</strong></p>
-<ul>
-<li>iPhone·iPad에서는 Obsidian으로 쓰고 Working Copy로 GitHub와 동기화합니다.</li>
-<li>모바일용 KnowledgeOS는 만들지 않습니다.</li>
-<li>맥이 변경을 받아오면 맥의 KnowledgeOS가 예약 작업으로 규격화·정리합니다.</li>
-<li>Discord 알림의 Obsidian 링크는 모바일에서도 열립니다.</li>
-</ul>
-<p><strong>후속 과제</strong>(구현 공간 확보, 상세는 <a class="repo" href="../CAPABILITIES.md">기능 명세</a>의 Follow-up):</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>과제</th>
-<th>내용</th>
-</tr></thead><tbody>
-<tr><td>M1 단축어</td><td>Apple 단축어로 템플릿 노트 생성, Working Copy pull·commit·push</td></tr>
-<tr><td>M2 Vault를 통한 요청</td><td>노트에 <code>kos_request</code> 표시나 <code>00_Inbox/Requests/</code> 요청 노트를 두면, 맥 KnowledgeOS가 동기화 후 처리하고 결과가 다시 동기화됨</td></tr>
-<tr><td>M3 GitHub Actions</td><td>push 시 YAML·충돌 표시·중복 ID 같은 결정적 점검</td></tr>
-</tbody></table></div>
-<p>GitHub Actions에는 제약이 있습니다.</p>
-<ul>
-<li>모델을 호출하지 않고 KnowledgeOS 자격증명을 쓰지 않습니다.</li>
-<li>commit은 Git 작성자 규칙을 바꾸는 결정 후에만 합니다.</li>
-</ul>
-<p><code>kos_request</code> 속성과 <code>00_Inbox/Requests/</code> 폴더는 이 용도로 예약되어 있습니다.</p>
-</section>
-<h2 id="구현-순서명세">구현 순서(명세)<a class="anchor" href="#구현-순서명세" aria-label="이 제목 링크">#</a></h2>
-<p>명세는 기능을 얇은 조각으로 나눠 차례로 끝까지 만들고, 한 조각을 끝낼 때마다 명세를 고치도록 정합니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · Delivery order</header>
-<h3 id="delivery-order">Delivery order<a class="anchor" href="#delivery-order" aria-label="이 제목 링크">#</a></h3>
-<p>Build in thin slices and revise this document after each one. The console and CLI grow with each slice.</p>
-<ol>
-<li><strong>Owner core, Director (static), StandardizationOfficer and static EvalOfficer</strong>: C2 manual path and CLI batch, the C3 service, C11 basics, and a rebuildable project development image that keeps <code>make image-id</code> and <code>make state-check</code> working.</li>
-<li><strong>Scheduling and attention</strong>: C7 <code>standardize</code> and <code>digest</code>, C8, C5.</li>
-<li><strong>Thinking Team</strong>: C4 with ThinkingManager, its teammates, the model EvalOfficer and TeamReview.</li>
-<li><strong>Curation Team</strong>: C1 with C6 review, then the <code>curate</code> job.</li>
-<li><strong>Fabric</strong>: C9 Experience and C10 Gateway.</li>
-<li><strong>Mobile</strong>: follow-ups M1 to M3.</li>
-</ol>
-</section>
-<p><code>PROJECT_STATE.md</code>의 목표 <code>KNOWLEDGEOS_CAPABILITY_IMPLEMENTATION</code>은 완료로 기록되어 있어 1~5번 조각은 모든 인수 시나리오가 테스트로 구현된 상태입니다. 6번(모바일)만 시작 전입니다. 지금의 목표 <code>KNOWLEDGEOS_REAL_ADOPTION</code>은 이 구현을 실제 호스트에서 하나씩 확인하는 일입니다(<a class="wikilink" href="status.html">현재 상태</a>).</p>
-<h2 id="일부러-하지-않기로-한-것">일부러 하지 않기로 한 것<a class="anchor" href="#일부러-하지-않기로-한-것" aria-label="이 제목 링크">#</a></h2>
-<p>기록에 <strong>결정</strong>으로 남은, 빠진 것이 아니라 의도한 것입니다. 후속 과제로 오해하지 마세요.</p>
-<ul>
-<li><strong>알림 기록에 전달 실패 이유를 남기지 않는다</strong>: <a class="wikilink" href="status.html#D_NOTICE_NO_FAILURE_REASON">D_NOTICE_NO_FAILURE_REASON</a>.</li>
-<li><strong>TeamReview의 일반 개선 제안은 후보로 자동 승격하지 않는다.</strong> 로컬 관찰로 두고, 이후 실제 사용자 수정 같은 사건이 생기면 그 사건 자체의 근거로 새로 기록합니다: <a class="wikilink" href="status.html#D_C9_PENDING_CLASSIFICATION">D_C9_PENDING_CLASSIFICATION</a>, <a class="wikilink" href="c9.html">C9</a>.</li>
-<li><strong>Temporal은 호스트 loopback에만 공개한다</strong>: <a class="wikilink" href="status.html#D_TEMPORAL_LOOPBACK">D_TEMPORAL_LOOPBACK</a>.</li>
-<li><strong>하지 않는 일</strong>(브라우저·CLI에서 문서 작업, Discord로 명령 받기, 모바일 전용 KnowledgeOS, Git 명령 실행 등)은 <a class="wikilink" href="philosophy.html">운용 원칙</a>에 있습니다.</li>
-</ul>
-<h2 id="후속-구현-과제">후속 구현 과제<a class="anchor" href="#후속-구현-과제" aria-label="이 제목 링크">#</a></h2>
-<div class="callout callout-warning">
-<p class="callout-title">주의</p>
-<p>이 목록은 새 요구를 만든 것이 아니라, 원본 문서가 이미 <strong>후속·미확인·미정</strong>으로 적어 둔 것을 한곳에 모으고 <strong>출처를 단</strong> 해설입니다. 출처에 명시되지 않은 연결은 [해석]으로 표시했습니다. 우선순위나 일정은 정해져 있지 않습니다.</p>
-</div>
-<h3 id="a-이미-인계된-일-project_state의-handoff">A. 이미 인계된 일 (PROJECT_STATE의 handoff)<a class="anchor" href="#a-이미-인계된-일-project_state의-handoff" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>#</th>
-<th>과제</th>
-<th>출처</th>
-</tr></thead><tbody>
-<tr><td>A1</td><td>열린 정리 제안 <code>KOS 점검 - 생성 효과 — organize.md</code>를 검토(적용·거절)</td><td><code>PROJECT_STATE.md</code> handoff, <code>E_SYSTEM_ONE_CLIENT_GUI</code></td></tr>
-<tr><td>A2</td><td>Owner가 켜져 있는 동안 매시 <code>standardize</code>의 첫 자연 실행을 System One과 함께 관찰</td><td><code>PROJECT_STATE.md</code> handoff</td></tr>
-<tr><td>A3</td><td><code>related_min_score</code>·<code>related_min_probability</code>·<code>min_confidence</code>를 실제 노트로 조정</td><td><code>PROJECT_STATE.md</code> handoff, <code>docs/CAPABILITIES.md</code> C3(&quot;시작값&quot;)·System One, Blueprint §9 Semantic ranking</td></tr>
-</tbody></table></div>
-<h3 id="b-확인되지-않은-실제-환경-구성">B. 확인되지 않은 실제 환경 구성<a class="anchor" href="#b-확인되지-않은-실제-환경-구성" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>#</th>
-<th>과제</th>
-<th>출처 · 비고</th>
-</tr></thead><tbody>
-<tr><td>B1</td><td>실제 HermesTrace 수신기 확인</td><td>README &quot;검증 범위&quot;, <code>docs/CAPABILITIES.md</code> C9, 기록 없음</td></tr>
-<tr><td>B2</td><td>예약 <code>curate</code>·<code>digest</code>의 자연 실행, 즉시 알림의 실제 Discord 전달</td><td>기록 없음 [해석]. Blueprint §9 Schedules·Default <code>ai_policy</code>가 답을 기다리는 자리이기도 합니다</td></tr>
-<tr><td>B3</td><td>Gateway의 실제 Operation 간 송수신</td><td>기록 없음 [해석]. 명세는 <a class="wikilink" href="c10.html">C10</a></td></tr>
-<tr><td>B4</td><td>실제 Owner에서 관리 콘솔 사용 확인</td><td><code>E_CONSOLE_BROWSER</code>는 일회용 환경만 다룸 [해석]</td></tr>
-</tbody></table></div>
-<h3 id="c-정해야-할-것-blueprint-9">C. 정해야 할 것 (Blueprint §9)<a class="anchor" href="#c-정해야-할-것-blueprint-9" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>#</th>
-<th>질문</th>
-<th>출처</th>
-</tr></thead><tbody>
-<tr><td>C1</td><td><code>ask</code>가 예약 정리를 쓰기 시작한 뒤에도 알맞은 기본 <code>ai_policy</code>인가</td><td>Blueprint §9</td></tr>
-<tr><td>C2</td><td>C7의 기본 작업 주기가 실제 사용과 맞는가</td><td>Blueprint §9</td></tr>
-<tr><td>C3</td><td>문서 관리 화면에 코어 Bases로 충분한가, 다른 커뮤니티 플러그인이 필요한가</td><td>Blueprint §9</td></tr>
-</tbody></table></div>
-<p>(의미 검색 순위 기준 질문은 A2와 같은 일입니다.)</p>
-<h3 id="d-모바일-명세의-follow-up-mobile">D. 모바일 (명세의 Follow-up: mobile)<a class="anchor" href="#d-모바일-명세의-follow-up-mobile" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>#</th>
-<th>과제</th>
-<th>출처</th>
-</tr></thead><tbody>
-<tr><td>D1</td><td>M1 템플릿·동기화 단축어. 인수 기준 작성: 단축어로 만든 노트가 STD-7 통과</td><td><code>docs/CAPABILITIES.md</code> Follow-up, Blueprint §9</td></tr>
-<tr><td>D2</td><td>M2 Vault를 통한 요청. 정할 것: 기기 간 요청 신원, 중복 표시, 결과 알림 방식</td><td>같음</td></tr>
-<tr><td>D3</td><td>M3 GitHub Actions. 제약: 모델 호출 없음, 자격 증명 없음, §5.7 개정 전 commit 없음</td><td>같음</td></tr>
-</tbody></table></div>
-<h3 id="e-조건이-생기면-하는-일">E. 조건이 생기면 하는 일<a class="anchor" href="#e-조건이-생기면-하는-일" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>#</th>
-<th>과제</th>
-<th>출처</th>
-</tr></thead><tbody>
-<tr><td>E1</td><td>HermesTrace가 승격한 능력을 쓰려면 버전·digest를 고정한 구성 변경으로 명시적으로 채택. Core 계약과 스키마는 그대로</td><td><code>docs/CAPABILITIES.md</code> C9, Blueprint §4.5</td></tr>
-<tr><td>E2</td><td>역할 추가·제거는 사용자가 검토하는 명세 변경이며 대개 TeamReview 제안이 계기</td><td>Blueprint §4.2</td></tr>
-</tbody></table></div>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>c32a17ba1d767976</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

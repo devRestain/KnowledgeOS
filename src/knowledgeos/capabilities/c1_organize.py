@@ -4,15 +4,15 @@ from __future__ import annotations
 import threading
 from pathlib import PurePosixPath
 
-from .. import proposals
+from .. import proposals, role_questions
 from ..capabilities import Done, WorkDraft
 from ..evidence import Unavailable, chunks
 from ..notes import parse
 from ..owner import Admission
-from ..policy import effective, model_may_read, strictest
-from ..search import SearchIndex, role_filter
+from ..policy import approved, effective, strictest
+from ..search import SearchIndex
 from ..standardize import FOLDER_TYPES, LINK_KEYS, STATUSES
-from ..system_one import SystemOneUnavailable, choice, may_send, note_input
+from ..system_one import SystemOneUnavailable, choice, note_input
 from ..util import iso
 from ..vault import RESERVED_REQUESTS, Vault, VaultPathError
 from .c4_enhance import keyword_candidates
@@ -45,7 +45,7 @@ def register(reg):
     reg.command("organize", admit)
     reg.command("organize.auto", admit_auto)
     reg.team(TEAM, static={"scout": scout}, validate={"classifier": validate_classifier, "linker": validate_linker},
-             context=team_context, result=result, finish=finish)
+             tools={"system_one": system_one_tool}, context=team_context, result=result, finish=finish)
     reg.check("org.enums_valid", check_enums)
     reg.check("org.links_read", check_links)
     reg.check("org.tags_marked", check_tags)
@@ -58,11 +58,11 @@ def exclude(path):
     return None
 
 
-def _problem(owner, doc, origin):
+def _problem(owner, doc):
+    if doc.type == "daily":
+        return "daily note (never a proposal target)"
     if doc.type in ("home", "system", "report", "proposal"):
         return "navigation or KnowledgeOS output"
-    if not model_may_read(doc.policy, origin, False):
-        return f"ai_policy {doc.policy} does not allow model roles in this Work"
     note = owner.vault.read(doc.path)
     if note is None or not chunks(note):
         return "no body content to classify"
@@ -80,13 +80,13 @@ def admit(adm):
     targets, skipped = adm.resolve(explicit, adm.params["digests"], strict=True, exclude=exclude)
     docs = adm.owner.index.refresh()
     for path in targets:
-        if reason := _problem(adm.owner, docs[path], adm.origin):
+        if reason := _problem(adm.owner, docs[path]):
             adm.refuse(f"{path}: {reason}")
     if folders:
         found, omitted = adm.resolve(folders, strict=False, exclude=exclude)
         skipped.extend(item for item in omitted if item["reason"] != "deny")
         for path in found:
-            if reason := _problem(adm.owner, docs[path], adm.origin):
+            if reason := _problem(adm.owner, docs[path]):
                 skipped.append({"path": path, "reason": reason})
             elif path not in targets:
                 targets.append(path)
@@ -109,8 +109,8 @@ def admit_auto(adm):
     docs = owner.index.refresh()
     duplicates = set(owner.index.duplicate_ids(docs))
     seen = _cursor(owner)["seen"]
-    eligible = [doc for doc in docs.values() if doc.policy == "remote_ok" and not exclude(doc.path)
-                and not Admission.problem(doc, duplicates) and not _problem(owner, doc, adm.origin)
+    eligible = [doc for doc in docs.values() if approved(doc.policy) and not exclude(doc.path)
+                and not Admission.problem(doc, duplicates) and not _problem(owner, doc)
                 and (not doc.type or (doc.type == "capture" and doc.status in (None, "unprocessed")))
                 and seen.get(doc.path) != doc.sha]
     eligible.sort(key=lambda doc: (owner.first_seen(doc.path), doc.mtime, doc.path))
@@ -126,38 +126,22 @@ def folders(note):
 
 
 def vocabulary(ctx):
-    allow = role_filter(ctx.workspec["origin"], False)
     return sorted({tag for doc in ctx.owner.index.refresh().values()
-                   if doc.valid and not doc.conflict and SearchIndex.visible(doc, "role", allow)
+                   if doc.valid and not doc.conflict and SearchIndex.visible(doc, "role")
                    for tag in doc.tags}, key=str.casefold)
 
 
 def team_context(ctx, by):
-    hints = _hints(ctx)
     targets = []
     for item in ctx.inputs():
         note = ctx.snapshot(item["path"])
         handles = ctx.evidence.note_handles(note.path, by=by)
-        target = {"target": handles[0], "handles": handles, "title": note.title, "type": note.type,
-                  "status": note.status, "tags": note.list_value("tags"), "folders": folders(note)}
-        if handles[0] in hints:
-            target["system_one"] = {"advisory": ADVISORY, **hints[handles[0]]}
-        targets.append(target)
+        targets.append({"target": handles[0], "handles": handles, "title": note.title, "type": note.type,
+                        "status": note.status, "tags": note.list_value("tags"), "folders": folders(note)})
     return {"objective": "Propose classification and supported links for each target; never change the source notes.",
             "targets": targets, "tag_vocabulary": vocabulary(ctx),
             "statuses": {kind: [*values, "archived"] for kind, values in STATUSES.items()},
             "link_properties": list(LINK_KEYS)}
-
-
-def _hints(ctx):
-    """System One hints the scout recorded for this Work's targets, by target handle."""
-    found = {}
-    for segment in ctx.work["segments"]:
-        for step in segment["steps"]:
-            if step["role"] == "scout" and step["status"] == "completed" and step.get("artifact"):
-                payload = ctx.owner.store.get_json_blob(step["artifact"]["blob"])
-                found = {row["target"]: row["system_one"] for row in payload["targets"] if row.get("system_one")}
-    return found
 
 
 def _top(answer):
@@ -167,49 +151,69 @@ def _top(answer):
             for row in sorted(rows, key=lambda row: -row["probability"])[:3]]
 
 
-def system_one_hint(ctx, item, note):
-    """Advisory type/status choices from System One for one target, or None.
+def system_one_tool(ctx, by, handle=None, question=None, choices=None):
+    """Tool ``system_one``. With a ``question`` it is the shared role question
+    (``role_questions.ask``). Without one: advisory type/status choices for one target.
 
-    Sent only when the note's current policy allows remote model use for this Work's origin;
-    an unconfigured, unavailable, refusing or unconfident System One yields no hint."""
-    system_one = ctx.owner.system_one
-    current = ctx.owner.vault.read(note.path) if system_one else None
-    if current is None:
-        return None
-    policy = strictest([effective(current, ctx.owner.config.default_policy), item["policy"]])
-    if not may_send(policy, ctx.workspec["origin"]):
-        return None
+    Only an admitted target whose current content is still ``approve`` is sent. Each target is
+    asked at most once per Work: a repeat returns the recorded outcome (also ``unavailable``)
+    without a new request. Unconfident or refused answers are left out of the suggestion."""
+    if question is not None or choices is not None:
+        return role_questions.ask(ctx, by, handle, question, choices)
+    path = _target(ctx, handle) if isinstance(handle, str) else None
+    if path is None:
+        return {"handle": handle, "status": "not_a_target"}
+    service = ctx.owner.system_one
+    if service is None:
+        return {"handle": handle, "status": "unconfigured"}
+    item = next(item for item in ctx.inputs() if item["path"] == path)
+    current = ctx.owner.vault.read(path)
+    if current is None or not approved(strictest([effective(current), item["policy"]])):
+        return {"handle": handle, "status": "denied", "reason": "the note's ai_policy is not approve"}
+    recorded = (ctx.work.get("system_one") or {}).get(path)
+    if recorded is not None:
+        return {"handle": handle, **recorded}
+    if not role_questions.reserve(ctx, by):
+        return {"handle": handle, "status": "limit_reached",
+                "reason": f"at most {role_questions.STEP_LIMIT} requests per step"}
+    note = ctx.snapshot(path)
     questions = [choice("type", "Which note type best describes this note?", TYPE_MEANING)]
     if note.type in STATUSES:
         questions.append(choice("status", f"Which status fits this {note.type} note now?",
                                 {value: STATUS_MEANING[value] for value in (*STATUSES[note.type], "archived")}))
     try:
-        answers = system_one.decide(note_input(note, system_one.max_input_chars), questions,
-                                    purpose="curation_hint", ref=ctx.work_id)
+        answers = service.decide(note_input(note, service.max_input_chars), questions,
+                                 purpose="curation_hint", ref=ctx.work_id)
     except SystemOneUnavailable:
-        return None
-    hint = {}
-    for question in questions:
-        answer = answers.get(question["name"])
-        value, _ = system_one.accepted(answer, question)
-        if value is not None:
-            hint[question["name"]] = {"choice": value, "confidence": answer["confidence"], "top": _top(answer)}
-    return hint or None
+        outcome = {"status": "unavailable"}
+    else:
+        suggestion = {}
+        for asked in questions:
+            answer = answers.get(asked["name"])
+            value, _ = service.accepted(answer, asked)
+            if value is not None:
+                suggestion[asked["name"]] = {"choice": value, "confidence": answer["confidence"], "top": _top(answer)}
+        outcome = {"status": "answered", "advisory": ADVISORY, "suggestion": suggestion}
+
+    def record(work):
+        work.setdefault("system_one", {})[path] = outcome
+
+    ctx.owner.update_work(ctx.work_id, record)
+    return {"handle": handle, **outcome}
 
 
 def scout(ctx):
     evidence = ctx.evidence
-    allow = role_filter(ctx.workspec["origin"], False)
     limit = max(0, min(10, int(ctx.setting("max_candidates", 5))))
     found = []
     for item in ctx.inputs():
         note = ctx.snapshot(item["path"])
         handles = evidence.read_note(note.path, by="scout")
         candidates = {}
-        for hit in ctx.owner.index.related(note.path, audience="role", allow=allow, limit=limit * 2,
-                                           system_one=ctx.owner.system_one, origin=ctx.workspec["origin"])["results"]:
+        for hit in ctx.owner.index.related(note.path, audience="role", limit=limit * 2,
+                                           system_one=ctx.owner.system_one)["results"]:
             candidates[hit["path"]] = hit.get("reasons", [])
-        for path, why in keyword_candidates(ctx.owner, note.title + " " + note.body[:600], ctx.workspec["origin"], limit * 2):
+        for path, why in keyword_candidates(ctx.owner, note.title + " " + note.body[:600], limit * 2):
             candidates.setdefault(path, why)
         collected = []
         for path, why in candidates.items():
@@ -226,11 +230,7 @@ def scout(ctx):
                 entry = evidence.get(picked[0])
                 collected.append({"handles": picked, "title": entry["title"], "type": entry["type"],
                                   "reasons": why, "excerpt": evidence.chunk_text(picked[0])[:160]})
-        row = {"target": handles[0], "candidates": collected}
-        hint = system_one_hint(ctx, item, note)
-        if hint:
-            row["system_one"] = hint
-        found.append(row)
+        found.append({"target": handles[0], "candidates": collected})
     return {"targets": found, "tag_vocabulary": vocabulary(ctx)}
 
 

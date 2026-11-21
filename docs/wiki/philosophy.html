@@ -12,235 +12,78 @@
 <header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
 <div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
 <div class="layout">
-<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html" aria-current="page">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html" aria-current="page">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
 <main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>시작하기</span> › <span aria-current="page">운용 원칙</span></nav>
 <article class="page">
-<h1 id="top">위키·명세 운용 원칙</h1>
-<p>이 페이지는 두 가지를 설명합니다. <strong>KnowledgeOS의 명세는 어떤 규칙으로 관리되는가</strong>, 그리고 <strong>이 위키는 왜 있고, 개발 세션마다 어떻게 갱신하는가</strong>입니다.</p>
-<h2 id="왜-위키가-있나">왜 위키가 있나<a class="anchor" href="#왜-위키가-있나" aria-label="이 제목 링크">#</a></h2>
-<p>KnowledgeOS의 사실은 여섯 개 문서에 나뉘어 있습니다. 동작 기준, 사용자 의도, 시스템 제약, 추적표, 진행 상태, 실행 방법입니다. 각각은 정확하지만 한 문서만 읽어서는 &quot;이 기능이 왜 있고, 어떻게 쓰고, 어디까지 되고, 무엇이 남았는지&quot;를 알기 어렵습니다.</p>
-<p>위키는 그 사실들을 <strong>기능 단위로 다시 엮어</strong> 한곳에서 읽게 해 주는 해설판입니다.</p>
-<ul>
-<li>규칙을 새로 만들지 않습니다. 동작·상태에 관한 문장은 원본 문서에서 온 것입니다.</li>
-<li>원본에 없는 내용은 해설로 쓰더라도 &quot;해석&quot; 또는 &quot;기록 없음&quot;으로 표시합니다.</li>
-<li>위키와 원본이 어긋나면 <strong>원본이 맞고</strong>, 위키는 다시 생성해서 바로잡습니다.</li>
-</ul>
-<h2 id="휴대폰에서-읽기">휴대폰에서 읽기<a class="anchor" href="#휴대폰에서-읽기" aria-label="이 제목 링크">#</a></h2>
-<p>휴대폰 브라우저에서도 같은 HTML을 읽습니다. 좁은 화면에서는 위쪽 메뉴 버튼으로 전체 목차를 열고, 그 아래 한 줄을 차지하는 검색창으로 페이지·제목·본문을 찾습니다. 본문은 화면 폭에 맞춰 줄을 바꾸며 브라우저 확대를 막지 않습니다.</p>
-<ul>
-<li><strong>표·코드</strong>: 글자를 화면에 억지로 줄이지 않습니다. 가로로 넘치는 영역 앞에 안내가 나타나며 그 영역 안에서 좌우로 이동합니다.</li>
-<li><strong>그림</strong>: 먼저 전체 구조를 화면 폭으로 봅니다. <strong>그림 크게 보기</strong>를 누르면 글자를 읽을 수 있는 크기로 바뀌고 좌우로 이동할 수 있습니다. <strong>그림 전체 보기</strong>로 돌아옵니다.</li>
-<li><strong>메뉴</strong>: 링크의 터치 영역을 넓혔습니다. 메뉴 밖을 누르거나 메뉴 버튼을 다시 누르면 닫힙니다.</li>
-</ul>
-<h3 id="모바일-접속-경로-제안">모바일 접속 경로 제안<a class="anchor" href="#모바일-접속-경로-제안" aria-label="이 제목 링크">#</a></h3>
-<p>아래는 <strong>배포 제안</strong>이며, 접속 주소를 설치하거나 외부에 공개했다는 뜻은 아닙니다. 정적 위키 열람과 KnowledgeOS 실행·관리 API의 원격 접속은 별개입니다.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>경로</th>
-<th>적합한 경우</th>
-<th>조건·주의</th>
-</tr></thead><tbody>
-<tr><td><strong>비공개 HTTPS + Tailscale Serve (권장)</strong></td><td>집 밖에서도 본인 휴대폰으로 최신 위키 열람</td><td>정적 위키 전용 loopback 서버와 기기별 Tailscale 연결, HTTPS 활성화 필요. 접근 규칙을 본인 기기로 제한. Mac이 켜져 있어야 함. Owner·관리 콘솔은 연결하지 않음</td></tr>
-<tr><td>같은 Wi-Fi의 정적 서버</td><td>집 안에서 임시 확인</td><td>휴대폰의 <code>localhost</code>는 Mac이 아님. Mac의 LAN 주소 사용. 공유기 포트 포워딩 없이 사용하고 다른 LAN 기기에도 노출될 수 있음을 고려</td></tr>
-<tr><td>파일 묶음을 휴대폰으로 복사</td><td>오프라인 보관</td><td>HTML과 <code>assets/</code>를 함께 복사. iOS 파일 미리보기는 여러 파일 간 탐색·스크립트를 제한할 수 있어 실제 사용할 뷰어에서 확인 필요</td></tr>
-<tr><td>공개 정적 호스팅</td><td>공개용 문서 배포</td><td>현재 위키를 그대로 공개하지 않음. 상태·검색 색인·SVG에 포함된 내부 정보까지 선별한 공개용 묶음 필요</td></tr>
-</tbody></table></div>
-<p>권장 구성은 <strong>정적 HTML·assets만 담은 배포 폴더 → 별도 정적 파일 서버 → 비공개 HTTPS 주소 → 휴대폰 브라우저</strong>입니다. 홈 화면에 바로가기를 추가하면 재접속하기 쉽습니다. 서비스 워커나 오프라인 캐시는 추가하지 않으므로 오프라인 앱처럼 동작하지는 않습니다.</p>
-<p>저장소 원문으로 가는 링크는 위키 폴더 밖의 상대 경로입니다. HTML·assets만 배포할 때는 그 원문 링크가 열리지 않으며, 원문이 필요하면 승인된 문서를 함께 배포하고 경로를 맞춰야 합니다. 원문 링크를 살리려고 저장소 전체를 서버 루트로 노출하지 않습니다. 외부 연결·배포는 별도 승인이 필요하고 ExOps의 loopback·Host/Origin 보호는 바꾸지 않습니다.</p>
-<p><a class="external" href="https://tailscale.com/kb/1312/serve" rel="noopener noreferrer">Tailscale Serve 공식 안내</a>에 따르면 Serve는 tailnet 내부 공유이며 접근 규칙이 적용됩니다. 공개 인터넷으로 여는 Funnel은 이 권장안에 포함하지 않습니다. macOS 클라이언트별 디렉터리 직접 제공 제약을 피하기 위해 별도 loopback 정적 서버의 포트를 연결하는 방식을 제안합니다.</p>
-<h2 id="여섯-개의-원본-문서">여섯 개의 원본 문서<a class="anchor" href="#여섯-개의-원본-문서" aria-label="이 제목 링크">#</a></h2>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>문서</th>
-<th>맡은 역할</th>
-<th>두지 않는 것</th>
-</tr></thead><tbody>
-<tr><td><code>docs/CAPABILITIES.md</code></td><td><strong>최상위</strong> 동작·인수 기준. 기능별 동작과 인수 시나리오, 구현 순서</td><td>이력, 증거, 설치 상태</td></tr>
-<tr><td><code>USER_FEATURE_SPEC.md</code></td><td>사용자의 <strong>의도</strong>: 지키는 약속, 다섯 기능, 사용 흐름</td><td>기능이나 인수 범위를 줄이는 내용</td></tr>
-<tr><td><code>OBSIDIAN_VAULT_BLUEPRINT.md</code></td><td><strong>시스템 제약</strong>: 화면 분담, 역할 조직, Vault 계약, 효과 규칙, Core 준수</td><td>이력, 증거, 설치 상태</td></tr>
-<tr><td><code>docs/CAPABILITY_TRACE.md</code></td><td>인수 ID마다 구현 <code>file::symbol</code>과 pytest 노드를 잇는 <strong>지도</strong></td><td>통과 여부·배포 보고</td></tr>
-<tr><td><code>PROJECT_STATE.md</code></td><td>진행과 검증 <strong>증거</strong>의 유일한 기계 판독 원본</td><td>명세</td></tr>
-<tr><td><code>README.md</code></td><td>구성, 실행 명령, 검증 범위</td><td>명세의 대체</td></tr>
-</tbody></table></div>
-<div class="callout callout-note">
-<p class="callout-title">참고</p>
-<p>추적표는 &quot;어떤 테스트가 어떤 시나리오를 확인하려고 있는가&quot;를 보여 주는 지도이지, 테스트가 통과했다거나 실제 환경에 배포했다는 보고가 아닙니다. 통과·배포 근거는 <code>PROJECT_STATE.md</code>의 증거 기록에만 있습니다(<a class="wikilink" href="status.html">현재 상태</a>).</p>
-</div>
-<h2 id="명세는-어떻게-관리되나-blueprint-0">명세는 어떻게 관리되나 (Blueprint §0)<a class="anchor" href="#명세는-어떻게-관리되나-blueprint-0" aria-label="이 제목 링크">#</a></h2>
-<p>아래는 Blueprint §0 &quot;Spec governance&quot;의 원문입니다. 쉬운 말로는 이렇습니다.</p>
-<ul>
-<li>명세는 <strong>지금 맞는 것만</strong> 적습니다. 과거·증거·설치 상태는 Git과 PROJECT_STATE에 둡니다.</li>
-<li>동작을 바꾸는 변경은 <strong>같은 변경 안에서</strong> 명세도 고칩니다. 낡은 문장은 &quot;폐기됨&quot; 표시를 달지 않고 <strong>지웁니다</strong>.</li>
-<li>인수 시나리오(예: <code>[[ORG-1]]</code>)가 곧 실행 가능한 테스트이며, 시나리오를 지우거나 성공 기준을 약하게 하지 않습니다.</li>
-<li>기능 하나를 얇게 끝까지 만들어 써 보고, 배운 것으로 명세를 고칩니다.</li>
-<li>아직 정하지 않은 것은 Blueprint §9의 열린 질문에 둡니다. 구현이 이미 답한 질문은 지웁니다(<a class="wikilink" href="roadmap.html">로드맵</a>).</li>
-<li><strong>명세와 위키는 함께 움직입니다.</strong> 위키를 쓰거나 다시 생성하다 문서끼리 어긋나는 곳을 발견하면 위키에 경고를 남기지 않고, <strong>같은 세션에서 우선순위가 낮은 문서를 고칩니다.</strong> 위키 갱신은 곧 주기적인 명세 점검입니다.</li>
-</ul>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 0. Spec governance</header>
-<h3 id="0-spec-governance">0. Spec governance<a class="anchor" href="#0-spec-governance" aria-label="이 제목 링크">#</a></h3>
-<p>The spec is a living contract, not a phase document. These rules keep it from rotting.</p>
-<ul>
-<li><strong>Current truth only.</strong> The spec states intended behavior. It contains no history, evidence, install status, observed versions or &quot;retained/legacy&quot; sections. History lives in Git; progress and evidence live in <code>PROJECT_STATE.md</code>.</li>
-<li><strong>Precedence.</strong> By explicit user decision, <code>docs/CAPABILITIES.md</code> is the top-level behavior and acceptance specification. <code>USER_FEATURE_SPEC.md</code> supplies intent and this Blueprint supplies system constraints; both supplement capabilities without weakening their acceptance coverage. This precedence does not authorize changes to Core contracts or schemas. A conflict is a defect to fix in the same change, never a tolerated divergence.</li>
-<li><strong>Spec and code move together.</strong> A change that alters behavior edits the spec in the same change. When implementation teaches something the spec did not anticipate, revise the spec immediately rather than coding around it.</li>
-<li><strong>Delete, don&#x27;t annotate.</strong> Superseded text is removed, not marked deprecated.</li>
-<li><strong>Examples are the contract.</strong> Preserve every acceptance ID and example in <code>docs/CAPABILITIES.md</code> as an executable test through a public interface. Fix implementation or testability gaps without deleting examples or narrowing their success criteria.</li>
-<li><strong>Thin vertical slices.</strong> Build one capability end to end, use it, then refine the spec from what was learned. Unresolved choices stay in §9 until a slice needs them.</li>
-<li><strong>Stay small.</strong> Prefer removing a rule to adding one. Add a type, property, role, capability or check only when real use needs it.</li>
-<li><strong>Visible development state.</strong> The wiki at <code>docs/wiki/</code> explains capabilities, their purpose, how to use them, what is blocked or not started and what follows next, generated from this spec, <code>docs/CAPABILITY_TRACE.md</code> and <code>PROJECT_STATE.md</code> plus authored explanations in <code>docs/wiki/_source/</code>. Every development session updates the source documents and wiki explanations for its changed scope, regenerates it with <code>make wiki</code>, passes <code>make wiki-check</code> and reviews the changed pages in a browser before handoff. The wiki explains; it never overrides these source documents.</li>
-<li><strong>Spec and wiki move together.</strong> Updating the wiki is also a periodic spec review: when writing or regenerating pages exposes a conflict between <code>docs/CAPABILITIES.md</code>, this Blueprint, <code>USER_FEATURE_SPEC.md</code> and <code>PROJECT_STATE.md</code>, fix the lower-precedence document in the same session instead of leaving a warning in the wiki, and remove §9 open questions that implementation has already answered.</li>
-<li><strong>Reference material.</strong> <code>Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md</code> maps earlier source that matches this direction. It is non-normative, and the spec wins on conflict.</li>
-</ul>
-</section>
-<h2 id="사용자와의-약속범위운용">사용자와의 약속·범위·운용<a class="anchor" href="#사용자와의-약속범위운용" aria-label="이 제목 링크">#</a></h2>
-<p>아래 세 블록은 <code>USER_FEATURE_SPEC.md</code>의 해당 절을 그대로 가져온 것입니다. 일곱 가지 <strong>지키는 약속</strong>은 KnowledgeOS가 사용자에게 한 것이고, 각 기능 페이지의 &quot;왜 이 명세가 필요한가&quot;는 이 약속 중 어떤 것을 지키려는지 가리킵니다. <strong>하지 않는 일</strong>은 범위 밖으로 정한 것이고, <strong>명세 운용</strong>은 이 페이지 위쪽의 원칙을 사용자 쪽에서 적은 것입니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC.md</a> · 지키는 약속</header>
-<h3 id="지키는-약속">지키는 약속<a class="anchor" href="#지키는-약속" aria-label="이 제목 링크">#</a></h3>
+<h1 id="top">이 위키가 설명해야 하는 것</h1>
+<p>이 위키는 <strong>설계 의도를 알고 있는 사용자가, 코드를 읽지 않고도 에이전트가 실제로 무엇을 만들었는지 이해하기 위한 문서</strong>입니다. 명세를 쉬운 말로 반복하는 것만으로는 부족합니다. 명세가 정하지 않아 구현 과정에서 선택된 처리 순서, 역할의 입력과 출력, 실행 방식, 결과가 저장되는 위치까지 설명해야 합니다.</p>
+<p>예를 들어 “정리는 Manager가 Graph를 만들고 평가를 거친다”에서 설명을 끝내지 않습니다. <code>kos-curation-manager</code>가 어떤 정보를 보고 팀원 순서를 고르는지, <code>classifier</code>와 <code>linker</code>가 서로 무엇을 넘기는지, 평가가 끝나야 왜 제안 파일이 생기는지까지 따라갈 수 있어야 합니다.</p>
+<h2 id="기능-페이지가-답해야-할-질문">기능 페이지가 답해야 할 질문<a class="anchor" href="#기능-페이지가-답해야-할-질문" aria-label="이 제목 링크">#</a></h2>
 <ol>
-<li><strong>Vault는 사용자의 것입니다.</strong>
-<ul>
-<li>맥·iPhone·iPad 어디서든 어떤 노트든 자유롭게 쓰고, 고치고, 옮기고, 지울 수 있습니다.</li>
-<li>frontmatter·폴더·등록 없이 쓴 Markdown도 그대로 유효합니다.</li>
-</ul></li>
-<li><strong>문서 작업은 Obsidian 안에서 합니다.</strong>
-<ul>
-<li>쓰기·검색·보기는 Obsidian core와 community plugin이 맡습니다.</li>
-<li>KnowledgeOS 기능 호출은 최소한의 Thin Client 명령과 사이드바 탭이 맡습니다.</li>
-<li>관리는 브라우저 콘솔과 CLI가 맡고, 문서 작업은 거기서 하지 않습니다.</li>
-</ul></li>
-<li><strong>유지보수는 가능한 한 오픈소스에 맡깁니다.</strong> 화면·보기·템플릿·버튼은 plugin을 쓰고, Thin Client는 커지지 않게 유지합니다.</li>
-<li><strong>자동으로 바꾸는 것은 작고 기계적인 것뿐입니다.</strong>
-<ul>
-<li>빠진 frontmatter를 채우는 규격화만 자동입니다. 정해진 선택지(enum) 안에서 고르는 값은 System One이 충분히 확신할 때만 고릅니다.</li>
-<li>그 밖에 판단이 필요한 변경은 제안으로 만들고, 적용은 사용자가 결정합니다.</li>
-</ul></li>
-<li><strong>Git이 백업이자 이력입니다.</strong>
-<ul>
-<li>Vault는 GitHub private repo와 동기화됩니다. 맥은 사용자의 동기화 방식으로, iOS는 Working Copy로 합니다.</li>
-<li>KnowledgeOS는 git 명령을 실행하지 않고, diff가 작고 읽기 쉽게 씁니다.</li>
-</ul></li>
-<li><strong>잃으면 안 되는 것은 Vault에 둡니다.</strong> KnowledgeOS 내부 상태와 자격증명은 Vault 밖에 있어 GitHub로 올라가지 않으며, 잃어도 지식은 남습니다.</li>
-<li><strong>근거를 밝힙니다.</strong> 결과는 이미 쓴 노트를 정확히 인용하고, 근거·추론·근거 없음을 구분합니다.</li>
+<li><strong>무엇을 넣고 무엇을 얻는가?</strong> 사용자의 실제 조작과 노트 예시로 시작합니다. “정리”라면 선택한 노트와 만들어지는 제안, “강화”라면 질문과 보고서가 먼저 나와야 합니다.</li>
+<li><strong>그 사이에 정확히 무엇이 일어나는가?</strong> 내부 단계마다 무엇을 읽고, 무엇을 판단하거나 계산하고, 다음 단계에 무엇을 넘기는지 시간 순서로 풉니다. 함수 이름만 열거하는 것은 설명이 아닙니다.</li>
+<li><strong>어떤 실행 경로를 쓰는가?</strong> 실제 Hermes Profile 이름, Graph의 구성과 변경 가능 범위, Temporal의 Workflow·Activity 접점을 밝힙니다. 직접 처리하는 검색처럼 해당 연결이 없으면 없다고 씁니다.</li>
+<li><strong>어디에 무엇이 남는가?</strong> 원본 노트, 제안·보고서, State 기록을 구별합니다. 미리보기·접수·평가·파일 반영을 모두 “완료”라고 부르지 않습니다.</li>
+<li><strong>다르게 흘러가는 경우는 무엇인가?</strong> 대상이 바뀜, 근거 부족, 모델 불가, 결과 불명처럼 실제 결과를 바꾸는 분기와 사용자가 보게 될 상태를 설명합니다.</li>
 </ol>
-</section>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC.md</a> · 하지 않는 일</header>
-<h3 id="하지-않는-일">하지 않는 일<a class="anchor" href="#하지-않는-일" aria-label="이 제목 링크">#</a></h3>
+<p>모든 페이지를 같은 소제목으로 채울 필요는 없습니다. 독자가 한 사례를 처음부터 끝까지 설명할 수 있는지가 기준입니다. 단계별 설명에는 자연스러운 문단과 번호 목록을 쓰고, 비교할 값이나 역할은 표로 정리합니다.</p>
+<h2 id="설명의-책임">설명의 책임<a class="anchor" href="#설명의-책임" aria-label="이 제목 링크">#</a></h2>
+<p><strong>동작 설명은 현재 구현을 확인한 작성자가 책임집니다.</strong> “원본 문서가 맞으니 코드를 보라”거나 “표가 더 최신일 수 있다”는 말로 본문의 정확성을 독자에게 떠넘기지 않습니다.</p>
 <ul>
-<li>브라우저·CLI에서 문서 작업하기. 둘은 관리용입니다.</li>
-<li>Thin Client에 명령 호출 탭을 넘어 문서·작업 목록이나 설정을 늘리기. plugin으로 할 수 있으면 plugin을 씁니다.</li>
-<li>사용자 노트 삭제, 자동 병합, 판단이 필요한 변경의 자동 적용.</li>
-<li>git commit·pull·push.</li>
-<li>다른 모델로 몰래 바꾸기, 의미 검색이 안 될 때 키워드 결과로 몰래 대체하기.</li>
-<li>Discord로 명령 받기, 원격·다중 사용자 접속, 모바일 전용 KnowledgeOS.</li>
+<li>구현이 정한 기본값·선택 조건·저장 위치는 관련 코드와 설정을 확인하고 자연어로 설명합니다. 중요한 근거 링크는 페이지 끝에 모으되, 링크를 열지 않아도 본문이 이해되어야 합니다.</li>
+<li>예시는 실제로 허용되는 경로여야 합니다. Manager가 고를 수 있는 순서의 한 사례를 모든 실행에 고정된 Graph인 것처럼 쓰지 않습니다.</li>
+<li>명세의 의도, 소스로 확인한 구현, 특정 환경에서 관찰한 결과를 구분합니다. 설치했다고 모든 역할의 새 모델 경로를 실행해 본 것은 아닙니다.</li>
+<li>확인하지 못한 세부 사항은 확인해 보완합니다. 도구로 확인할 수 없는 한계만 구체적으로 남기고, 추측으로 빈칸을 채우지 않습니다.</li>
+<li>충돌을 발견하면 해당 원본을 바로잡습니다. 구현이 명세와 다른 경우에는 차이를 숨기거나 위키만으로 새 동작을 정당화하지 않습니다.</li>
 </ul>
-</section>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../USER_FEATURE_SPEC.md">USER_FEATURE_SPEC.md</a> · 명세 운용</header>
-<h3 id="명세-운용">명세 운용<a class="anchor" href="#명세-운용" aria-label="이 제목 링크">#</a></h3>
-<p>명세는 단계별 산출물이 아니라 코드와 함께 움직이는 현재 계약입니다.</p>
-<ul>
-<li>이력·증거·설치 상태를 담지 않습니다. 이력은 Git에, 진행과 검증은 <a class="repo" href="../../PROJECT_STATE.md">PROJECT_STATE.md</a>에 둡니다.</li>
-<li>동작을 바꾸는 변경은 같은 변경 안에서 명세도 고칩니다. 낡은 문장은 표시하지 않고 지웁니다.</li>
-<li>기능 명세의 인수 시나리오가 곧 실행 가능한 테스트입니다.</li>
-<li>기능 하나를 끝까지 얇게 만들어 써 보고, 배운 것으로 명세를 고칩니다.</li>
-<li>정하지 않은 것은 Blueprint의 열린 질문에 두고, 필요한 시점에 결정합니다.</li>
-<li>기존 구현 중 이 방향과 맞는 부분은 <span class="offsite" title="../../Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md">참고 자료 목록</span>에 있습니다. 명세가 우선합니다.</li>
-</ul>
-</section>
-<h2 id="위키의-구성-생성되는-것과-직접-쓰는-것">위키의 구성: 생성되는 것과 직접 쓰는 것<a class="anchor" href="#위키의-구성-생성되는-것과-직접-쓰는-것" aria-label="이 제목 링크">#</a></h2>
+<h2 id="같은-설명을-반복하지-않는-방법">같은 설명을 반복하지 않는 방법<a class="anchor" href="#같은-설명을-반복하지-않는-방법" aria-label="이 제목 링크">#</a></h2>
+<p>공통 구조는 <a class="wikilink" href="architecture.html">구조</a>, 용어는 <a class="wikilink" href="glossary.html">용어</a>, 실행·설치 근거는 <a class="wikilink" href="status.html">현재 상태</a>, 남은 일은 <a class="wikilink" href="roadmap.html">로드맵</a>이 맡습니다. 기능 페이지는 그 기능에 필요한 연결만 짚고 자세한 공통 설명으로 링크합니다.</p>
+<p>특히 “사용자 소유”, “책임 분리”, “독립 평가” 같은 원칙을 기능마다 다시 선언하지 않습니다. 대신 그 원칙이 <strong>이 기능의 어떤 처리로 구현되는지</strong> 씁니다. “원본을 보호한다”보다 “평가 뒤에도 원본은 쓰지 않고 <code>01_AI_Review/Proposals/</code>에 변경 체크리스트를 만든다”가 필요한 설명입니다.</p>
+<p>영문 명세 전체, 일반 Work 흐름도, 과거 검증 숫자를 본문마다 붙이지 않습니다. 인수 ID와 구현·테스트 연결은 기능 페이지 끝의 참고 표로 유지하고, 자세한 규칙은 명세 링크로 찾아가게 합니다.</p>
+<h2 id="어떤-자료를-확인하는가">어떤 자료를 확인하는가<a class="anchor" href="#어떤-자료를-확인하는가" aria-label="이 제목 링크">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>종류</th>
-<th>예</th>
-<th>원본</th>
-<th>고치는 방법</th>
+<th>알고 싶은 사실</th>
+<th>확인할 자료</th>
 </tr></thead><tbody>
-<tr><td><strong>원문 블록</strong></td><td>기능 페이지의 영문 명세, Blueprint 절, 사용자 기능 명세 절</td><td><code>docs/CAPABILITIES.md</code> 등 원본 문서</td><td>원본을 고치고 위키 재생성</td></tr>
-<tr><td><strong>인수 표</strong></td><td>인수 ID, 예시, 구현 위치, 테스트 노드</td><td><code>docs/CAPABILITIES.md</code>, <code>docs/CAPABILITY_TRACE.md</code></td><td>원본을 고치고 재생성</td></tr>
-<tr><td><strong>상태 표</strong></td><td>목표·결정·인수·증거·막힘·인계</td><td><code>PROJECT_STATE.md</code></td><td>PROJECT_STATE를 고치고 재생성</td></tr>
-<tr><td><strong>그림(SVG)</strong></td><td>시스템 지도, 기능 지도, 작업 흐름, 정책 표, 현황 요약</td><td>생성기가 원본에서 만듦</td><td>원본을 고치고 재생성</td></tr>
-<tr><td><strong>해설 문장</strong></td><td>이 페이지처럼 사람이 쓴 설명</td><td><code>docs/wiki/_source/&lt;페이지&gt;.md</code></td><td>직접 수정 후 재생성</td></tr>
-<tr><td><strong>생성 결과</strong></td><td><code>docs/wiki/*.html</code>, <code>docs/wiki/assets/</code></td><td>위 모든 것</td><td><strong>손으로 고치지 않음</strong></td></tr>
+<tr><td>사용자에게 제공해야 하는 동작</td><td>최상위 <a class="repo" href="../CAPABILITIES.md">기능 명세</a>, <a class="repo" href="../../USER_FEATURE_SPEC.md">사용자 의도</a>, <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">시스템 제약</a></td></tr>
+<tr><td>실제 처리 순서와 분기</td><td><code>src/knowledgeos/</code>의 기능 처리기·Owner·실행 엔진</td></tr>
+<tr><td>팀원 풀·평가 기준·모델·예약 시각</td><td><code>config/capabilities/</code>, <code>config/roles.json</code>, <code>config/jobs.json</code></td></tr>
+<tr><td>역할이 받는 지침과 실제 도구 연결</td><td><code>roles/</code>, <code>roles.py</code>, <code>hermes.py</code></td></tr>
+<tr><td>설치·실행·장치에서 확인한 범위</td><td><a class="repo" href="../../PROJECT_STATE.md">PROJECT_STATE.md</a></td></tr>
+<tr><td>어떤 인수 예시가 어디에 연결되는가</td><td><a class="repo" href="../CAPABILITY_TRACE.md">기능 추적표</a></td></tr>
 </tbody></table></div>
-<p>생성 결과는 시각·난수·환경에 따라 바뀌는 값을 넣지 않아서, 같은 원본이면 항상 같은 바이트가 나옵니다. 아래 목록은 이 위키가 읽은 원본 문서와 그 digest(sha256)입니다. 위키가 어느 판의 원본에서 만들어졌는지 확인할 때 씁니다.</p>
+<p>명세는 목표 동작의 기준이고 코드는 구현 사실의 근거입니다. 코드를 읽었다는 이유로 명세의 성공 기준을 낮추지 않습니다. 위키는 둘의 대응을 이해시키는 문서이지, 어느 쪽도 대신하는 새 계약이 아닙니다.</p>
+<h2 id="원고를-고치고-배포본을-만드는-방법">원고를 고치고 배포본을 만드는 방법<a class="anchor" href="#원고를-고치고-배포본을-만드는-방법" aria-label="이 제목 링크">#</a></h2>
+<p>설명은 <code>docs/wiki/_source/*.md</code>에서만 고칩니다. 생성된 HTML과 <code>assets/</code>는 직접 편집하지 않습니다. 변경한 기능의 실제 흐름을 확인해 원고를 고친 뒤 다음을 수행합니다.</p>
+<ol>
+<li>필요한 명세·추적표와 <code>PROJECT_STATE.md</code>의 관련 사실을 맞춥니다. 동작을 바꾸지 않은 집필 작업 때문에 무관한 규칙이나 과거 증거를 다시 쓰지는 않습니다.</li>
+<li><code>make wiki</code>로 정적 HTML을 생성합니다.</li>
+<li><code>make wiki-check</code>로 인수 ID·상태 기록 누락, 깨진 링크, 원격 자원 로딩, 생성 결과의 낡음을 검사합니다.</li>
+<li>브라우저에서 본문을 읽고 탐색·검색·좁은 화면을 확인합니다. 자동 검사는 문장이 이해되는지, 실행 순서를 정확히 설명했는지 대신 판정하지 못합니다.</li>
+</ol>
+<p>위키를 갱신하는 일 자체는 Owner 재시작, Profile 재설치, Vault 수정, 외부 전송을 요구하지 않습니다.</p>
+<h3 id="원고-문법">원고 문법<a class="anchor" href="#원고-문법" aria-label="이 제목 링크">#</a></h3>
+<p>기본 Markdown의 제목·문단·목록·표·링크를 씁니다. <code>[[c1]]</code>은 기능 페이지, <code>[[ORG-1]]</code>은 해당 인수 예시로 연결됩니다. 표 안에서는 표시 글을 바꾸는 <code>|</code> 포함 위키 링크를 쓰지 않습니다.</p>
+<p><code>{{acceptance:C1}}</code>은 인수 연결 표, <code>{{state:evidence}}</code> 같은 지시문은 상태 기록을 생성합니다. 이들은 확인용 자료이며 본문 설명을 대신하지 않습니다. 코드 블록의 Mermaid는 그림으로 변환되지 않으므로, 기존 생성 그림이나 읽기 쉬운 단계 설명을 사용합니다.</p>
+<h2 id="휴대폰과-정적-배포">휴대폰과 정적 배포<a class="anchor" href="#휴대폰과-정적-배포" aria-label="이 제목 링크">#</a></h2>
+<p>좁은 화면에서는 메뉴 버튼으로 목차를 열고 검색창으로 전체 위키를 찾습니다. 넓은 표와 코드는 해당 영역 안에서 좌우로 움직이며, 그림은 <strong>그림 크게 보기 / 그림 전체 보기</strong>로 전환합니다.</p>
+<p>현재 HTML은 정적 문서입니다. 휴대폰 접속을 새로 설정한 것은 아닙니다. 집 밖에서 읽는 구성으로는 <strong>위키 파일만 제공하는 별도 loopback 정적 서버 + 비공개 Tailscale Serve HTTPS</strong>를 제안합니다. 본인 기기만 접근하도록 제한하고 Owner·관리 API는 연결하지 않습니다. <a class="external" href="https://tailscale.com/kb/1312/serve" rel="noopener noreferrer">Serve 공식 안내</a>의 tailnet 내부 공유와 공개용 Funnel은 다릅니다.</p>
+<p>오프라인으로 복사할 때는 HTML과 <code>assets/</code>를 함께 옮깁니다. 위키 밖 저장소 파일을 가리키는 근거 링크는 그 파일도 함께 제공해야 열립니다. 링크를 살리려고 저장소 전체를 웹에 노출하지 않습니다. 검색 색인에도 본문이 들어 있으므로 공개 배포에는 별도 내용 선별이 필요합니다.</p>
+<h2 id="생성에-사용한-문서">생성에 사용한 문서<a class="anchor" href="#생성에-사용한-문서" aria-label="이 제목 링크">#</a></h2>
+<p>다음 해시는 생성기가 읽은 명세·상태 문서의 판을 식별합니다. 구현 파일 전체의 검증이나 현재 실행 환경의 상태를 뜻하지는 않습니다.</p>
 <div class="table-wrap"><table class="sources">
 <thead><tr><th>문서</th><th>경로</th><th>SHA-256</th></tr></thead><tbody>
-<tr><td>기능 명세</td><td><a class="repo" href="../CAPABILITIES.md"><code>docs/CAPABILITIES.md</code></a></td><td><code>741676e21cc97a2f</code></td></tr>
-<tr><td>인수 예시 추적표</td><td><a class="repo" href="../CAPABILITY_TRACE.md"><code>docs/CAPABILITY_TRACE.md</code></a></td><td><code>edc7dfab212cb2d9</code></td></tr>
-<tr><td>프로젝트 상태</td><td><a class="repo" href="../../PROJECT_STATE.md"><code>PROJECT_STATE.md</code></a></td><td><code>6cb831fe17f35243</code></td></tr>
-<tr><td>사용자 기능 명세</td><td><a class="repo" href="../../USER_FEATURE_SPEC.md"><code>USER_FEATURE_SPEC.md</code></a></td><td><code>57ddf6dc8d0f5a99</code></td></tr>
-<tr><td>Blueprint</td><td><a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md"><code>OBSIDIAN_VAULT_BLUEPRINT.md</code></a></td><td><code>76344f2910470453</code></td></tr>
-<tr><td>README</td><td><a class="repo" href="../../README.md"><code>README.md</code></a></td><td><code>109c75891888eac9</code></td></tr>
+<tr><td>기능 명세</td><td><a class="repo" href="../CAPABILITIES.md"><code>docs/CAPABILITIES.md</code></a></td><td><code>e156678c3f9e4179</code></td></tr>
+<tr><td>인수 예시 추적표</td><td><a class="repo" href="../CAPABILITY_TRACE.md"><code>docs/CAPABILITY_TRACE.md</code></a></td><td><code>5bf66a270bea0599</code></td></tr>
+<tr><td>프로젝트 상태</td><td><a class="repo" href="../../PROJECT_STATE.md"><code>PROJECT_STATE.md</code></a></td><td><code>6068632a468f840a</code></td></tr>
+<tr><td>사용자 기능 명세</td><td><a class="repo" href="../../USER_FEATURE_SPEC.md"><code>USER_FEATURE_SPEC.md</code></a></td><td><code>393f2356792ffd31</code></td></tr>
+<tr><td>Blueprint</td><td><a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md"><code>OBSIDIAN_VAULT_BLUEPRINT.md</code></a></td><td><code>59992586dd5a9650</code></td></tr>
+<tr><td>README</td><td><a class="repo" href="../../README.md"><code>README.md</code></a></td><td><code>2b4d5ff0ab874f2a</code></td></tr>
 </tbody></table></div>
-<h3 id="원고에-쓰는-문법">원고에 쓰는 문법<a class="anchor" href="#원고에-쓰는-문법" aria-label="이 제목 링크">#</a></h3>
-<p>해설 문장은 Markdown의 일부(제목, 목록, 표, 코드 블록, 인용, 굵게·기울임·코드, 링크)와 아래 규칙만 씁니다.</p>
-<pre><code>[[slug]]              페이지 링크 (예: usage, c4)
-[[slug|표시할 글]]     표시 글을 바꾼 링크 (표 안에서는 | 때문에 쓰지 않음)
-[[ORG-1]]             인수 ID가 있는 기능 페이지의 그 위치로 링크
-&gt; [!note] 제목        설명 상자 (note, tip, warning, status)</code></pre>
-<p>원본에서 가져오는 블록은 한 줄에 하나씩 쓰는 지시문입니다. 원문 포함(<code>include</code>), 인수 표(<code>acceptance</code>), 상태 표(<code>state</code>), 그림(<code>svg</code>), 원본 목록(<code>sources</code>)이 있고, 존재하지 않는 대상을 가리키면 생성이 실패합니다.</p>
-<h2 id="개발-세션마다-위키를-갱신하는-방법">개발 세션마다 위키를 갱신하는 방법<a class="anchor" href="#개발-세션마다-위키를-갱신하는-방법" aria-label="이 제목 링크">#</a></h2>
-<p>위키는 코드·명세와 함께 움직입니다. <strong>모든 개발 세션</strong>은 바뀐 범위에 맞춰 원본 문서와 위키 설명을 함께 갱신하고, 끝내기 전에 아래를 순서대로 합니다. 명세·추적표·<code>PROJECT_STATE.md</code>를 바꾼 세션에만 한정하지 않습니다. 이 절차는 저장소의 <code>AGENTS.md</code>와 <code>README.md</code>, Blueprint §0에도 같은 내용으로 적혀 있습니다.</p>
-<ol>
-<li><strong>원본을 고칩니다.</strong>
-<ul>
-<li>동작·인수 기준이 바뀌었다면 <code>docs/CAPABILITIES.md</code>를 같은 변경 안에서 고칩니다. 필요하면 <code>USER_FEATURE_SPEC.md</code>(의도), Blueprint(시스템 제약)도 함께 고칩니다. 낡은 문장은 지웁니다.</li>
-<li>인수 시나리오를 더하거나 바꿨다면 테스트와 <code>docs/CAPABILITY_TRACE.md</code>의 행도 맞춥니다.</li>
-<li>진행·검증 결과는 <code>PROJECT_STATE.md</code>에만 기록합니다. 증거에는 종류(class)와 결과를 적고, 돌리지 않은 것은 정확히 &quot;돌리지 않음&quot;으로 둡니다.</li>
-</ul></li>
-<li><strong>해설을 고칩니다.</strong> 쓰는 법·용어·설명이 달라졌다면 <code>docs/wiki/_source/</code>의 해당 페이지를 고칩니다. 새 용어는 <a class="wikilink" href="glossary.html">용어</a>에 더합니다. 설명 문장은 여기에서만 고칩니다.</li>
-<li><strong><code>make wiki</code></strong> 로 위키를 다시 생성합니다.</li>
-<li><strong><code>make wiki-check</code></strong> 로 검사합니다. 이 검사는 아래 중 하나라도 해당하면 실패합니다.
-<ul>
-<li>명세의 C1~C11이나 인수 ID가 생성 결과에 빠졌다.</li>
-<li>PROJECT_STATE의 목표·인수·막힘·인계 기록이 빠졌다.</li>
-<li>내부 링크나 앵커가 풀리지 않거나, 원고의 위키 링크가 없는 페이지·ID를 가리킨다.</li>
-<li>어떤 출력이든 원격 자원(<code>src=</code>, <code>&lt;link href&gt;</code>, CSS <code>url()</code>·<code>@import</code>의 스킴, <code>fetch(</code>·XHR의 http 호출)을 불러온다.</li>
-<li>다시 생성하면 바이트가 달라진다. 즉 생성 파일이 낡았다.</li>
-</ul></li>
-<li><strong>바뀐 페이지를 브라우저로 확인합니다.</strong> <code>docs/wiki/index.html</code>을 열어 바뀐 페이지, 표·그림, 링크, 사이드바, 검색 상자를 눈으로 봅니다. 자동 검사는 링크가 풀리는지를 보지만 읽기 편한지, 내용이 서로 맞는지는 알려 주지 않습니다.</li>
-<li><strong>발견한 어긋남을 같은 세션에서 고칩니다.</strong> 5단계에서 문서끼리 맞지 않는 곳이 보이면(아래 &quot;명세 점검&quot; 참고) 위키에 경고만 남기지 말고 원본을 고치고 3~5단계를 다시 합니다.</li>
-<li><strong>생성 결과를 원본과 같은 변경에 담습니다.</strong> 생성된 HTML과 assets는 저장소에 포함됩니다.</li>
-</ol>
-<p>상태·추적표 검사(<code>make state-check</code>, <code>make trace-check</code>)는 위키와 별개로 각각 돌립니다.</p>
-<h3 id="명세-점검-위키를-갱신하며-함께-보는-것">명세 점검: 위키를 갱신하며 함께 보는 것<a class="anchor" href="#명세-점검-위키를-갱신하며-함께-보는-것" aria-label="이 제목 링크">#</a></h3>
-<p>위키를 갱신하는 일은 명세를 한 번 훑어 읽는 기회입니다. 아래를 살펴보고, 어긋나면 <strong>우선순위가 낮은 쪽을 고칩니다.</strong></p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>살펴볼 것</th>
-<th>예</th>
-<th>고치는 쪽</th>
-</tr></thead><tbody>
-<tr><td>같은 사실을 다르게 적은 곳</td><td>기능 명세와 Blueprint의 기본값·이름이 다름</td><td>우선순위가 낮은 문서(Blueprint·사용자 기능 명세)</td></tr>
-<tr><td>구현이 이미 답한 열린 질문</td><td>Blueprint §9에 남아 있는데 기능 명세와 증거에 값이 있음</td><td>Blueprint §9에서 그 질문을 지움</td></tr>
-<tr><td>증거가 명세에 새어 든 곳</td><td>명세에 설치 상태·관찰 버전이 적혀 있음</td><td>명세에서 지우고 <code>PROJECT_STATE.md</code>에 기록</td></tr>
-<tr><td>상태가 현실과 다른 곳</td><td>인수 기록이 오래됨, 막힘이 풀렸는데 남아 있음</td><td><code>PROJECT_STATE.md</code></td></tr>
-</tbody></table></div>
-<p>우선순위: 동작·인수 기준에 대해서는 <code>docs/CAPABILITIES.md</code>가 가장 높고, 사용자 기능 명세와 Blueprint가 그것을 보충합니다. 최상위 문서의 내용 자체가 틀렸다고 판단되면 그것은 사용자가 지정한 문서를 바꾸는 일이므로 [해석] 임의로 고치지 말고 세션 보고에 남깁니다.</p>
-<h3 id="무엇이-바뀌면-어디를-고치나">무엇이 바뀌면 어디를 고치나<a class="anchor" href="#무엇이-바뀌면-어디를-고치나" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>무엇이 바뀌었나</th>
-<th>고칠 곳</th>
-<th>위키에 반영되는 곳</th>
-</tr></thead><tbody>
-<tr><td>기능의 동작·인수 기준</td><td><code>docs/CAPABILITIES.md</code>(+ 필요 시 USER·Blueprint), 테스트, 추적표</td><td>기능 페이지의 원문·인수 표</td></tr>
-<tr><td>검증 결과·막힘·인계</td><td><code>PROJECT_STATE.md</code></td><td><a class="wikilink" href="status.html">현재 상태</a>, <a class="wikilink" href="roadmap.html">로드맵</a>, 각 기능의 &quot;현재 상태&quot;</td></tr>
-<tr><td>쓰는 방법</td><td><code>README.md</code> 또는 <code>_source/usage.md</code></td><td><a class="wikilink" href="usage.html">사용 가이드</a></td></tr>
-<tr><td>새 용어</td><td><code>_source/glossary.md</code></td><td><a class="wikilink" href="glossary.html">용어</a></td></tr>
-<tr><td>구조 설명</td><td>Blueprint 또는 <code>_source/architecture.md</code></td><td><a class="wikilink" href="architecture.html">구조</a></td></tr>
-<tr><td>구현이 답한 열린 질문</td><td>Blueprint §9에서 삭제</td><td><a class="wikilink" href="roadmap.html">로드맵</a>의 열린 질문</td></tr>
-</tbody></table></div>
-<div class="callout callout-warning">
-<p class="callout-title">주의</p>
-<p>위키를 갱신한다고 Obsidian GUI·플러그인·Hermes·State·실행 중인 Owner를 건드리지 않습니다. 위키는 원본 문서를 읽어 정적 HTML을 만들 뿐입니다. 그런 작업은 별도의 명시적 승인이 있어야 합니다.</p>
-</div>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="roadmap.html">로드맵</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>c32a17ba1d767976</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

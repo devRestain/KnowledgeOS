@@ -28,7 +28,7 @@ from typing import Any
 
 from . import OPERATION_ID
 from .config import ROOT
-from .policy import strictest
+from .policy import DEFAULT_POLICY, strictest
 from .util import canonical, sha256
 from .vault import CLASSIFICATION, PROPOSALS_DIR, REPORTS_DIR
 
@@ -206,8 +206,8 @@ class _Compiler:
         return [core_id(criterion["id"], "criterion") for criterion in self.spec["criteria"]]
 
     def policy(self) -> str:
-        policies = [self.spec.get("policy") or "ask"]
-        policies += [entry.get("policy", "ask") for entry in (self.work.get("evidence") or {}).values()]
+        policies = [self.spec.get("policy") or DEFAULT_POLICY]
+        policies += [entry.get("policy", DEFAULT_POLICY) for entry in (self.work.get("evidence") or {}).values()]
         return strictest(policies)
 
     def work_spec(self) -> dict[str, Any]:

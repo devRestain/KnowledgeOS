@@ -69,10 +69,18 @@ def atomic_write(path: Path, data: bytes, mode: int | None = None) -> None:
 
 
 def create_exclusive(path: Path, data: bytes) -> None:
-    """Create a new file, failing if it already exists."""
+    """Create a new file with its complete bytes, failing if it already exists.
+
+    The bytes go to a same-directory temporary file that is then hard-linked into place, so a
+    concurrent reader never sees an empty or partial record."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(data)
-        handle.flush()
-        os.fsync(handle.fileno())
+    fd, tmp = tempfile.mkstemp(prefix=".kos-", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp, 0o644)
+        os.link(tmp, path)
+    finally:
+        Path(tmp).unlink(missing_ok=True)

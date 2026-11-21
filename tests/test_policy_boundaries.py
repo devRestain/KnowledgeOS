@@ -1,17 +1,11 @@
-"""Automatic Curation never widens its remote_ok scope when a role uses a local route."""
+"""Policy admission and role tools fail closed, including changes during a Work."""
 from __future__ import annotations
 
 import json
 import shutil
 
 import pytest
-from conftest import (
-    classifier_script,
-    conforming_note,
-    enhance_scripts,
-    evaluator_script,
-    organize_scripts,
-)
+from conftest import classifier_script, conforming_note, evaluator_script, organize_scripts
 
 from knowledgeos.config import ROOT
 
@@ -24,15 +18,10 @@ ASK_SENTINEL = "ASK_BOUNDARY_SENTINEL_829"
 
 
 @pytest.fixture
-def local_control(tmp_path):
+def gateway_control(tmp_path):
     control = tmp_path / "control"
     shutil.copytree(ROOT / "config", control / "config")
     shutil.copytree(ROOT / "roles", control / "roles")
-    roles_path = control / "config/roles.json"
-    declarations = json.loads(roles_path.read_text())
-    for declaration in declarations["roles"].values():
-        declaration["local"] = True
-    roles_path.write_text(json.dumps(declarations))
     # Exercise gateway Work policy through public admission without changing production
     # routing: this disposable catalog admits organize for the test Operation as well.
     catalog_path = control / "config/capabilities/C1.json"
@@ -43,9 +32,9 @@ def local_control(tmp_path):
 
 
 def seed(vault):
-    vault.write(TARGET, conforming_note("capture", "unprocessed", policy="remote_ok",
+    vault.write(TARGET, conforming_note("capture", "unprocessed", policy="approve",
                                       body="Boundary tools support thought. [[Allowed]]\n"))
-    vault.write(CANDIDATE, conforming_note("knowledge", "seed", policy="remote_ok",
+    vault.write(CANDIDATE, conforming_note("knowledge", "seed", policy="approve",
                                          body="Boundary notebooks support [[Boundary]].\n"))
     vault.write(PRIVATE, conforming_note("knowledge", "seed", policy="local_only",
                                        extra=f"title: {LOCAL_SENTINEL}\ntags: [local-boundary-tag]\n",
@@ -62,17 +51,16 @@ def run_curation(kos, origin):
 
 
 @pytest.mark.parametrize("origin", ["schedule", "gateway"])
-def test_automatic_curation_local_roles_cannot_search_related_or_context_private_notes(
-    make_kos, vault, local_control, origin,
+def test_curation_roles_cannot_search_related_or_context_denied_notes(
+    make_kos, vault, gateway_control, origin,
 ):
     seed(vault)
-    kos = make_kos(root=local_control)
+    kos = make_kos(root=gateway_control)
     organize_scripts(kos.runner)
     disclosed = []
     visited = set()
     for role, original in list(kos.runner.scripts.items()):
         def recording(session, original=original):
-            assert session.binding.local is True
             visited.add(session.role)
             call = session.call
 
@@ -108,13 +96,13 @@ def test_automatic_curation_local_roles_cannot_search_related_or_context_private
 
 
 @pytest.mark.parametrize("origin", ["schedule", "gateway"])
-@pytest.mark.parametrize("restricted", ["local_only", "ask"])
+@pytest.mark.parametrize("restricted", ["deny", "ask"])
 @pytest.mark.parametrize("source", ["snapshot", "current"])
-def test_automatic_curation_rechecks_snapshot_and_current_reads_for_local_roles(
-    make_kos, vault, local_control, origin, restricted, source,
+def test_curation_rechecks_snapshot_and_current_reads(
+    make_kos, vault, gateway_control, origin, restricted, source,
 ):
     seed(vault)
-    kos = make_kos(root=local_control)
+    kos = make_kos(root=gateway_control)
     organize_scripts(kos.runner, graph=("scout", "classifier"))
     observed = []
 
@@ -128,7 +116,7 @@ def test_automatic_curation_rechecks_snapshot_and_current_reads_for_local_roles(
             handle = hit["handle"]
         original = vault.text(path)
         sentinel = "NEWLY_RESTRICTED_BOUNDARY_SENTINEL_513"
-        vault.write(path, original.replace("ai_policy: remote_ok", f"ai_policy: {restricted}") + sentinel + "\n")
+        vault.write(path, original.replace("ai_policy: approve", f"ai_policy: {restricted}") + sentinel + "\n")
         try:
             result = session.call("read", handle=handle)
             if source == "snapshot":
@@ -152,12 +140,12 @@ def test_automatic_curation_rechecks_snapshot_and_current_reads_for_local_roles(
 
 
 @pytest.mark.parametrize("origin", ["schedule", "gateway"])
-@pytest.mark.parametrize("restricted", ["local_only", "ask"])
-def test_eval_view_never_discloses_newly_restricted_retained_excerpts_to_local_eval(
-    make_kos, vault, local_control, origin, restricted,
+@pytest.mark.parametrize("restricted", ["deny", "ask"])
+def test_eval_view_never_discloses_newly_denied_retained_excerpts(
+    make_kos, vault, gateway_control, origin, restricted,
 ):
     seed(vault)
-    kos = make_kos(root=local_control)
+    kos = make_kos(root=gateway_control)
     organize_scripts(kos.runner, graph=("scout", "classifier"))
     inspected = []
 
@@ -174,7 +162,7 @@ def test_eval_view_never_discloses_newly_restricted_retained_excerpts_to_local_e
 
     def evaluator(session):
         original = vault.text(CANDIDATE)
-        vault.write(CANDIDATE, original.replace("ai_policy: remote_ok", f"ai_policy: {restricted}"))
+        vault.write(CANDIDATE, original.replace("ai_policy: approve", f"ai_policy: {restricted}"))
         try:
             try:
                 view = session.call("eval_view")
@@ -196,24 +184,3 @@ def test_eval_view_never_discloses_newly_restricted_retained_excerpts_to_local_e
     assert inspected
     expected = "failed" if "refused" in inspected else "completed"
     assert receipt["status"] == expected, receipt
-
-
-def test_c4_local_role_keeps_local_only_access(make_kos, vault, local_control):
-    seed(vault)
-    kos = make_kos(root=local_control)
-    enhance_scripts(kos.runner)
-    observed = []
-    original = kos.runner.scripts["connector"]
-
-    def connector(session):
-        assert session.binding.local is True
-        [hit] = session.call("search", query=LOCAL_SENTINEL)["results"]
-        read = session.call("read", handle=hit["handle"])
-        assert read["status"] == "ok" and LOCAL_SENTINEL in json.dumps(read)
-        observed.append(read)
-        original(session)
-
-    kos.runner.script("connector", connector)
-    receipt = kos.run("enhance", {"mode": "develop", "path": TARGET})
-    assert receipt["status"] == "completed", receipt
-    assert len(observed) == 1

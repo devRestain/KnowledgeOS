@@ -131,9 +131,13 @@ class EffectContext(StepContext):
         self._note_effect("replace", path, "applied", preimage=preimage, result=self.owner.store.put_blob(data))
         return True
 
-    def create(self, path: str, data: bytes) -> str:
+    def create(self, path: str, data: bytes, exact: bool = False) -> str | None:
         self._guard()
-        final = self.owner.vault.create(path, data, self.record)
+        try:
+            final = self.owner.vault.create(path, data, self.record, exact=exact)
+        except PreimageMismatch:
+            self._note_effect("create", path, "not_applied")
+            return None
         self._note_effect("create", final, "applied")
         return final
 
@@ -772,12 +776,12 @@ class Engine:
 
         def tools(binding: roles.RoleBinding) -> dict[str, Callable[..., Any]]:
             def view() -> dict[str, Any]:
-                evidence.assert_disclosure(local=binding.local)
+                evidence.assert_disclosure()
                 return {
                     "criteria": view_criteria,
                     "static_results": static,
                     "artifact": bounded(artifact),
-                    "evidence": evidence.excerpts(cited, local=binding.local),
+                    "evidence": evidence.excerpts(cited),
                 }
 
             return {"eval_view": view, "feedback": lambda: self._feedback(binding.role)}
@@ -993,14 +997,19 @@ class Engine:
 
         def tools(binding: roles.RoleBinding) -> dict[str, Callable[..., Any]]:
             evidence = Evidence(self.owner, work_id)
-            local, by = binding.local, binding.step_id
-            return {
+            by = binding.step_id
+            granted: dict[str, Callable[..., Any]] = {
                 "work_context": lambda: self._work_context(work_id, segment, binding, hooks),
-                "read": lambda handle=None: evidence.read(handle, local=local, by=by),
-                "search": lambda query=None, limit=10: evidence.search(query, local=local, by=by, limit=limit),
-                "related": lambda handle=None, limit=10: evidence.related(handle, local=local, by=by, limit=limit),
+                "read": lambda handle=None: evidence.read(handle, by=by),
+                "search": lambda query=None, limit=10: evidence.search(query, by=by, limit=limit),
+                "related": lambda handle=None, limit=10: evidence.related(handle, by=by, limit=limit),
                 "feedback": lambda: self._feedback(binding.role),
             }
+            # Team-specific tools ``fn(ctx, step_id, **args)``; the role binding (config/roles.json)
+            # still decides exposure.
+            for name, fn in hooks.get("tools", {}).items():
+                granted[name] = lambda fn=fn, **args: fn(StepContext(self.owner, self.owner.get_work(work_id)), by, **args)
+            return granted
 
         try:
             session = self._invoke(role, step_id, work_id, team["pool"][role].get("submission"), tools, validate)
@@ -1063,7 +1072,7 @@ class Engine:
         view["handoffs"] = bounded(self._handoffs(self.owner.get_work(work_id) or work, binding.step_id))
         if segment and work.get("remaining_work"):
             view["remaining_work"] = public_remaining(work)
-        Evidence(self.owner, work_id).assert_disclosure(local=binding.local)
+        Evidence(self.owner, work_id).assert_disclosure()
         return view
 
     def _team_result(self, work_id: str, team: dict[str, Any], hooks: dict[str, Any]) -> Any:

@@ -1,160 +1,76 @@
 # 용어 사전
 
-KnowledgeOS 문서에는 영어 용어가 그대로 쓰입니다. 코드·명세와 같은 단어를 쓰려고 번역하지 않은 것이므로, 여기서 한 번씩 풀어 둡니다. 정의는 원본 문서에서 가져왔고, 원본에 정의가 없어 풀어 쓴 것은 **[해석]** 으로 표시했습니다. 모르는 말이 나오면 이 페이지로 돌아오세요.
+KnowledgeOS 위키와 화면에서는 코드·명세와 같은 단어를 쓰기 위해 일부 영어 용어를 그대로 유지합니다. 이 사전은 각 개념이 실제 구현에서 맡은 역할과 한 가지 구체적 예시를 묶어 정리합니다. 원문 용어 정의는 [CAPABILITIES Shared terms](../CAPABILITIES.md)에서 볼 수 있습니다.
 
-## 명세가 공식으로 정의한 용어
+## 핵심 실행 개념과 예시
 
-아래는 `docs/CAPABILITIES.md`의 "Shared terms" 원문입니다.
+| 용어 | 실제 구현에서 하는 일 | 예시 | 더 보기 |
+|---|---|---|---|
+| **Request (요청)** | Thin Client·콘솔·CLI·예약 작업·Gateway가 `POST /api/requests`로 보내는 실행 단위. 안정적인 `request_id`로 중복 실행을 막습니다 | 사이드바 **정리 요청**을 누르면 노트 경로·해시·UUID가 요청으로 전송됨 | [[c11]] |
+| **Receipt (영수증)** | Owner가 요청을 받자마자 실행 전에 State `requests/<id>.json`에 먼저 남기는 접수·종결 기록. 응답을 잃으면 클라이언트가 이 영수증을 조회합니다 | 응답이 끊긴 뒤에도 같은 `request_id` 영수증을 폴링해 생성된 제안 경로를 받음 | [[c11]] |
+| **Admission (접수)** | Owner의 `Director`가 요청을 검사해 즉시 처리하거나 `WorkSpec`으로 받아들이는 관문. 정형 요청은 정적 코드가, 자유 요청만 `kos-director`가 초안을 만듭니다 | **적용**(`review.apply`)은 접수 안에서 바로 끝나고, **정리 요청**은 Work로 이어짐 | [[architecture]] |
+| **Work (`work_id`)** | 접수된 실행 요청 하나의 전체 기록(`State/works/<id>.json`). 입력 스냅숏, `Graph 세그먼트`, 역할 호출, 평가, 효과, `TeamReview`를 담습니다. 검색·제안 적용처럼 Work를 만들지 않는 요청도 있습니다 | 노트 하나를 정리하면 `work-...`가 열려 분류·링크·평가·제안 생성까지 한 기록에 남음 | [[architecture]] |
+| **WorkSpec** | Work 시작 시 Owner가 고정하는 작업 명세. 대상(Officer 또는 Team), 카탈로그 완료 기준, 예산, 입력 스냅숏, 가장 엄격한 입력 `ai_policy`를 담습니다. 모델은 기준·예산을 쓸 수 없습니다 | `강화: 묻기`를 누르면 `ThinkingTeam`, 5개 기준, 2구간·생산자 6회 예산이 `WorkSpec`에 고정됨 | [[c4]] |
+| **Graph segment (구간)** | Work 안에서 한 번 실행하는 직렬 생산자 목록과 끝의 평가 노드 묶음. Team은 Manager가 남은 일과 예산에 맞춰 고르고, Officer는 고정된 처리기 하나를 씁니다. 시작한 구간은 바꾸지 않습니다 | 정리의 첫 구간 뒤 분류 근거만 부족하면 다음 구간에 `classifier`만 다시 배치함 | [[architecture]] |
+| **LangGraph** | 승인된 `Graph 세그먼트`의 노드 순서를 Temporal 안에서 실제로 실행하는 엔진(`StateGraph`). Worker 시작 시 등록된 토폴로지 중 선택된 순서와 일치하는 그래프를 꺼내 생산자 노드와 평가 노드를 차례로 돌립니다 | `["retriever", "connector", "synthesizer"]`가 선택되면 `START → retriever → connector → synthesizer → evaluation → END`로 실행됨 | [[architecture]] |
+| **Temporal Activity (`knowledgeos.phase`)** | Workflow 안에서 외부 호출·파일 처리·모델 실행을 담당하는 단위. 한 모델 팀원의 도구 호출과 교정 턴은 하나의 생산자 Activity 안에서 끝납니다. 최대 시도는 1회, 즉 자동 재시도는 없습니다 | 분류 단계가 시간 제한을 넘겨 결과를 알 수 없으면 다시 호출하지 않고 `unknown`으로 남김 | [[architecture]] |
+| **Hermes Profile (`kos-*`)** | 모델 역할 9개와 발송 전용 `kos-ops`마다 따로 설치하는 격리 실행 환경(`SOUL.md`·`config.yaml`·자체 기억). `config/roles.json` 기준으로 `classifier`·`linker`·`connector`는 `gpt-6.1-terra`, 나머지 6개 모델 역할은 `gpt-6.1-sol`(모두 `high`)을 씁니다 | `kos-linker`는 `gpt-6.1-terra`와 읽기·검색·제출용 작업 도구만 받고 셸·파일 도구 없이 1단계만 실행함 | [[architecture]] |
+| **Handoff (인계물)** | Team 작업의 팀원이 `submit_handoff` 등으로 제출해 State blob에 남기는 구조화된 중간 결과물. 같은 Work의 뒤쪽 팀원이 `work_context`로 앞선 인계물을 읽어 이어 갑니다 | `scout`이 모은 대상 핸들과 태그 어휘를 `kos-classifier`가 읽고, `classifier`의 분류 인계물을 `kos-linker`가 읽음 | [[c1]], [[c4]] |
+| **Handle (`e1`, `e2`...)** | 모델에게 파일 경로·ID·해시 대신 주는 작업별 짧은 근거 참조. 노트 한 조각과 정확한 내용 판본을 가리킵니다. 아직 읽지 않은 검색 후보는 `read`로 열어야 인용할 수 있습니다 | 검색의 `e3`을 실제로 읽은 뒤 보고서에서 인용하면 Owner가 줄 위치와 해시로 펼쳐 줌 | [[c4]] |
+| **Effect (`effects`)** | Owner가 Vault 파일을 생성·수정·이동·삭제하는 쓰기와 그 의도·결과 기록(`State/effects.jsonl`). 쓰기 전에 의도와 직전 파일 해시(`preimage`)를 남기고, 파일이 달라졌으면 쓰지 않습니다 | `review.apply`가 체크된 속성을 대상 노트에 쓰고 제안 파일을 삭제할 때 `replace`·`delete` 효과가 순서대로 남음 | [[c6]] |
+| **Unknown (`unknowns/<id>.json`)** | Activity 타임아웃, 중단, 발송 불명처럼 실제 반영 여부를 확인할 수 없을 때 남기는 상태. 중복 적용·발송을 막기 위해 자동 재실행하지 않고 사람이 확인 뒤 `reconcile`로 관찰만 기록합니다 | 모델 단계나 `ActionWorkflow`가 시간 초과로 끊기면 콘솔 **결과 불명** 탭에 남아 사람의 확인을 기다림 | [[c11]], [[c6]] |
+| **System One** | Owner가 OpenAI Decisions API(`gpt-6-luna`)에 직접 보내는 선택형(`choice`)·확률(`predicate`) 판단 서비스. Hermes Profile이 아니며 글을 짓거나 파일을 쓰지 않고 `ai_policy`·`sensitivity`도 정하지 않습니다. 현재 `approve` 노트만 보내며 실패해도 기능은 그대로 이어집니다 | 자유 요청 `"오늘 서울 날씨 알려줘"`는 `none_of_these`(0.95)로 거절해 `kos-director`를 띄우지 않고, 규격화에서는 `status: draft`를 `seed`로 고름 | [[c2]], [[c11]] |
 
-{{include:CAPABILITIES#Shared terms}}
-
-## 요청과 작업
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **Request(요청)** | Thin Client 명령, 콘솔 동작, CLI 명령, 예약 작업 실행, Gateway 제출 중 하나. 안정적인 요청 ID가 붙습니다 | [[c11]] |
-| **Admission(접수)** | Director가 요청을 받아들여 Work로 만드는 일. 정형 요청은 코드가, 자유 요청만 모델이 초안을 만듭니다 | [[architecture]] |
-| **Work(작업)** | Director가 접수한 요청 하나. 실행한 주체, 대상, 입력 스냅숏, 구간, 역할 호출, 효과, 평가를 기록합니다 | [[architecture]] |
-| **WorkSpec** | 접수된 작업 명세: 대상(Officer 또는 Team), 카탈로그에서 온 기준, 예산, 입력 범위. 모델은 기준을 쓰지 못합니다 | [[architecture]] |
-| **Step(단계)** | 구간 안의 역할 호출 하나. `static`(Owner 코드) 또는 `model`(Hermes 역할 profile) | [[architecture]] |
-| **Graph / Segment(구간)** | Manager가 정한 "어느 팀원이 어떤 순서로 + 평가 위치". 승인된 구간은 바뀌지 않고, 부족하면 후속 구간이 더해집니다 | [[architecture]] |
-| **Handoff(인계물)** | 팀원이 남기는 중간 산출물. 뒤의 팀원이 같은 작업 안에서 읽을 수 있습니다 | [[c1]], [[c4]] |
-| **Budget(예산)** | 한 작업이 쓸 수 있는 양. 기본값은 Team 2구간·생산자 호출 6회, Officer 1구간입니다 | [[architecture]] |
-| **RemainingWork** | 평가에서 기준에 못 미친 "남은 일". 같은 Manager가 이것만 다루는 후속 구간을 짭니다 | [[ENH-6]] |
-| **CompletionAssessment** | 평가 결과(만족·미충족 등)의 기록. Owner가 EvalOfficer의 판정과 static 검사를 모아 만듭니다 | [[architecture]] |
-| **Corrective turn(교정 턴)** | 모델 제출이 형식에 어긋날 때 진단과 함께 한 번 더 주는 기회. 두 번째 실패는 단계 실패입니다 | [[ENH-2]] |
-| **Authority violation(권한 위반)** | 모델이 자기 권한 밖(기준·예산·경로 정하기, EvalOfficer에게 지시하기 등)을 시도하는 것. 교정 턴 없이 즉시 거절됩니다 | [[ORG-5]] |
-| **TeamReview** | 작업이 끝난 뒤 Manager가 팀원 성과를 평가하고 개선 제안(최대 3개)을 남기는 기록. 조언일 뿐 역할을 바꾸지 못합니다 | [[ENH-7]] |
-
-## 역할
+## 실행·평가·조직 용어
 
 | 용어 | 뜻 | 더 보기 |
 |---|---|---|
-| **Owner** | 권한과 효과의 주인. 정책 판단, State, 파일 쓰기, 기록, 알림을 맡고 내용은 판단하지 않습니다. 호스트에서 필요할 때 켜지는 사용자 서비스입니다 | [[architecture]] |
-| **Director** | 접수 담당. 요청을 WorkSpec으로 바꿉니다 | [[architecture]] |
-| **Manager** | 팀의 Graph를 짜고 후속 구간과 TeamReview를 맡습니다. CurationManager(정리 팀)와 ThinkingManager(강화 팀)가 있습니다 | [[c1]], [[c4]] |
-| **Teammate(팀원)** | 한 종류의 중간 산출물만 만드는 역할. 정리 팀 `scout`·`classifier`·`linker`, 강화 팀 `retriever`·`connector`·`challenger`·`synthesizer` | [[c1]], [[c4]] |
-| **Team(팀)** | Manager 한 명과 팀원들. 정리 Team([[c1]])과 강화(Thinking) Team([[c4]])이 있습니다 | [[architecture]] |
-| **Officer** | 팀 없이 혼자 결과 하나를 책임지는 static 역할. StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer. 앞의 둘은 설정 시 System One에게 선택지·확률 질문을 합니다 | [[c2]], [[c3]], [[c5]] |
-| **EvalOfficer** | 독립 평가자. 모든 작업의 기준을 평가하고, 결과를 만들거나 고치지 않습니다. static 검사는 항상, 의미 기준만 모델이 판단합니다 | [[architecture]] |
-| **Scheduler** | 선언된 예약 작업을 트리거하는 Owner 안의 서비스 | [[c7]] |
-| **Notifier** | 만들어진 알림을 전달하는 호스트 서비스. 내용은 만들지 않습니다 | [[c8]] |
-| **System One** | Owner가 OpenAI Decisions API(모델 `gpt-6-luna`)에 직접 묻는 빠른 선택형 판단 서비스. 역할(role)이 아니고 Hermes profile도 없습니다. 고정된 선택지 중 하나(`choice`)나 확률(`predicate`)만 답하며, 쓰지도 글을 짓지도 않고 `ai_policy`·`sensitivity`는 결정하지 않습니다. 설정이 없거나 실패하면 모든 기능이 System One 없이 하던 대로 동작합니다 | [[c2]], [[c1]], [[c3]], [[c5]], [[c11]] |
-| **`choice` / `predicate`** | System One의 두 질문 형식. `choice`는 정해진 값 중 하나와 `none_of_these`(어느 것도 아님)를 고르게 하고, `predicate`는 "이 문장이 참인가"의 확률을 답하게 합니다 | [[c2]], [[c5]] |
-| **`min_confidence`** | System One의 `choice` 답을 쓰는 최소 확신도(기본 0.7). 미만이거나 `none_of_these`이면 아무것도 바꾸지 않습니다. 실제 노트로 조정할 시작값입니다 | [[c2]], [[c11]] |
-| **Vetted(거름 통과)** | 의미 이웃이 System One의 "정말 관련 있는가" 판정(`related_min_probability` 이상)을 통과해 `vetted: true`로 표시된 상태 | [[SRC-9]] |
+| **Owner** | 권한·정책 확인·입력 스냅숏·Vault 쓰기·영수증·알림을 독점하는 호스트 프로세스. 내용은 직접 판단하지 않습니다 | [[architecture]] |
+| **Director** | 요청을 받아들이는 접수 담당. 정형 요청은 정적 코드가, 자유 요청만 `kos-director` Profile이 표준 명령 1개 초안으로 번역해 접수합니다 | [[c11]] |
+| **Manager** | 팀의 `Graph 세그먼트`를 짜고 미충족 시 후속 구간과 완료 후 `TeamReview`를 남기는 모델 역할(`kos-curation-manager`, `kos-thinking-manager`) | [[c1]], [[c4]] |
+| **Teammate (팀원)** | 한 종류의 중간 산출물만 만드는 팀 구성원. 정적 코드(`scout`, `retriever`)와 Hermes Profile(`classifier`, `linker`, `connector`, `challenger`, `synthesizer`)로 나뉩니다 | [[c1]], [[c4]] |
+| **Officer** | 팀 없이 혼자 결과 하나를 만드는 정적 코드 역할(`StandardizationOfficer`, `StewardshipOfficer`, `EmbeddingOfficer`, `DailyOfficer`) | [[c2]], [[c5]], [[c3]], [[c12]] |
+| **EvalOfficer (`kos-eval`)** | 모든 구간 끝에서 정적 검사 결과와 인용 발췌만 보고 기준 충족 여부를 독립 평가합니다. 정적 기준은 Owner 코드가, 의미 기준만 `kos-eval`이 판단합니다 | [[architecture]] |
+| **`WorkWorkflow` / `ActionWorkflow`** | Temporal의 두 Workflow. `knowledgeos.work.v1`은 일반 Work 전체 수명을, `knowledgeos.action.v1`은 대기 중인 규격화 미리보기(`awaiting_confirmation`)의 확정·취소를 맡습니다 | [[architecture]], [[c11]] |
+| **Step (단계)** | 구간 안의 생산자 호출 1회(`static` 또는 `model`). Team 작업은 기본 2구간·생산자 6회, Officer는 1구간·1회 예산을 씁니다 | [[architecture]] |
+| **RemainingWork** | 평가에서 `unmet`로 남은 기준과 대상·이유 목록. 같은 Manager가 이 부족분만 메우는 후속 구간을 짭니다 | [[ENH-6]] |
+| **CompletionAssessment** | 구간 끝에서 Owner가 정적 검사와 `EvalOfficer` 판정을 합쳐 만드는 최종 만족·미충족 판정(정적 검사가 실패한 대상은 모델 판정이 `satisfied`여도 낮춤) | [[architecture]] |
+| **Corrective turn (교정 턴)** | 모델 제출이 형식·인용 검증에 걸렸을 때 진단과 함께 같은 세션에서 1번 더 주는 수정 기회 | [[ENH-2]] |
+| **Authority violation (권한 위반)** | 모델이 기준·예산·경로·EvalOfficer 위치 같은 권한 밖 필드를 정하려 드는 것. 교정 턴 없이 즉시 거절됩니다 | [[ORG-5]] |
+| **TeamReview** | Team 작업 완료 뒤 Manager가 남기는 팀원 평점(1~5)과 개선 제안(최대 3개). 조언일 뿐 역할·카탈로그를 자동으로 바꾸지 않습니다 | [[ENH-7]] |
+| **Scheduler / Notifier** | Owner 안에서 선언된 예약 작업을 실행하는 스케줄러와, 완성된 알림을 모델 없는 `kos-ops` Profile로 Discord에 보내는 발송기 | [[c7]], [[c8]] |
+| **ExOps / InterOps / HermesTrace** | ExOps는 Thin Client·콘솔·CLI가 공유하는 loopback HTTP 서버(`127.0.0.1:8765`), InterOps는 다른 Operation과 정보를 주고받는 통로, HermesTrace는 근거 있는 Experience 후보를 받는 외부 Operation입니다 | [[c11]], [[c10]], [[c9]] |
+| **Ollama** | 의미 검색용 임베딩 벡터(기본 `qwen3-embedding:8b-q4_K_M`)를 생성하는 로컬 서버. Owner가 loopback HTTP로 직접 호출합니다 | [[c3]] |
+| **LaunchAgent / `/api/health`** | Owner를 온디맨드 macOS 사용자 서비스(`RunAtLoad`·`KeepAlive` 꺼짐)로 등록하는 방식과, Thin Client·콘솔이 Owner 준비 상태를 판정하는 조회 경로 | [[c11]] |
 
-## 저장소와 실행
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **Operation** | AgentFabric 안의 운영 단위. KnowledgeOS도 Operation의 하나이고, 다른 Operation이 정보를 보내거나 조회할 수 있는 기초 Operation입니다 | [[c10]] |
-| **Core** | AgentFabric의 공통 계약과 스키마. KnowledgeOS는 수정하지 않고 `config/core-adoption.json`으로 고정해 따릅니다 | [[architecture]] |
-| **Vault** | 사용자의 KnowledgeHub 노트 저장소. 사용자의 것이며 GitHub private repo로 백업됩니다 | [[architecture]] |
-| **State** | 요청 영수증, 작업 기록, 입력 스냅숏, 자동 변경 이력, 알림·Experience outbox 같은 운영 기록(`States/Operations/knowledgeos/`). 잃어도 지식은 남습니다. 의미 검색 벡터도 여기(`<State>/semantic/`)에 있습니다 | [[architecture]] |
-| **Runtime** | 호스트의 Python 실행 환경, Owner 바인딩 설정, LaunchAgent 로그, 생성한 Hermes 배포물. 다시 만들 수 있습니다. 키워드 색인은 메모리에, 의미 검색 벡터는 State에 둡니다 | [[architecture]] |
-| **ExOps** | Owner의 loopback HTTP 접수 경로. Thin Client·콘솔·CLI가 공유합니다 | [[architecture]] |
-| **Temporal** | 작업의 내구성 있는 수명을 맡는 실행 서버. 호스트 loopback에만 공개됩니다 | [[architecture]] |
-| **LangGraph** | 승인된 Graph 구간을 실행하는 엔진 | [[architecture]] |
-| **Hermes** | 모델 역할을 실행하는 에이전트 런타임 [해석: 원본이 profile·route·skill·memory로 다루는 대상] | [[architecture]] |
-| **Hermes profile** | 모델을 쓰는 역할마다 따로 둔 설정·기억·기술 묶음(`kos-director`, `kos-classifier` 등). 모델 경로는 고정이고 서로 기억을 공유하지 않습니다 | [[architecture]], [[c9]] |
-| **`kos-ops`** | 모델도 스케줄러도 없는 발송 전용 profile. Discord 알림만 보냅니다 | [[c8]] |
-| **HermesTrace** | 근거 있는 사건(Experience 후보)을 받는 다른 Operation | [[c9]] |
-| **InterOps** | Operation 사이의 정보 교환 통로. Gateway 접수·조회와 Experience 전달이 이를 거칩니다 | [[c10]] |
-| **Ollama** | 의미 검색용 임베딩을 만드는 로컬 서버. Owner가 loopback으로 직접 부릅니다 | [[c3]] |
-| **LaunchAgent / launchd** | macOS 사용자 서비스 등록 방식. Owner는 `RunAtLoad`·`KeepAlive`를 끈 채 등록되어 사용자가 시작할 때만 켜집니다 | [[c11]] |
-| **loopback** | `127.0.0.1`. 같은 컴퓨터 안에서만 닿는 주소 | [[architecture]] |
-| **health** | Owner가 `GET /api/health`로 알려 주는 상태. Owner 시작·중지는 이것이 실제로 응답하는지로 결과를 판정합니다 | [[c11]] |
-
-## 개인정보와 안전
+## 개인정보 · 저장소 · 노트 안전
 
 | 용어 | 뜻 | 더 보기 |
 |---|---|---|
-| **`ai_policy`** | 노트마다 모델·자동화의 사용 범위를 정하는 속성. `remote_ok`·`ask`(기본)·`local_only`·`deny` | [[architecture]] |
-| **`remote_ok`** | 예약 작업을 포함해 모델이 사용할 수 있음. Gateway 조회에도 나갈 수 있음 | [[architecture]] |
-| **`ask`** | 내가 직접 요청한 작업에서만 모델이 사용 | [[architecture]] |
-| **`local_only`** | 로컬 처리와 로컬 모델만 | [[architecture]] |
-| **`deny`** | 읽지도, 색인하지도, 알리지도 않음 | [[ORG-3]] |
-| **`sensitivity`** | `public`·`personal`(기본)·`confidential`. `confidential` 노트는 `ai_policy`가 느슨해도 `local_only`로 다룹니다. 어긋남은 주의 항목으로 알리되 사용자의 값을 고쳐 쓰지는 않습니다 [해석: 원본이 `confidential`을 이 속성값으로 가리킨다고 읽음] | [[architecture]] |
-| **Preimage** | 바꾸기 직전 파일의 SHA-256. 쓰기 직전 현재 값과 같을 때만 씁니다 | [[STD-3]] |
-| **Stale(낡음)** | 제안을 만든 뒤 대상 노트가 바뀌어 더는 적용할 수 없는 상태. 7일 뒤 지워집니다 | [[REV-2]] |
-| **Receipt(영수증)** | 요청이 기록됐음을 확정한 기록. 응답을 잃으면 클라이언트가 이것을 읽어 결과를 확인합니다 | [[REV-4]] |
-| **Unknown(결과 불명)** | 효과의 결과를 관찰하지 못한 상태. 자동으로 다시 보내거나 돌리지 않습니다 | [[NTF-3]] |
-| **Reconcile(확인 기록)** | 사람이 결과 불명 항목을 직접 확인해 "적용됨/적용 안 됨"을 기록하는 일. 과거 기록은 고치지 않습니다 | [[SUR-4]] |
-| **Snapshot(스냅숏)** | 접수 때 State에 잡아 둔 입력 노트의 정확한 바이트 | [[ENH-3]] |
-| **Fail closed** | 확인할 수 없으면 허용하지 않고 막는 방식 [해석: 원본의 "fails closed"] | [[architecture]] |
-| **Autofix** | 규격화가 노트에 직접 쓴 작은 변경. 결정적 규칙 1~8과, System One이 충분한 확신으로 고른 규칙 9의 값을 포함합니다 | [[c2]] |
-| **Quiet period** | 최근 편집한 노트를 자동 규격화가 건너뛰는 기간(기본 10분) | [[STD-4]] |
-| **Conflict marker** | Git 병합 충돌 표시. 있는 노트는 모든 자동화가 건너뛰고 주의 항목이 됩니다 | [[DOC-3]] |
-| **Attention item(주의 항목)** | 사용자가 봐야 할 것. 노트로 저장하지 않고 Bases 보기나 콘솔·요약에서 계산합니다 | [[c5]] |
-| **HumanActionResponse** | 적용·거절·되돌리기·콘솔 동작 같은 사람의 결정을 기록하는 Core 기록. 받음·적용됨·적용 안 됨·불명을 구분합니다 | [[c6]] |
+| **Vault / State / Runtime** | **Vault**는 사용자의 Markdown 정본, **State**(`States/Operations/knowledgeos/`)는 잃어도 지식이 남는 운영 기록·영수증·벡터 색인, **Runtime**은 재설치 가능한 Python 환경·로그·배포물입니다 | [[architecture]] |
+| **`ai_policy` (`approve` / `deny`)** | 노트별 자동화·모델 허용 정책. 빠졌거나 비면 `approve`, 그 외 퇴역값(`ask`·`remote_ok` 등)이나 알 수 없는 값은 모두 `deny`로 닫힙니다 | [[architecture]] |
+| **`sensitivity`** | `public`·`personal`(기본)·`confidential` 분류 속성. `ai_policy`의 허용 여부를 바꾸지 않습니다 | [[architecture]] |
+| **Preimage** | 쓰기 직전 기대하는 대상 파일의 SHA-256 해시. 현재 파일과 다르면 덮어쓰지 않고 거절합니다 | [[STD-3]] |
+| **Snapshot (스냅숏)** | Work 접수 때 State에 잡아 두는 입력 노트의 정확한 바이트. 작업 중 사용자가 노트를 수정해도 Work는 접수 당시 스냅숏을 읽습니다 | [[ENH-3]] |
+| **Stale (낡음)** | 제안 생성 뒤 대상 노트가 바뀌어 더는 적용할 수 없는 제안 상태. 7일 뒤 자동으로 정리됩니다 | [[REV-2]] |
+| **Reconcile (확인 기록)** | 사람이 `unknown` 항목의 실제 결과를 직접 확인해 `applied` 또는 `not_applied`로 남기는 일. 과거 기록은 고치지 않습니다 | [[SUR-4]] |
+| **HumanActionResponse** | 적용·거절 등 사람의 결정을 남기는 Core 형식. 이를 감싸는 KnowledgeOS 액션 기록은 별도로 접수됨·적용됨·적용 안 됨·결과 불명을 구별합니다 | [[c6]], [[c11]] |
+| **Autofix / Quiet period** | **Autofix**는 C2 규칙 1~8과 확신도 기준 이상 규칙 9로 노트에 직접 쓰는 작은 규격화 변경이고, **Quiet period**는 최근 편집한 노트를 자동 규격화가 건너뛰는 시간(기본 10분)입니다 | [[c2]] |
+| **Conflict marker** | Git 병합 충돌 표시. 있는 노트는 모든 자동화가 건너뛰고 주의 항목으로 뜹니다 | [[DOC-3]] |
+| **Attention item (주의 항목)** | 사용자가 확인해야 할 항목. 노트로 쓰지 않고 Bases 보기나 콘솔·요약에서 계산합니다 | [[c5]] |
 
-## 노트와 파일
+## 노트 · 검색 · 예약 · 화면
 
 | 용어 | 뜻 | 더 보기 |
 |---|---|---|
-| **frontmatter** | 노트 맨 위의 YAML 속성 블록 | [[c2]] |
-| **`type`** | KnowledgeOS가 믿는 유일한 분류. `capture`·`idea`·`knowledge`·`question`·`project`·`source`. 폴더는 `type`을 유추하는 관례일 뿐입니다 | [[c2]] |
-| **`status`** | 종류별 상태값. 예: `idea`는 `seed`·`developing`·`mature`·`dropped`, `capture`는 `unprocessed`·`processed`. 모든 종류가 `archived`를 받습니다 | [[c2]] |
-| **`id`** | 노트를 이동·이름 변경에도 식별하는 UUIDv4 | [[c2]] |
-| **Capture(포착)** | 빠르게 쓴 원시 입력. `00_Inbox/`에 둡니다. 상태는 `unprocessed`·`processed` | [[c1]] |
-| **Report(보고서)** | `01_AI_Review/Reports/`에 한 번 만들어지는 노트. 만든 뒤에는 사용자의 문서입니다 | [[c4]] |
-| **Proposal(제안)** | `01_AI_Review/Proposals/`의 노트. 대상 노트 하나에 대한 체크리스트와 diff. 사용자만 적용합니다 | [[c1]], [[c6]] |
-| **Bases** | Obsidian 코어의 표 보기. 처리 안 된 포착·열린 질문·검토 대기 등을 보여 줍니다(`99_System/Bases/`) | [[c5]] |
-| **QuickAdd / Templater** | 템플릿으로 규격에 맞는 노트를 만드는 Obsidian 플러그인 | [[c2]] |
-| **Note Toolbar** | 제안 노트에 "적용·거절" 버튼을 붙이는 Obsidian 플러그인 | [[c6]] |
-| **`kos_request` / `00_Inbox/Requests/`** | 모바일 요청용으로 예약된 속성과 폴더. 아직 비활성이며 다른 용도로 쓰지 않습니다 | [[roadmap]] |
-
-## 검색
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **Keyword mode(키워드)** | 한국어·영어 부분 단어 일치. 색인은 메모리에 있습니다 | [[SRC-1]] |
-| **Semantic mode(의미)** | 질문과 각 노트의 가장 가까운 조각(chunk)의 임베딩 유사도(코사인)로 순위를 매기는 검색. 색인이 준비되고 질문을 임베딩할 수 있을 때만 쓰며, 안 되면 "unavailable"이고 키워드로 몰래 대체하지 않습니다 | [[SRC-3]] |
-| **Embedding(임베딩)** | 글을 숫자 벡터로 바꾼 것. 의미가 비슷한 글은 벡터가 가깝습니다 [해석] | [[c3]] |
-| **Chunk(조각)** | 제목·문단 경계로 자른 약 1,500자 창과 그 줄 범위 | [[SRC-7]] |
-| **Neighbor(이웃)** | 한 노트의 평균 벡터와 충분히 가까운(`related_min_score` 이상) 노트. 최대 `related_neighbors`개 | [[c3]] |
-| **Index ready(색인 준비)** | 설정한 모델의 벡터가 노트 하나 이상에 있는 상태 | [[SRC-3]] |
-| **Citation(인용)** | `{resource_reference, chunk_locator, chunk_hash}`. 어떤 바이트를 읽었는지 증명하며, 주장이 참임을 증명하지는 않습니다 | [[c4]] |
-| **ResourceReference** | 어느 시점의 노트를 가리키는 Core 참조: 노트 ID 또는 경로와, 읽은 정확한 바이트의 SHA-256 | [[architecture]] |
-| **Evidence handle(근거 핸들)** | 읽기 도구가 돌려주는 작업별 짧은 핸들(`e7` 등). 최대 40줄의 정확한 바이트와 위치를 가리킵니다 | [[architecture]] |
-
-## 예약 작업
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **Job(예약 작업)** | `config/jobs.json`에 선언된 작업. `standardize`·`embed`·`curate`·`digest` | [[c7]] |
-| **Slot(슬롯)** | 작업의 예정 시각. 슬롯마다 요청 ID `schedule-<job>-<YYYYMMDDTHHMM>`(서울 시간)이 정해집니다 | [[JOB-5]] |
-| **Startup delay(시작 지연)** | Owner가 켜진 뒤 아무것도 트리거하지 않는 기간(`startup_delay_minutes`, 기본 3분) | [[JOB-4]] |
-| **Catch-up(따라잡기)** | 꺼져 있는 동안 놓친 작업을 시작 지연 뒤 **한 번만** 실행하는 것 | [[JOB-4]] |
-| **Pause / resume** | 콘솔에서 작업을 멈추고 재개함. 멈춘 동안의 슬롯은 지나가고 재개해도 몰아서 하지 않습니다 | [[JOB-6]] |
-| **Trigger receipt** | "선언된 요청을 트리거했다"는 기록. 실행 성공을 뜻하지 않으며, 결과는 접수된 요청의 영수증이 가집니다 | [[c7]] |
-
-## 학습과 알림
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **`feedback` view** | 역할이 자기 이전 출력이 어떻게 처리됐는지(적용·거절·수정 등) 보는 화면 | [[LRN-1]] |
-| **Skill / memory** | Hermes profile이 스스로 배우며 쌓는 것. profile끼리 공유하지 않고, 권한을 넓히지 못합니다 | [[LRN-2]] |
-| **ExperienceSourceEvent / Candidate** | 근거 있는 사건을 기록한 것(SourceEvent)과 HermesTrace로 보낼 후보(Candidate). 본문 없이 참조·분류·digest만 담습니다 | [[c9]] |
-| **`routine_progress`** | TeamReview 제안이 남기는 로컬 관찰의 분류. Candidate나 전송 대기열이 되지 않습니다 | [[c9]] |
-| **Digest(요약)** | 하루 한 번 Discord로 가는 요약. 제목과 개수만 담습니다 | [[c8]] |
-| **Alert(즉시 알림)** | 충돌·결과 불명·작업 실패가 생기면 항목 ID로 중복 없이 바로 보내는 알림 | [[NTF-2]] |
-| **Gateway** | 다른 Operation이 포착을 보내거나(intake) `remote_ok` 노트를 조회(query)하는 문 | [[c10]] |
-
-## 화면
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **Thin Client** | Obsidian 플러그인. KnowledgeOS 명령과 사이드바 탭을 제공하며 설정은 엔드포인트와 launchd 라벨뿐입니다 | [[c11]] |
-| **Sidebar(사이드바)** | 오른쪽 탭 하나에 규격화·정리·강화·찾기, 상황에 따라 적용·거절, 더보기, 전원 버튼을 모은 것 | [[SUR-8]] |
-| **관리 콘솔** | 브라우저 페이지(loopback). 작업·예약·결과 불명·주의·알림·Experience·역할을 보고 취소·일시정지·확인 기록을 합니다 | [[c11]] |
-| **CLI** | `knowledgeos` 명령. 유지보수와 설치용이며 문서 작업은 하지 않습니다 | [[c11]] |
-
-## 진행 상태를 읽는 말
-
-| 용어 | 뜻 | 더 보기 |
-|---|---|---|
-| **evidence class** | 증거의 종류(static, runtime, external_service, device, deployment 등). "pass"가 무엇을 증명하는지가 종류마다 다릅니다 | [[status]] |
-| **blocker** | 진행을 막는 것의 기록. 해결되면 `resolved`가 됩니다 | [[roadmap]] |
-| **handoff** | 다음 세션이 이어받을 일 | [[roadmap]] |
+| **frontmatter / `id` / `type` / `status`** | 노트 맨 위의 YAML 블록과 UUIDv4 식별자(`id`), KnowledgeOS가 기준 삼는 종류(`capture`·`idea`·`knowledge`·`question`·`project`·`source`·`daily`), 종류별 상태값 | [[c2]], [[c12]] |
+| **Proposal / Report / Capture** | **Proposal**은 `01_AI_Review/Proposals/`의 체크리스트 제안 노트(적용 후 삭제), **Report**는 `01_AI_Review/Reports/`의 1회 생성 보고서(이후 사용자 문서), **Capture**는 `00_Inbox/`의 원시 포착 노트입니다 | [[c1]], [[c4]], [[c6]] |
+| **Daily note / `[>]`** | `10_Journal/Daily/YYYY-MM-DD.md`의 `type: daily` 노트(AI 제안 제외)와, 어제의 열린 항목을 오늘로 옮긴 뒤 원본에 남기는 인계 표시 | [[c12]] |
+| **Bases / QuickAdd / Templater / Note Toolbar** | Obsidian 안에서 목록 보기(Bases), 템플릿 생성(QuickAdd·Templater), 제안 적용·거절 버튼(Note Toolbar)을 맡는 코어·커뮤니티 플러그인 | [[usage]] |
+| **Keyword / Semantic / Chunk / Vetted** | **Keyword**는 메모리 부분 일치, **Semantic**은 약 1,500자 조각(`Chunk`) 임베딩의 코사인 유사도 검색(미준비 시 `unavailable`), **Vetted**는 관련 노트 후보가 System One 확률 기준(`related_min_probability`)을 통과한 상태입니다 | [[c3]] |
+| **Job / Slot / Catch-up / Trigger receipt** | `config/jobs.json`의 다섯 예약 작업과 예정 시각 슬롯(`schedule-<job>-<YYYYMMDDTHHMM>`), Owner가 꺼져 있던 동안 놓친 작업을 시작 지연(기본 3분) 뒤 1회만 실행하는 따라잡기, 실행 요청을 접수했다는 트리거 영수증입니다 | [[c7]] |
+| **Digest / Alert / Daily reminder** | 매일 08:00 볼 것이 있을 때만 보내는 검토 요약(`Digest`), 충돌·미해결 효과·액션 불명만 보내는 즉시 알림(`Alert`), 매일 07:00 `#task` 할 일 이름만 보내는 아침 알림(`Daily reminder`)입니다 | [[c8]], [[c12]] |
+| **`feedback` / `SourceEvent` / `Candidate` / `routine_progress`** | 역할이 자기 과거 출력 결과를 보는 `feedback` 뷰, 근거 있는 사건(`SourceEvent`)과 본문 없이 HermesTrace로 보낼 후보(`Candidate`), 그리고 외부 전송 없이 로컬에만 남는 일반 `TeamReview` 관찰 분류(`routine_progress`)입니다 | [[c9]] |
+| **Thin Client / 브라우저 콘솔 / CLI** | Obsidian 플러그인(명령·인라인 사이드바), 로컬 loopback 관리 페이지(`127.0.0.1:8765`), 운영자 유지보수 CLI(`knowledgeos`)입니다 | [[c11]], [[usage]] |
+| **`kos_request` / `00_Inbox/Requests/`** | 추후 모바일 요청(M2)을 위해 비워 둔 예약 속성과 폴더입니다 | [[roadmap]] |
+| **evidence class / blocker / handoff** | `PROJECT_STATE.md`에서 검증 근거 성격(`static`·`runtime`·`external_service`·`deployment`·`device`·`artifact`·`semantic`), 해결할 막힘, 다음 세션 인계 항목을 가리키는 상태 분류입니다 | [[status]], [[roadmap]] |

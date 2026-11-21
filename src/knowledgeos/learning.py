@@ -549,7 +549,7 @@ def on_review(owner, work_id: str, decision: str) -> None:
 def on_refusal(owner, request_id: str, reason: str) -> None:
     """Owner hook for a refused request: a refusal by ``ai_policy`` is a privacy refusal."""
     try:
-        if re.search(r"(?:^|: )ai_policy (?:deny|local_only|ask|remote_ok)\b", reason or ""):
+        if re.search(r"(?:^|: )ai_policy deny\b", reason or ""):
             signal(owner, category="privacy_refusal", source={"kind": "requests", "id": request_id},
                    outcome_state="denied")
     except Exception:

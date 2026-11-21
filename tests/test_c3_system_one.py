@@ -25,7 +25,7 @@ def ollama():
 
 def write_notes(vault) -> None:
     vault.write(FOCAL, c3.note(c3.BASE + " focalmarker\n", kind="knowledge", status="draft"))
-    vault.write(GOOD, c3.note(c3.BASE + " goodmarker\n", policy="remote_ok", kind="knowledge", status="draft"))
+    vault.write(GOOD, c3.note(c3.BASE + " goodmarker\n", policy="approve", kind="knowledge", status="draft"))
     vault.write(BAD, c3.note(c3.BASE + " badmarker\n", kind="knowledge", status="draft"))
     vault.write(LOCAL, c3.note(c3.BASE + " localmarker\n", policy="local_only", kind="knowledge", status="draft"))
 
@@ -35,7 +35,7 @@ def vetting_kos(make_kos, ollama, decisions, vault, tmp_path, **values):
         **c3.semantic_settings(ollama, **values), "system_one": system_one_settings(decisions, tmp_path),
     })
     write_notes(vault)
-    assert kos.run("index.embed", {})["outcome"]["embedded"] == 4
+    assert kos.run("index.embed", {})["outcome"]["embedded"] == 3
     return kos
 
 
@@ -51,9 +51,8 @@ def test_SRC_9_related_notes_keep_only_semantic_neighbors_system_one_vets(
 
     first = kos.search(mode="related", path=FOCAL)
     by_path = {item["path"]: item for item in first["results"]}
-    assert sorted(by_path) == [GOOD, LOCAL]
+    assert sorted(by_path) == [GOOD]
     assert by_path[GOOD]["reasons"] == ["semantic"] and by_path[GOOD]["vetted"] is True
-    assert by_path[LOCAL]["reasons"] == ["semantic"] and "vetted" not in by_path[LOCAL]
 
     assert len(decisions.calls) == 1
     call = decisions.calls[0]
@@ -66,7 +65,7 @@ def test_SRC_9_related_notes_keep_only_semantic_neighbors_system_one_vets(
     assert kos.search(mode="related", path=FOCAL) == first
     assert len(decisions.calls) == 1  # verdicts are cached for unchanged notes
 
-    vault.write(GOOD, c3.note(c3.BASE + " goodmarker changed\n", policy="remote_ok", kind="knowledge", status="draft"))
+    vault.write(GOOD, c3.note(c3.BASE + " goodmarker changed\n", policy="approve", kind="knowledge", status="draft"))
     assert kos.run("index.embed", {})["outcome"]["embedded"] == 1
     kos.search(mode="related", path=FOCAL)
     assert len(decisions.calls) == 2 and decisions.questions()[2:] == ["related_1"]
@@ -83,7 +82,7 @@ def test_SRC_9_related_notes_stay_cosine_only_without_a_usable_system_one(
     kos = vetting_kos(make_kos, ollama, decisions, vault, tmp_path)
 
     result = kos.search(mode="related", path=FOCAL)
-    assert sorted(item["path"] for item in result["results"]) == [BAD, GOOD, LOCAL]
+    assert sorted(item["path"] for item in result["results"]) == [BAD, GOOD]
     assert all(item["reasons"] == ["semantic"] and "vetted" not in item for item in result["results"])
     assert decisions.calls == [] and kos.owner.store.read_stream("system_one") == []
 
@@ -99,7 +98,7 @@ def test_SRC_9_refused_and_low_probability_answers(make_kos, ollama, decisions, 
 def test_SRC_9_unanswered_questions_stay_unvetted(make_kos, ollama, decisions, vault, tmp_path):
     kos = vetting_kos(make_kos, ollama, decisions, vault, tmp_path)  # no rule: every question is refused
     result = kos.search(mode="related", path=FOCAL)
-    assert sorted(item["path"] for item in result["results"]) == [BAD, GOOD, LOCAL]
+    assert sorted(item["path"] for item in result["results"]) == [BAD, GOOD]
     assert not any("vetted" in item for item in result["results"])
 
 
@@ -109,19 +108,19 @@ def test_SRC_9_related_min_probability_must_be_a_probability(make_kos, ollama, v
         make_kos(settings=c3.semantic_settings(ollama, related_min_probability=value))
 
 
-def test_SRC_9_role_related_tool_vets_remote_ok_neighbors_in_scheduled_work(
+def test_SRC_9_role_related_tool_vets_approve_neighbors_in_scheduled_work(
     make_kos, ollama, decisions, vault, tmp_path,
 ):
     target = "00_Inbox/Target.md"
-    vault.write(target, conforming_note("capture", "unprocessed", policy="remote_ok", body=c3.BASE + " target\n"))
-    vault.write(GOOD, c3.note(c3.BASE + " goodmarker\n", policy="remote_ok", kind="knowledge", status="draft"))
-    vault.write(BAD, c3.note(c3.BASE + " badmarker\n", policy="remote_ok", kind="knowledge", status="draft"))
+    vault.write(target, conforming_note("capture", "unprocessed", policy="approve", body=c3.BASE + " target\n"))
+    vault.write(GOOD, c3.note(c3.BASE + " goodmarker\n", policy="approve", kind="knowledge", status="draft"))
+    vault.write(BAD, c3.note(c3.BASE + " badmarker\n", policy="approve", kind="knowledge", status="draft"))
     vault.write(LOCAL, c3.note(c3.BASE + " localmarker\n", policy="local_only", kind="knowledge", status="draft"))
     decisions.predict("related_*", judge)
     kos = make_kos(settings={
         **c3.semantic_settings(ollama), "system_one": system_one_settings(decisions, tmp_path),
     })
-    assert kos.run("index.embed", {})["outcome"]["embedded"] == 4
+    assert kos.run("index.embed", {})["outcome"]["embedded"] == 3
 
     organize_scripts(kos.runner)
     seen = {}

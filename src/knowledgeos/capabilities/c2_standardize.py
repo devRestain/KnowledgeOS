@@ -29,7 +29,7 @@ from ..capabilities import Done, Registry, WorkDraft
 from ..engine import EffectContext, StepContext
 from ..notes import Note, parse
 from ..owner import Admission, Owner
-from ..policy import effective
+from ..policy import approved, effective
 from ..standardize import (
     JUDGED_KEYS,
     STATUSES,
@@ -40,7 +40,7 @@ from ..standardize import (
     plan,
     verify,
 )
-from ..system_one import SystemOneUnavailable, may_send, note_input
+from ..system_one import SystemOneUnavailable, note_input
 from ..util import iso, new_id, new_uuid, sha256
 from ..vault import VaultPathError
 
@@ -138,7 +138,7 @@ def officer_step(ctx: StepContext) -> dict[str, Any]:
         note = ctx.snapshot(path)
         uuid = new_uuid()  # one id per note across re-plans
         rules = {"policy": item["policy"], "created": ctx.first_seen(path), "new_id": lambda value=uuid: value,
-                 "default_policy": ctx.owner.config.default_policy, "duplicate_ids": duplicate_ids}
+                 "duplicate_ids": duplicate_ids}
         planned = plan(path, note, **rules)
         decisions: dict[str, str] = {}
         records: list[dict[str, Any]] = []
@@ -222,14 +222,13 @@ class _Judge:
 
 
 def _sendable(ctx: StepContext, path: str) -> bool:
-    """The note's current policy allows remote model use for this Work's origin (checked just
-    before sending; a moved, deleted or newly restricted note fails closed)."""
+    """The note's current policy is ``approve`` (checked just before sending; a moved, deleted or
+    newly denied note fails closed)."""
     try:
         current = ctx.owner.vault.read(path)
     except VaultPathError:
         return False
-    return current is not None and may_send(effective(current, ctx.owner.config.default_policy),
-                                            ctx.workspec["origin"])
+    return current is not None and approved(effective(current))
 
 
 def finish(ctx: EffectContext, artifact: dict[str, Any]) -> Done:
@@ -424,8 +423,8 @@ def check_decisions(ctx: StepContext, artifact: dict[str, Any]) -> list[dict[str
         note_type = parse(path, ctx.blob(entry["result"])).type
         records = {record["key"]: record for record in entry.get("decisions", [])}
         problem = None
-        if not may_send(policies.get(path, "deny"), ctx.workspec["origin"]):
-            problem = "a System One value was decided for a note its policy keeps from remote models"
+        if not approved(policies.get(path, "deny")):
+            problem = "a System One value was decided for a note whose policy is deny"
         for change in judged:
             record = records.get(change["key"])
             if problem:

@@ -14,7 +14,9 @@ Thinking teammate (C4), always the last producer. Write the final cited report f
 
 ## Tools
 
-`work_context` (mode, section IDs, focal note, handoffs), `read`, `search`, `related`, `feedback`, `submit_report`.
+`work_context` (mode, section IDs, focal note, handoffs), `read`, `search`, `related`, `system_one`, `feedback`, `submit_report`.
+
+`system_one(handle, question, choices?)` asks a fast model one closed question about a note you read (for example, whether it actually answers the question). Its answer is advisory: decide and label claims from the content, never cite the answer, and expect `denied` for a note that is not `approve` and at most 10 requests per step.
 
 ## Method
 

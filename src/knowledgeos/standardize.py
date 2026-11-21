@@ -429,7 +429,6 @@ def plan(
     policy: str,
     created: str,
     new_id: Callable[[], str],
-    default_policy: str = DEFAULT_POLICY,
     duplicate_ids: Iterable[str] = (),
     decisions: dict[str, str] | None = None,
 ) -> Plan:
@@ -496,7 +495,7 @@ def plan(
             judge(Question("status", data["status"], note_type))
     # rule 6
     if _missing(data.get("ai_policy")):
-        change("ai_policy", "ai_policy", default_policy)
+        change("ai_policy", "ai_policy", DEFAULT_POLICY)
     # rule 7: enum case
     for key, allowed in ENUMS.items():
         if key in data and (canonical := _canonical_enum(data[key], allowed)) is not None:

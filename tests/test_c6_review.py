@@ -12,7 +12,7 @@ TARGET = "40_Knowledge/Ideas/Lamp.md"
 
 
 def make_proposal(kos, vault):
-    original = "---\nai_policy: ask\ncustom: 'keep me'\n---\nA lamp changes thinking.\n"
+    original = "---\nai_policy: approve\ncustom: 'keep me'\n---\nA lamp changes thinking.\n"
     vault.write(TARGET, original)
     vault.write("40_Knowledge/Notes/Light.md", conforming_note("knowledge", "seed", body="A lamp lights a notebook. [[Lamp]]\n"))
     organize_scripts(kos.runner, title="Light and thought", tags=("lighting",))
@@ -33,7 +33,7 @@ def test_REV_1_only_checked_changes_apply_and_proposal_is_deleted(kos, vault):
     assert note.list_value("tags") == []
     assert note.list_value("related") == ["[[40_Knowledge/Notes/Light]]"]
     assert note.body == parse(TARGET, original.encode()).body
-    assert "ai_policy: ask\ncustom: 'keep me'\n" in vault.text(TARGET)
+    assert "ai_policy: approve\ncustom: 'keep me'\n" in vault.text(TARGET)
     assert not vault.path(path).exists()
 
 

@@ -15,7 +15,8 @@
 - Preserve Core contracts and schemas unchanged; resolve implementation gaps without weakening capability acceptance examples.
 - Use `Ontology/` for domain term, relation and alignment authoring while treating the Blueprint Vault contract as the authoritative type, property and relation definition.
 - Treat `Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md` as non-normative reference material.
-- Keep `docs/wiki/` as the browsable explanation of capabilities, purpose, usage, blocked or unstarted items and follow-up work; author explanations only in `docs/wiki/_source/` and never let the wiki override the source documents.
+- Keep `docs/wiki/` as the owner's readable implementation guide for understanding agent-built features without reading source code; author explanations only in `docs/wiki/_source/` and never let the wiki override the source documents.
+- Explain each feature's actual inputs, processing sequence, outputs, Hermes Profiles, Graph composition and Temporal boundaries from current implementation evidence, following `docs/wiki/_source/philosophy.md` instead of repeating common principles or copying specifications into feature bodies.
 - Treat each wiki update as a spec review: fix conflicts between `docs/CAPABILITIES.md`, the Blueprint, `USER_FEATURE_SPEC.md` and `PROJECT_STATE.md` in the lower-precedence document in the same session, and drop answered Blueprint §9 questions.
 
 ## Development workflow

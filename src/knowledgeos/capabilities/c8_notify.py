@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from ..capabilities import Registry, WorkDraft
-from ..policy import effective
+from ..policy import approved, effective
 from ..util import canonical, digest, iso
 from .c5_stewardship import attention, check, lifecycle_targets
 
@@ -36,7 +36,7 @@ def _shareable(owner, paths):
     result = []
     for path in paths:
         note = owner.vault.read(path)
-        if note is None or effective(note, owner.config.default_policy) not in ("remote_ok", "ask"):
+        if note is None or not approved(effective(note)):
             continue
         if note.type in ("proposal", "report"):
             sources = list(note.list_value("inputs"))
@@ -47,7 +47,7 @@ def _shareable(owner, paths):
             for link in sources:
                 destination = owner.vault.resolve_link(link.removeprefix("[[").removesuffix("]]"))
                 source = owner.vault.read(destination) if destination else None
-                if source is None or effective(source, owner.config.default_policy) not in ("remote_ok", "ask"):
+                if source is None or not approved(effective(source)):
                     safe = False
                     break
             if not safe:
@@ -60,8 +60,15 @@ def alert_scan(owner) -> None:
     """Idempotent even when the observer and a digest encounter the same item."""
     with owner.store.lock("C8.alerts"):
         for item in attention(owner):
-            if item["kind"] not in ("conflict", "unknown", "failed_job") or item.get("unknown_kind") == "notice":
+            if item["kind"] not in ("conflict", "unknown"):
                 continue
+            if item["kind"] == "unknown" and item.get("unknown_kind") not in ("effect", "action", "cancellation"):
+                ref = item.get("unknown_ref", {})
+                phases = [ref.get("phase"), *ref.get("phases", [])]
+                if item.get("unknown_kind") != "runtime_phase" or not any(
+                    isinstance(phase, str) and phase.startswith("commit") for phase in phases
+                ):
+                    continue
             key = digest(item["item_id"])
             if owner.store.get("alerts", key):
                 continue
@@ -70,7 +77,7 @@ def alert_scan(owner) -> None:
                 continue
             titles = ", ".join(title for title, _ in notes)
             title = f"{item['kind'].replace('_', ' ').capitalize()}: {titles or item['title']}"
-            links = [link for _, link in notes] or [console_link(owner, "jobs" if item["kind"] == "failed_job" else "unknowns")]
+            links = [link for _, link in notes] or [console_link(owner, "unknowns")]
             # Claim before delivery, including unknown delivery. It is never retransmitted.
             owner.store.put("alerts", key, {"item_id": item["item_id"], "at": iso(owner.clock.now())})
             owner.post_notice("alert", title, links, item_id=item["item_id"])
@@ -82,10 +89,9 @@ def send_digest(owner, request_id: str) -> dict:
         if existing:
             return {"notice_id": existing["notice_id"], "counts": existing.get("counts", {})}
         alert_scan(owner)
-        previous = owner.store.get("digest", "cursor") or {"at": None, "ids_at": []}
-        new_changes = [c for c in owner.store.list("changes") if c.get("kind") == "autofix" and
-                       (not previous["at"] or c["at"] > previous["at"] or (c["at"] == previous["at"] and c["change_id"] not in previous["ids_at"]))]
-        paths = {"autofix": [c["path"] for c in new_changes], "proposals": [], "reports": [], "inbox_older_3_days": [], "stale_proposals": [], "revisit": []}
+        previous = owner.store.get("digest", "cursor") or {"at": None}
+        paths = {"proposals": [], "stale_proposals": [], "reports": [],
+                 "inbox_older_3_days": [], "revisit": []}
         now = owner.clock.now()
         for path, doc in owner.index.refresh().items():
             if doc.policy == "deny" or owner.vault.system(path):
@@ -95,7 +101,17 @@ def send_digest(owner, request_id: str) -> dict:
                 if doc.status == "stale":
                     paths["stale_proposals"].append(path)
             if doc.type == "report":
-                paths["reports"].append(path)
+                note = owner.vault.read(path)
+                if note is None:
+                    continue
+                try:
+                    new = not previous["at"] or (
+                        datetime.fromisoformat(note.data.get("created", "")) >
+                        datetime.fromisoformat(previous["at"]))
+                except (ValueError, TypeError):
+                    new = False
+                if new:
+                    paths["reports"].append(path)
             if doc.type == "capture" and doc.status == "unprocessed":
                 note = owner.vault.read(path)
                 try:
@@ -107,15 +123,23 @@ def send_digest(owner, request_id: str) -> dict:
                     paths["inbox_older_3_days"].append(path)
         items = attention(owner)
         paths["revisit"] = [p for item in items if item["kind"] == "revisit" for p in item["paths"]]
+        labels = {"proposals": "검토할 제안", "stale_proposals": "오래된 제안", "reports": "새 보고서",
+                  "inbox_older_3_days": "3일 넘은 포착", "revisit": "다시 볼 노트"}
         counts, lines, links = {}, [], []
         for section, candidates in paths.items():
             shared = _shareable(owner, candidates)
             counts[section] = len(shared)
-            lines.append(f"{section.replace('_', ' ').capitalize()}: {len(shared)}" + (" — " + ", ".join(title for title, _ in shared) if shared else ""))
-            links.extend(link for _, link in shared)
+            if shared:
+                lines.append(f"{labels[section]}: {len(shared)} — " + ", ".join(title for title, _ in shared))
+                links.extend(link for _, link in shared)
+        counts["pending"] = sum(work.get("status") == "awaiting_confirmation"
+                                for work in owner.store.list("works"))
+        if counts["pending"]:
+            lines.append(f"확인 대기 작업: {counts['pending']}")
+            links.append(console_link(owner, "works"))
         decisions = []
         for item in items:
-            if item["kind"] in ("autofix", "revisit", "stale_proposal"):
+            if item["kind"] not in ("conflict", "duplicate_id", "invalid_yaml", "unknown"):
                 continue
             shared = _shareable(owner, item["paths"])
             if item["paths"] and not shared:
@@ -124,13 +148,22 @@ def send_digest(owner, request_id: str) -> dict:
             decisions.append(f"{item['kind'].replace('_', ' ')}: {label}")
             links.extend(link for _, link in shared)
         counts["attention"] = len(decisions)
-        lines.append(f"Attention: {len(decisions)}" + (" — " + "; ".join(decisions) if decisions else ""))
-        links.append(console_link(owner, "attention"))
-        notice = owner.post_notice("digest", "KnowledgeOS digest", list(dict.fromkeys(links)), item_id=f"digest/{request_id}", lines=lines, counts=counts)
-        at = iso(now)
-        ids_at = [c["change_id"] for c in owner.store.list("changes") if c.get("kind") == "autofix" and c["at"] == at]
-        owner.store.put("digest", "cursor", {"at": at, "ids_at": ids_at})
-        return {"notice_id": notice["notice_id"], "counts": counts}
+        if decisions:
+            lines.append(f"확인 필요: {len(decisions)} — " + "; ".join(decisions))
+        failed_jobs = sorted({item["job"] for item in items
+                              if item["kind"] == "failed_job" and item["detail"] == "failed"})
+        counts["failed_jobs"] = len(failed_jobs)
+        notice_id = None
+        if any(counts[key] for key in ("proposals", "reports", "inbox_older_3_days", "pending", "attention")):
+            # Failed jobs are supplemental context, never a reason to send a notice.
+            if failed_jobs:
+                lines.append("자동 작업 점검 필요: " + ", ".join(failed_jobs))
+            links.append(console_link(owner, "attention"))
+            notice = owner.post_notice("digest", "KnowledgeOS 검토 요약", list(dict.fromkeys(links)),
+                                       item_id=f"digest/{request_id}", lines=lines, counts=counts)
+            notice_id = notice["notice_id"]
+        owner.store.put("digest", "cursor", {"at": iso(now)})
+        return {"notice_id": notice_id, "counts": counts}
 
 
 def start(owner) -> None:

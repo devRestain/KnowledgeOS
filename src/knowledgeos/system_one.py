@@ -2,8 +2,8 @@
 
 System One is an Owner service, not a role: Owner code asks it typed questions (``choice`` or
 ``predicate``) about one input and acts only on answers that are in the offered set and reach
-the configured confidence. It never writes, never sees a note the caller may not disclose
-remotely (``may_send``) and never decides privacy fields. A call made for a Work or request
+the configured confidence. It never writes, never sees a note whose ``ai_policy`` is not
+``approve`` (callers check ``policy.approved``) and never decides privacy fields. A call made for a Work or request
 (``ref``) is recorded in the ``system_one`` State stream with question names, an input digest
 and token usage, never content; a read-surface call (no ``ref``) writes no State and is only
 logged. A failed call is reported to the caller and never retried.
@@ -30,7 +30,6 @@ from urllib.parse import urlsplit
 
 from .config import LOOPBACK_HOSTS, ConfigError
 from .notes import Note
-from .policy import model_may_read
 from .util import canonical, sha256
 
 log = logging.getLogger("knowledgeos.system_one")
@@ -86,12 +85,6 @@ def build(values: dict[str, Any], record: Callable[[dict[str, Any]], None]) -> S
 
 def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def may_send(policy: str, origin: str) -> bool:
-    """Whether a note's content may go to System One: a remote model, so §5.4 model use with
-    no local route (user Work: ``remote_ok`` and ``ask``; jobs and Gateway: ``remote_ok``)."""
-    return model_may_read(policy, origin, local_route=False)
 
 
 def choice(name: str, instructions: str, choices: dict[str, str]) -> dict[str, Any]:

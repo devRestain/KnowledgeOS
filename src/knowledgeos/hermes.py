@@ -34,11 +34,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
 from .catalog import Catalog
-from .config import ConfigError, OwnerConfig
+from .config import LOOPBACK_HOSTS, ConfigError, OwnerConfig
 from .util import sha256
 
 OPS_PROFILE = "kos-ops"
@@ -57,6 +58,9 @@ CHANNEL_RE = re.compile(r"^\d+(?::\d+)?$")
 LEDGER = ".curator_ledger.jsonl"
 LEDGER_ROWS = 20
 TAIL_CHARS = 400
+# Hermes 0.22.5: agent.reasoning_effort levels and the minimum context it admits for a model.
+REASONING_EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+MIN_CONTEXT = 64_000
 
 
 # ---------------------------------------------------------------- host
@@ -155,9 +159,11 @@ def _pool_has(auth: Path, provider: str) -> bool:
         isinstance(state, dict) and bool(state))
 
 
-def credential(home: Path, *, root: Path | None = None, provider: str | None = None, model: bool = True) -> str:
+def credential(home: Path, *, root: Path | None = None, provider: str | None = None, model: bool = True,
+               base_url: str | None = None) -> str:
     """Credential state by key presence only (never validated, no value read or printed):
 
+    - ``not required``: the route is a loopback endpoint (a local Ollama server).
     - ``present``: profile-local ``auth.json`` carries the role's provider (``credential_pool``
       entry or ``providers`` state), or a non-empty ``.env`` exists (``kos-ops`` Discord token).
     - ``borrowed``: the profile has none for the provider, so Hermes 0.22.5 reads the root
@@ -165,6 +171,8 @@ def credential(home: Path, *, root: Path | None = None, provider: str | None = N
       when the profile has zero entries for the provider; refreshes write through to root).
     - ``needs credential``: neither exists.
     """
+    if model and base_url and urlsplit(base_url).hostname in LOOPBACK_HOSTS:
+        return "not required"
     env = home / ".env"
     if env.is_file() and env.stat().st_size > 0:
         return "present"
@@ -177,15 +185,14 @@ def credential(home: Path, *, root: Path | None = None, provider: str | None = N
     return "needs credential"
 
 
-def _profile_provider(home: Path) -> str | None:
-    """The provider pinned in the installed profile's ``config.yaml`` (``model.provider``)."""
+def _profile_model(home: Path) -> dict[str, Any]:
+    """The model block pinned in the installed profile's ``config.yaml``."""
     try:
         settings = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
     except (OSError, ValueError, yaml.YAMLError):
-        return None
+        return {}
     model = settings.get("model") if isinstance(settings, dict) else None
-    provider = model.get("provider") if isinstance(model, dict) else None
-    return provider if isinstance(provider, str) and provider else None
+    return model if isinstance(model, dict) else {}
 
 
 def ledger_tail(path: Path) -> list[dict[str, Any]]:
@@ -216,11 +223,12 @@ def profile_state(host: HermesHost, profile: str) -> dict[str, Any]:
         return {"installed": False, "skill_digest": None, "soul_digest": None,
                 "credential": "needs credential", "ledger": []}
     soul = home / "SOUL.md"
+    pinned = _profile_model(home)
     return {
         "installed": True,
         "skill_digest": skill_digest(home / "skills"),
         "soul_digest": sha256(soul.read_bytes()) if soul.is_file() else None,
-        "credential": credential(home, root=host.home, provider=_profile_provider(home)),
+        "credential": credential(home, root=host.home, provider=pinned.get("provider"), base_url=pinned.get("base_url")),
         "ledger": ledger_tail(home / "skills" / LEDGER),
     }
 
@@ -448,13 +456,31 @@ def _roles_document(config: OwnerConfig) -> dict[str, Any]:
 
 
 def role_files(config: OwnerConfig, role: str, declared: dict[str, Any], common: str) -> dict[str, str]:
-    """``SOUL.md`` (COMMON + role SOUL) and ``config.yaml`` with the pinned model route."""
+    """``SOUL.md`` (COMMON + role SOUL) and ``config.yaml`` with the pinned model route, its
+    optional endpoint (``base_url``, ``ollama_num_ctx``) and ``reasoning_effort``."""
     route = declared.get("model_route")
     if not isinstance(route, str) or "/" not in route:
         raise ConfigError(f"role {role} needs a provider/model route in config/roles.json")
     provider, model = route.split("/", 1)
+    block: dict[str, Any] = {"default": model, "provider": provider}
+    base_url = declared.get("base_url")
+    if base_url is not None:
+        parts = urlsplit(base_url) if isinstance(base_url, str) else None
+        if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ConfigError(f"role {role} base_url must be an http(s) URL")
+        block["base_url"] = base_url
+    num_ctx = declared.get("ollama_num_ctx")
+    if num_ctx is not None:
+        if type(num_ctx) is not int or num_ctx < MIN_CONTEXT:
+            raise ConfigError(f"role {role} ollama_num_ctx must be an integer of at least {MIN_CONTEXT}")
+        block["ollama_num_ctx"] = num_ctx
+    settings = {"model": block, **_locked_down(learning=True)}
+    effort = declared.get("reasoning_effort")
+    if effort is not None:
+        if effort not in REASONING_EFFORTS:
+            raise ConfigError(f"role {role} reasoning_effort must be one of {', '.join(REASONING_EFFORTS)}")
+        settings["agent"]["reasoning_effort"] = effort
     soul = (config.root / declared["soul"]).read_text(encoding="utf-8")
-    settings = {"model": {"default": model, "provider": provider}, **_locked_down(learning=True)}
     files = {"SOUL.md": common.rstrip("\n") + "\n\n" + soul, "config.yaml": _yaml(settings, "config/roles.json")}
     return _distribution(declared["profile"], f"KnowledgeOS {role} role", ROLE_OWNED, files)
 
@@ -470,7 +496,8 @@ def install_profiles(config: OwnerConfig, host: HermesHost, *, dry_run: bool = F
         _write_tree(target, role_files(config, role, declared, common))
         entry = {"role": role, **_install(host, declared["profile"], target, dry_run)}
         provider = declared["model_route"].split("/", 1)[0]
-        entry["credential"] = credential(host.profile_dir(declared["profile"]), root=host.home, provider=provider)
+        entry["credential"] = credential(host.profile_dir(declared["profile"]), root=host.home, provider=provider,
+                                         base_url=declared.get("base_url"))
         entries.append(entry)
     operations = _install_operations(config, host, document, dry_run)
     return {"target": "profiles", "dry_run": dry_run, "hermes_home": str(host.home), "profiles": entries,

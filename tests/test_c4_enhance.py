@@ -25,7 +25,7 @@ REPORTS = "01_AI_Review/Reports/"
 CITATION = re.compile(r"\[\[([^|\]]+)\|[^\]]*\]\] \(L(\d+)(?:-(\d+))?, ([0-9a-f]{8})\)")
 
 
-def write_related(vault, count=3, policy="ask"):
+def write_related(vault, count=3, policy="approve"):
     paths = []
     bodies = [
         "Writing by hand slows me down, which helps. See [[Tools shape thinking]].\n",
@@ -154,16 +154,17 @@ def test_ENH_3_edit_during_work_report_cites_snapshot_and_states_change(kos, vau
     assert f"[[{IDEA.removesuffix('.md')}]]" in statement
 
 
-def test_ENH_4_report_policy_is_the_strictest_input(kos, vault):
-    vault.write(IDEA, conforming_note("idea", "seed", body=IDEA_BODY, policy="remote_ok"))
-    [asked] = write_related(vault, count=1, policy="ask")
+def test_ENH_4_report_policy_is_approve_for_approved_and_default_inputs(kos, vault):
+    vault.write(IDEA, conforming_note("idea", "seed", body=IDEA_BODY, policy="approve"))
+    [candidate] = write_related(vault, count=1)
+    vault.write(candidate, vault.text(candidate).replace("ai_policy: approve\n", ""))
     enhance_scripts(kos.runner)
 
     receipt = kos.run("enhance", {"mode": "develop", "path": IDEA})
     assert receipt["status"] == "completed", receipt
     data = frontmatter(vault, receipt["outcome"]["report"])
-    assert data["ai_policy"] == "ask"
-    assert f"[[{asked.removesuffix('.md')}]]" in data["inputs"]
+    assert data["ai_policy"] == "approve"
+    assert f"[[{candidate.removesuffix('.md')}]]" in data["inputs"]
 
 
 def test_ENH_5_earlier_report_is_never_returned_to_roles(kos, vault):
@@ -322,7 +323,7 @@ def test_C4_refuses_deny_missing_and_unreadable_inputs(kos, vault):
     cases = [
         ({"mode": "develop", "path": "40_Knowledge/Ideas/Denied.md"}, "deny"),
         ({"mode": "develop", "path": "40_Knowledge/Ideas/Missing.md"}, "not found"),
-        ({"mode": "develop", "path": "40_Knowledge/Ideas/Local.md"}, "local_only"),
+        ({"mode": "develop", "path": "40_Knowledge/Ideas/Local.md"}, "deny"),
         ({"mode": "develop", "path": IDEA, "digest": "0" * 64}, "changed"),
         ({"mode": "review", "path": IDEA, "window": {"from": "2026-11-01", "to": "2026-11-07"}}, "project"),
         ({"mode": "develop"}, "path"),

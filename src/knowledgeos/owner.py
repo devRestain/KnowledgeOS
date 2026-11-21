@@ -26,7 +26,7 @@ from .config import OwnerConfig
 from .engine import Engine
 from .policy import effective, strictest
 from .roles import RoleRunner
-from .search import Doc, SearchIndex, role_filter
+from .search import Doc, SearchIndex
 from .store import NAME_RE, Store
 from .util import Clock, digest, iso, new_id
 from .vault import Vault, VaultPathError
@@ -289,7 +289,7 @@ class Director:
                 raise roles.RoleUnavailable("no role runner is configured")
             binding = roles.binding(owner.catalog, "director", adm.request_id, "director", "submit_workspec")
             invocation = dict(owner.runner.identity(binding))
-            targets = self._targets(text, adm.origin, binding.local)
+            targets = self._targets(text)
             view = self._catalog_view(text, adm.origin, targets)
             session = roles.RoleSession(
                 binding,
@@ -386,18 +386,17 @@ class Director:
         record_feedback(self.owner, role="director", work_id=work_id or "", kind="admission", outcome=outcome,
                         change={"command": command}, detail={"request_id": adm.request_id})
 
-    def _targets(self, text: str, origin: str, local: bool) -> dict[str, dict[str, Any]]:
+    def _targets(self, text: str) -> dict[str, dict[str, Any]]:
         """Notes the request names (title, wikilink or path), as refs ``t1``, ``t2``, ...
 
-        Only notes a model role may read in this origin; never deny, system or proposal notes."""
+        Never deny, system or proposal notes."""
         index = self.owner.index
         docs = index.refresh()
-        allow = role_filter(origin, local)
         folded = text.casefold()
         linked = {index.resolve(match.group(1), docs) for match in LINK_RE.finditer(text)}
         found = []
         for path, doc in sorted(docs.items()):
-            if not SearchIndex.visible(doc, "people", allow):
+            if not SearchIndex.visible(doc, "people"):
                 continue
             title = doc.title.casefold()
             if path in linked or (len(title) >= 2 and title in folded) or path.casefold().removesuffix(".md") in folded:
@@ -510,7 +509,7 @@ class Owner:
         self.vault = Vault(config.vault)
         self.catalog = Catalog(config.root)
         self.registry = build_registry(self.catalog)
-        self.index = SearchIndex(self.vault, config.default_policy, observe=self._observe)
+        self.index = SearchIndex(self.vault, observe=self._observe)
         self.index.semantic_backend = semantic.build(config, self.catalog)
         self.system_one = system_one.build(
             config.settings.get("system_one", {}),
@@ -713,7 +712,7 @@ class Owner:
         note = self.vault.read(path)
         if note is None:
             raise Refused(f"not found: {path}")
-        policy = effective(note, self.config.default_policy)
+        policy = effective(note)
         if policy == "deny":
             raise Refused(f"{path}: ai_policy deny")
         return {
@@ -1042,7 +1041,7 @@ class Owner:
                 path = self.vault.normalize(path)
             except VaultPathError as error:
                 raise BadRequest(str(error)) from error
-            return self.index.related(path, limit=limit, system_one=self.system_one, origin="user")
+            return self.index.related(path, limit=limit, system_one=self.system_one)
         query = body.get("query")
         if not isinstance(query, str) or not query.strip():
             raise BadRequest(f"{mode} search needs a query")

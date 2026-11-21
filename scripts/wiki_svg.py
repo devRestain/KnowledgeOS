@@ -28,6 +28,7 @@ CAP_KO = {
     "C9": ("학습·경험", "역할 피드백"),
     "C10": ("게이트웨이", "외부 제출·질의"),
     "C11": ("호출·관리 표면", "명령 · 사이드바 · 콘솔 · CLI"),
+    "C12": ("데일리 노트", "할 일 인계·알림"),
 }
 
 
@@ -229,10 +230,10 @@ def _cap_sort(cid: str) -> int:
 
 def _capability_map(data: dict) -> str:
     caps = {c["id"]: c for c in data.get("caps", []) if c.get("id")}
-    s = _Svg("capability-map", 960, 350, "KnowledgeOS 기능 C1–C11과 의존 관계")
+    s = _Svg("capability-map", 960, 350, "KnowledgeOS 기능 C1–C12와 의존 관계")
     NW, NH = 124, 60
     row_b = {"C2": 95, "C1": 249, "C3": 403, "C4": 557, "C5": 711, "C6": 865}
-    row_c = {"C10": 95, "C7": 326, "C9": 557, "C8": 711}
+    row_c = {"C10": 95, "C7": 326, "C9": 557, "C8": 711, "C12": 865}
     pos: dict[str, tuple[float, float]] = {}
     for cid, cx in row_b.items():
         pos[cid] = (cx, 134)
@@ -252,6 +253,7 @@ def _capability_map(data: dict) -> str:
         ("C1", "C6"),
         ("C5", "C6"),
         ("C5", "C8"),
+        ("C12", "C8"),
         ("C1", "C9"),
         ("C4", "C9"),
         ("C10", "C1"),
@@ -303,6 +305,7 @@ def _capability_map(data: dict) -> str:
         "C6": "d-box-accent",
         "C8": "d-box-muted",
         "C9": "d-box-muted",
+        "C12": "d-box-ok",
     }
     for cid in sorted(present, key=_cap_sort):
         cx, cy = pos[cid]
@@ -436,7 +439,7 @@ def _review_flow(data: dict) -> str:
 # policy-matrix
 # ---------------------------------------------------------------------------
 def _policy_matrix(data: dict) -> str:
-    s = _Svg("policy-matrix", 960, 470, "ai_policy 값별 공개 범위: 원격 모델, 로컬 역할, 임베딩, Gateway, 알림")
+    s = _Svg("policy-matrix", 960, 290, "ai_policy 두 값: approve는 모든 처리 허용, deny는 읽기·색인·모델·내보내기·알림 금지")
     heads = [
         ("원격 모델", "사용자 요청"),
         ("원격 모델", "예약 작업"),
@@ -450,20 +453,8 @@ def _policy_matrix(data: dict) -> str:
     no = ("d-box-bad", "금지")
     rows = [
         (
-            ["remote_ok", "원격 허용"],
+            ["approve", "기본값 · 허용"],
             [ok, ok, ok, ok, ("d-box-ok", "허용", "승인된 수신자"), ("d-box-ok", "허용", "제목·링크만")],
-        ),
-        (
-            ["ask", "기본값"],
-            [ok, no, ("d-box-warn", "요청만", "예약 작업 제외"), ok, no, ("d-box-ok", "허용", "제목·링크만")],
-        ),
-        (
-            ["local_only", "로컬 전용"],
-            [no, no, ("d-box-warn", "로컬 경로만", ""), ok, no, ("d-box-bad", "금지", "알림에 안 나옴")],
-        ),
-        (
-            ["confidential", "local_only로 취급"],
-            [no, no, ("d-box-warn", "로컬 경로만", ""), ok, no, ("d-box-bad", "금지", "알림에 안 나옴")],
         ),
         (
             ["deny", "모두 금지"],
@@ -483,10 +474,10 @@ def _policy_matrix(data: dict) -> str:
             s.box(LX + LW + GAP + i * (CW + GAP), y, CW, 54, [main] + ([sub] if sub else []), cls)
         y += 60
     notes = [
-        "· 결정적 로컬 처리(규격화 등)는 deny를 뺀 모든 값에 허용된다. confidential은 값이 느슨해도 local_only로 처리하고 attention으로 알린다.",
-        "· 예약 C1은 로컬 경로여도 remote_ok 노트만 모델에 준다. Gateway 질의는 remote_ok 비보고서 노트만 내보낸다.",
-        "· 출력은 읽은 모든 노트 중 가장 엄격한 정책을 이어받는다. 정책은 공개 직전 현재 내용으로 다시 확인한다.",
-        "· 알림은 본문 없이 제목·횟수·링크만 쓰고, 임베딩은 제안·99_System/·충돌 마커 노트도 제외한다.",
+        "· ai_policy가 없거나 비면 approve. 그 밖의 알 수 없는 값은 deny로 닫힌다. sensitivity는 이 허용 여부를 바꾸지 않는다.",
+        "· 사용자·예약·Gateway 출처와 모델 위치에 따른 차이는 없다. Gateway는 approve 비보고서 노트만 승인된 수신자에게 내보낸다.",
+        "· 출력은 읽은 모든 노트 중 가장 엄격한 정책을 이어받는다. 공개 직전 현재 정책을 다시 확인하며 deny는 언급도 하지 않는다.",
+        "· 일반 알림은 제목·횟수·링크만, 데일리는 approve 항목 텍스트도 허용. 임베딩은 제안·99_System/·충돌 마커도 제외한다.",
     ]
     for i, n in enumerate(notes):
         s.label(LX, y + 18 + i * 19, n, anchor="start")
@@ -525,7 +516,14 @@ def _scheduler_timeline(data: dict) -> str:
         200,
         280,
         150,
-        ["job 슬롯 (Asia/Seoul)", "standardize · 매시 :00", "embed · 매시 :30", "curate · 매일 06:00", "digest · 매일 08:00"],
+        [
+            "job 슬롯 (Asia/Seoul)",
+            "standardize · 매시 :00",
+            "embed · 매시 :30",
+            "curate · 매일 06:00",
+            "daily · 매일 07:00",
+            "digest · 매일 08:00",
+        ],
         "d-box",
     )
     s.box(
@@ -576,7 +574,7 @@ def _semantic_pipeline(data: dict) -> str:
     s.edge([(90, 48), (90, 70)])
     y, h = 70, 100
     cols = [
-        (20, 160, ["자격 있는 노트", "remote_ok · ask", "local_only · 보고서", "전송 직전 재확인"], "d-box-accent"),
+        (20, 160, ["자격 있는 노트", "approve만", "보고서도 포함", "전송 직전 재확인"], "d-box-accent"),
         (210, 160, ["청크 분할", "제목+본문 약 1,500자", "헤딩·문단 경계", "frontmatter 제외"], "d-box"),
         (400, 160, ["Ollama 임베딩", "loopback HTTP만", "qwen3-embedding", "원격 모델 없음"], "d-box-muted"),
         (590, 160, ["State 벡터 색인", "State/semantic/", "파생 데이터", "Vault·Git에 없음"], "d-box"),

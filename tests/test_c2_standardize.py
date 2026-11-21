@@ -54,7 +54,7 @@ def test_STD_1_frontmatterless_idea_note(kos, vault, clock):
     assert note.data["type"] == "idea"
     assert note.data["created"] == iso(clock.now())
     assert note.data["status"] == "seed"
-    assert note.data["ai_policy"] == "ask"
+    assert note.data["ai_policy"] == "approve"
     assert note.body.encode("utf-8") == body.encode("utf-8")
     [change] = kos.changes()
     assert change["path"] == path and change["kind"] == "manual"
@@ -151,6 +151,7 @@ def test_STD_6_custom_keys_and_quoted_values_stay_byte_identical(kos, vault):
 
 TEMPLATES = {
     "T00_Capture.md": "00_Inbox",
+    "T10_Daily.md": "10_Journal/Daily",
     "T21_Idea.md": "40_Knowledge/Ideas",
     "T22_Question.md": "40_Knowledge/Questions",
     "T40_Knowledge.md": "40_Knowledge/Notes",
@@ -250,7 +251,7 @@ def test_STD_1_ordinary_root_note_is_standardized_without_inventing_type(kos, va
     note = parse(path, vault.read(path))
     assert UUID4_RE.fullmatch(note.data["id"])
     assert note.data["created"] == iso(clock.now())
-    assert note.data["ai_policy"] == "ask"
+    assert note.data["ai_policy"] == "approve"
     assert "type" not in note.data and "status" not in note.data
     assert note.body == body
 
@@ -276,7 +277,7 @@ def test_STD_6_malformed_id_is_replaced_without_rewriting_other_lines(kos, vault
         "type: 'my own kind'\r\n"
         "status:   'my own state'   \r\n"
         "created: 2026-11-01T09:00:00+09:00\r\n"
-        "ai_policy: ask\r\n"
+        "ai_policy: approve\r\n"
         "custom: 'quoted: unchanged'\r\n"
     )
     original = f"---\r\nid: {identifier}\r\n{untouched}---\r\nBody stays byte-identical.\r\n"

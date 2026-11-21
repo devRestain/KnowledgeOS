@@ -19,11 +19,12 @@ This is the user-designated top-level behavior and acceptance specification. [US
 System One is an Owner service, not a role. Owner code sends it one input and typed questions through the OpenAI Decisions API (`POST /v1/decisions`, model `gpt-6-luna`): a `choice` from a fixed set of values or a `predicate` probability. It never writes, never authors free text and never decides `ai_policy` or `sensitivity`.
 
 - **Settings** (`settings.system_one`): `api_key_file` (absolute path of a private 0600 file outside Git and the Vault; absent means unconfigured), `url` (default the OpenAI Decisions endpoint; plain `http` only on loopback), `model` (default `gpt-6-luna`), `timeout_seconds` (default 20), `min_confidence` (default 0.7) and `max_input_chars` (default 8000, the body excerpt sent per note). `GET /api/health` reports `system_one` as `ready`, `unavailable` (unusable key file) or `unconfigured` without sending a request.
-- **Disclosure**: a note is sent only when its current policy, checked immediately before sending, allows remote model use for the origin (Blueprint §5.4): user requests and reads may send `remote_ok` and `ask` notes; scheduled and Gateway Work only `remote_ok`. `local_only`, `confidential` and `deny` notes are never sent.
+- **Disclosure**: only `approve` notes are sent, with current policy checked immediately before sending (Blueprint §5.4). This applies to user, scheduled and Gateway requests and every model, regardless of `sensitivity`. Missing or empty `ai_policy` means `approve`; unknown and retired values fail closed to `deny`.
 - **Answers**: every `choice` question offers `none_of_these`. A choice is used only when it is an offered value other than `none_of_these` with confidence at least `min_confidence`; a predicate holds at its stated threshold. Refusals, `none_of_these` and low confidence change nothing.
 - **Failure**: an unconfigured or failing System One is reported and never retried within the request; every capability then behaves as it would without System One. No capability fails because of it.
 - **Records**: a call made for a Work or request appends question names, an input digest, model and token usage, never content, to the State stream `system_one`. Read surfaces (`POST /api/search`) write no State and only log.
-- **Touchpoints**: C2 rule 9 values, C1 `scout` hints, C3 related-note vetting, C5 status proposals and the C11 free-text prefilter.
+- **Touchpoints**: C2 rule 9 values, the `system_one` role tool (C1 `classifier` and `linker`, C4 `connector`, `challenger` and `synthesizer`), C3 related-note vetting, C5 status proposals and the C11 free-text prefilter.
+- **Role tool** `system_one(handle, question, choices?)`: a model teammate asks one closed question about a note read in this Work: a `choice` over its 2-10 `choices` plus `none_of_these`, or without `choices` a `predicate`. The disclosed note version is sent only when that version and the current file are `approve`; an unread handle, an invalid question, a denied note or the eleventh request in one step sends nothing. Answers are advisory: Owner code never writes them to a note, handoff or report. In C1, a call without `question` on a target handle is the `classifier` type/status suggestion (ORG-7). Director, Managers and the EvalOfficer have no such tool.
 
 ## Capability summary
 
@@ -35,11 +36,12 @@ System One is an Owner service, not a role. Owner code sends it one input and ty
 | C4 | Enhance | Thinking Team | ThinkingManager; `retriever`, `connector`, `challenger`, `synthesizer`; EvalOfficer | Reports |
 | C5 | Document management | Officer | StewardshipOfficer (asks System One for status judgments); EvalOfficer (static) | Lifecycle proposals |
 | C6 | Review | Owner effect from a human action | — | Applies, rejects, undoes |
-| C7 | Scheduled jobs | Triggers C1, C2, C3, C5 | Scheduler | Through those capabilities |
+| C7 | Scheduled jobs | Triggers C1, C2, C3, C5, C12 | Scheduler | Through those capabilities |
 | C8 | Notifications | Owner effect | StewardshipOfficer content; Notifier | Discord notices |
 | C9 | Learning and Experience | Owner and role profiles | All model roles | Feedback views, local SourceEvents, eligible Experience outbox |
 | C10 | Gateway | Owner | Director for intake | Capture notes, bounded results |
 | C11 | Invocation and management surfaces | — | — | Through the capabilities above |
+| C12 | Daily notes | Officer | DailyOfficer (static); EvalOfficer (static) | Today's daily note and `[>]` marks on carried items |
 
 Every Work passes the Director. Structured requests (every Thin Client command, job and CLI command) are admitted by static code. Only free-text requests use the `kos-director` model.
 
@@ -48,10 +50,10 @@ Every Work passes the Director. Structured requests (every Thin Client command, 
 The Curation Team places notes into the knowledge structure: classification, naming, tags, links and location.
 
 - **Triggers**: Thin Client "정리 요청" on the current note, a selection of files or a folder; the scheduled `curate` job (C7); a Gateway intake capture (C10).
-- **Input**: up to 10 target notes per Work. Scheduled and Gateway-triggered Work only gives models notes whose effective policy is `remote_ok`.
+- **Input**: up to 10 target notes per Work. Only `approve` notes are admitted or disclosed, regardless of request origin or model.
 - **Team pool**:
-  - `scout` (static): collects the target notes, candidate related notes (semantic neighbors vetted as in C3) and the tag vocabulary. When System One is configured, it also asks, per target that may be sent for the Work's origin, a `type` choice and, for a known type, a `status` choice, and records accepted answers with confidence and top probabilities as advisory per-target hints.
-  - `classifier` (model): decides type, status, title, tags and conventional folder per note. It sees System One hints in its work context as advice only; Owner code never writes a hint to a note or proposal.
+  - `scout` (static): collects the target notes, candidate related notes (semantic neighbors vetted as in C3) and the tag vocabulary. It neither asks System One nor records classification hints.
+  - `classifier` (model): decides type, status, title, tags and conventional folder per note. Its `system_one(handle)` tool asks System One for a `type` choice and, for a known type, a `status` choice for an admitted target. Accepted answers include confidence and top probabilities and are advisory only; Owner code never writes a suggestion to a note or proposal. Outcomes are recorded per target on the Work; repeated calls return the recorded outcome without another request. A non-target returns `not_a_target`; an unconfigured service returns `unconfigured`; a target whose admitted or current policy is not `approve` returns `denied` with nothing sent; failure returns `unavailable`. Hints are not in `work_context`.
   - `linker` (model): decides links and typed relations to existing notes, and whether a capture should attach to an existing note.
 - **Manager**: CurationManager picks the teammates the Work needs. For example, a capture with no plausible related notes may skip `linker`.
 - **Output**: the Owner renders one proposal per target from the handoffs. Each change is a checklist item:
@@ -64,17 +66,18 @@ The Curation Team places notes into the knowledge structure: classification, nam
 - **Criteria**:
   - Static: every enum value is valid; every link target was read in this Work; new tags are marked; there is at most one open proposal per target.
   - Semantic, judged by the model EvalOfficer: each classification and link is supported by the cited note content.
-- **Refuses**: `deny` notes; notes with conflict markers; ambiguous-ID targets. A target with an open or stale proposal never gains a second one. Regeneration may replace only the exact bytes still recorded as Owner-written; user-edited or State-unrecorded proposals are preserved (Blueprint §5.6).
+- **Refuses**: `deny` notes; daily notes (`type: daily`, reason `daily note (never a proposal target)`); notes with conflict markers; ambiguous-ID targets. Explicit daily-note targets are refused, folder members are skipped with that reason, and `curate` never selects them. A target with an open or stale proposal never gains a second one. Regeneration may replace only the exact bytes still recorded as Owner-written; user-edited or State-unrecorded proposals are preserved (Blueprint §5.6).
 
 Acceptance:
 
 - **ORG-1** Given an untyped note in `00_Inbox/`, when organize runs, then one proposal lists a type, a title and at least one existing related note, and the note itself is unchanged.
 - **ORG-2** Given the `linker` cites a note it never read in this Work, then that handoff fails validation, the `linker` gets one corrective turn, and a second failure leaves the link criterion unmet.
-- **ORG-3** Given a scheduled run and a note with `ai_policy: ask`, then no model role receives that note's content.
+- **ORG-3** Given a note with `ai_policy: deny` or a retired value such as `ask`, then organize (user or scheduled) never admits it and no model role receives its content.
 - **ORG-4** Given a proposal where the user unchecked the move, when it is applied, then all other checked changes apply and the file stays in place.
 - **ORG-5** Given the CurationManager's Graph proposal contains an instruction for the EvalOfficer, then the Owner rejects the proposal and no segment starts.
 - **ORG-6** Given the EvalOfficer judges one classification unsupported, then the CurationManager composes one successor segment with only `classifier` for that target, within budget.
-- **ORG-7** Given System One is configured and a user organize request targets an untyped `remote_ok` note in `00_Inbox/` that System One classifies as `idea` at 0.9 confidence, then the `classifier`'s work context carries that advisory hint, and if the `classifier` submits `question` the proposal says `question` and the note is unchanged. A scheduled `curate` run never sends an `ask` note to System One, and with System One unavailable the Work completes without hints.
+- **ORG-7** Given System One is configured and a user organize request targets an untyped `approve` note in `00_Inbox/` that System One classifies as `idea` at 0.9 confidence, when the `classifier` calls `system_one` with the target handle, then it receives that advisory suggestion, a second call for the same target returns the recorded answer without a new request, and if the `classifier` submits `question` the proposal says `question` and the note is unchanged. A target whose policy became `deny` after admission gets `denied` with nothing sent, and with System One unavailable the tool answers `unavailable` and the Work completes.
+- **ORG-8** Given an `approve` daily note, then an explicit organize request is refused, a folder request skips it, and `curate` never selects it; no proposal exists.
 
 ## C2 Standardize
 
@@ -101,8 +104,8 @@ The StandardizationOfficer makes notes conform to the Vault contract with minima
    - `20_Projects/<name>/<name>.md` → `project`
    - Anywhere else, rule 9.
 4. Add `created`: the first time KnowledgeOS observed the file.
-5. Add the type's initial `status`.
-6. Add `ai_policy`: the Owner's default.
+5. Add the type's initial `status`, except for `daily`, which has no status.
+6. Add `ai_policy: approve` when missing. Existing policy decisions belong to the user and are never rewritten.
 7. Normalize shapes:
    - `tags` and `aliases` become lists.
    - A leading `#` is dropped from tags.
@@ -115,7 +118,7 @@ The StandardizationOfficer makes notes conform to the Vault contract with minima
    - `confidence` of a `knowledge` note when present but invalid;
    - `capture_kind` of a `capture` when missing or invalid.
 
-   A `type` decided this way gets the initial `status` by rule 5, or a second request when its existing `status` is invalid for that type. An accepted answer (System One section) becomes an ordinary planned change with rule `system_one`, recorded with its confidence; anything else leaves the field unchanged and is listed as undecided with its reason (`unconfigured`, `unavailable`, `deferred` near the Activity window's end, `policy`, `refused`, `none_of_these` or `low_confidence`). Manual and batch Work may send `remote_ok` and `ask` notes; the automatic path only `remote_ok`. An existing unknown `type` (for example a user's own `daily`), a missing `confidence`, `ai_policy`, `sensitivity` and every non-enum field are never judged.
+   A `type` decided this way gets the initial `status` by rule 5, or a second request when its existing `status` is invalid for that type. An accepted answer (System One section) becomes an ordinary planned change with rule `system_one`, recorded with its confidence; anything else leaves the field unchanged and is listed as undecided with its reason (`unconfigured`, `unavailable`, `deferred` near the Activity window's end, `policy`, `refused`, `none_of_these` or `low_confidence`). Every path sends only `approve` notes, rechecking current policy immediately before sending. An existing unknown `type`, a missing `confidence`, `ai_policy`, `sensitivity` and every non-enum field are never judged.
 
 Outside the explicit system, review, reserved and ignored-path exclusions below, a folder alone never excludes ordinary Markdown, including a note at the Vault root; only navigation notes identified as `home` or `system` are excluded as navigation.
 
@@ -134,11 +137,11 @@ Outside the explicit system, review, reserved and ignored-path exclusions below,
 
 **Write**: an exact-preimage check, an atomic replace and a minimal diff (Blueprint §5.7, §6). A manual preview waits for a recorded human confirmation or cancellation and shows each System One value with its confidence above the diff. Confirmation applies unchanged targets independently; a changed target is not written and is reported unmet. Each write records its preimage and result digests and the exact delta, including System One decisions, in the change log, which supports undo (C6).
 
-**Static criteria** (EvalOfficer): skips respected, result valid, properties preserved, minimal diff, and decisions grounded: every `system_one` change is an offered value of a rule-9 field, equals an accepted answer at or above the recorded threshold, and belongs to a note whose admitted policy allows remote model use for the Work origin.
+**Static criteria** (EvalOfficer): skips respected, result valid, properties preserved, minimal diff, and decisions grounded: every `system_one` change is an offered value of a rule-9 field, equals an accepted answer at or above the recorded threshold, and belongs to a note whose admitted policy is `approve`.
 
 Acceptance:
 
-- **STD-1** Given a frontmatter-less note in `40_Knowledge/Ideas/`, when standardize runs, then it gains `id`, `type: idea`, `created`, `status: seed` and `ai_policy: ask`, and its body bytes are unchanged.
+- **STD-1** Given a frontmatter-less note in `40_Knowledge/Ideas/`, when standardize runs, then it gains `id`, `type: idea`, `created`, `status: seed` and `ai_policy: approve`, and its body bytes are unchanged.
 - **STD-2** Given a note whose body ends with `tags: [a, b]` and whose frontmatter has `tags: [b]`, then the frontmatter becomes `[b, a]`, the trailing line is removed and nothing else changes.
 - **STD-3** Given the note changes between preview or read and write, then nothing is written. The manual path reports the change; the automatic path reconsiders the note on its next run.
 - **STD-4** Given a note edited 2 minutes ago, then the automatic path skips it, while a manual preview and confirmation still standardizes it.
@@ -147,7 +150,7 @@ Acceptance:
 - **STD-7** Given a note created from each type template, then standardization proposes zero changes.
 - **STD-8** Given a manual preview that the user cancels, then nothing is written and no change-log entry exists.
 - **STD-9** Given a note at the Vault root with `status: 초안` and no `type`, when a manual preview runs with System One answering `knowledge` (0.92) and then `developing` (0.81), then two requests are sent (type, then status), the preview shows both values with their confidence, nothing is written until confirmation, `sensitivity` and `ai_policy` are never asked, and the `system_one` State records carry the Work ID but no note text.
-- **STD-10** Given `remote_ok` notes with invalid statuses or a missing `capture_kind`, an `ask` note and a low-confidence answer, when the automatic path runs, then only confident answers are written as autofix, the `ask` note's text is never sent, the low-confidence field is left unchanged, and a second run sends nothing for the settled notes.
+- **STD-10** Given `approve` notes with invalid statuses or a missing `capture_kind`, a `deny` note and a low-confidence answer, when the automatic path runs, then only confident answers are written as autofix, the `deny` note's text is never sent, the low-confidence field is left unchanged, and a second run sends nothing for the settled notes.
 - **STD-11** Given System One is down, when the automatic path runs, then rules 1-8 still apply, the rule-9 field stays unchanged with reason `unavailable`, and the next run after recovery asks again and applies the answer.
 
 ## C3 Search
@@ -159,17 +162,17 @@ Acceptance:
   - The read tools of Team roles inside a Work.
 - **Keyword mode** matches Korean and English partial words. **Semantic mode** ranks notes by the cosine similarity of local embeddings between the query and each note's best-matching chunk. It is available only when the index is ready and the query can be embedded. If not, the client says so and never silently substitutes keyword results.
 - **Results** carry title, path, type, status, an excerpt and a line locator. Semantic results also carry the matching chunk's last line and its similarity score. The client lists them in a picker that opens the note at that line.
-- **Corpus**: all non-`deny` notes outside `99_System/`.
+- **Corpus**: all `approve` notes outside `99_System/`.
   - Proposals are excluded.
   - Reports are included for people and excluded for roles, unless the user changed their type.
-- **Filters**: every result passes its surface's audience and policy filters. Semantic search and semantic neighbors never return a `deny` note or a proposal. Role tools never return reports; their semantic neighbors obey the Work's origin and receiving route, including scheduled C1's `remote_ok`-only rule even on a local route. Gateway queries export only `remote_ok` non-report notes.
+- **Filters**: every result passes its surface's audience and policy filters. Semantic search and semantic neighbors return only `approve` notes and never proposals. Role tools never return reports, regardless of request origin or model. Gateway queries export only `approve` non-report notes to authorized recipients.
 - **Index**: rebuildable derived data, refreshed per changed document. The keyword index lives in memory; the vector index lives in State.
 
 **Semantic index.**
 
 - **Embedding service**: a local Ollama server, called directly by the Owner over loopback HTTP; no gateway or remote model is involved. `settings.C3.semantic` holds `ollama_url` (default `http://127.0.0.1:11434`; a non-loopback URL is a configuration error), `model` (default `qwen3-embedding:8b-q4_K_M`), `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`, `related_min_score` and `related_min_probability`. An empty `ollama_url` or `model` leaves semantic search unconfigured.
 - **Chunks**: a body is split at headings and paragraph breaks into windows of about 1,500 characters, each with its line range. The embedding input is the note title and the chunk text. Frontmatter is never embedded.
-- **Eligibility**: embedding is deterministic local processing (Blueprint §5.4), so `remote_ok`, `ask`, `local_only` and `confidential` notes are embedded and reports are eligible. Never embedded: `deny` notes; notes under `99_System/`; proposals, decided by `type: proposal` or the proposals folder, because their application is not decided; notes with merge-conflict markers. Policy is checked against the note's current content immediately before anything is sent; a note that has become ineligible is dropped, not sent.
+- **Eligibility**: only `approve` notes are embedded; reports are eligible and `sensitivity` does not change eligibility. Never embedded: `deny` or unknown-policy notes; notes under `99_System/`; proposals, decided by `type: proposal` or the proposals folder, because their application is not decided; notes with merge-conflict markers. Policy is checked against the note's current content immediately before anything is sent; a note that has become ineligible is dropped, not sent.
 - **Embedding job**: the request `index.embed` is admitted by static code as one Work for the static EmbeddingOfficer. The C7 `embed` job triggers it with actor `schedule/embed`, and `knowledgeos index embed` runs it for the user until nothing is pending.
   - It embeds each eligible note with no vectors for the configured model or whose content SHA-256 differs from the embedded one, and drops the vectors of notes that were deleted, renamed or became ineligible. Unchanged notes cost nothing.
   - A run with nothing to do settles at admission with no Work. Otherwise a Work embeds at most `max_notes` notes, most recently modified first, and stops starting notes before its Activity window closes. The outcome reports `embedded`, `unchanged`, `removed`, `failed` and `pending`; the next run continues.
@@ -177,7 +180,7 @@ Acceptance:
   - If the embedding service is unreachable or rejects a request, the Work fails visibly with the service's error, sends no further request, keeps every vector already stored and is not retried before the next run.
 - **Readiness**: the index is ready when the configured model has vectors for at least one note. A note without current vectors (new, edited since its last embedding, or not yet reached) is absent from semantic results and neighbors until it is embedded. Vectors made by another model are discarded when the first note is embedded with the configured one, and the index is not ready until then. `GET /api/health` reports `search_semantic`, and `index verify` reports counts of eligible, embedded, stale, missing and extra (no longer eligible) notes without naming paths.
 - **Neighbors**: the semantic neighbors of a note are at most `related_neighbors` notes (default 5) whose best chunk has cosine similarity of at least `related_min_score` (default 0.5) to the note's mean chunk vector, so unrelated notes are never labeled. The default threshold is a starting value to tune against the configured model.
-- **Neighbor vetting**: when System One is configured, related notes (the people surface, role `related` tools and the C1 `scout` and C4 `retriever` candidates) vet semantic neighbors before labeling them. One request carries the focal note and, per neighbor, a predicate asking whether that neighbor (title and best-matching chunk excerpt) is substantively related, not merely sharing generic words. A neighbor keeps its `semantic` reason, marked `vetted: true`, only when the probability is at least `related_min_probability` (default 0.5); a rejected neighbor loses `semantic` and disappears unless it also has a link, backlink or tag reason. The focal note and each neighbor are sent only if their current policy allows remote model use for the surface's origin (people: user; roles: the Work's origin). Neighbors that cannot be sent, and any unconfigured, failing or refusing System One, keep the cosine-only result without `vetted`. Verdicts are cached in memory per focal content, neighbor content and model, so repeated calls on unchanged notes send nothing, and the read writes no State.
+- **Neighbor vetting**: when System One is configured, related notes (the people surface, role `related` tools and the C1 `scout` and C4 `retriever` candidates) vet semantic neighbors before labeling them. One request carries the focal note and, per neighbor, a predicate asking whether that neighbor (title and best-matching chunk excerpt) is substantively related, not merely sharing generic words. A neighbor keeps its `semantic` reason, marked `vetted: true`, only when the probability is at least `related_min_probability` (default 0.5); a rejected neighbor loses `semantic` and disappears unless it also has a link, backlink or tag reason. The focal note and each neighbor must still be `approve` immediately before sending, regardless of surface or origin. An unconfigured, failing or refusing System One keeps the eligible cosine-only result without `vetted`. Verdicts are cached in memory per focal content, neighbor content and model, so repeated calls on unchanged notes send nothing, and the read writes no State.
 - **Stored data**: `<State>/semantic/`, derived and never in the Vault or Git. Semantic neighbors of a note need no embedding request; a semantic query embeds only the query text.
 
 Acceptance:
@@ -187,10 +190,10 @@ Acceptance:
 - **SRC-3** Given the semantic index is unavailable (unconfigured, without vectors for the configured model, or the query cannot be embedded), when "의미 검색" is used, then the client shows "unavailable" and no results.
 - **SRC-4** Given a note is edited and saved, when it is searched again, then the result reflects the new text.
 - **SRC-5** Given an embedded Vault, when one note is edited and the embedding job runs twice, then only that note's text is sent to the embedding service, once; the edited note is absent from semantic results until it is embedded, and the vectors of deleted or renamed notes are dropped.
-- **SRC-6** Given `deny` notes, notes under `99_System/`, proposals (in or outside the proposals folder) and conflict-marked notes, when the embedding job runs, then none of their text reaches the embedding service and no semantic mode returns them, while `local_only`, `confidential` and report notes are embedded; a note that becomes one of these has its vectors dropped by the next run.
-- **SRC-7** Given embedded notes, when "의미 검색" asks a question, then results are ranked by similarity with the best chunk's line range and an excerpt. Role tools bound to a scheduled C1 Work receive only `remote_ok` non-report semantic neighbors even on a local route; user Work may also receive `ask` neighbors and, only on a local route, `local_only` neighbors. Gateway queries return only `remote_ok` non-report notes.
+- **SRC-6** Given `deny` or unknown-policy notes, notes under `99_System/`, proposals (in or outside the proposals folder) and conflict-marked notes, when the embedding job runs, then none of their text reaches the embedding service and no semantic mode returns them, while `approve` notes including confidential and report notes are embedded; a note that becomes ineligible has its vectors dropped by the next run.
+- **SRC-7** Given embedded notes, when "의미 검색" asks a question, then results are ranked by similarity with the best chunk's line range and an excerpt. Role tools receive only `approve` non-report semantic neighbors regardless of request origin or model. Gateway queries return only `approve` non-report notes to authorized recipients.
 - **SRC-8** Given the embedding service is down, when the job runs, then the Work fails visibly, existing vectors are kept and still give semantic neighbors, "의미 검색" shows "unavailable", and the next run embeds only what is still missing.
-- **SRC-9** Given a focal `ask` note with two sendable semantic neighbors, one of which System One judges unrelated, and a `local_only` neighbor, when "관련 노트" runs, then the related neighbor is returned marked vetted, the `local_only` neighbor stays unvetted and its text is never sent, the unrelated one is omitted, a repeated call sends no new request and writes no State, and with System One unavailable the result is the cosine-only neighbor list.
+- **SRC-9** Given a focal `approve` note with two `approve` semantic neighbors, one of which System One judges unrelated, and a `deny` neighbor, when "관련 노트" runs, then the related neighbor is returned marked vetted, the `deny` neighbor is absent and its text is never sent, the unrelated one is omitted, a repeated call sends no new request and writes no State, and with System One unavailable the result is the eligible cosine-only neighbor list.
 
 ## C4 Enhance
 
@@ -206,7 +209,7 @@ The Thinking Team uses the accumulated Vault to strengthen the user's thinking a
 | `review` | A project note and an interpretation window (dates) | What moved; what stalled; open decisions; next actions |
 
 - **Team pool**:
-  - `retriever` (static): evidence candidates through C3, within the Work's policy. User-requested Work may read `remote_ok` and `ask` notes.
+  - `retriever` (static): evidence candidates through C3, limited to `approve` notes regardless of request origin or model.
   - `connector` (model): related prior thinking, connections and tensions.
   - `challenger` (model): gaps, counterpoints and open questions.
   - `synthesizer` (model): the report.
@@ -221,17 +224,18 @@ The Thinking Team uses the accumulated Vault to strengthen the user's thinking a
 - **Criteria**:
   - Static: every citation handle was read in this Work; every claim is labeled; the mode's sections are present.
   - Semantic: the report addresses the focal note or question, and its stated tensions are supported by the cited notes.
-- **Refuses**: a `deny` or missing input, or a focal input for which no admitted model route satisfies its policy. A question with no readable notes completes at admission as "not covered" with no Work and no report.
+- **Refuses**: a `deny`, unknown-policy or missing input. A question with no readable notes completes at admission as "not covered" with no Work and no report.
 
 Acceptance:
 
 - **ENH-1** Given an idea note and three related notes, when `develop` runs, then a report exists in `01_AI_Review/Reports/` whose every citation resolves to bytes read in this Work, and the idea note is unchanged.
 - **ENH-2** Given the `synthesizer` submits an unlabeled, uncited claim, then the submission fails validation once, and if it fails again the Work ends unmet with no report written.
 - **ENH-3** Given the user edits the idea note while the Work runs, then the report cites the snapshot and states that the input changed.
-- **ENH-4** Given input notes with `ai_policy: ask` and `remote_ok`, then the report's `ai_policy` is `ask`.
+- **ENH-4** Given input notes with `ai_policy: approve` and with no `ai_policy`, then the report's `ai_policy` is `approve`.
 - **ENH-5** Given an earlier report in `01_AI_Review/Reports/`, then no role's search returns it.
 - **ENH-6** Given the EvalOfficer finds the tensions unsupported, then the ThinkingManager composes one successor with `connector` and `synthesizer` addressing only that gap, and the final report comes from that successor.
 - **ENH-7** Given a completed Work, then a TeamReview exists that rates each producing teammate and changes no role, catalog entry or assessment.
+- **ENH-8** Given System One is configured and a `develop` Work, when the `connector` calls `system_one` with choices and then without choices on a related note it read, then it gets a choice and a predicate answer computed from that note's content, an unread handle answers `not_read` with nothing sent, the eleventh request in the step answers `limit_reached`, a note that turned `deny` answers `denied` with nothing sent, and no answer text appears in the report.
 
 ## C5 Document management
 
@@ -246,13 +250,12 @@ The StewardshipOfficer keeps the Vault healthy and surfaces what deserves attent
   - Projects by status.
 - **Computed attention items** (console and digest), for what Bases cannot express:
   - Duplicate IDs, conflict markers and invalid YAML.
-  - `confidential` notes with a looser `ai_policy`.
   - Stale proposals.
-  - Recent autofix changes.
-  - Unknown effect outcomes and failed or blocked jobs.
+  - Recent autofix changes (console only, never the digest).
+  - Unknown effect outcomes and failed or blocked jobs. Blocked jobs remain console-only; the digest includes latest-run failures only as C8's supplemental line.
   - A small rotating "revisit" set of older ideas and open questions for the digest.
 - **Lifecycle proposals** come from static rules. For example, a `done` project or a `dropped` idea gets a proposal to become `archived` in `90_Archive/`.
-- **System One status proposals**: when System One is configured, the digest run also asks one predicate per candidate note and proposes a status change only when it holds at `min_confidence`: an `open` question that already contains its answer becomes `answered`; a `planned`, `active` or `paused` project that states it is finished becomes `done`; a `seed`, `developing` or `mature` idea whose author abandoned it becomes `dropped`. Each is an ordinary single-target lifecycle proposal whose checklist item names System One and the probability; the note itself is never written. Only notes whose current policy is `remote_ok` are sent (scheduled origin), never `deny`, conflict, duplicate-ID, system or review notes, and a target with an open or stale proposal is neither asked about nor proposed again. A note is asked again only when its content changed since it was last asked (State `lifecycle_seen`, written after the Work's effects); a failed call records nothing, so the next run asks again.
+- **System One status proposals**: when System One is configured, the digest run also asks one predicate per candidate note and proposes a status change only when it holds at `min_confidence`: an `open` question that already contains its answer becomes `answered`; a `planned`, `active` or `paused` project that states it is finished becomes `done`; a `seed`, `developing` or `mature` idea whose author abandoned it becomes `dropped`. Each is an ordinary single-target lifecycle proposal whose checklist item names System One and the probability; the note itself is never written. Only notes whose current policy is `approve` are sent, never `deny`, conflict, duplicate-ID, system or review notes, and a target with an open or stale proposal is neither asked about nor proposed again. A note is asked again only when its content changed since it was last asked (State `lifecycle_seen`, written after the Work's effects); a failed call records nothing, so the next run asks again.
 - **Ordinary note operations** (create, move, rename, delete) stay in Obsidian. KnowledgeOS follows moves by ID and treats a deleted target's proposals as stale.
 
 Acceptance:
@@ -261,7 +264,7 @@ Acceptance:
 - **DOC-2** Given two notes with the same `id`, then both stay searchable, a computed item names both, and an organize request targeting that ID is refused.
 - **DOC-3** Given a note with merge-conflict markers, then all automation skips it and a computed item lists it.
 - **DOC-4** Given a project with status `done`, then exactly one archive proposal exists for it until the user decides.
-- **DOC-5** Given a `remote_ok` open question whose body answers it, an `ask` open question and a `remote_ok` idea judged not abandoned, when the digest runs with System One configured, then exactly one proposal sets `status: answered` for the `remote_ok` question, the `ask` note's text is never sent, the idea gets no proposal, no note changes, and a second run sends nothing for unchanged notes; with System One down the run completes with only the static proposals.
+- **DOC-5** Given an `approve` open question whose body answers it, a `deny` open question and an `approve` idea judged not abandoned, when the digest runs with System One configured, then exactly one proposal sets `status: answered` for the `approve` question, the `deny` note's text is never sent, the idea gets no proposal, no note changes, and a second run sends nothing for unchanged notes; with System One down the run completes with only the static proposals.
 
 ## C6 Review
 
@@ -290,10 +293,11 @@ The Owner runs scheduled jobs itself, and only while it runs: there is no host s
 |---|---|---|
 | `standardize` | every hour at :00 | C2 automatic path over notes changed since the last run |
 | `embed` | every hour at :30 | C3 `index.embed`: embeds notes that are new or changed since their last vectors |
-| `curate` | daily 06:00 | C1 over new captures and untyped `remote_ok` notes, at most 10 targets |
+| `curate` | daily 06:00 | C1 over new captures and untyped `approve` notes, at most 10 targets |
+| `daily` | daily 07:00 | C12 handoff and reminder |
 | `digest` | daily 08:00 | C5 computation and the C8 digest |
 
-- Jobs are idempotent. A run where nothing changed writes nothing and sends no notice beyond the digest.
+- Jobs are idempotent. A run where nothing changed writes nothing; the C8 digest is sent only when actionable, and the C12 reminder is sent at most once per day and only when it has items.
 - **Schedule**: five-field cron expressions in Asia/Seoul time. Only the minute and hour fields vary (`*`, numbers, lists, ranges, steps); day, month and weekday are `*`. An unsupported schedule stops the Owner at start. A job's slots are its scheduled times.
 - **Only while the Owner runs**: nothing triggers while the Owner is stopped, and nothing is lost. A job is due when its latest slot is later than its last run (including a run by `knowledgeos job run`) and than any slot the Owner already consumed. A job the Owner sees for the first time has no missed slot.
 - **Startup catch-up**: nothing triggers during the first `startup_delay_minutes` after the Owner starts. Then each due job runs once, however many of its slots passed while the Owner was stopped, and afterwards runs at its slots. A slot reached while the job's previous run is still active is refused and consumed.
@@ -315,23 +319,28 @@ Acceptance:
 
 ## C8 Notifications
 
-Outbound Discord notices through the KnowledgeOS bot. The StewardshipOfficer composes the content and the Notifier delivers it.
+Outbound Discord notices through the KnowledgeOS bot, only when the user has something to act on. The StewardshipOfficer composes digest content and the Notifier delivers it. The morning task reminder belongs to C12.
 
-- **Digest** (daily):
-  - Counts and titles of new autofix changes.
-  - Proposals and reports waiting.
-  - Stale proposals.
-  - Computed attention items needing a decision.
-  - The "revisit" set.
-- **Alert** (immediate, deduplicated by item ID): a Vault conflict, an unknown effect outcome or a failed job. The Owner observes changes independently of reads; no GET, console visit or digest is needed to trigger an alert. An unknown notification delivery does not recursively generate another alert.
-- **Content**: titles and counts only, `obsidian://` links to eligible notes and console links for management items. Only `remote_ok` and `ask` note titles and links may be disclosed. No body text or identifying information from `deny`, `local_only` or `confidential` notes appears in either digests or immediate alerts.
-- **Delivery**: the Owner records each notice intent before delivery. An unknown delivery is never re-sent. The digest reflects current state, so the next digest carries anything still relevant.
+- **Digest**: the `digest` job runs at 08:00 after C5 stewardship, with title `KnowledgeOS 검토 요약`. Its sections and outcome `counts` keys are:
+  - `proposals` (`검토할 제안`): open or stale proposals, with titles.
+  - `stale_proposals` (`오래된 제안`): stale proposals.
+  - `reports` (`새 보고서`): reports whose `created` is after the previous digest, or all reports on the first digest.
+  - `inbox_older_3_days` (`3일 넘은 포착`): unprocessed captures older than 3 days.
+  - `pending` (`확인 대기 작업`): Works with status `awaiting_confirmation`, counted with the console link `#works`.
+  - `attention` (`확인 필요`): non-job items of kinds `conflict`, `duplicate_id`, `invalid_yaml` and unresolved `unknown` effect outcomes.
+  - `revisit` (`다시 볼 노트`): the rotating set of older ideas and open questions.
+  Only non-zero sections get a line. There is no `autofix` section; recent autofix remains in console attention. A notice is posted only when at least one of `proposals`, `reports`, `inbox_older_3_days`, `pending` or non-job `attention` is non-zero; a revisit set or failed jobs alone send nothing. Record a separate `failed_jobs` count on every run, counting only jobs whose latest run failed. Only when another actionable section triggers posting, append those failures as one supplemental line, `자동 작업 점검 필요: <job names>`. A quiet run still returns `counts` and `notice_id: null` and advances the digest cursor.
+- **Alert** (immediate, deduplicated by item ID): only a Vault `conflict` or an unresolved `unknown` outcome of a Vault write (`effect`), human `action`, `cancellation` or commit (`runtime_phase` with `ref.phase` or any `ref.phases` entry starting with `commit`). Model-step, request and delivery unknowns remain in console/API attention but never alert. Failed, blocked and missed jobs never alert. The Owner observes changes independently of reads; no GET, console visit or digest is needed to trigger an alert.
+- **Content**: titles and counts only, `obsidian://` links to eligible notes and console links for management items. Only `approve` note titles and links may be disclosed. No body text or identifying information from `deny` or unknown-policy notes appears in either digests or immediate alerts. C12 separately permits open-item text from `approve` notes in its reminder.
+- **Delivery**: the Owner records each notice intent before delivery. An unknown delivery is never re-sent. The digest reflects current state, so the next actionable digest carries anything still relevant.
 
 Acceptance:
 
 - **NTF-1** Given an attention item from a `deny` note, then no notice mentions it.
 - **NTF-2** Given the same unresolved conflict on two days, then one alert was sent and both digests list it.
 - **NTF-3** Given a notice with an unknown delivery outcome, then it is not re-sent.
+- **NTF-4** Given a failed scheduled job and nothing to review, then no alert is sent and the digest posts nothing, while `failed_jobs` is counted separately from non-job `attention`; given an open proposal next, the digest lists it with the supplemental failed-job line.
+- **NTF-5** Given a classifier model-step `runtime_phase` unknown and a `role_invocation` unknown, then both remain in `/api/attention` without alerting; given an unknown Vault write effect, then the observer alerts exactly once.
 
 ## C9 Learning and Experience
 
@@ -364,14 +373,14 @@ Acceptance:
 
 KnowledgeOS is a foundational Operation: other Operations may submit information to it, and ExecutiveOffice may query it.
 
-- **Intake**: the Director admits a submission from an authorized Operation. The Owner creates a `capture` note in `00_Inbox/` with `captured_from: operation/<id>` and flat provenance fields `kos_provenance` (message ID), `kos_provenance_sender` and `kos_provenance_received_at`; C2 and C1 then apply to it as to any capture. Intake is an Owner effect, not a new Officer. A submission whose export policy forbids storage in a Git-synchronized Vault is refused with an explicit error record.
-- **Query**: bounded C3 results over `remote_ok` notes only. The request supplies sender, purpose and query, and may narrow configured grants with result and excerpt limits, never widen them (at most 100 results and 160 excerpt characters per result). Results are titles, locators and short excerpts within those limits.
+- **Intake**: the Director admits a submission from an authorized Operation. The Owner creates a `capture` note in `00_Inbox/` with `ai_policy: approve`, `captured_from: operation/<id>` and flat provenance fields `kos_provenance` (message ID), `kos_provenance_sender` and `kos_provenance_received_at`; C2 and C1 then apply to it as to any capture. Intake is an Owner effect, not a new Officer. A submission whose export policy forbids storage in a Git-synchronized Vault is refused with an explicit error record.
+- **Query**: bounded C3 results over `approve` non-report notes only, to authorized recipients. The request supplies sender, purpose and query, and may narrow configured grants with result and excerpt limits, never widen them (at most 100 results and 160 excerpt characters per result). Results are titles, locators and short excerpts within those limits.
 - **Receipts**: committed before acknowledgment. A duplicate submission returns the original receipt.
 
 Acceptance:
 
 - **GW-1** Given a valid submission, then exactly one capture note exists, and resubmitting it returns the same receipt.
-- **GW-2** Given a query matching an `ask` note, then that note is not in the result.
+- **GW-2** Given a query matching a `deny` note, then that note is not in the result.
 
 ## C11 Invocation and management surfaces
 
@@ -411,6 +420,58 @@ Acceptance:
 - **SUR-9** Given sidebar navigation, then function selection opens only inline controls without submitting requests or opening menus or modals; input validation, search results, outcome links and standardization confirmation remain inline, repeated confirmation submits once, and leaving a pending preview cancels its exact identity without applying it even if its response arrives late.
 - **SUR-10** Given System One answers `none_of_these` with confidence 0.9 for "오늘 날씨 알려줘", then the free-text request settles `refused` with no Work, the Director is never invoked and only the request text was sent; given it chooses a command, answers below the threshold or is down, then the Director is invoked and the outcome is as without System One.
 
+## C12 Daily notes
+
+The static DailyOfficer hands unfinished items forward into today's daily note; the static EvalOfficer checks `day.carry_exact`. Daily notes (`type: daily`) have no `status` and are never AI proposal targets.
+
+- **Triggers and scope**: `daily.run` with empty parameters, from the user or the C7 `daily` job at 07:00. `settings.C12.folder` defaults to `10_Journal/Daily`. Today is the Owner clock's date in Asia/Seoul; the destination is exactly `<folder>/YYYY-MM-DD.md`. One segment and one producer invocation.
+- **Sources**: `approve` notes directly in that folder whose stems are valid `YYYY-MM-DD` dates earlier than today, in ascending date order. Skip `deny` or unknown-policy notes, conflict markers, invalid YAML, undecodable files and paths with a skip reason.
+- **Open items**: non-empty top-level checkbox lines matching `^([-*+]|\d+[.)]) \[( |/)\] +\S`, together with immediately following indented, non-blank continuation lines. A blank or non-indented line ends the item. Fenced code blocks (triple backticks) and HTML comments are not scanned. Done (`[x]`), cancelled (`[-]`), forwarded (`[>]`) items and plain bullets never carry.
+- **Classification and order**: an item belongs to schedule when the nearest preceding Markdown heading text starts with `일정`; every other open item is a task, including items before a heading or under `할 일`, `작업` or any other heading. Carry all open items in source-date order, then document order. If an item's first line already appears verbatim as a line in today's note, do not insert it again, but still mark its source.
+- **New-note layout**: create exactly the destination path, never a suffixed name, with LF bytes and the same four-section layout as `T10_Daily.md` below. `<uuid4>` is a new UUIDv4 and `<now>` is the Owner clock in ISO-8601 with offset. Insert carried tasks after the comment in `할 일` and schedules after the last comment in `일정`; empty sections retain the exact template bytes, with one final newline. The result needs zero C2 changes.
+
+  ```markdown
+  ---
+  id: "<uuid4>"
+  type: daily
+  created: <now>
+  tags:
+    - journal/daily
+  ai_policy: approve
+  sensitivity: personal
+  ---
+  ## 메모
+  <!-- - 떠오른 생각, 들은 말, 나중에 볼 링크를 한 줄씩 -->
+
+  ## 할 일
+  <!-- - [ ] #task 할 일 이름 📅 YYYY-MM-DD -->
+
+  ## 일정
+  <!-- - HH:MM 일정 제목, 위치 -->
+  <!-- - [ ] YYYY-MM-DD HH:MM 일정 제목, 위치 (끝날 때까지 다음 날로 넘어감) -->
+
+  ## 하루 정리
+  - 오늘 가장 잘한 일:
+  - 아쉬웠던 점과 그 이유:
+  - 새로 알게 된 것:
+  - 고마웠던 사람이나 순간:
+  - 내일 가장 먼저 할 일:
+  ```
+
+- **Existing today**: preserve every existing line in order. Insert schedule items in the first section whose heading text starts with `일정`; tasks in the first section starting with `할 일`, otherwise `작업`. Insert immediately after that section's last non-blank line, or directly after its heading if empty. Append a missing section at EOF as `\n## 일정\n` or `\n## 할 일\n` plus items, first ensuring a final newline.
+- **Effects and refusals**: only the Owner's `EffectContext` writes, with recorded intent before each effect. Write today first, using exact creation when absent or an exact-preimage replacement when present. If the path appeared meanwhile, write nothing and mark no source; retry on the next run. A `deny`, conflict-marked or invalid-YAML destination receives nothing and no source is marked. Only after today's write applied, or no insertion was needed, mark carried items in each source with its own exact-preimage replacement: change only the checkbox character from space or `/` to `>`, leaving every other byte unchanged. A mismatch is `not_applied`, never overwritten, and is reconsidered next run.
+- **Static criterion** (`day.carry_exact`): every carried item is an open top-level checkbox item from an admitted earlier daily note, today's note retains every existing line in order and only gains carried items, and each source changes only the carried items' checkbox marks to `[>]`.
+- **Reminder**: after effects, `owner.post_notice` posts kind `daily`, item ID `daily/YYYY-MM-DD/<today's note id>`, at most once for that ID, so a daily note deleted and recreated for the same day gets its own reminder. Read open top-level `#task` items from today's current on-disk note in document order, then open `#task` items carrying `📅 YYYY-MM-DD` due today or earlier from other notes outside the daily folder, `99_System/` and `01_AI_Review/`. A note may disclose tasks only when its current effective policy is not `deny`; never mention denied notes, even as counts. Show task names only: remove the bullet, checkbox, `#task`, Tasks emoji date fields (`📅`, `⏳`, `🛫`, `➕`, `✅`, `❌` and their dates), priority fields (`⏫`, `🔼`, `🔽`, `🔺`, `⏬`) and recurrence fields (`🔁` and its rule), collapse whitespace and skip empty names; keep other tags. Use editable `settings.reminder` in `config/capabilities/C12.json`: a warm Korean greeting as the title (month, day, Korean weekday and total task-name count), task lines with due-today `(오늘까지)` or overdue `(기한이 지났어요)` marks, then a blank line and a reassuring closing. Include at most 20 task lines, followed by the configured `more` line for remaining task names. Include no links (`links=[]`) or Obsidian URLs. No `#task` item means no notice.
+- **Outcome**: `date`, `path`, `created` (boolean), `carried` (count), `marked` (source paths), `not_applied` (paths) and `notice_id` (string or null).
+
+Acceptance:
+
+- **DAY-1** Given 2026-11-19 and 2026-11-20 daily notes with open tasks, a done task and an open schedule item and no note for today, when `daily` runs, then today's note is created with the schedule item under 일정 and the open tasks under 할 일, the carried lines in the sources become `[>]`, done items stay, and no other byte changes.
+- **DAY-2** Given today's note already exists with user text and one of the open items, then the other items are inserted at the end of the matching sections, every existing line keeps its order, the duplicate is not inserted but its source is marked, and a second run writes nothing.
+- **DAY-3** Given a source changes between admission and write, then that source is not written and is reported not applied, and the next run carries the remaining open items without duplicating ones already carried.
+- **DAY-4** Given today's note has open `#task` items and a non-task schedule item, another note has a `#task` due yesterday and a `deny` note has a due task, then one notice greets the user, lists only the task names without `#task`, dates or links, marks the overdue one, never mentions the deny note or the schedule item, and a second run the same day sends no notice.
+- **DAY-5** Owner-created daily note and the Vault template `T10_Daily.md` both get zero C2 changes.
+
 ## Follow-up: mobile
 
 These are reserved and specified when started. Processing always happens in the Mac KnowledgeOS. Mobile only creates, edits, marks and syncs.
@@ -428,4 +489,5 @@ Build in thin slices and revise this document after each one. The console and CL
 3. **Thinking Team**: C4 with ThinkingManager, its teammates, the model EvalOfficer and TeamReview.
 4. **Curation Team**: C1 with C6 review, then the `curate` job.
 5. **Fabric**: C9 Experience and C10 Gateway.
-6. **Mobile**: follow-ups M1 to M3.
+6. **Daily handoff**: C12 and the `daily` job, with actionable morning reminders.
+7. **Mobile**: follow-ups M1 to M3.

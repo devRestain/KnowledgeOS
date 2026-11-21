@@ -12,406 +12,91 @@
 <header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
 <div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
 <div class="layout">
-<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html" aria-current="page">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html" aria-current="page">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
 <main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>구조</span> › <span aria-current="page">구조</span></nav>
 <article class="page">
-<h1 id="top">구조: 누가 무엇을 맡는가</h1>
-<p>KnowledgeOS의 설계는 한 문장으로 줄일 수 있습니다. <strong>&quot;모든 객체는 서로 겹치지 않는 책임 하나만 맡는다.&quot;</strong> 어떤 일이 두 객체에 걸쳐 보이면 그것은 설계 결함이고, 명세를 고쳐야 합니다(Blueprint §4.1). 이 페이지는 그 책임 지도를 위에서부터 풀어 줍니다. 용어가 낯설면 <a class="wikilink" href="glossary.html">용어</a>를 함께 여세요.</p>
-<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
-<figure class="diagram diagram-system-map">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 450" width="100%" preserveAspectRatio="xMidYMid meet"><title>KnowledgeOS 시스템 구성도: 표면, Owner, 실행 엔진, 저장소, 외부 서비스</title><defs><marker id="d-arrow-system-map" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><rect class="d-lane" x="10" y="8" width="940" height="104" rx="10"/><text class="d-label-small" x="22" y="26" text-anchor="start" font-size="13">표면 · 요청은 모두 Owner로 들어간다</text><rect class="d-box-accent" x="30" y="38" width="190" height="58" rx="8"/><text class="d-label" x="125" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="125" dy="0" font-size="14">Thin Client</tspan><tspan class="d-label-small" x="125" dy="18" font-size="13">Obsidian 명령 · 사이드바</tspan></text><rect class="d-box" x="270" y="38" width="190" height="58" rx="8"/><text class="d-label" x="365" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="365" dy="0" font-size="14">브라우저 콘솔</tspan><tspan class="d-label-small" x="365" dy="18" font-size="13">관찰 · 관리</tspan></text><rect class="d-box" x="510" y="38" width="190" height="58" rx="8"/><text class="d-label" x="605" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="605" dy="0" font-size="14">CLI</tspan><tspan class="d-label-small" x="605" dy="18" font-size="13">유지보수 · 설치</tspan></text><rect class="d-box-muted" x="750" y="38" width="190" height="58" rx="8"/><text class="d-label" x="845" y="63" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="845" dy="0" font-size="14">다른 Operation</tspan><tspan class="d-label-small" x="845" dy="18" font-size="13">Gateway 제출 · 질의</tspan></text><path class="d-edge" d="M125,96 L125,126" fill="none"/><path class="d-edge" d="M365,96 L365,126" fill="none"/><path class="d-edge" d="M605,96 L605,126" fill="none"/><path class="d-edge" d="M845,96 L845,126" fill="none"/><path class="d-edge" d="M125,126 L845,126" fill="none"/><path class="d-edge" d="M480,126 L480,150" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-accent" x="290" y="150" width="380" height="270" rx="8"/><text class="d-label" x="480" y="254" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner / ExOps</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">Director 승인 (정형=정적, 자유 텍스트=모델)</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정책 확인 · 입력 스냅샷 · 제출 검증</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">Vault 쓰기 · 영수증 · 스케줄러</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">단일 권한자: 역할은 파일·셸·네트워크 없음</tspan></text><rect class="d-box-ok" x="30" y="150" width="220" height="56" rx="8"/><text class="d-label" x="140" y="174" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">Vault</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">사용자 정본 · Owner만 기록</tspan></text><rect class="d-box" x="30" y="225" width="220" height="56" rx="8"/><text class="d-label" x="140" y="249" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">State</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">요청·Work 기록 · 벡터 색인</tspan></text><rect class="d-box-muted" x="30" y="300" width="220" height="56" rx="8"/><text class="d-label" x="140" y="324" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="140" dy="0" font-size="14">HermesTrace</tspan><tspan class="d-label-small" x="140" dy="18" font-size="13">Experience 후보 (InterOps)</tspan></text><path class="d-edge" d="M290,178 L250,178" fill="none" marker-end="url(#d-arrow-system-map)"/><path class="d-edge" d="M290,253 L250,253" fill="none" marker-end="url(#d-arrow-system-map)"/><path class="d-edge d-edge-dashed" d="M290,328 L250,328" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box" x="710" y="150" width="220" height="56" rx="8"/><text class="d-label" x="820" y="174" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Temporal + LangGraph</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">Work 실행 · 그래프</tspan></text><path class="d-edge" d="M670,178 L710,178" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box" x="710" y="225" width="220" height="56" rx="8"/><text class="d-label" x="820" y="249" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Hermes 역할 프로필</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">모델 역할마다 1개</tspan></text><path class="d-edge" d="M670,253 L710,253" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-muted" x="710" y="300" width="220" height="56" rx="8"/><text class="d-label" x="820" y="324" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">Ollama</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">로컬 임베딩 (loopback)</tspan></text><path class="d-edge" d="M670,328 L710,328" fill="none" marker-end="url(#d-arrow-system-map)"/><rect class="d-box-muted" x="710" y="375" width="220" height="56" rx="8"/><text class="d-label" x="820" y="399" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="820" dy="0" font-size="14">kos-ops → Discord</tspan><tspan class="d-label-small" x="820" dy="18" font-size="13">송신 전용 알림</tspan></text><path class="d-edge" d="M670,403 L710,403" fill="none" marker-end="url(#d-arrow-system-map)"/><text class="d-label-small" x="480" y="442" text-anchor="middle" font-size="13">실선: 호출 · 기록   점선: 후보·알림 같은 단방향 전달</text></svg>
-</figure>
-<ul>
-<li><strong>입구는 셋</strong>: Obsidian Thin Client(명령·사이드바), 브라우저 콘솔, CLI. 셋 모두 <strong>같은 접수 경로</strong>(ExOps)로 Owner에 요청합니다.</li>
-<li><strong>Owner</strong>가 권한 판단·파일 쓰기·기록을 모두 맡고, 작업의 수명은 <strong>Temporal</strong>(내구성 있는 실행)과 <strong>LangGraph</strong>(Graph 실행)가 이끕니다.</li>
-<li><strong>모델이 필요한 단계</strong>는 역할마다 따로 둔 <strong>Hermes profile</strong>이 맡습니다. Discord로 나가는 알림은 모델 없는 <code>kos-ops</code> profile만 보냅니다.</li>
-<li><strong>빠른 선택형 판단</strong>은 역할이 아니라 Owner 서비스인 <strong>System One</strong>이 맡습니다. Owner가 OpenAI Decisions API(<code>gpt-6-luna</code>)에 직접 묻고 정해진 선택지나 확률만 받으며, Hermes profile은 쓰지 않습니다.</li>
-<li><strong>의미 검색용 임베딩</strong>은 Owner가 로컬 Ollama를 loopback HTTP로 직접 부릅니다.</li>
-<li><strong>데이터는 셋으로 갈립니다</strong>: 사용자의 Vault, 운영 기록인 State, 다시 만들 수 있는 Runtime.</li>
-</ul>
-<h2 id="화면표면은-서로의-일을-하지-않는다">화면(표면)은 서로의 일을 하지 않는다<a class="anchor" href="#화면표면은-서로의-일을-하지-않는다" aria-label="이 제목 링크">#</a></h2>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>표면</th>
-<th>맡는 일</th>
-<th>하지 않는 일</th>
-<th>더 보기</th>
-</tr></thead><tbody>
-<tr><td>Obsidian 본체와 플러그인</td><td>쓰기, 템플릿, 키워드 검색, 보기, 할 일, Git 보기</td><td>KnowledgeOS 호출</td><td><a class="wikilink" href="usage.html">사용 가이드</a></td></tr>
-<tr><td>Thin Client</td><td>현재 노트에서 KnowledgeOS 호출(명령·사이드바), 결과 알림, Owner 시작·중지</td><td>문서 목록, 작업 브라우저, 설정 늘리기</td><td><a class="wikilink" href="c11.html">C11</a></td></tr>
-<tr><td>브라우저 콘솔</td><td>KnowledgeOS <strong>관찰과 관리</strong></td><td>문서 작업</td><td><a class="wikilink" href="c11.html">C11</a></td></tr>
-<tr><td>CLI</td><td>유지보수와 설치</td><td>문서 작업</td><td><a class="wikilink" href="c11.html">C11</a></td></tr>
-<tr><td>Discord</td><td>나가는 알림</td><td>명령·승인 받기</td><td><a class="wikilink" href="c8.html">C8</a></td></tr>
-</tbody></table></div>
-<p>플러그인이 할 수 있는 일은 플러그인에 맡기고 Thin Client는 작게 둡니다. 플러그인은 설정일 뿐 필수 의존이 아니어서, 플러그인이 하나도 없어도 Vault는 일반 Markdown으로 쓸 수 있습니다.</p>
-<h2 id="세-개의-저장소-vault-state-runtime">세 개의 저장소: Vault · State · Runtime<a class="anchor" href="#세-개의-저장소-vault-state-runtime" aria-label="이 제목 링크">#</a></h2>
-<p>핵심 규칙은 <strong>&quot;사용자가 잃으면 아쉬울 것은 전부 Vault에 있다&quot;</strong> 입니다. State와 Runtime을 잃어도 지식은 남고, 잃는 것은 진행 중이던 작업, 되돌리기 바로가기, 대기 중이던 알림 정도입니다. 이 셋은 설정에서 각각 따로 지정하며 서로 겹치거나 포함할 수 없고, State·Runtime·자격 증명은 Git과 Vault 밖에 둡니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 2. Ownership and storage</header>
-<h3 id="2-ownership-and-storage">2. Ownership and storage<a class="anchor" href="#2-ownership-and-storage" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>Area</th>
-<th>Owner</th>
-<th>Contents</th>
-<th>Loss tolerance</th>
-</tr></thead><tbody>
-<tr><td><code>Vaults/KnowledgeHub/</code></td><td>User (canonical)</td><td>Notes, attachments, templates, Bases, KnowledgeOS reports and proposals</td><td>Backed up through the user&#x27;s GitHub private repository</td></tr>
-<tr><td><code>Operations/KnowledgeOS/</code></td><td>KnowledgeOS</td><td>Source, spec, capability catalog, role definitions, scheduled-job declarations, Thin Client, console, tests</td><td>Git</td></tr>
-<tr><td><code>States/Operations/knowledgeos/</code></td><td>KnowledgeOS</td><td>Request receipts, Work records, input snapshots, autofix change log, notice and Experience outboxes, the derived semantic vector index (<code>semantic/</code>)</td><td>Losable; never the only copy of user knowledge</td></tr>
-<tr><td><code>Runtimes/knowledgeos/</code></td><td>Host</td><td>Python environment, Owner binding config, LaunchAgent logs, generated Hermes distributions</td><td>Rebuildable</td></tr>
-<tr><td>Hermes KnowledgeOS profile homes under <code>States/System/Hermes/</code></td><td>Host</td><td>Per-role model credential reference, skills, memory and sessions; the operations profile&#x27;s Discord bot token</td><td>Host-owned; credentials are never copied</td></tr>
-</tbody></table></div>
-<p>Principle: <strong>anything the user would miss lives in the Vault.</strong> State holds only operational records. Losing State loses in-flight Work, undo shortcuts and pending notices, never accepted knowledge. Nothing from State, Runtime or Hermes homes is written into the Vault, so none of it is pushed to GitHub.</p>
-</section>
-<h2 id="역할-누가-무엇을-하나">역할: 누가 무엇을 하나<a class="anchor" href="#역할-누가-무엇을-하나" aria-label="이 제목 링크">#</a></h2>
-<p>실행 단계는 두 가지입니다. <strong>static</strong>은 Owner 코드가 하는 단계이고, <strong>model</strong>은 Hermes 역할 profile이 하는 단계입니다. Owner가 바이트 단위로 계산하거나 검증할 수 있는 일은 static이고, 모델은 판단에만 씁니다.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>객체</th>
-<th>쉽게 말하면</th>
-<th>실행 방식</th>
-</tr></thead><tbody>
-<tr><td><strong>Owner</strong></td><td>권한 판단·파일 쓰기·기록 담당. 내용은 판단하지 않음</td><td>코드</td></tr>
-<tr><td><strong>Director</strong></td><td>접수 창구. 요청을 작업 명세(WorkSpec)로 받아들임</td><td>정형 요청은 static, 자유 요청만 model(<code>kos-director</code>)</td></tr>
-<tr><td><strong>Manager</strong> (CurationManager, ThinkingManager)</td><td>팀장. 어느 팀원을 어떤 순서로 쓸지 정하고 다시 짜며, 끝나면 TeamReview를 남김. 직접 만들거나 평가하지 않음</td><td>model</td></tr>
-<tr><td><strong>Teammate</strong></td><td>팀원. 중간 산출물(handoff) 한 종류만 만듦</td><td><code>scout</code>·<code>retriever</code>는 static, 나머지(<code>classifier</code>·<code>linker</code>·<code>connector</code>·<code>challenger</code>·<code>synthesizer</code>)는 model</td></tr>
-<tr><td><strong>Officer</strong> (StandardizationOfficer, StewardshipOfficer)</td><td>팀 없이 혼자 한 결과를 책임짐</td><td>static</td></tr>
-<tr><td><strong>EvalOfficer</strong></td><td>독립 평가자. 결과를 만들거나 고치지 않고, Manager의 설명이나 팀원의 자기평가도 보지 않음</td><td>static 검사는 항상, 의미 기준만 model(<code>kos-eval</code>)</td></tr>
-<tr><td><strong>Scheduler</strong></td><td>정해진 작업을 때맞춰 트리거함</td><td>Owner 안 서비스</td></tr>
-<tr><td><strong>Notifier</strong></td><td>만들어진 알림을 전달함</td><td><code>kos-ops</code> profile</td></tr>
-<tr><td><strong>System One</strong></td><td>선택지 중 하나(<code>choice</code>)나 확률(<code>predicate</code>)만 답하는 빠른 판단. 쓰지도 글을 짓지도 않고 <code>ai_policy</code>·<code>sensitivity</code>는 정하지 않음</td><td>Owner 서비스(OpenAI Decisions API 직접 호출, profile 없음)</td></tr>
-</tbody></table></div>
-<p>검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 <strong>서비스</strong>입니다. System One도 역할이 아니라 Owner의 <strong>서비스</strong>입니다. 규격화 규칙 9(<a class="wikilink" href="c2.html">C2</a>), 정리 <code>scout</code> 힌트(<a class="wikilink" href="c1.html">C1</a>), 관련 노트 이웃 거르기(<a class="wikilink" href="c3.html">C3</a>), 문서 관리 상태 제안(<a class="wikilink" href="c5.html">C5</a>), 자유 요청 사전 거름(<a class="wikilink" href="c11.html">C11</a>)에서 Owner 코드가 질문하고, 답을 쓸지는 Owner 코드가 정합니다. 설정이 없거나 실패하면 이 기능들은 System One 없이 하던 대로 동작하며, 어떤 기능도 System One 때문에 실패하지 않습니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.</p>
-<h3 id="두-개의-팀">두 개의 팀<a class="anchor" href="#두-개의-팀" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>팀</th>
-<th>기능</th>
-<th>Manager</th>
-<th>팀원</th>
-</tr></thead><tbody>
-<tr><td>Curation Team</td><td><a class="wikilink" href="c1.html">C1</a> 정리</td><td>CurationManager</td><td><code>scout</code>(수집), <code>classifier</code>(분류), <code>linker</code>(연결)</td></tr>
-<tr><td>Thinking Team</td><td><a class="wikilink" href="c4.html">C4</a> 강화</td><td>ThinkingManager</td><td><code>retriever</code>(근거 수집), <code>connector</code>(연결·긴장), <code>challenger</code>(빈틈·반론), <code>synthesizer</code>(보고서)</td></tr>
-</tbody></table></div>
-<p>Officer로 처리되는 것은 <a class="wikilink" href="c2.html">C2</a> 규격화(StandardizationOfficer), <a class="wikilink" href="c5.html">C5</a> 문서 관리(StewardshipOfficer), <a class="wikilink" href="c3.html">C3</a>의 임베딩(EmbeddingOfficer)입니다. 앞의 둘은 코드로 움직이면서 설정 시 System One에게 선택 질문을 합니다.</p>
-<p>아래는 Blueprint의 원문입니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 4.1 Responsibility map</header>
-<h4 id="41-responsibility-map">4.1 Responsibility map<a class="anchor" href="#41-responsibility-map" aria-label="이 제목 링크">#</a></h4>
-<p>Every object owns exactly one responsibility and nothing else. If a duty fits two objects, the spec is wrong and must be fixed.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>Object</th>
-<th>Owns</th>
-<th>Never</th>
-</tr></thead><tbody>
-<tr><td><strong>Owner</strong></td><td>Authority and effects: policy decisions, State, input snapshots, evidence handles, validation of submissions against schemas, rendering and writing Vault files, compiling Core records, notices</td><td>Choosing content, composing Graphs, judging criteria</td></tr>
-<tr><td><strong>Director</strong></td><td>Admission: turning a request into an admitted <code>WorkSpec</code> (target, catalog criteria, budget, input scope) and admitting revisions when budget or target must change</td><td>Composing Graphs, producing content, evaluating</td></tr>
-<tr><td><strong>Manager</strong> (one per Team)</td><td>Graph composition for its Team: which admitted teammates run, in what order, and where the evaluation sits; successor composition from <code>RemainingWork</code>; TeamReview after completion</td><td>Producing content, judging criteria, instructing the EvalOfficer, admitting Work, writing files</td></tr>
-<tr><td><strong>Teammate</strong></td><td>One kind of intermediate artifact (a handoff) within a Team Graph</td><td>Final results, evaluation, choosing other teammates</td></tr>
-<tr><td><strong>Officer</strong></td><td>One bounded result, alone, with no Team or Manager</td><td>Delegation, evaluation</td></tr>
-<tr><td><strong>EvalOfficer</strong></td><td>Independent assessment of the admitted criteria at a segment checkpoint</td><td>Producing, fixing or rewording output; seeing Manager rationale or teammate self-assessment</td></tr>
-<tr><td><strong>Scheduler</strong></td><td>Triggering declared jobs</td><td>Deciding what a job does</td></tr>
-<tr><td><strong>Notifier</strong></td><td>Delivering composed notices</td><td>Composing notice content</td></tr>
-</tbody></table></div>
-<p>Each step has a fixed runtime, <code>static</code> (Owner code) or <code>model</code> (a Hermes role profile). A step whose output the Owner could compute or verify byte for byte is <code>static</code>. Models contribute only judgment.</p>
-</section>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 4.2 Roster</header>
-<h4 id="42-roster">4.2 Roster<a class="anchor" href="#42-roster" aria-label="이 제목 링크">#</a></h4>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>Object</th>
-<th>Kind</th>
-<th>Runtime</th>
-<th>Owns</th>
-</tr></thead><tbody>
-<tr><td>Director</td><td>Director</td><td>static for structured requests; model (<code>kos-director</code>) for free-text requests</td><td>Admission and revisions</td></tr>
-<tr><td>CurationManager</td><td>Manager of the Curation Team (capability C1)</td><td>model (<code>kos-curation-manager</code>)</td><td>Curation Graphs and TeamReview</td></tr>
-<tr><td><code>scout</code></td><td>Curation teammate</td><td>static</td><td>Collects target notes, candidate related notes and the existing tag vocabulary</td></tr>
-<tr><td><code>classifier</code></td><td>Curation teammate</td><td>model (<code>kos-classifier</code>)</td><td>Judgment fields per note: type, status, title, tags, conventional folder</td></tr>
-<tr><td><code>linker</code></td><td>Curation teammate</td><td>model (<code>kos-linker</code>)</td><td>Links and typed relations to existing notes; attaching a capture to an existing note</td></tr>
-<tr><td>ThinkingManager</td><td>Manager of the Thinking Team (capability C4)</td><td>model (<code>kos-thinking-manager</code>)</td><td>Thinking Graphs and TeamReview</td></tr>
-<tr><td><code>retriever</code></td><td>Thinking teammate</td><td>static</td><td>Collects evidence candidates around the focal note or question</td></tr>
-<tr><td><code>connector</code></td><td>Thinking teammate</td><td>model (<code>kos-connector</code>)</td><td>What the user already wrote that relates, and connections and tensions between notes</td></tr>
-<tr><td><code>challenger</code></td><td>Thinking teammate</td><td>model (<code>kos-challenger</code>)</td><td>Gaps, counterpoints and open questions</td></tr>
-<tr><td><code>synthesizer</code></td><td>Thinking teammate</td><td>model (<code>kos-synthesizer</code>)</td><td>The final cited report, including next steps</td></tr>
-<tr><td>StandardizationOfficer</td><td>Officer (capability C2)</td><td>static; asks System One for rule-9 closed-set values</td><td>Conformance of one or more notes: deterministic rules plus confident System One enum choices</td></tr>
-<tr><td>StewardshipOfficer</td><td>Officer (capability C5)</td><td>static; asks System One for status predicates</td><td>Attention items, lifecycle suggestions and digest content</td></tr>
-<tr><td>EmbeddingOfficer</td><td>Officer (capability C3)</td><td>static; calls the local Ollama embedding model over loopback</td><td>Incremental vector index of eligible notes</td></tr>
-<tr><td>EvalOfficer</td><td>EvalOfficer</td><td>static checks always; model (<code>kos-eval</code>) for semantic criteria</td><td>Assessments for every Work</td></tr>
-<tr><td>Scheduler</td><td>Owner service</td><td>Static; slots from <code>config/jobs.json</code>, runs only while the Owner runs</td><td>Triggering declared jobs</td></tr>
-<tr><td>Notifier</td><td>Host service</td><td>Delivery through the operations profile <code>kos-ops</code></td><td>Delivery</td></tr>
-<tr><td>System One</td><td>Owner service</td><td>OpenAI Decisions API (<code>gpt-6-luna</code>) called directly by the Owner; no Hermes profile</td><td>Typed closed-set answers (<code>choice</code>, <code>predicate</code>) that Owner code acts on: C2 rule 9, C1 <code>scout</code> hints, C3 neighbor vetting, C5 status proposals, the C11 free-text prefilter. Never writes, authors text or decides <code>ai_policy</code>/<code>sensitivity</code></td></tr>
-</tbody></table></div>
-<p>Search (capability C3) is a service the Owner provides to people and to roles through tools. It is not a role; only keeping its vector index current is Officer work (EmbeddingOfficer).</p>
-<p>Adding or removing a role, teammate or Team is a spec change, reviewed by the user, and usually prompted by a TeamReview proposal.</p>
-</section>
-<h2 id="일이-흘러가는-길-work-flow">일이 흘러가는 길 (Work flow)<a class="anchor" href="#일이-흘러가는-길-work-flow" aria-label="이 제목 링크">#</a></h2>
-<figure class="diagram diagram-work-flow">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 400" width="100%" preserveAspectRatio="xMidYMid meet"><title>Work 흐름: 요청에서 Director 승인, 실행, 평가, Owner 효과, TeamReview까지</title><defs><marker id="d-arrow-work-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M170,150 L210,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M360,150 L380,150 L380,60 L400,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M380,150 L380,240 L400,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="372" y="104" text-anchor="end" font-size="13">Officer 대상</text><text class="d-label-small" x="372" y="200" text-anchor="end" font-size="13">Team 대상</text><path class="d-edge" d="M550,240 L590,240" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M665,212 L665,178" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M550,60 L635,60 L635,122" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge" d="M740,150 L780,150" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="760" y="140" text-anchor="middle" font-size="13">충족</text><path class="d-edge" d="M855,178 L855,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><path class="d-edge d-edge-dashed" d="M590,150 L475,150 L475,212" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="530" y="142" text-anchor="middle" font-size="13">미충족 · 예산 내</text><path class="d-edge d-edge-dashed" d="M710,122 L710,60 L780,60" fill="none" marker-end="url(#d-arrow-work-flow)"/><text class="d-label-small" x="745" y="48" text-anchor="middle" font-size="13">예산 소진</text><rect class="d-box-muted" x="20" y="122" width="150" height="56" rx="8"/><text class="d-label" x="95" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="95" dy="0" font-size="14">요청</tspan><tspan class="d-label-small" x="95" dy="18" font-size="13">표면·작업·Gateway</tspan></text><rect class="d-box-accent" x="210" y="122" width="150" height="56" rx="8"/><text class="d-label" x="285" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="285" dy="0" font-size="14">Director 승인</tspan><tspan class="d-label-small" x="285" dy="18" font-size="13">WorkSpec 확정</tspan></text><rect class="d-box" x="400" y="32" width="150" height="56" rx="8"/><text class="d-label" x="475" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Officer 단계</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">정적 · 단독 결과</tspan></text><rect class="d-box" x="400" y="212" width="150" height="56" rx="8"/><text class="d-label" x="475" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="475" dy="0" font-size="14">Manager</tspan><tspan class="d-label-small" x="475" dy="18" font-size="13">그래프·후속 구간</tspan></text><rect class="d-box" x="590" y="212" width="150" height="56" rx="8"/><text class="d-label" x="665" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">팀원 단계</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">handoff 산출</tspan></text><rect class="d-box-accent" x="590" y="122" width="150" height="56" rx="8"/><text class="d-label" x="665" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="665" dy="0" font-size="14">EvalOfficer</tspan><tspan class="d-label-small" x="665" dy="18" font-size="13">독립 평가</tspan></text><rect class="d-box-ok" x="780" y="122" width="150" height="56" rx="8"/><text class="d-label" x="855" y="146" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">Owner 효과</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">기록 · 영수증</tspan></text><rect class="d-box-warn" x="780" y="32" width="150" height="56" rx="8"/><text class="d-label" x="855" y="56" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">사용자에게 표시</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">새 요청이 필요</tspan></text><rect class="d-box-muted" x="780" y="212" width="150" height="56" rx="8"/><text class="d-label" x="855" y="236" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="855" dy="0" font-size="14">TeamReview</tspan><tspan class="d-label-small" x="855" dy="18" font-size="13">팀원 평가·제안</tspan></text><rect class="d-lane" x="20" y="290" width="920" height="96" rx="10"/><text class="d-label" x="480" y="325" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="480" dy="0" font-size="14">Owner가 검증하고 기록한다 · 모델은 판단만 담당한다</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">정적 검사 먼저, EvalOfficer 모델은 의미 기준만 판단 · 기본 예산: Team 2구간·생산 6회, Officer 1구간</tspan><tspan class="d-label-small" x="480" dy="18" font-size="13">같은 미충족이 연속 두 체크포인트에 남으면 Work는 미충족으로 종료 · 대상이 바뀌면 새 Director 승인</tspan></text></svg>
-</figure>
-<p>모든 요청은 먼저 Director를 지납니다. 정형 요청(Thin Client 명령, 예약 작업, CLI 명령)은 코드가 접수하고, 자유 요청만 <code>kos-director</code> 모델이 읽어 초안을 만듭니다.</p>
+<h1 id="top">실행 구조: 요청에서 파일이 만들어지기까지</h1>
+<p>KnowledgeOS는 버튼마다 별도 에이전트 앱을 띄우는 구조가 아닙니다. <strong>하나의 Owner 프로세스가 요청을 받고, 오래 걸리는 작업은 Temporal에 맡기며, 모델이 필요한 단계에서만 해당 Hermes Profile을 호출합니다.</strong> 이 페이지는 기능 설명에 공통으로 등장하는 실행 장치를 연결합니다.</p>
+<h2 id="요청이-들어왔다고-모두-graph가-도는-것은-아닙니다">요청이 들어왔다고 모두 Graph가 도는 것은 아닙니다<a class="anchor" href="#요청이-들어왔다고-모두-graph가-도는-것은-아닙니다" aria-label="이 제목 링크">#</a></h2>
+<p>사이드바의 “관련 노트 찾기”와 “정리 요청”은 서로 다른 길을 갑니다. 앞의 요청은 검색 서비스가 후보를 골라 바로 돌려줍니다. 뒤의 요청은 입력 노트를 고정하고 Work를 만든 뒤, 팀의 Graph 실행과 평가를 거쳐 제안 파일을 만듭니다.</p>
+<p>Owner의 접수 코드는 기능 카탈로그에서 요청 이름과 허용 매개변수를 찾고 해당 처리기로 넘깁니다. 처리기가 즉시 결과를 돌려줄 수도 있고, <strong>WorkDraft라는 실행 초안</strong>을 돌려줄 수도 있습니다. 후자의 경우에만 Owner가 Work 기록을 만들고 실행 엔진에 맡깁니다. 따라서 Director라는 접수 책임을 지난다는 말이 <code>kos-director</code> 모델을 매번 부른다는 뜻은 아닙니다.</p>
+<p>자유 요청은 한 단계가 더 있습니다. System One이 요청 문장만 보고 명백히 기능 밖인 요청을 거를 수 있고, 나머지는 <code>kos-director</code>가 기존 명령 하나로 번역합니다. 그 명령은 다시 같은 정형 접수 코드를 지납니다. Director 모델이 새 기능·평가 기준·예산을 만드는 경로는 없습니다(<a class="wikilink" href="c11.html">C11</a>).</p>
+<h2 id="한-work가-실제로-실행되는-순서">한 Work가 실제로 실행되는 순서<a class="anchor" href="#한-work가-실제로-실행되는-순서" aria-label="이 제목 링크">#</a></h2>
+<p>정리 요청을 예로 들면 다음과 같습니다. 각 기능에서 달라지는 부분은 <a class="wikilink" href="c1.html">C1</a>, <a class="wikilink" href="c2.html">C2</a>, <a class="wikilink" href="c4.html">C4</a> 등의 설명으로 이어집니다.</p>
 <ol>
-<li><strong>요청</strong>: Thin Client·CLI·예약 작업·Gateway에서 들어옵니다. 요청 ID가 있어 같은 요청을 두 번 보내도 한 번만 처리됩니다.</li>
-<li><strong>접수(Director)</strong>: 대상(Officer 또는 Team), 기준(criteria), 예산, 입력 범위를 담은 WorkSpec을 만듭니다. 기준은 기능 카탈로그에서 오며 <strong>모델은 기준을 쓰지 못합니다</strong>.</li>
-<li><strong>Officer 대상이면</strong> 한 단계로 결과를 만듭니다. <strong>Team 대상이면</strong> Manager가 Graph를 짭니다. Manager가 내는 것은 &quot;승인된 팀원 중 누구를 어떤 순서로&quot; 와 &quot;평가 위치&quot;뿐이고, Owner가 그것을 검증해 Core의 <code>GraphSpec</code> 등으로 만듭니다.</li>
-<li><strong>팀원 단계</strong>: 팀원이 차례로 handoff를 만들고, 뒤의 팀원은 앞의 handoff를 읽을 수 있습니다.</li>
-<li><strong>평가(EvalOfficer)</strong>: Owner가 증거 시점을 먼저 기록합니다. 그다음 static 검사가 돌고, 의미 기준만 EvalOfficer 모델이 판단합니다. 최종 판정(<code>CompletionAssessment</code>)과 남은 일(<code>RemainingWork</code>)은 Owner가 만듭니다.</li>
-<li><strong>만족하면</strong> Owner가 결과(제안 노트·보고서)를 렌더링해 씁니다. <strong>기준에 못 미치고 예산이 남으면</strong> 같은 Manager가 남은 부분만 다루는 후속 구간을 짭니다. <strong>예산이 바닥나면</strong> 사용자에게 보이고, 새 요청이 필요합니다.</li>
-<li><strong>TeamReview</strong>: 완료 후 Manager가 팀원마다 성과를 평가하고 개선 제안을 최대 3개 남깁니다. 제안은 조언일 뿐, 역할·카탈로그·평가를 바꾸지 못합니다. 바꾸는 것은 사용자가 명세와 카탈로그를 고쳐서만 합니다.</li>
+<li><strong>접수와 입력 고정.</strong> Owner가 요청 ID와 영수증을 남기고, 대상과 기준을 담은 WorkSpec 및 입력 스냅숏을 State에 기록합니다. 사용자가 실행 도중 노트를 고쳐도 모델이 읽은 판본과 현재 파일을 구별할 수 있게 됩니다.</li>
+<li><strong>Temporal 시작.</strong> <code>knowledgeos.work.v1</code> Workflow를 Work에 연결합니다. Workflow ID는 Operation ID와 Work ID를 합친 것이므로 같은 Work를 다시 붙잡을 때 새 작업을 임의로 만들지 않습니다.</li>
+<li><strong>실행 순서 선택.</strong> Team이면 Manager가 팀원 목록과 순서를 제출합니다. Officer이면 이미 정해진 정적 처리기 하나를 선택합니다.</li>
+<li><strong>Graph 구간 시작.</strong> Owner가 검증한 순서에 맞는 LangGraph를 고르고 구간 기록을 엽니다. 팀원들이 순서대로 중간 결과를 남깁니다.</li>
+<li><strong>평가.</strong> 정적 검사, 필요한 경우 모델 의미 평가, 최종 판정 저장을 따로 수행합니다. 어떤 기준이 부족한지도 이때 기록합니다.</li>
+<li><strong>반영 또는 후속 구간.</strong> 모두 만족하면 기능별 마무리 처리기가 제안·보고서 등을 씁니다. 부족하면 Team만 예산 안에서 후속 Graph를 만들 수 있습니다. 평가 미충족을 성공 파일로 포장하지 않습니다.</li>
+<li><strong>종료.</strong> Team은 성공적인 반영 뒤 Manager의 TeamReview를 남깁니다. 마지막으로 Work와 요청 영수증에 결과를 연결해 클라이언트가 읽게 합니다.</li>
 </ol>
-<p>중요한 규칙은 다음과 같습니다.</p>
+<p>규격화 미리보기처럼 이 실행 결과가 <code>awaiting_confirmation</code>인 경우도 있습니다. 계산과 평가가 끝났어도 사용자가 확정하기 전에는 원본 반영이 끝난 것이 아닙니다.</p>
+<h2 id="manager가-만드는-graph는-얼마나-자유로운가">Manager가 만드는 Graph는 얼마나 자유로운가<a class="anchor" href="#manager가-만드는-graph는-얼마나-자유로운가" aria-label="이 제목 링크">#</a></h2>
+<p>현재 구현의 Graph는 <strong>허용된 팀원을 한 번씩 배치하는 직렬 목록</strong>입니다. Manager가 임의의 Python 코드, 병렬 분기, 순환, 새로운 역할을 작성하는 방식이 아닙니다. 제출물에는 팀원 순서와 “마지막에 평가”라는 표시만 들어갑니다.</p>
+<p>정리는 <code>scout → classifier → linker</code> 같은 순서를, 강화는 <code>retriever → connector → challenger → synthesizer</code> 같은 순서를 사용할 수 있습니다. 이것들은 가능한 사례이지 모든 요청의 고정 파이프라인은 아닙니다. Manager는 팀원 풀과 기능별 제약 안에서 필요한 구성을 고릅니다.</p>
+<p>Owner는 다음을 확인한 뒤에만 구간을 엽니다.</p>
 <ul>
-<li><strong>예산</strong>: Team은 기본 2구간·생산자 호출 6회, Officer는 1구간. 팀원 단계는 static이든 model이든 생산자 예산을 소모하고, 교정 턴은 소모하지 않습니다.</li>
-<li><strong>같은 미충족이 두 번 이어지면</strong> 작업은 미충족으로 끝납니다. 대상이나 목표가 바뀌면 새 접수가 필요합니다.</li>
-<li><strong>모델 제출이 형식에 어긋나면</strong> 진단과 함께 교정 턴을 한 번 줍니다. 두 번째에도 실패하면 그 단계는 실패이고 해당 기준은 미충족으로 남으며, 유효한 출력 없이 평가자에게 인증을 요청하지 않습니다. 예: 인용 없는 주장(<a class="wikilink" href="c4.html#ENH-2">ENH-2</a>), 읽지 않은 노트를 인용한 링크(<a class="wikilink" href="c1.html#ORG-2">ORG-2</a>).</li>
-<li><strong>권한 위반</strong>은 <strong>교정 턴 없이 즉시 거절</strong>됩니다. Manager가 EvalOfficer에게 지시하는 Graph를 제출하면 구간은 시작되지 않고 이미 접수된 Work가 실패합니다(<a class="wikilink" href="c1.html#ORG-5">ORG-5</a>). Director 모델이 기준·예산·경로 같은 권한 필드를 정하려 하면 접수 단계에서 거절되어 <strong>Work 자체가 만들어지지 않습니다</strong>.</li>
-<li>이미 승인된 구간은 바뀌지 않습니다. 기준 미충족이면 새 구간을 더할 뿐입니다(<a class="wikilink" href="c1.html#ORG-6">ORG-6</a>, <a class="wikilink" href="c4.html#ENH-6">ENH-6</a>).</li>
+<li>목록이 비어 있지 않고, 그 팀의 허용된 역할만 들어 있는가.</li>
+<li>같은 팀원을 한 구간에서 두 번 부르지 않는가.</li>
+<li>기능이 마지막 생산자를 지정했다면 그 역할로 끝나는가.</li>
+<li>남은 생산자 호출 예산 안에 있는가.</li>
+<li>후속 구간이면 각 팀원이 실제로 남은 기준을 다루는가.</li>
 </ul>
-<p><strong>예</strong>: Inbox의 노트에 &quot;정리 요청&quot;을 누르면, Director가 정리 작업을 접수하고, CurationManager가 <code>scout → classifier → linker</code> 같은 Graph를 짠 뒤, 평가를 거쳐, Owner가 <code>01_AI_Review/Proposals/</code>에 제안 노트 하나를 씁니다. 원래 노트는 그대로입니다(<a class="wikilink" href="c1.html#ORG-1">ORG-1</a>).</p>
-<h2 id="owner와-exops">Owner와 ExOps<a class="anchor" href="#owner와-exops" aria-label="이 제목 링크">#</a></h2>
-<p><strong>Owner</strong>는 권한과 효과의 주인입니다. 정책 결정, State, 입력 스냅숏, 근거 핸들, 제출물의 스키마 검증, Vault 파일 렌더링과 쓰기, Core 기록 작성, 알림을 맡고, 내용을 고르거나 Graph를 짜거나 기준을 판단하지 않습니다. <strong>Vault에 쓰는 것은 Owner뿐</strong>이며, 어떤 역할도 파일·셸·네트워크 도구가 없습니다.</p>
-<p><strong>ExOps</strong>는 Owner의 HTTP 접수 경로입니다.</p>
-<ul>
-<li>Thin Client, 콘솔, CLI가 <strong>하나의 접수 경로</strong>를 공유합니다.</li>
-<li>loopback(<code>127.0.0.1</code>)에만 바인딩하고, Host와 Origin을 자동으로 검사하며, 변경은 JSON만 받고, 교차 출처 접근을 허용하지 않습니다. 로그인·계정·토큰이 없습니다. 이것은 <strong>로컬 전용·단일 사용자</strong> 전제입니다.</li>
-<li><strong>GET은 관찰만</strong> 합니다. 작업을 시작하거나 결정을 저장하거나 알림을 보내거나 결과 불명을 정리하지 않습니다. 콘솔을 열어 보는 것만으로 알림이 나가거나, 알림이 나가기 위해 콘솔 방문이 필요하지는 않습니다(<a class="wikilink" href="c8.html">C8</a>).</li>
-</ul>
-<h2 id="temporal과-langgraph">Temporal과 LangGraph<a class="anchor" href="#temporal과-langgraph" aria-label="이 제목 링크">#</a></h2>
-<ul>
-<li><strong>Temporal</strong>은 Work의 <strong>내구성 있는 수명</strong>(재시작해도 이어지는 실행)을 맡습니다. 공유 Temporal 서버는 호스트 loopback <code>127.0.0.1:7233</code>에만 열려 있고, Owner는 <code>knowledgeos</code> 네임스페이스에 연결합니다(PROJECT_STATE의 <a class="wikilink" href="status.html#E_TEMPORAL_RUNNING">E_TEMPORAL_RUNNING</a>).</li>
-<li><strong>LangGraph</strong>는 승인된 Graph 구간을 <strong>실행</strong>합니다.</li>
-<li>실행 엔진은 하나입니다. Officer든 Team이든 같은 엔진이 돌리고, 역할 로직은 핸들러 또는 profile이지 별도 파이프라인이 아닙니다(Blueprint §8.4).</li>
-<li>실행 기록과 결과는 Temporal 서버에 보존되지만, <strong>Work의 소유와 판단은 KnowledgeOS</strong>가 가집니다(README).</li>
-<li>테스트는 실제 Temporal 개발 서버와 LangGraph를 쓰고, 모델 역할만 스크립트 대역입니다(<a class="wikilink" href="status.html">현재 상태</a>).</li>
-</ul>
-<h2 id="hermes-역할-profile">Hermes 역할 profile<a class="anchor" href="#hermes-역할-profile" aria-label="이 제목 링크">#</a></h2>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 4.4 Hermes role profiles</header>
-<h3 id="44-hermes-role-profiles">4.4 Hermes role profiles<a class="anchor" href="#44-hermes-role-profiles" aria-label="이 제목 링크">#</a></h3>
-<ul>
-<li>Each model role has its own Hermes profile (§4.2). Its model route is fixed in profile configuration. An unavailable model or credential fails the step visibly; there is no silent reroute.</li>
-<li><strong>Tools come from the Work binding, per role:</strong>
-<ul>
-<li>Director: policy-filtered references to user-named notes and catalog view, plus a draft selecting an allowed standardization preview, organize or enhance command. The Owner supplies paths, digests and binding fields and performs static admission. The model cannot author criteria, budgets, target authority, WorkSpec, input bindings or routes; such attempts admit no Work and receive no corrective turn.</li>
-<li>Managers: team view (admitted pool, budget, prior segments, RemainingWork), Graph submission and TeamReview submission. No note reading.</li>
-<li>Teammates: work context, read, search and related tools within the Work scope, plus handoff submission. The <code>synthesizer</code> submits the report.</li>
-<li>EvalOfficer: evaluation view and evaluation submission only.</li>
-<li>Every role: a <code>feedback</code> view of outcomes of its own earlier outputs.</li>
-</ul></li>
-<li><strong>Disabled everywhere:</strong> terminal, file, browser, web, code execution, delegation, messaging and cron-management tools.</li>
-<li><strong>Evidence handles.</strong> Read tools return short per-Work handles such as <code>e7</code>, each naming a bounded body chunk of at most 40 lines with its exact bytes and locator. Selected inputs disclose the admitted snapshot; other notes disclose their current bytes at read time. Every disclosure rechecks the current file and policy and fails closed. Roles cite handles, and the Owner expands them into exact citations. Models never type paths, IDs or digests that the Owner can compute.</li>
-<li><strong>Invocation.</strong> The Owner invokes a role session bound to one Work and step. The binding, not model input, decides the Work, readable notes and permitted submissions.</li>
-<li><strong>The <code>kos-ops</code> profile</strong> runs no model and no scheduler. It only sends Discord notices for the Owner and holds the KnowledgeOS Discord bot token.</li>
-</ul>
-</section>
-<p>쉬운 말로:</p>
-<ul>
-<li>모델을 쓰는 역할마다 profile이 따로 있고, 모델 경로는 profile 설정에 <strong>고정</strong>됩니다. 모델이나 자격 증명이 없으면 그 단계가 <strong>눈에 보이게 실패</strong>하며, 몰래 다른 모델로 바꾸지 않습니다.</li>
-<li>역할이 쓸 수 있는 도구는 <strong>작업에 묶인(binding)</strong> 것뿐입니다. 예컨대 Manager는 노트를 읽을 수 없고, EvalOfficer는 평가 보기와 평가 제출만 합니다. 터미널·파일·브라우저·웹·코드 실행 같은 도구는 모두 꺼져 있습니다.</li>
-<li>모델은 경로·ID·digest처럼 Owner가 계산할 수 있는 값을 <strong>직접 쓰지 않고</strong>, 읽기 도구가 돌려준 짧은 핸들(<code>e7</code> 같은 것)을 인용합니다. Owner가 그것을 정확한 인용으로 펼칩니다.</li>
-<li>설치는 <code>knowledgeos install profiles --config owner.json</code>으로 합니다. 설정에는 Hermes 호스트 설정(<code>settings.hermes.binary</code> 등)이 필요합니다. <code>--dry-run</code>은 Runtime에 배포물을 생성하되 Hermes 설치 명령은 실행하지 않습니다. 역할 정의(SOUL·공통 지침)는 <code>roles/</code>에, 모델 경로는 <code>config/roles.json</code>에 있습니다.</li>
-<li>실환경 스모크에서 관찰된 모델은 Director·Manager·EvalOfficer가 <code>gpt-6.1-sol</code>, 팀원이 <code>gpt-6.1-terra</code>였습니다(<a class="wikilink" href="status.html#E_REAL_ROLE_SMOKE">E_REAL_ROLE_SMOKE</a>). 이것은 <strong>그 실행에서 관찰된 값</strong>이고, 설정의 영구 약속이 아닙니다.</li>
-</ul>
-<h2 id="개인정보-ai_policy">개인정보: <code>ai_policy</code><a class="anchor" href="#개인정보-ai_policy" aria-label="이 제목 링크">#</a></h2>
-<p>노트마다 <code>ai_policy</code>가 있어 모델과 자동화가 그 노트로 무엇을 해도 되는지 정합니다. 이것은 <strong>모델·자동화의 사용 범위</strong>를 정할 뿐이며, GitHub 동기화 여부는 Vault의 <code>.gitignore</code>가 정합니다.</p>
-<figure class="diagram diagram-policy-matrix">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 470" width="100%" preserveAspectRatio="xMidYMid meet"><title>ai_policy 값별 공개 범위: 원격 모델, 로컬 역할, 임베딩, Gateway, 알림</title><defs><marker id="d-arrow-policy-matrix" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><rect class="d-box-muted" x="166" y="14" width="124" height="44" rx="8"/><text class="d-label" x="228" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">원격 모델</tspan><tspan class="d-label-small" x="228" dy="18" font-size="13">사용자 요청</tspan></text><rect class="d-box-muted" x="296" y="14" width="124" height="44" rx="8"/><text class="d-label" x="358" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">원격 모델</tspan><tspan class="d-label-small" x="358" dy="18" font-size="13">예약 작업</tspan></text><rect class="d-box-muted" x="426" y="14" width="124" height="44" rx="8"/><text class="d-label" x="488" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 모델</tspan><tspan class="d-label-small" x="488" dy="18" font-size="13">역할</tspan></text><rect class="d-box-muted" x="556" y="14" width="124" height="44" rx="8"/><text class="d-label" x="618" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">임베딩</tspan><tspan class="d-label-small" x="618" dy="18" font-size="13">Ollama 로컬</tspan></text><rect class="d-box-muted" x="686" y="14" width="124" height="44" rx="8"/><text class="d-label" x="748" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">Gateway</tspan><tspan class="d-label-small" x="748" dy="18" font-size="13">내보내기</tspan></text><rect class="d-box-muted" x="816" y="14" width="124" height="44" rx="8"/><text class="d-label" x="878" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">Discord 알림</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크</tspan></text><rect class="d-box-muted" x="10" y="14" width="150" height="44" rx="8"/><text class="d-label" x="85" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">ai_policy</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">값</tspan></text><rect class="d-box" x="10" y="70" width="150" height="54" rx="8"/><text class="d-label" x="85" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">remote_ok</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">원격 허용</tspan></text><rect class="d-box-ok" x="166" y="70" width="124" height="54" rx="8"/><text class="d-label" x="228" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="296" y="70" width="124" height="54" rx="8"/><text class="d-label" x="358" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="426" y="70" width="124" height="54" rx="8"/><text class="d-label" x="488" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="556" y="70" width="124" height="54" rx="8"/><text class="d-label" x="618" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="686" y="70" width="124" height="54" rx="8"/><text class="d-label" x="748" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="748" dy="18" font-size="13">승인된 수신자</tspan></text><rect class="d-box-ok" x="816" y="70" width="124" height="54" rx="8"/><text class="d-label" x="878" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크만</tspan></text><rect class="d-box" x="10" y="130" width="150" height="54" rx="8"/><text class="d-label" x="85" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">ask</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">기본값</tspan></text><rect class="d-box-ok" x="166" y="130" width="124" height="54" rx="8"/><text class="d-label" x="228" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="296" y="130" width="124" height="54" rx="8"/><text class="d-label" x="358" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="130" width="124" height="54" rx="8"/><text class="d-label" x="488" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">요청만</tspan><tspan class="d-label-small" x="488" dy="18" font-size="13">예약 작업 제외</tspan></text><rect class="d-box-ok" x="556" y="130" width="124" height="54" rx="8"/><text class="d-label" x="618" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="130" width="124" height="54" rx="8"/><text class="d-label" x="748" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-ok" x="816" y="130" width="124" height="54" rx="8"/><text class="d-label" x="878" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크만</tspan></text><rect class="d-box" x="10" y="190" width="150" height="54" rx="8"/><text class="d-label" x="85" y="213" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">local_only</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">로컬 전용</tspan></text><rect class="d-box-bad" x="166" y="190" width="124" height="54" rx="8"/><text class="d-label" x="228" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="190" width="124" height="54" rx="8"/><text class="d-label" x="358" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="190" width="124" height="54" rx="8"/><text class="d-label" x="488" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 경로만</tspan></text><rect class="d-box-ok" x="556" y="190" width="124" height="54" rx="8"/><text class="d-label" x="618" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="190" width="124" height="54" rx="8"/><text class="d-label" x="748" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="190" width="124" height="54" rx="8"/><text class="d-label" x="878" y="213" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">알림에 안 나옴</tspan></text><rect class="d-box" x="10" y="250" width="150" height="54" rx="8"/><text class="d-label" x="85" y="273" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">confidential</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">local_only로 취급</tspan></text><rect class="d-box-bad" x="166" y="250" width="124" height="54" rx="8"/><text class="d-label" x="228" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="250" width="124" height="54" rx="8"/><text class="d-label" x="358" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="250" width="124" height="54" rx="8"/><text class="d-label" x="488" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 경로만</tspan></text><rect class="d-box-ok" x="556" y="250" width="124" height="54" rx="8"/><text class="d-label" x="618" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="250" width="124" height="54" rx="8"/><text class="d-label" x="748" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="250" width="124" height="54" rx="8"/><text class="d-label" x="878" y="273" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">알림에 안 나옴</tspan></text><rect class="d-box" x="10" y="310" width="150" height="54" rx="8"/><text class="d-label" x="85" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">deny</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">모두 금지</tspan></text><rect class="d-box-bad" x="166" y="310" width="124" height="54" rx="8"/><text class="d-label" x="228" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="310" width="124" height="54" rx="8"/><text class="d-label" x="358" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="426" y="310" width="124" height="54" rx="8"/><text class="d-label" x="488" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="556" y="310" width="124" height="54" rx="8"/><text class="d-label" x="618" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="618" dy="18" font-size="13">색인 제외</tspan></text><rect class="d-box-bad" x="686" y="310" width="124" height="54" rx="8"/><text class="d-label" x="748" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="310" width="124" height="54" rx="8"/><text class="d-label" x="878" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">언급 금지</tspan></text><text class="d-label-small" x="10" y="388" text-anchor="start" font-size="13">· 결정적 로컬 처리(규격화 등)는 deny를 뺀 모든 값에 허용된다. confidential은 값이 느슨해도 local_only로 처리하고 attention으로 알린다.</text><text class="d-label-small" x="10" y="407" text-anchor="start" font-size="13">· 예약 C1은 로컬 경로여도 remote_ok 노트만 모델에 준다. Gateway 질의는 remote_ok 비보고서 노트만 내보낸다.</text><text class="d-label-small" x="10" y="426" text-anchor="start" font-size="13">· 출력은 읽은 모든 노트 중 가장 엄격한 정책을 이어받는다. 정책은 공개 직전 현재 내용으로 다시 확인한다.</text><text class="d-label-small" x="10" y="445" text-anchor="start" font-size="13">· 알림은 본문 없이 제목·횟수·링크만 쓰고, 임베딩은 제안·99_System/·충돌 마커 노트도 제외한다.</text></svg>
-</figure>
+<p>평가 노드는 Owner가 끝에 붙입니다. Manager가 평가자의 입력·지시·모델·위치를 바꾸려 하면 거절됩니다. 이미 시작한 Graph를 고치는 대신, 미충족 기준을 담은 RemainingWork에 따라 <strong>다음 구간</strong>을 새로 만듭니다. 현재 Team 기본 한도는 총 2구간·생산자 6회이며 정적 팀원도 이 호출 수를 씁니다. 같은 부족이 후속 구간에도 남으면 종료합니다.</p>
+<p>Officer도 LangGraph를 사용합니다. 다만 Manager는 없고 <strong>Officer 처리기 하나 → 평가</strong>로 고정됩니다. “코드로 실행한다”와 “Temporal·Graph를 쓰지 않는다”는 같은 말이 아닙니다.</p>
+<h2 id="temporal과-langgraph가-만나는-정확한-지점">Temporal과 LangGraph가 만나는 정확한 지점<a class="anchor" href="#temporal과-langgraph가-만나는-정확한-지점" aria-label="이 제목 링크">#</a></h2>
+<p>Owner는 Temporal 서버의 작업을 받는 Worker도 함께 실행합니다. 기본 접속은 <code>127.0.0.1:7233</code>, 네임스페이스는 <code>knowledgeos</code>이고, 작업 큐는 State 경로에서 구한 식별값으로 구분합니다. 서버가 모델을 실행하는 것이 아니라, <strong>Owner 쪽 Worker가 모델과 처리기를 실행하고 서버가 이력을 보존</strong>합니다.</p>
+<p>Work Workflow는 <code>begin</code>, <code>compose</code>, <code>open</code> 단계를 거쳐 승인된 LangGraph를 호출합니다. Graph의 각 생산자 노드는 <code>produce</code> Activity를 실행합니다. 평가 노드 안에는 <code>evaluate_static → evaluate_model → evaluate_commit</code>이라는 세 Activity가 있습니다. Graph가 끝나면 Workflow가 <code>commit</code>, 필요한 <code>review</code>, <code>settle</code>을 이어 갑니다.</p>
+<p>Activity는 외부 작업을 할 수 있는 실행 단위입니다. 한 모델 팀원의 도구 호출과 형식 오류 교정 턴까지 하나의 생산자 Activity 안에서 진행됩니다. <strong>도구 호출 하나마다 별도 Workflow를 만드는 구조는 아닙니다.</strong> 의미 평가가 필요 없을 때 <code>evaluate_model</code> 단계는 지나가되 Hermes는 호출하지 않습니다.</p>
+<p>실행 가능한 역할 순서들은 Worker 시작 때 LangGraph로 등록됩니다. Manager가 제출한 목록을 검증한 뒤 정확히 일치하는 등록 Graph를 사용합니다. 구간에는 선택된 노드·간선·Graph 식별값도 남습니다.</p>
+<p>미리보기 확정처럼 대기 중 Work에 붙는 사용자 결정은 별도 <code>knowledgeos.action.v1</code> Workflow가 처리합니다. 모든 클릭이 이 Workflow인 것은 아니며, 각 기능의 접수 처리기가 어느 경로인지 결정합니다(<a class="wikilink" href="c6.html">C6</a>, <a class="wikilink" href="c11.html">C11</a>).</p>
+<h3 id="재시작과-시간-초과는-어떻게-보이는가">재시작과 시간 초과는 어떻게 보이는가<a class="anchor" href="#재시작과-시간-초과는-어떻게-보이는가" aria-label="이 제목 링크">#</a></h3>
+<p>각 Activity는 시작 의도를 먼저 State에 기록하고 끝나면 결과를 저장합니다. 완료 기록이 있으면 그것을 재사용합니다. 시작 기록만 남아 실제 실행 결과를 알 수 없다면 자동으로 다시 호출하지 않고 <code>unknown</code>으로 남깁니다. 최대 시도는 1회로, Activity를 자동 재시도하지 않습니다.</p>
+<p>따라서 Temporal이 있다고 모델 호출·알림·파일 쓰기를 무조건 재실행하는 것은 아닙니다. Workflow 이력을 이어 가는 것과 결과를 모르는 외부 작업을 다시 보내는 것은 구별됩니다.</p>
+<p>Activity 기본 시간은 120초이며 실제 호스트 설정은 600초로 기록되어 있습니다. Worker는 자신의 단조 시계로 남은 시간을 확인합니다. Mac이 잠든 뒤 Temporal 서버의 시계가 늦어져도 서버 시각과 호스트 시각을 비교해 정상 작업을 차단하지 않습니다. 실행 코드나 역할 선언의 고정값이 달라지면 진행 중 Work를 새 구현으로 조용히 바꿔 이어 가지 않습니다.</p>
+<h2 id="실제-hermes-profile-목록">실제 Hermes Profile 목록<a class="anchor" href="#실제-hermes-profile-목록" aria-label="이 제목 링크">#</a></h2>
+<p>모델 역할은 다음 아홉 Profile입니다. 모델 공급자는 모두 <code>openai-codex</code>이며 추론 노력은 <code>high</code>입니다. 이 표는 현재 소스 설정을 설명하며, 각 설정을 실제로 실행해 본 범위는 <a class="wikilink" href="status.html">현재 상태</a>에서 구별합니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>값</th>
-<th>쉬운 말</th>
+<th>Profile</th>
+<th>언제 호출되는가</th>
+<th>모델</th>
+<th>받는 정보와 제출물</th>
 </tr></thead><tbody>
-<tr><td><code>remote_ok</code></td><td>예약 작업을 포함해 모델이 써도 됩니다</td></tr>
-<tr><td><code>ask</code> (기본)</td><td>내가 직접 요청한 작업에서만 모델이 씁니다. 예약 작업의 모델은 이 노트를 못 봅니다</td></tr>
-<tr><td><code>local_only</code></td><td>로컬 처리와 로컬 모델만</td></tr>
-<tr><td><code>deny</code></td><td>KnowledgeOS가 읽지도, 색인하지도, 알리지도 않습니다</td></tr>
+<tr><td><code>kos-director</code></td><td>자유 요청을 정형 명령으로 바꿀 때</td><td><code>gpt-6.1-sol</code></td><td>기능 목록·허용 대상 → 명령 초안 또는 거절</td></tr>
+<tr><td><code>kos-curation-manager</code></td><td>정리의 구성·후속 구성·TeamReview</td><td><code>gpt-6.1-sol</code></td><td>팀과 기준·진행 요약 → 팀원 순서 또는 팀 회고</td></tr>
+<tr><td><code>kos-thinking-manager</code></td><td>강화의 구성·후속 구성·TeamReview</td><td><code>gpt-6.1-sol</code></td><td>팀과 기준·진행 요약 → 팀원 순서 또는 팀 회고</td></tr>
+<tr><td><code>kos-classifier</code></td><td>정리의 분류 단계</td><td><code>gpt-6.1-terra</code></td><td>읽은 노트와 앞선 결과 → 분류 handoff</td></tr>
+<tr><td><code>kos-linker</code></td><td>정리의 연결 단계</td><td><code>gpt-6.1-terra</code></td><td>읽은 후보·분류 결과 → 링크 handoff</td></tr>
+<tr><td><code>kos-connector</code></td><td>강화의 연결 단계</td><td><code>gpt-6.1-terra</code></td><td>읽은 근거 → 연결·긴장 관계 handoff</td></tr>
+<tr><td><code>kos-challenger</code></td><td>강화의 반론 단계</td><td><code>gpt-6.1-sol</code></td><td>읽은 근거와 앞선 결과 → 빈틈·반론 handoff</td></tr>
+<tr><td><code>kos-synthesizer</code></td><td>강화의 보고서 단계</td><td><code>gpt-6.1-sol</code></td><td>근거와 중간 결과 → 인용이 있는 보고서 제출</td></tr>
+<tr><td><code>kos-eval</code></td><td>의미 기준의 독립 평가</td><td><code>gpt-6.1-sol</code></td><td>기준·정적 검사·산출물과 인용 근거 → 기준별 판정</td></tr>
 </tbody></table></div>
-<p>지켜지는 규칙은 이렇습니다.</p>
+<p><code>scout</code>, <code>retriever</code>, 각 Officer는 Python 처리기입니다. 이 이름의 모델 Profile은 없습니다. 별도로 <strong><code>kos-ops</code></strong>가 있지만 모델이 아니라 Owner가 완성한 메시지를 Discord로 보내는 발송용 Profile입니다.</p>
+<h3 id="profile은-상시-팀원이-아니라-단계별-실행-환경입니다">Profile은 상시 팀원이 아니라 단계별 실행 환경입니다<a class="anchor" href="#profile은-상시-팀원이-아니라-단계별-실행-환경입니다" aria-label="이 제목 링크">#</a></h3>
+<p>Owner는 모델 단계가 필요할 때 <code>hermes -p &lt;profile&gt; acp</code> 하위 프로세스를 열고 세션을 만듭니다. 프로세스에는 그 단계 전용 <code>kos</code> MCP 도구 연결을 제공합니다. 도구 요청은 세션에 묶인 토큰으로 Owner의 해당 Work·역할에 연결됩니다. 모델이 Work ID를 써서 다른 작업을 선택하는 구조가 아닙니다.</p>
+<p>모델은 허용된 도구로 문맥을 읽고 <strong>제출 도구</strong>를 호출해야 합니다. 채팅의 마지막 문장만으로는 결과가 접수되지 않습니다. 형식·인용 검증에 실패하면 같은 세션에서 진단을 받아 한 번 교정하고, 그 뒤 세션을 닫습니다. 다음 역할은 자신의 Profile과 새 세션으로 실행됩니다.</p>
+<p>Profile 설치물은 공통 지침과 역할별 SOUL을 합친 <code>SOUL.md</code>, 모델·도구·학습 설정이 든 <code>config.yaml</code>입니다. 기본 파일·셸·브라우저 도구는 막고 역할별 Owner 도구와 허용된 학습 도구를 사용합니다. 모델·Profile을 사용할 수 없으면 실패가 드러나며 대체 모델로 몰래 바꾸지 않습니다.</p>
+<h2 id="hermes를-거치지-않는-두-모델-서비스">Hermes를 거치지 않는 두 모델 서비스<a class="anchor" href="#hermes를-거치지-않는-두-모델-서비스" aria-label="이 제목 링크">#</a></h2>
+<p><strong>System One</strong>은 Owner가 OpenAI Decisions API에 직접 보내는 선택형 판단입니다. 기본 모델은 <code>gpt-6-luna</code>이고 Hermes Profile은 없습니다. 규격화의 제한된 속성 매핑, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 쓰입니다. 다섯 모델 팀원도 <code>system_one</code> 도구로 읽은 노트에 대해 질문할 수 있지만 Director·Manager·EvalOfficer에는 이 도구가 없습니다.</p>
+<p><strong>임베딩</strong>은 Owner가 로컬 Ollama에 직접 요청합니다. 기본 모델은 <code>qwen3-embedding:8b-q4_K_M</code>이며, 결과는 State의 의미 색인에 저장됩니다. Hermes 역할의 대화 모델과 별개입니다. 무엇을 임베딩하고 언제 다시 만드는지는 <a class="wikilink" href="c3.html">C3</a>에서 설명합니다.</p>
+<h2 id="파일과-기록은-어디에-남는가">파일과 기록은 어디에 남는가<a class="anchor" href="#파일과-기록은-어디에-남는가" aria-label="이 제목 링크">#</a></h2>
+<p>사용자가 읽을 제안·보고서·데일리는 Vault에 남습니다. 요청 영수증, WorkSpec, 입력 스냅숏, 단계별 handoff, 평가·효과·알림 기록과 벡터 색인은 State에 남습니다. Python 설치물·생성 Profile 배포본·로그는 Runtime에 있습니다. Hermes Profile의 세션·스킬·자격 증명 참조는 별도의 호스트 Profile 홈에 있습니다.</p>
+<p>모델은 파일을 직접 수정하지 않습니다. 제출한 구조화 결과를 Owner가 검사하고 기능별 형식으로 렌더링합니다. 정리의 최종 반영은 <strong>제안 파일 생성</strong>이고, 그 제안을 사용자가 적용해 원본을 바꾸는 일은 별도 요청입니다. 강화는 보고서 파일을 만듭니다. 규격화와 데일리는 각자의 정해진 범위에서 기존 파일도 바꿉니다.</p>
+<p>쓰기가 필요한 순간에는 현재 파일의 해시가 기대한 판본과 같은지 확인합니다. 달라졌다면 덮어쓰거나 자동 병합하지 않습니다. 노트의 <code>ai_policy</code>도 현재 값을 다시 확인합니다. <code>approve</code>만 대상이며 빠졌거나 비면 기본 <code>approve</code>, 그 외 알 수 없는 값은 <code>deny</code>입니다. <code>confidential</code> 표시는 이 이진 허용 여부를 바꾸지 않습니다.</p>
+<h2 id="구현-근거">구현 근거<a class="anchor" href="#구현-근거" aria-label="이 제목 링크">#</a></h2>
 <ul>
-<li><code>confidential</code> 노트는 <code>ai_policy</code>가 느슨해도 <code>local_only</code>처럼 다룹니다. 어긋남은 &quot;주의 항목&quot;으로 알려 주되 <strong>내 값을 고쳐 쓰지는 않습니다</strong>.</li>
-<li><strong>결과물은 입력 중 가장 엄격한 정책을 물려받습니다.</strong> 읽기만 했고 인용하지 않은 노트도 포함합니다(<a class="wikilink" href="c4.html#ENH-4">ENH-4</a>).</li>
-<li>정책은 공개하기 <strong>직전</strong>의 현재 내용으로 다시 확인하며, 옮겨지거나 지워지거나 새로 제한된 노트는 닫힌 채로 실패합니다.</li>
-<li>결정적 로컬 처리(규격화 규칙 1~8·임베딩)는 <code>deny</code>만 빼고 모두 할 수 있어서, <code>ask</code>·<code>local_only</code>·<code>confidential</code> 노트도 임베딩됩니다(<a class="wikilink" href="c3.html">C3</a>).</li>
-<li>예약 정리(<a class="wikilink" href="c1.html">C1</a>)는 모델에 <code>remote_ok</code> 노트만 줍니다(<a class="wikilink" href="c1.html#ORG-3">ORG-3</a>). Gateway 조회는 <code>remote_ok</code> 노트만 내보냅니다(<a class="wikilink" href="c10.html#GW-2">GW-2</a>). 알림 제목·링크는 <code>remote_ok</code>·<code>ask</code>만 쓸 수 있습니다(<a class="wikilink" href="c8.html#NTF-1">NTF-1</a>).</li>
-<li><strong>System One은 원격 모델입니다.</strong> 같은 정책 열을 따르고 로컬 경로가 없습니다. 내가 직접 요청한 작업과 검색은 <code>remote_ok</code>·<code>ask</code> 노트를, 예약 작업과 Gateway 작업은 <code>remote_ok</code> 노트만 보내며, <code>local_only</code>·<code>confidential</code>·<code>deny</code> 노트는 어느 경로에서도 보내지 않습니다. 정책은 보내기 직전의 현재 값으로 다시 확인하고, <code>ai_policy</code>·<code>sensitivity</code> 자체는 System One에게 묻지 않습니다. 자격 증명은 Git과 Vault 밖의 호스트 소유 0600 파일에 있고 Hermes 하위 프로세스에는 전달되지 않습니다. 호출 기록(State <code>system_one</code>)에는 질문 이름·입력 해시·모델·토큰 수만 남고 노트 내용은 남지 않습니다(<a class="wikilink" href="c2.html">C2</a>).</li>
+<li><a class="repo" href="../../src/knowledgeos/owner.py">요청 접수와 자유 요청 번역</a>, <a class="repo" href="../../src/knowledgeos/engine.py">공통 실행 단계·Graph 검증·평가</a></li>
+<li><a class="repo" href="../../src/knowledgeos/temporal_workflow.py">Work·Action Workflow와 실제 직렬 Graph</a>, <a class="repo" href="../../src/knowledgeos/temporal_runtime.py">Worker·Graph 등록·실행 바인딩</a></li>
+<li><a class="repo" href="../../config/roles.json">역할별 Profile·모델·도구</a>, <a class="repo" href="../../src/knowledgeos/roles.py">세션별 Hermes 호출</a>, <a class="repo" href="../../src/knowledgeos/hermes.py">Profile 생성·발송 어댑터</a></li>
+<li><a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">시스템 계약</a>, <a class="wikilink" href="status.html">현재 상태</a>, <a class="wikilink" href="glossary.html">용어</a></li>
 </ul>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 5.4 Privacy</header>
-<h3 id="54-privacy">5.4 Privacy<a class="anchor" href="#54-privacy" aria-label="이 제목 링크">#</a></h3>
-<p><code>ai_policy</code> controls what KnowledgeOS automation and models may do with a note. It does not control Git synchronization.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>Value</th>
-<th>Deterministic local processing</th>
-<th>Model use in Work the user requested</th>
-<th>Model use in scheduled jobs</th>
-<th>Gateway export</th>
-</tr></thead><tbody>
-<tr><td><code>remote_ok</code></td><td>yes</td><td>yes</td><td>yes</td><td>yes, to authorized recipients</td></tr>
-<tr><td><code>ask</code></td><td>yes</td><td>yes</td><td>no</td><td>no</td></tr>
-<tr><td><code>local_only</code></td><td>yes</td><td>local models only</td><td>local models only</td><td>no</td></tr>
-<tr><td><code>deny</code></td><td>no</td><td>no</td><td>no</td><td>no</td></tr>
-</tbody></table></div>
-<ul>
-<li>The Owner&#x27;s default policy for notes without <code>ai_policy</code> is <code>ask</code>.</li>
-<li><code>confidential</code> notes are treated as <code>local_only</code> even if their <code>ai_policy</code> is looser. KnowledgeOS reports the mismatch as an attention item and does not rewrite the user&#x27;s value.</li>
-<li><code>deny</code> notes are never indexed, read, standardized or mentioned in notices.</li>
-<li>Output inherits the strictest policy among the focal or target note and every note read in the Work, including notes not ultimately cited.</li>
-<li>Policy is checked against the note&#x27;s current content immediately before disclosure. A moved, deleted or newly restricted source fails closed.</li>
-<li>Discord digests and immediate alerts may disclose note titles and links only for <code>remote_ok</code> and <code>ask</code> notes, never body text or identifying information from <code>deny</code>, <code>local_only</code> or <code>confidential</code> notes.</li>
-<li>System One is a remote model: it follows the model-use columns with no local route. Its credential is a host-owned 0600 file outside Git and the Vault, and no secret reaches Hermes subprocesses.</li>
-</ul>
-</section>
-<h2 id="제안보고서-그리고-안전하게-쓰기">제안·보고서, 그리고 안전하게 쓰기<a class="anchor" href="#제안보고서-그리고-안전하게-쓰기" aria-label="이 제목 링크">#</a></h2>
-<p>정리·강화의 결과 파일은 제안과 보고서입니다. 이 밖에 Gateway 접수(<a class="wikilink" href="c10.html">C10</a>)는 <code>00_Inbox/</code>에 출처 정보가 붙은 포착(<code>capture</code>) 노트를 만듭니다. 기존 노트의 변경은 아래 효과 규칙을 따릅니다.</p>
-<ul>
-<li><strong>보고서</strong>(<code>01_AI_Review/Reports/</code>): 한 번 만들어지면 이후로는 <strong>사용자의 문서</strong>입니다. <code>type</code>을 바꾸기 전까지는 근거로 쓰이지 않습니다.</li>
-<li><strong>제안</strong>(<code>01_AI_Review/Proposals/</code>): 대상 노트 하나에 대한 변경 목록(체크리스트)입니다. 적용·거절·만료 뒤에 KnowledgeOS가 지웁니다. 기록은 Git에 남습니다.</li>
-</ul>
-<figure class="diagram diagram-review-flow">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 410" width="100%" preserveAspectRatio="xMidYMid meet"><title>검토 흐름: 제안의 적용·거절, preimage SHA 확인, applied·stale·unknown 결과</title><defs><marker id="d-arrow-review-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><path class="d-edge" d="M150,200 L180,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M310,200 L340,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="325" y="190" text-anchor="middle" font-size="13">적용</text><path class="d-edge" d="M245,171 L245,55 L340,55" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="252" y="112" text-anchor="start" font-size="13">거절</text><path class="d-edge" d="M490,55 L520,55" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M490,200 L520,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><path class="d-edge" d="M595,171 L595,110 L720,110" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="603" y="140" text-anchor="start" font-size="13">일치</text><path class="d-edge" d="M670,200 L720,200" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="695" y="190" text-anchor="middle" font-size="13">불일치</text><path class="d-edge d-edge-dashed" d="M415,229 L415,300 L720,300" fill="none" marker-end="url(#d-arrow-review-flow)"/><text class="d-label-small" x="560" y="292" text-anchor="middle" font-size="13">응답 유실 · 결과 미확정</text><rect class="d-box-muted" x="10" y="171" width="140" height="58" rx="8"/><text class="d-label" x="80" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="80" dy="0" font-size="14">제안 노트</tspan><tspan class="d-label-small" x="80" dy="18" font-size="13">type: proposal</tspan></text><rect class="d-box-accent" x="180" y="171" width="130" height="58" rx="8"/><text class="d-label" x="245" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="245" dy="0" font-size="14">사용자 결정</tspan><tspan class="d-label-small" x="245" dy="18" font-size="13">적용 · 거절</tspan></text><rect class="d-box" x="340" y="26" width="150" height="58" rx="8"/><text class="d-label" x="415" y="51" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="415" dy="0" font-size="14">결정 기록</tspan><tspan class="d-label-small" x="415" dy="18" font-size="13">거절</tspan></text><rect class="d-box-muted" x="520" y="26" width="150" height="58" rx="8"/><text class="d-label" x="595" y="51" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="595" dy="0" font-size="14">제안 파일 삭제</tspan><tspan class="d-label-small" x="595" dy="18" font-size="13">대상 노트 불변</tspan></text><rect class="d-box" x="340" y="171" width="150" height="58" rx="8"/><text class="d-label" x="415" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="415" dy="0" font-size="14">결정 먼저 기록</tspan><tspan class="d-label-small" x="415" dy="18" font-size="13">받음 → 적용 시도</tspan></text><rect class="d-box-accent" x="520" y="171" width="150" height="58" rx="8"/><text class="d-label" x="595" y="196" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="595" dy="0" font-size="14">SHA-256 확인</tspan><tspan class="d-label-small" x="595" dy="18" font-size="13">대상 = preimage?</tspan></text><rect class="d-box-ok" x="720" y="75" width="220" height="70" rx="8"/><text class="d-label" x="830" y="97" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">applied</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">체크한 변경만 적용</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">제안 파일 삭제</tspan></text><rect class="d-box-warn" x="720" y="165" width="220" height="70" rx="8"/><text class="d-label" x="830" y="187" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">accepted-not-applied</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">대상 변경 없음 · 제안 stale</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">재요청 안내 · 7일 후 삭제</tspan></text><rect class="d-box-muted" x="720" y="270" width="220" height="60" rx="8"/><text class="d-label" x="830" y="296" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="830" dy="0" font-size="14">unknown</tspan><tspan class="d-label-small" x="830" dy="18" font-size="13">요청 ID의 기록된 결과 조회</tspan></text><text class="d-label-small" x="830" y="348" text-anchor="middle" font-size="13">재전송하지 않는다</text><rect class="d-lane" x="10" y="360" width="940" height="44" rx="10"/><text class="d-label" x="480" y="387" text-anchor="middle" font-size="14"><tspan class="d-label-small" x="480" dy="0" font-size="13">되돌리기: 대상이 마지막 자동 변경 결과와 같을 때만 preimage 복원 · 아니면 거절하고 Git 이력 안내</tspan></text></svg>
-</figure>
-<p>대상 노트를 바꾸는 길은 규격화(<a class="wikilink" href="c2.html">C2</a>), 사용자가 적용한 제안, 사용자가 요청한 되돌리기, 이렇게 셋뿐입니다. 쓰기는 다음 규칙을 지킵니다.</p>
-<ul>
-<li><strong>정확한 preimage</strong>: 바꾸기 직전에 파일의 현재 SHA-256이 기대한 값과 같은지 확인하고 원자적으로 교체합니다. 다르면 <strong>쓰지 않습니다</strong>. 병합·덮어쓰기·재시도 반복이 없습니다(<a class="wikilink" href="c2.html#STD-3">STD-3</a>, <a class="wikilink" href="c6.html#REV-2">REV-2</a>).</li>
-<li><strong>의도 먼저</strong>: Owner는 효과를 하기 전에 의도를 기록합니다. Vault 쓰기는 파일을 읽어 판정합니다(기대한 결과면 적용됨, preimage면 적용 안 됨, 그 밖이면 충돌로 사용자에게 보임).</li>
-<li><strong>결과 불명은 재실행하지 않는다</strong>: 관찰할 수 없는 역할 호출·알림 결과는 <code>unknown</code>으로 남고, 자동으로 다시 보내거나 다시 돌리지 않습니다(<a class="wikilink" href="c8.html#NTF-3">NTF-3</a>). 사람이 확인해 &quot;적용됨/적용 안 됨&quot;으로 <strong>관찰 기록</strong>을 남길 수는 있지만(콘솔·CLI의 reconcile), 과거 기록은 고치지 않습니다(<a class="wikilink" href="c11.html#SUR-4">SUR-4</a>).</li>
-<li><strong>영수증(receipt)</strong>: 요청마다 요청 ID가 있고, Owner는 영수증을 <strong>먼저 확정한 뒤</strong> 답합니다. 응답을 잃으면 클라이언트는 그 영수증을 읽습니다. 재전송은 &quot;기록된 적 없음&quot;이 확인된 뒤에만 허용되고, 불명 상태는 재전송 허가가 아닙니다(<a class="wikilink" href="c6.html#REV-4">REV-4</a>).</li>
-<li><strong>스냅숏</strong>: 접수 때 선택한 입력의 바이트를 State에 잡아 두므로, 작업 중 사용자가 노트를 고쳐도 보고서는 그 스냅숏을 인용하고 &quot;바뀌었음&quot;을 밝힙니다(<a class="wikilink" href="c4.html#ENH-3">ENH-3</a>). 다만 적용은 항상 현재 preimage를 요구합니다.</li>
-<li><strong>문서 단위 신선도</strong>: 노트 하나가 바뀌면 그 노트에 대한 결과만 무효가 되고 Vault 전체가 무효가 되지 않습니다.</li>
-<li><strong>Git은 건드리지 않는다</strong>: KnowledgeOS는 commit·pull·push·checkout·reset을 하지 않고, 변경은 frontmatter 중심의 작은 diff로 씁니다. 어떤 변경이든 Git 이력으로 되돌릴 수 있습니다.</li>
-</ul>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 5.6 Files KnowledgeOS writes</header>
-<h3 id="56-files-knowledgeos-writes">5.6 Files KnowledgeOS writes<a class="anchor" href="#56-files-knowledgeos-writes" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>File</th>
-<th>Location</th>
-<th>Lifecycle</th>
-</tr></thead><tbody>
-<tr><td>Report</td><td><code>01_AI_Review/Reports/</code></td><td>Created once. Afterward it is the user&#x27;s document to edit, move, promote or delete. It is not used as evidence until the user changes its <code>type</code></td></tr>
-<tr><td>Proposal</td><td><code>01_AI_Review/Proposals/</code></td><td>Created once, with only the bounded regeneration exception below. KnowledgeOS deletes it after apply, reject or stale expiry; Git keeps its history</td></tr>
-<tr><td>Gateway capture</td><td><code>00_Inbox/</code></td><td>Created once per admitted submission with <code>captured_from: operation/&lt;id&gt;</code> and flat message, sender and received-at provenance. A duplicate returns the original receipt. It then follows ordinary capture standardization, curation and user editing rules (C10)</td></tr>
-</tbody></table></div>
-<ul>
-<li><strong>Every report and proposal carries:</strong>
-<ul>
-<li><code>id</code>, <code>type</code> and <code>created</code>.</li>
-<li><code>ai_policy</code>, the strictest of its inputs.</li>
-<li>The originating Work ID.</li>
-<li>Wikilinks to its inputs.</li>
-</ul></li>
-<li><strong>A proposal also records:</strong>
-<ul>
-<li>Its target and the target&#x27;s exact SHA-256 preimage.</li>
-<li>A checklist of changes the user can edit.</li>
-<li>A machine-readable change block, so it can still be applied after State is lost.</li>
-</ul></li>
-<li><strong>Regeneration exception.</strong> At most one open or stale proposal reserves a target. The Owner may regenerate it in place only if its bytes still exactly match the Owner-written version recorded in State, checked again immediately before replacement. User-edited or State-unrecorded proposals are preserved without creating a duplicate. An unchanged stale proposal may be refreshed by an explicit new user request under the same checks; otherwise it reserves the target until decision or seven-day stale expiry.</li>
-<li><strong>Neither file contains</strong> State paths, credentials or snapshot bytes.</li>
-</ul>
-</section>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 6. Effect rules</header>
-<h3 id="6-effect-rules">6. Effect rules<a class="anchor" href="#6-effect-rules" aria-label="이 제목 링크">#</a></h3>
-<p>Effects are Vault writes, role invocations, notices and Gateway exports.</p>
-<ol>
-<li><strong>One writer.</strong> Only the Owner writes to the Vault for KnowledgeOS. No role has file, shell or network tools.</li>
-<li><strong>Create-only outputs.</strong> Reports and proposals start as new files; a name collision gets a suffix. The sole regeneration exception is an existing proposal that still exactly matches its recorded Owner-written bytes (§5.6). Reports never regenerate, and proposal regeneration never overwrites user edits.</li>
-<li><strong>Narrow modification.</strong> Existing source notes change only through standardization (capability C2), a proposal the user applied, or an undo the user requested. Proposal lifecycle actions follow C6 and §5.6. KnowledgeOS never deletes user notes and moves or renames them only by applying a proposal.</li>
-<li><strong>Exact preimage.</strong> Every modification compares the file&#x27;s current SHA-256 with the expected preimage immediately before an atomic replacement. On mismatch it does not write. There is no merge, stale-preimage overwrite or retry loop.</li>
-<li><strong>Intent before effect.</strong> The Owner records an effect&#x27;s intent before performing it.
-<ul>
-<li><strong>Vault writes</strong> are resolved by reading the file: the expected result means applied, the preimage means not applied, and anything else is a conflict shown to the user.</li>
-<li><strong>Role-invocation and notice outcomes</strong> that cannot be observed stay <code>unknown</code> and are never re-sent or re-run automatically.</li>
-</ul></li>
-<li><strong>Idempotent requests.</strong> Each request carries a stable request ID. The same ID with the same content returns the recorded result; the same ID with different content is a conflict. Idempotency keys include the capability version.</li>
-<li><strong>Snapshots.</strong> Admission captures the exact bytes of selected inputs into State. The Work reads and cites those bytes even if the user edits the original meanwhile; other reads bind their exact version when disclosed (§4.4). A result states when any version read differs from current content. Applying it still requires the current preimage.</li>
-<li><strong>Freshness is per document.</strong> A changed note invalidates only results about that note, never the whole Vault.</li>
-</ol>
-</section>
-<h2 id="agentfabric-core와의-관계">AgentFabric Core와의 관계<a class="anchor" href="#agentfabric-core와의-관계" aria-label="이 제목 링크">#</a></h2>
-<p>KnowledgeOS는 <code>Core/</code>의 계약과 스키마를 <strong>수정하지 않고</strong>, <code>config/core-adoption.json</code>에 고정한 핀으로 따릅니다. 아래 표는 Core가 요구하는 아홉 가지 기능(Capsule function)을 KnowledgeOS가 무엇으로 채우는지 보여 줍니다.</p>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 7. AgentFabric Core conformance</header>
-<h3 id="7-agentfabric-core-conformance">7. AgentFabric Core conformance<a class="anchor" href="#7-agentfabric-core-conformance" aria-label="이 제목 링크">#</a></h3>
-<p>KnowledgeOS selects exact Core, schema and semantic pins in one adoption file and satisfies the nine Capsule functions with this mapping. Core contracts and schemas remain unchanged; exported engine, binding and evidence pins must describe the actual Temporal/LangGraph execution, not merely schema-valid labels.</p>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>Capsule function</th>
-<th>KnowledgeOS realization</th>
-</tr></thead><tbody>
-<tr><td>identity_manifest</td><td><code>OperationManifest</code> for <code>knowledgeos</code> with exact pins and instance ID</td></tr>
-<tr><td>domain</td><td>The Vault contract (§5) and capabilities</td></tr>
-<tr><td>control_evaluation</td><td>Director-admitted <code>WorkSpec</code> with <code>target_kind=officer</code> (StandardizationOfficer, StewardshipOfficer) or <code>target_kind=team</code> (Curation, Thinking). Manager-composed <code>GraphSpec</code> and <code>GraphSegment</code>. EvalOfficer <code>RunEvaluation</code>, then <code>CompletionAssessment</code> and <code>RemainingWork</code> compiled by the Owner</td></tr>
-<tr><td>gateway</td><td>InterOps intake and bounded query (capability C10)</td></tr>
-<tr><td>policy_authority</td><td>Actors are the local user (Thin Client, console, CLI), <code>schedule/&lt;job&gt;</code> and authorized Operations. <code>PolicyDecision</code> is made at admission and at effect</td></tr>
-<tr><td>state_evidence</td><td><code>ResourceReference</code> for notes, <code>ArtifactReference</code> for reports, proposals and TeamReview, <code>EvidenceObservation</code> for checks</td></tr>
-<tr><td>runtime_lifecycle</td><td><code>HealthReport</code> with observation time and stale or unavailable dependencies</td></tr>
-<tr><td>experience_extraction</td><td>Eligible evidenced lifecycle events become <code>ExperienceSourceEvent</code> and then <code>ExperienceCandidate</code> for HermesTrace; ordinary TeamReview proposals stay bounded local SourceEvents only (capability C9)</td></tr>
-<tr><td>human_observability</td><td>Console <code>StatusSnapshot</code> and <code>GraphRunSnapshot</code>, Thin Client outcomes, Discord <code>AlertEvent</code>. <code>HumanActionRequest</code> and <code>HumanActionResponse</code> record apply, reject, undo and console actions, distinguishing received, applied and unknown</td></tr>
-</tbody></table></div>
-<ul>
-<li><strong>ExOps.</strong> The Thin Client, console and CLI share one admission path. The backend binds loopback only, automatically checks Host and Origin, accepts JSON-only mutations, grants no cross-origin access and needs no login, account or token. GETs are observational: they never trigger Work, persist decisions, send notices or reconcile outcomes.</li>
-<li><strong>Discord.</strong> KnowledgeOS has its own bot identity. The host-owned <code>kos-ops</code> profile holds the token. KnowledgeOS owns notice content, routing and outcomes. A message, reaction or link visit never approves anything.</li>
-<li><strong>Retention.</strong> Follow the Core retention policy for detailed history, unprocessed requests and deduplication windows. Keep unresolved outcomes until resolved.</li>
-</ul>
-</section>
-<h2 id="개발자를-위한-제약">개발자를 위한 제약<a class="anchor" href="#개발자를-위한-제약" aria-label="이 제목 링크">#</a></h2>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../OBSIDIAN_VAULT_BLUEPRINT.md">OBSIDIAN_VAULT_BLUEPRINT.md</a> · 8. Engineering constraints</header>
-<h3 id="8-engineering-constraints">8. Engineering constraints<a class="anchor" href="#8-engineering-constraints" aria-label="이 제목 링크">#</a></h3>
-<ol>
-<li>Validate at admission and at effect commit. Inside a Work, a tool call checks only the Work binding and the policy of the resource it touches.</li>
-<li>Compute implementation identity once per process and record it per Work. Never rehash code or contracts per call.</li>
-<li>One capability catalog declares capabilities, modes, targets, criteria, budgets, teammate pools, step runtimes and tool grants. Role definitions (SOUL and instructions per role) live beside it. No second registry.</li>
-<li>One execution engine runs every Officer and Team Work, using Temporal for the durable Work lifecycle and LangGraph to execute admitted Graph segments. Role logic is a handler or a profile, never a separate pipeline.</li>
-<li>State writes are per record or append-only. Nothing rewrites the whole State on a timer or per request.</li>
-<li>Cache immutable inputs, such as the catalog, roles and policy, by file identity, and reparse only on change.</li>
-<li>Each payload has one canonical serialization. Never embed duplicate copies.</li>
-<li>Reads never write. Client settings are per-device conveniences, never authority.</li>
-<li>Tests exercise public interfaces (ExOps API, role tools, job entrypoints, CLI) on disposable Vault fixtures, with scripted role responses for model steps. They assert behavior, not internal structure. The suite runs in minutes and is safe to parallelize.</li>
-<li>Prove composition with real dependencies (Hermes profiles, the Owner scheduler, model routes, plugin loading in Obsidian) through small smokes in the real environment. Record source, runtime and device evidence separately in <code>PROJECT_STATE.md</code>.</li>
-</ol>
-</section>
-<h2 id="코드는-어디에-있나">코드는 어디에 있나<a class="anchor" href="#코드는-어디에-있나" aria-label="이 제목 링크">#</a></h2>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../README.md">README.md</a> · 구성</header>
-<h3 id="구성">구성<a class="anchor" href="#구성" aria-label="이 제목 링크">#</a></h3>
-<div class="table-wrap"><table>
-<thead><tr>
-<th>위치</th>
-<th>내용</th>
-</tr></thead><tbody>
-<tr><td><code>src/knowledgeos/</code></td><td>Owner(접수·State·효과), ExOps HTTP, Vault 경계, 검색, 규격화, 제안, 역할 실행, Temporal·LangGraph 런타임, Hermes 어댑터, InterOps 송신, CLI</td></tr>
-<tr><td><code>src/knowledgeos/capabilities/</code></td><td>C1–C11 기능 모듈</td></tr>
-<tr><td><code>config/</code></td><td>기능 카탈로그, 역할·모델 경로(<code>roles.json</code>), 예약 작업(<code>jobs.json</code>), Core 채택 고정값(<code>core-adoption.json</code>)</td></tr>
-<tr><td><code>roles/</code></td><td>역할별 Hermes profile의 공통 지침과 SOUL</td></tr>
-<tr><td><code>frontend/</code></td><td>관리 콘솔(브라우저)</td></tr>
-<tr><td><code>thin-client/</code></td><td>Obsidian Thin Client 플러그인 소스</td></tr>
-<tr><td><code>tests/</code></td><td>공개 인터페이스 기준 계약 테스트</td></tr>
-<tr><td><code>scripts/</code></td><td>추적표 검사(<code>trace_check.py</code>), 상태 검증(<code>validate_state.py</code>), 위키 생성·검사(<code>build_wiki.py</code>, <code>wiki_check.py</code>)</td></tr>
-<tr><td><code>docs/wiki/</code></td><td>생성된 위키(HTML)와 직접 쓴 설명 원본(<code>_source/</code>)</td></tr>
-</tbody></table></div>
-</section>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../../README.md">README.md</a> · 소유와 경계</header>
-<h3 id="소유와-경계">소유와 경계<a class="anchor" href="#소유와-경계" aria-label="이 제목 링크">#</a></h3>
-<ul>
-<li>이 디렉터리는 제어·소스 경계입니다. Vault, Owner State(<code>States/Operations/knowledgeos/</code>), Runtime은 설정에서 각각 따로 지정하며 서로 겹치거나 포함할 수 없습니다.</li>
-<li>State, Runtime, 자격 증명은 Git과 Vault 밖에 둡니다. ExOps는 loopback(<code>127.0.0.1</code>)에만 바인딩합니다.</li>
-<li><code>Core/</code>의 계약과 스키마는 수정하지 않고 <code>config/core-adoption.json</code>으로 고정해 따릅니다.</li>
-<li>실행 기록과 결과는 Temporal 서버에 보존되지만, Work의 소유와 판단은 KnowledgeOS가 가집니다.</li>
-</ul>
-</section>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="glossary.html">용어</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>c32a17ba1d767976</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

@@ -38,7 +38,8 @@ class VaultPathError(ValueError):
 
 
 # ai_policy -> Core classification. Personal notes are never "public"; deny is never referenced.
-CLASSIFICATION = {"remote_ok": "internal", "ask": "confidential", "local_only": "restricted", "deny": "restricted"}
+# Values outside the map (legacy records) classify as restricted.
+CLASSIFICATION = {"approve": "internal", "deny": "restricted"}
 NOTE_ID_SEGMENT = re.compile(r"[a-z0-9][a-z0-9_-]{0,90}")
 
 
@@ -62,7 +63,7 @@ def resource_reference(path: str, note: Note, policy: str | None = None) -> dict
         "content_digest": f"sha256:{note.sha}",
         "source_revision": note.sha,
         "availability": "unavailable",
-        "classification": CLASSIFICATION[policy or effective(note)],
+        "classification": CLASSIFICATION.get(policy or effective(note), "restricted"),
     }
 
 
@@ -254,21 +255,27 @@ class Vault:
             atomic_write(path, data, mode)
             record("outcome", {**intent, "state": "applied"})
 
-    def create(self, rel: str, data: bytes, record: Callable[[str, dict], None]) -> str:
-        """Create a new file; a name collision gets a numeric suffix. Returns the final path."""
+    def create(self, rel: str, data: bytes, record: Callable[[str, dict], None], exact: bool = False) -> str:
+        """Create a file; exact names refuse collisions, otherwise use a numeric suffix."""
         rel = self.normalize(rel)
         self._note_path(rel)
         stem, suffix = rel.rsplit(".", 1)
         with self._write_lock:
-            for attempt in range(1, 1000):
+            for attempt in range(1, 2 if exact else 1000):
                 candidate = rel if attempt == 1 else f"{stem} {attempt}.{suffix}"
                 path = self._note_path(candidate)
-                if path.exists():
+                if not exact and path.exists():
                     continue
                 intent = {"op": "create", "path": candidate, "preimage": None, "result": sha256(data)}
                 record("intent", intent)
                 path = self._note_path(candidate)
-                create_exclusive(path, data)
+                try:
+                    create_exclusive(path, data)
+                except FileExistsError:
+                    record("outcome", {**intent, "state": "not_applied", "observed": "target exists"})
+                    if exact:
+                        raise PreimageMismatch(candidate) from None
+                    continue
                 record("outcome", {**intent, "state": "applied"})
                 return candidate
         raise VaultPathError(f"no free name for {rel}")

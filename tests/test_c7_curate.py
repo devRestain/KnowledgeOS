@@ -13,7 +13,7 @@ from knowledgeos.roles import RoleUnavailable
 def test_JOB_2_curate_takes_ten_oldest_then_remaining_five(kos, vault):
     paths = [f"10_Drafts/Note {number:02}.md" for number in range(15)]
     for index, path in enumerate(paths):
-        vault.write(path, f"---\nai_policy: remote_ok\n---\nA unique thought number {index}.\n", age=timedelta(days=15 - index))
+        vault.write(path, f"---\nai_policy: approve\n---\nA unique thought number {index}.\n", age=timedelta(days=15 - index))
     organize_scripts(kos.runner, graph=("scout", "classifier"))
     first, job = run_job(kos, "curate")
     assert first["status"] == "completed", first
@@ -40,7 +40,7 @@ def test_JOB_2_curate_takes_ten_oldest_then_remaining_five(kos, vault):
 def test_JOB_3_unavailable_route_fails_visibly_without_proposals_or_retry(kos, vault):
     paths = ["00_Inbox/One.md", "00_Inbox/Two.md"]
     for path in paths:
-        vault.write(path, "---\nai_policy: remote_ok\n---\nCapture to classify.\n")
+        vault.write(path, "---\nai_policy: approve\n---\nCapture to classify.\n")
     organize_scripts(kos.runner, graph=("scout", "classifier"))
     def unavailable(session):
         raise RoleUnavailable("configured classifier route is unavailable")

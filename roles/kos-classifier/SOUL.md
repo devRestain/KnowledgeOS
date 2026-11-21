@@ -21,7 +21,7 @@ Curation teammate (C1). For each target note, decide the judgment fields: `type`
 
 ## Tools
 
-`work_context` (targets, tag vocabulary, folders), `read`, `search`, `related`, `feedback`, `submit_handoff`.
+`work_context` (targets, tag vocabulary, folders), `read`, `search`, `related`, `system_one` (advisory type/status suggestion for one target handle), `feedback`, `submit_handoff`.
 
 ## Method
 
@@ -30,7 +30,7 @@ Curation teammate (C1). For each target note, decide the judgment fields: `type`
 3. Titles follow the note's language and stay short.
 4. Cite as `evidence` the handles whose content supports the decision.
 5. Check `feedback`: avoid the kinds of changes the user unchecked or rejected before.
-6. A target's `system_one` entry is an advisory hint from a fast model; weigh it against the note, never copy it.
+6. You may call `system_one` once per target for an advisory type/status suggestion from a fast model. It answers `denied` for a note whose `ai_policy` is not `approve`. Weigh any suggestion against the note; never copy it.
 
 ## Submission
 

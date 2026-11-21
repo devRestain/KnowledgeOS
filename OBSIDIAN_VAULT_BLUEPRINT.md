@@ -13,7 +13,7 @@ The spec is a living contract, not a phase document. These rules keep it from ro
 - **Examples are the contract.** Preserve every acceptance ID and example in `docs/CAPABILITIES.md` as an executable test through a public interface. Fix implementation or testability gaps without deleting examples or narrowing their success criteria.
 - **Thin vertical slices.** Build one capability end to end, use it, then refine the spec from what was learned. Unresolved choices stay in §9 until a slice needs them.
 - **Stay small.** Prefer removing a rule to adding one. Add a type, property, role, capability or check only when real use needs it.
-- **Visible development state.** The wiki at `docs/wiki/` explains capabilities, their purpose, how to use them, what is blocked or not started and what follows next, generated from this spec, `docs/CAPABILITY_TRACE.md` and `PROJECT_STATE.md` plus authored explanations in `docs/wiki/_source/`. Every development session updates the source documents and wiki explanations for its changed scope, regenerates it with `make wiki`, passes `make wiki-check` and reviews the changed pages in a browser before handoff. The wiki explains; it never overrides these source documents.
+- **Owner-readable implementation guide.** The wiki at `docs/wiki/` lets the owner understand agent-built features without reading source code. Follow the writing philosophy in `docs/wiki/_source/philosophy.md`: explain concrete inputs, processing, outputs and Hermes Profile, Graph and Temporal connections from current code and configuration; keep common principles and verification history in their dedicated pages instead of repeating them or copying specifications into feature bodies. Author explanations in `docs/wiki/_source/`; generate acceptance and state references from the maintained documents. Every development session updates the affected explanations, regenerates with `make wiki`, passes `make wiki-check` and reviews changed pages in a browser. The wiki explains implementation without overriding the behavior specification.
 - **Spec and wiki move together.** Updating the wiki is also a periodic spec review: when writing or regenerating pages exposes a conflict between `docs/CAPABILITIES.md`, this Blueprint, `USER_FEATURE_SPEC.md` and `PROJECT_STATE.md`, fix the lower-precedence document in the same session instead of leaving a warning in the wiki, and remove §9 open questions that implementation has already answered.
 - **Reference material.** `Tmp/active/knowledgeos-spec-references-2026-11-19/REFERENCES.md` maps earlier source that matches this direction. It is non-normative, and the spec wins on conflict.
 
@@ -21,7 +21,7 @@ The spec is a living contract, not a phase document. These rules keep it from ro
 
 In scope:
 
-- Five user capabilities: organize, standardize, search, enhance and document management.
+- Six user capabilities: organize, standardize, search, enhance, document management and daily-note handoff.
 - Requesting them from inside Obsidian through a minimal Thin Client and community plugins.
 - Management through a browser console and a CLI.
 - An organization of Director, Teams (a Manager with teammates), Officers and an EvalOfficer, each with exclusive responsibilities.
@@ -125,7 +125,7 @@ Every mutating command uses the same Owner admission and effect rules as the oth
 
 ### 3.4 Discord
 
-One KnowledgeOS-specific bot delivers digests and alerts (capability C8). It is outbound only: the `kos-ops` profile is installed parked (`gateway.parked`), so a Hermes gateway starts neither a Discord adapter nor cron for it, and delivery uses `hermes -p kos-ops send` alone. Links in a notice open Obsidian or the console. A message, reaction or reply never changes anything.
+One KnowledgeOS-specific bot delivers actionable-only review digests and conflict or unresolved-effect alerts (capability C8), plus the morning daily-note task reminder (C12). Failed, blocked and missed jobs never send immediate alerts; a quiet digest sends nothing. It is outbound only: the `kos-ops` profile is installed parked (`gateway.parked`), so a Hermes gateway starts neither a Discord adapter nor cron for it, and delivery uses `hermes -p kos-ops send` alone. Links in a notice open Obsidian or the console. A message, reaction or reply never changes anything.
 
 ### 3.5 Mobile
 
@@ -162,7 +162,7 @@ Each step has a fixed runtime, `static` (Owner code) or `model` (a Hermes role p
 | Director | Director | static for structured requests; model (`kos-director`) for free-text requests | Admission and revisions |
 | CurationManager | Manager of the Curation Team (capability C1) | model (`kos-curation-manager`) | Curation Graphs and TeamReview |
 | `scout` | Curation teammate | static | Collects target notes, candidate related notes and the existing tag vocabulary |
-| `classifier` | Curation teammate | model (`kos-classifier`) | Judgment fields per note: type, status, title, tags, conventional folder |
+| `classifier` | Curation teammate | model (`kos-classifier`, `openai-codex/gpt-6.1-terra`, effort `high`) | Judgment fields per note: type, status, title, tags, conventional folder; may ask the advisory `system_one(handle)` tool |
 | `linker` | Curation teammate | model (`kos-linker`) | Links and typed relations to existing notes; attaching a capture to an existing note |
 | ThinkingManager | Manager of the Thinking Team (capability C4) | model (`kos-thinking-manager`) | Thinking Graphs and TeamReview |
 | `retriever` | Thinking teammate | static | Collects evidence candidates around the focal note or question |
@@ -172,10 +172,11 @@ Each step has a fixed runtime, `static` (Owner code) or `model` (a Hermes role p
 | StandardizationOfficer | Officer (capability C2) | static; asks System One for rule-9 closed-set values | Conformance of one or more notes: deterministic rules plus confident System One enum choices |
 | StewardshipOfficer | Officer (capability C5) | static; asks System One for status predicates | Attention items, lifecycle suggestions and digest content |
 | EmbeddingOfficer | Officer (capability C3) | static; calls the local Ollama embedding model over loopback | Incremental vector index of eligible notes |
+| DailyOfficer | Officer (capability C12) | static | Today's daily note, unfinished-item handoff and the morning task reminder |
 | EvalOfficer | EvalOfficer | static checks always; model (`kos-eval`) for semantic criteria | Assessments for every Work |
 | Scheduler | Owner service | Static; slots from `config/jobs.json`, runs only while the Owner runs | Triggering declared jobs |
 | Notifier | Host service | Delivery through the operations profile `kos-ops` | Delivery |
-| System One | Owner service | OpenAI Decisions API (`gpt-6-luna`) called directly by the Owner; no Hermes profile | Typed closed-set answers (`choice`, `predicate`) that Owner code acts on: C2 rule 9, C1 `scout` hints, C3 neighbor vetting, C5 status proposals, the C11 free-text prefilter. Never writes, authors text or decides `ai_policy`/`sensitivity` |
+| System One | Owner service | OpenAI Decisions API (`gpt-6-luna`) called directly by the Owner; no Hermes profile | Typed closed-set answers (`choice`, `predicate`): C2 rule 9, the `system_one` role tool of the C1 and C4 model teammates, C3 neighbor vetting, C5 status proposals, the C11 free-text prefilter. Never writes, authors text or decides `ai_policy`/`sensitivity` |
 
 Search (capability C3) is a service the Owner provides to people and to roles through tools. It is not a role; only keeping its vector index current is Officer work (EmbeddingOfficer).
 
@@ -207,10 +208,11 @@ flowchart LR
 ### 4.4 Hermes role profiles
 
 - Each model role has its own Hermes profile (§4.2). Its model route is fixed in profile configuration. An unavailable model or credential fails the step visibly; there is no silent reroute.
+- `config/roles.json` fixes the routes and profile options: `classifier`, `linker` and `connector` use `openai-codex/gpt-6.1-terra`; Director, Managers, EvalOfficer, `challenger` and `synthesizer` use `openai-codex/gpt-6.1-sol`. Every model role uses `reasoning_effort: high`, mapped under `agent` in generated profiles. The classifier has no local `base_url`, `ollama_num_ctx` or model fallback. These route settings do not change note policy.
 - **Tools come from the Work binding, per role:**
   - Director: policy-filtered references to user-named notes and catalog view, plus a draft selecting an allowed standardization preview, organize or enhance command. The Owner supplies paths, digests and binding fields and performs static admission. The model cannot author criteria, budgets, target authority, WorkSpec, input bindings or routes; such attempts admit no Work and receive no corrective turn.
   - Managers: team view (admitted pool, budget, prior segments, RemainingWork), Graph submission and TeamReview submission. No note reading.
-  - Teammates: work context, read, search and related tools within the Work scope, plus handoff submission. The `synthesizer` submits the report.
+  - Teammates: work context, read, search and related tools within the Work scope, plus handoff submission. Every model teammate (`classifier`, `linker`, `connector`, `challenger`, `synthesizer`) also has `system_one(handle, question, choices?)` for one closed question about a note read in the Work, at most 10 requests per step; answers are advisory and never written. The `classifier`'s call without `question` on a target is the type/status suggestion, recorded per target on the Work and reused. The `synthesizer` submits the report.
   - EvalOfficer: evaluation view and evaluation submission only.
   - Every role: a `feedback` view of outcomes of its own earlier outputs.
 - **Disabled everywhere:** terminal, file, browser, web, code execution, delegation, messaging and cron-management tools.
@@ -252,8 +254,9 @@ flowchart LR
 | `question` | An open question worth returning to | `40_Knowledge/Questions/` | `open`, `answered`, `dropped` |
 | `project` | A project hub note | `20_Projects/<name>/<name>.md` | `planned`, `active`, `paused`, `done` |
 | `source` | Material the user read or referenced | `40_Knowledge/Sources/` | `unread`, `reading`, `read` |
+| `daily` | One day's schedule, tasks and short memos; never a proposal target | `10_Journal/Daily/YYYY-MM-DD.md` | None |
 
-- Every type also accepts `archived`; `90_Archive/` is its conventional folder.
+- Every type with status values also accepts `archived`; `90_Archive/` is its conventional folder. Daily notes have no `status` and are never targets of AI proposals.
 - Navigation notes identified as `home` or `system` are not processed; the Vault root alone never makes ordinary Markdown a navigation note.
 - KnowledgeOS output types (`report`, `proposal`) are defined in §5.6.
 - A note of an unknown type stays readable and searchable, and curation may propose a known type.
@@ -268,9 +271,9 @@ Frontmatter is flat YAML. KnowledgeOS never deletes, renames or reorders propert
 | `id` | all | UUIDv4. Required for standardized notes. Identifies a note across moves and renames |
 | `type` | all | One of §5.2 |
 | `created` | all | ISO-8601 with offset. Time zone `Asia/Seoul` unless the note states another |
-| `ai_policy` | all | See §5.4. Missing means the Owner's default policy |
+| `ai_policy` | all | See §5.4. Missing or empty means `approve` |
 | `sensitivity` | all | `public`, `personal` or `confidential`. Default `personal` |
-| `status` | typed notes | Value from §5.2 |
+| `status` | typed notes except `daily` | Value from §5.2 |
 | `title` | optional | Display title. The file name is used when absent |
 | `tags` | optional | YAML list of strings without `#` |
 | `aliases` | optional | YAML list of strings |
@@ -288,20 +291,20 @@ Body wikilinks are ordinary associations. Typed relation properties exist only w
 
 `ai_policy` controls what KnowledgeOS automation and models may do with a note. It does not control Git synchronization.
 
-| Value | Deterministic local processing | Model use in Work the user requested | Model use in scheduled jobs | Gateway export |
+| Value | Deterministic processing | Every model, including Ollama and System One | Scheduled jobs | Gateway export |
 |---|---|---|---|---|
-| `remote_ok` | yes | yes | yes | yes, to authorized recipients |
-| `ask` | yes | yes | no | no |
-| `local_only` | yes | local models only | local models only | no |
+| `approve` | yes | yes | yes | non-report notes, to authorized recipients |
 | `deny` | no | no | no | no |
 
-- The Owner's default policy for notes without `ai_policy` is `ask`.
-- `confidential` notes are treated as `local_only` even if their `ai_policy` is looser. KnowledgeOS reports the mismatch as an attention item and does not rewrite the user's value.
-- `deny` notes are never indexed, read, standardized or mentioned in notices.
-- Output inherits the strictest policy among the focal or target note and every note read in the Work, including notes not ultimately cited.
-- Policy is checked against the note's current content immediately before disclosure. A moved, deleted or newly restricted source fails closed.
-- Discord digests and immediate alerts may disclose note titles and links only for `remote_ok` and `ask` notes, never body text or identifying information from `deny`, `local_only` or `confidential` notes.
-- System One is a remote model: it follows the model-use columns with no local route. Its credential is a host-owned 0600 file outside Git and the Vault, and no secret reaches Hermes subprocesses.
+- Missing or empty `ai_policy` means `approve`. Every other value, including retired `remote_ok`, `ask` and `local_only`, fails closed to `deny`. With unparseable YAML, the raw `ai_policy:` line uses the same mapping; absent means `approve`, while capability-specific invalid-YAML exclusions still apply.
+- `sensitivity`, including `confidential`, does not change `ai_policy`.
+- Policy decisions belong to the user. KnowledgeOS never writes an existing note's policy, except C2 rule 6 adds missing `ai_policy: approve`; newly generated notes carry their specified default or inherited policy. There is no configurable Owner default.
+- `deny` notes are never indexed, read, standardized, sent, exported or mentioned in notices.
+- Output inherits the strictest policy among the focal or target note and every note read in the Work, including notes not ultimately cited: in practice `approve`; a source becoming `deny` mid-Work fails closed.
+- Policy is checked against current content immediately before disclosure. A moved, deleted or newly restricted source fails closed. Request origin and model location never widen eligibility.
+- Discord digests and immediate alerts may disclose only `approve` note titles and links, never body text. The C12 daily reminder may additionally disclose open-item text from currently `approve` notes; other notes are never read or mentioned.
+- System One follows the same `approve`-only rule. Its credential is a host-owned 0600 file outside Git and the Vault, and no secret reaches Hermes subprocesses.
+- Core classification maps `approve` to `internal` and `deny` or unknown values to `restricted`.
 
 ### 5.5 Identity and references
 
@@ -320,6 +323,7 @@ Body wikilinks are ordinary associations. Typed relation properties exist only w
 | Report | `01_AI_Review/Reports/` | Created once. Afterward it is the user's document to edit, move, promote or delete. It is not used as evidence until the user changes its `type` |
 | Proposal | `01_AI_Review/Proposals/` | Created once, with only the bounded regeneration exception below. KnowledgeOS deletes it after apply, reject or stale expiry; Git keeps its history |
 | Gateway capture | `00_Inbox/` | Created once per admitted submission with `captured_from: operation/<id>` and flat message, sender and received-at provenance. A duplicate returns the original receipt. It then follows ordinary capture standardization, curation and user editing rules (C10) |
+| Daily note | `10_Journal/Daily/YYYY-MM-DD.md` (default C12 folder) | Created once per day by C12 when absent, at the exact path without a suffix. Afterwards it is the user's note; only C12's bounded insertion and carried-item marking, C2 standardization and explicit user actions may modify it. Never a proposal target |
 
 - **Every report and proposal carries:**
   - `id`, `type` and `created`.
@@ -350,7 +354,7 @@ Effects are Vault writes, role invocations, notices and Gateway exports.
 
 1. **One writer.** Only the Owner writes to the Vault for KnowledgeOS. No role has file, shell or network tools.
 2. **Create-only outputs.** Reports and proposals start as new files; a name collision gets a suffix. The sole regeneration exception is an existing proposal that still exactly matches its recorded Owner-written bytes (§5.6). Reports never regenerate, and proposal regeneration never overwrites user edits.
-3. **Narrow modification.** Existing source notes change only through standardization (capability C2), a proposal the user applied, or an undo the user requested. Proposal lifecycle actions follow C6 and §5.6. KnowledgeOS never deletes user notes and moves or renames them only by applying a proposal.
+3. **Narrow modification.** Existing source notes change only through standardization (capability C2), a proposal the user applied, an undo the user requested, or C12's insertion of carried items into today's daily note and `[>]` marking of those items in earlier daily notes. Daily notes are never proposal targets. Proposal lifecycle actions follow C6 and §5.6. KnowledgeOS never deletes user notes and moves or renames them only by applying a proposal.
 4. **Exact preimage.** Every modification compares the file's current SHA-256 with the expected preimage immediately before an atomic replacement. On mismatch it does not write. There is no merge, stale-preimage overwrite or retry loop.
 5. **Intent before effect.** The Owner records an effect's intent before performing it.
    - **Vault writes** are resolved by reading the file: the expected result means applied, the preimage means not applied, and anything else is a conflict shown to the user.
@@ -367,7 +371,7 @@ KnowledgeOS selects exact Core, schema and semantic pins in one adoption file an
 |---|---|
 | identity_manifest | `OperationManifest` for `knowledgeos` with exact pins and instance ID |
 | domain | The Vault contract (§5) and capabilities |
-| control_evaluation | Director-admitted `WorkSpec` with `target_kind=officer` (StandardizationOfficer, StewardshipOfficer) or `target_kind=team` (Curation, Thinking). Manager-composed `GraphSpec` and `GraphSegment`. EvalOfficer `RunEvaluation`, then `CompletionAssessment` and `RemainingWork` compiled by the Owner |
+| control_evaluation | Director-admitted `WorkSpec` with `target_kind=officer` (StandardizationOfficer, StewardshipOfficer, EmbeddingOfficer, DailyOfficer) or `target_kind=team` (Curation, Thinking). Manager-composed `GraphSpec` and `GraphSegment`. EvalOfficer `RunEvaluation`, then `CompletionAssessment` and `RemainingWork` compiled by the Owner |
 | gateway | InterOps intake and bounded query (capability C10) |
 | policy_authority | Actors are the local user (Thin Client, console, CLI), `schedule/<job>` and authorized Operations. `PolicyDecision` is made at admission and at effect |
 | state_evidence | `ResourceReference` for notes, `ArtifactReference` for reports, proposals and TeamReview, `EvidenceObservation` for checks |
@@ -376,7 +380,7 @@ KnowledgeOS selects exact Core, schema and semantic pins in one adoption file an
 | human_observability | Console `StatusSnapshot` and `GraphRunSnapshot`, Thin Client outcomes, Discord `AlertEvent`. `HumanActionRequest` and `HumanActionResponse` record apply, reject, undo and console actions, distinguishing received, applied and unknown |
 
 - **ExOps.** The Thin Client, console and CLI share one admission path. The backend binds loopback only, automatically checks Host and Origin, accepts JSON-only mutations, grants no cross-origin access and needs no login, account or token. GETs are observational: they never trigger Work, persist decisions, send notices or reconcile outcomes.
-- **Discord.** KnowledgeOS has its own bot identity. The host-owned `kos-ops` profile holds the token. KnowledgeOS owns notice content, routing and outcomes. A message, reaction or link visit never approves anything.
+- **Discord.** KnowledgeOS has its own bot identity. The host-owned `kos-ops` profile holds the token. KnowledgeOS owns actionable-only notice content, routing and outcomes (C8 review digests and conflict/unknown-effect alerts; C12 daily reminders). A message, reaction or link visit never approves anything.
 - **Retention.** Follow the Core retention policy for detailed history, unprocessed requests and deduplication windows. Keep unresolved outcomes until resolved.
 
 ## 8. Engineering constraints
@@ -397,7 +401,6 @@ KnowledgeOS selects exact Core, schema and semantic pins in one adoption file an
 Open questions:
 
 - **Semantic ranking.** Whether the default `related_min_score` and neighbor count in capability C3 match real notes.
-- **Default `ai_policy`.** Whether `ask` remains the right default once scheduled curation is in use.
 - **Schedules.** Whether the default job intervals in capability C7 match actual use.
 - **Plugin choices.** Whether core Bases suffices for document management views or a further community plugin is worth adopting.
 

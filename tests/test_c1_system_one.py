@@ -8,23 +8,26 @@ from knowledgeos.notes import parse
 from knowledgeos.proposals import parse as parse_proposal
 
 TARGET = "00_Inbox/Tools.md"
-UNTYPED = "---\nai_policy: remote_ok\n---\nTools change how I think.\n"
+UNTYPED = "---\nai_policy: approve\n---\nTools change how I think.\n"
 
 
-def spy(runner, seen):
-    """Record every `work_context` the classifier receives, then run its scripted behavior."""
+def spy(runner, seen, *, before_call=None):
+    """Exercise the classifier tool through its bound ScriptedRunner session."""
     original = runner.scripts["classifier"]
 
     def script(session):
-        call = session.call
-
-        def capture(name, **args):
-            value = call(name, **args)
-            if name == "work_context":
-                seen.append(value)
-            return value
-
-        session.call = capture
+        context = session.call("work_context")
+        assert "system_one" not in context
+        for target in context["targets"]:
+            assert "system_one" not in target
+            restore = before_call() if before_call else lambda: None
+            try:
+                answer = session.call("system_one", handle=target["target"])
+                repeated = session.call("system_one", handle=target["target"])
+                assert repeated == answer
+                seen.append(answer)
+            finally:
+                restore()
         original(session)
 
     runner.script("classifier", script)
@@ -42,7 +45,7 @@ def organize(kos, vault, paths=(TARGET,)):
     return kos.run("organize", {"paths": list(paths), "digests": {path: vault.sha(path) for path in paths}})
 
 
-def test_ORG_7_hint_is_advisory_and_classifier_still_decides(make_kos, vault, decisions, tmp_path):
+def test_ORG_7_tool_is_advisory_and_reuses_recorded_answer_and_classifier_still_decides(make_kos, vault, decisions, tmp_path):
     kos = start(make_kos, decisions, tmp_path)
     vault.write(TARGET, UNTYPED)
     decisions.choose("type", "idea", 0.9)
@@ -55,11 +58,14 @@ def test_ORG_7_hint_is_advisory_and_classifier_still_decides(make_kos, vault, de
     assert [q["name"] for q in call["questions"]] == ["type"]
     assert {o["value"] for o in call["questions"][0]["choices"]} == {
         "capture", "idea", "knowledge", "question", "project", "source", "none_of_these"}
-    [target] = seen[0]["targets"]
-    hint = target["system_one"]
-    assert "advisory" in hint["advisory"] and hint["type"]["choice"] == "idea"
-    assert hint["type"]["confidence"] == 0.9 and hint["type"]["top"][0] == {"value": "idea", "probability": 0.9}
+    answer = seen[0]
+    assert answer["status"] == "answered" and answer["advisory"]
+    hint = answer["suggestion"]
+    assert hint["type"]["choice"] == "idea" and hint["type"]["confidence"] == 0.9
+    assert hint["type"]["top"][0] == {"value": "idea", "probability": 0.9}
     assert "status" not in hint
+    work = kos.get(f"/api/works/{receipt['work_id']}")[1]
+    assert work["system_one"][TARGET]["suggestion"] == hint
     [path] = proposals(vault)
     proposal = parse_proposal(parse(path, vault.read(path)))
     assert any(c.get("values", {}).get("type") == "question" for c in proposal.changes)
@@ -70,7 +76,7 @@ def test_ORG_7_hint_is_advisory_and_classifier_still_decides(make_kos, vault, de
 def test_ORG_7_known_type_also_asks_for_status(make_kos, vault, decisions, tmp_path):
     kos = start(make_kos, decisions, tmp_path)
     target = "40_Knowledge/Ideas/Tools.md"
-    vault.write(target, conforming_note("idea", "seed", body="Tools change how I think.\n", policy="remote_ok"))
+    vault.write(target, conforming_note("idea", "seed", body="Tools change how I think.\n", policy="approve"))
     decisions.choose("type", "idea", 0.9)
     decisions.choose("status", "developing", 0.8)
     organize_scripts(kos.runner, note_type="idea", status="mature")
@@ -82,29 +88,27 @@ def test_ORG_7_known_type_also_asks_for_status(make_kos, vault, decisions, tmp_p
     assert [q["name"] for q in call["questions"]] == ["type", "status"]
     assert {o["value"] for o in call["questions"][1]["choices"]} == {
         "seed", "developing", "mature", "dropped", "archived", "none_of_these"}
-    hint = seen[0]["targets"][0]["system_one"]
+    hint = seen[0]["suggestion"]
     assert hint["status"]["choice"] == "developing" and hint["type"]["choice"] == "idea"
 
 
-def test_ORG_7_scheduled_run_never_sends_ask_note(make_kos, vault, decisions, tmp_path):
+def test_ORG_7_target_turning_deny_is_not_sent(make_kos, vault, decisions, tmp_path):
     kos = start(make_kos, decisions, tmp_path)
-    secret = "ASK-ONLY-PLANS-796183"
-    vault.write(TARGET, conforming_note("capture", "unprocessed", body="Tools for thinking.\n", policy="remote_ok"))
-    vault.write("00_Inbox/Private plans.md", conforming_note("capture", "unprocessed", body=f"Tools {secret}\n"))
-    decisions.choose("type", "idea", 0.9)
+    vault.write(TARGET, UNTYPED)
     organize_scripts(kos.runner)
     seen = []
-    spy(kos.runner, seen)
-    trigger = kos.run("job.run", {"job": "curate"}, actor="schedule/curate")
-    receipt = kos.wait(trigger["outcome"]["request_id"])
+
+    def restrict():
+        vault.write(TARGET, UNTYPED.replace("approve", "deny"))
+        return lambda: vault.write(TARGET, UNTYPED)
+
+    spy(kos.runner, seen, before_call=restrict)
+    receipt = organize(kos, vault)
     assert receipt["status"] == "completed", receipt
-    assert len(decisions.calls) == 1
-    assert "Tools for thinking." in decisions.sent_text() and secret not in decisions.sent_text()
-    assert "Private plans" not in decisions.sent_text()
-    assert [t["system_one"]["type"]["choice"] for t in seen[0]["targets"]] == ["idea"]
+    assert seen[0]["status"] == "denied" and decisions.calls == []
 
 
-def test_ORG_7_unavailable_system_one_leaves_work_unchanged(make_kos, vault, decisions, tmp_path):
+def test_ORG_7_unavailable_system_one_answers_unavailable_and_work_completes(make_kos, vault, decisions, tmp_path):
     kos = start(make_kos, decisions, tmp_path)
     vault.write(TARGET, UNTYPED)
     decisions.down = True
@@ -113,15 +117,62 @@ def test_ORG_7_unavailable_system_one_leaves_work_unchanged(make_kos, vault, dec
     spy(kos.runner, seen)
     receipt = organize(kos, vault)
     assert receipt["status"] == "completed", receipt
-    assert decisions.calls == [] and "system_one" not in seen[0]["targets"][0]
+    assert decisions.calls == [] and seen[0]["status"] == "unavailable"
+    assert vault.text(TARGET) == UNTYPED
     assert len(proposals(vault)) == 1
 
 
-def test_ORG_7_unconfigured_system_one_adds_no_hints(kos, vault):
+def test_ORG_7_unconfigured_system_one_tool_answers_unconfigured(kos, vault):
     vault.write(TARGET, UNTYPED)
     organize_scripts(kos.runner, note_type="question", status="open")
     seen = []
     spy(kos.runner, seen)
     receipt = organize(kos, vault)
     assert receipt["status"] == "completed", receipt
-    assert "system_one" not in seen[0]["targets"][0]
+    assert seen[0]["status"] == "unconfigured"
+
+
+def test_linker_can_ask_system_one_about_a_read_note(make_kos, vault, decisions, tmp_path):
+    kos = start(make_kos, decisions, tmp_path)
+    vault.write(TARGET, UNTYPED)
+    decisions.predict("answer", 0.8)
+    organize_scripts(kos.runner)
+    original = kos.runner.scripts["linker"]
+    seen = []
+
+    def script(session):
+        target = session.call("work_context")["targets"][0]["target"]
+        session.call("read", handle=target)
+        seen.append(session.call("system_one", handle=target, question="Does this note discuss tools?"))
+        original(session)
+
+    kos.runner.script("linker", script)
+    receipt = organize(kos, vault)
+    assert receipt["status"] == "completed", receipt
+    assert seen[0]["holds"] is True and seen[0]["probability"] == 0.8
+    assert [q["name"] for call in decisions.calls for q in call["questions"]] == ["answer"]
+
+
+def test_ORG_7_cached_suggestion_is_withheld_after_policy_changes(make_kos, vault, decisions, tmp_path):
+    kos = start(make_kos, decisions, tmp_path)
+    vault.write(TARGET, UNTYPED)
+    decisions.choose("type", "idea", 0.9)
+    organize_scripts(kos.runner)
+    original = kos.runner.scripts["classifier"]
+    seen = []
+
+    def script(session):
+        target = session.call("work_context")["targets"][0]["target"]
+        seen.append(session.call("system_one", handle=target)["status"])
+        vault.write(TARGET, UNTYPED.replace("approve", "deny"))
+        try:
+            seen.append(session.call("system_one", handle=target)["status"])
+        finally:
+            vault.write(TARGET, UNTYPED)
+        original(session)
+
+    kos.runner.script("classifier", script)
+    receipt = organize(kos, vault)
+    assert receipt["status"] == "completed", receipt
+    assert seen == ["answered", "denied"]
+    assert len(decisions.calls) == 1

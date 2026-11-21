@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 
 from ..notes import UUID4_RE, parse, render_scalar
-from ..policy import effective, gateway_exportable
+from ..policy import DEFAULT_POLICY, approved, effective
 from ..util import digest, iso, new_id, new_uuid
 from . import Done, Refused, WorkDraft
 
@@ -143,7 +143,7 @@ def prepare_capture(ctx):
     payload = body["payload"]
     received = ctx.owner.store.get("gateway", ctx.work["request_id"])["received_at"]
     fields = {"id": new_uuid(), "type": "capture", "status": "unprocessed", "created": received,
-              "ai_policy": ctx.owner.config.default_policy, "title": payload["title"],
+              "ai_policy": DEFAULT_POLICY, "title": payload["title"],
               "captured_from": "operation/" + body["sender_operation_id"], "capture_kind": payload.get("capture_kind", "text"),
               "kos_provenance": body["message_id"], "kos_provenance_sender": body["sender_operation_id"],
               "kos_provenance_received_at": received}
@@ -160,7 +160,7 @@ def check_capture(ctx, artifact):
     ok = (note.valid and bool(UUID4_RE.fullmatch(note.data.get("id", ""))) and note.type == "capture"
           and note.status == "unprocessed" and note.body == body["payload"]["text"]
           and note.data.get("captured_from") == "operation/" + body["sender_operation_id"]
-          and note.data.get("ai_policy") == ctx.owner.config.default_policy)
+          and note.data.get("ai_policy") == DEFAULT_POLICY)
     return [{"target": None, "verdict": "satisfied" if ok else "unmet", "reason": "Capture preserves intake and default policy"}]
 
 
@@ -194,7 +194,7 @@ def query(owner, req):
         limits[key] = min(requested, maximum, hard_maximum)
     admitted = {}
     def exportable(doc):
-        if not gateway_exportable(doc.policy):
+        if not approved(doc.policy):
             return False
         admitted[doc.path] = doc.sha
         return True
@@ -206,7 +206,7 @@ def query(owner, req):
     for item in found["results"]:
         current = owner.vault.read(item["path"])
         if (current is None or current.sha != admitted.get(item["path"]) or current.conflict or current.type in ("report", "proposal")
-                or not gateway_exportable(effective(current, owner.config.default_policy))):
+                or not approved(effective(current))):
             continue
         lines = current.text.splitlines()
         # A fresh policy check must not disclose stale indexed bytes after an edit.

@@ -12,135 +12,110 @@
 <header class="topbar"><button class="nav-toggle" type="button" aria-label="메뉴" aria-expanded="false" aria-controls="sidebar">☰</button><a class="brand" href="index.html">KnowledgeOS 위키</a>
 <div class="search"><input id="wiki-search" type="search" placeholder="검색 (/)" aria-label="위키 검색" autocomplete="off"><ol id="search-results" hidden></ol></div></header>
 <div class="layout">
-<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html" aria-current="page">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway: 다른 Operation과의 교환</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
+<nav class="sidebar" id="sidebar" aria-label="위키 목차"><div class="nav-group"><h2>시작하기</h2><ul><li><a href="index.html">개요</a></li><li><a href="philosophy.html">운용 원칙</a></li><li><a href="usage.html">사용 가이드</a></li></ul></div><div class="nav-group"><h2>구조</h2><ul><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li></ul></div><div class="nav-group"><h2>기능</h2><ul><li><a href="c1.html">C1 정리</a></li><li><a href="c2.html">C2 규격화</a></li><li><a href="c3.html">C3 검색</a></li><li><a href="c4.html">C4 강화</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c8.html" aria-current="page">C8 알림</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></div><div class="nav-group"><h2>현황</h2><ul><li><a href="status.html">현재 상태</a></li><li><a href="roadmap.html">로드맵</a></li></ul></div></nav>
 <main id="content" class="content"><nav class="breadcrumb" aria-label="위치"><a href="index.html">위키</a> › <span>기능</span> › <span aria-current="page">C8 알림</span></nav>
 <article class="page">
-<h1 id="top">C8 알림 (Discord 알림)</h1>
-<h2 id="한눈에-보기">한눈에 보기<a class="anchor" href="#한눈에-보기" aria-label="이 제목 링크">#</a></h2>
-<p>C8은 KnowledgeOS가 Discord로 <strong>보내기만 하는</strong> 알림 기능입니다. 매일 아침 하루치 상황을 모은 <strong>요약(digest)</strong> 을 보내고, 충돌·결과 불명·작업 실패처럼 늦으면 곤란한 일은 <strong>즉시 알림(alert)</strong> 으로 바로 알립니다. 알림에는 노트 본문 없이 제목과 링크만 들어가며, 링크를 누르면 Obsidian이나 관리 콘솔이 열립니다. Discord에서 메시지·반응·답장을 보내도 아무 일도 일어나지 않습니다.</p>
+<h1 id="top">C8 알림 (Discord 단방향 알림)</h1>
+<p>C8은 KnowledgeOS가 사용자에게 <strong>지금 확인하거나 결정할 일이 있을 때만</strong> Discord로 보내는 단방향 알림 기능입니다. Obsidian에서 누르는 버튼은 따로 없으며, 알림은 사용자를 Obsidian 노트나 로컬 관리 콘솔로 안내하는 출구 역할만 합니다. Discord 채널에 답장이나 이모지 반응을 남겨도 KnowledgeOS는 아무 작업도 시작하지 않습니다.</p>
+<h2 id="알림이-출발하는-세-가지-경로">알림이 출발하는 세 가지 경로<a class="anchor" href="#알림이-출발하는-세-가지-경로" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS가 Discord로 메시지를 보내는 실제 경로는 크게 세 갈래입니다. 이 중 C8이 직접 책임지는 경로는 <strong>검토 요약</strong>과 <strong>즉시 알림</strong>이며, 매일 아침 할 일 알림은 <a class="wikilink" href="c12.html">C12</a>가 같은 발송 통로를 공유해 보냅니다.</p>
 <div class="table-wrap"><table>
 <thead><tr>
-<th>항목</th>
-<th>내용</th>
+<th>경로</th>
+<th>언제 출발하는가</th>
+<th>누가 내용을 만드는가</th>
+<th>런타임 접점 (Hermes · Graph · Temporal)</th>
 </tr></thead><tbody>
-<tr><td>트리거</td><td>요약: 예약 작업 <code>digest</code>(매일 08:00, <a class="wikilink" href="c7.html">C7</a>) 또는 CLI <code>knowledgeos job run digest</code>. 즉시 알림: Owner가 Vault와 작업 기록의 변화를 스스로 관찰해 발송</td></tr>
-<tr><td>담당</td><td>내용은 StewardshipOfficer(<a class="wikilink" href="c5.html">C5</a>), 전달은 Notifier(운영 profile <code>kos-ops</code>를 통한 Discord 발송). Owner가 알림 의도를 먼저 기록</td></tr>
-<tr><td>결과물</td><td>Discord 알림(요약·즉시 알림)과 Owner가 남기는 알림 기록</td></tr>
-<tr><td>사용자 결정 여부</td><td>없음. 알림은 알려 주기만 하고, 승인·적용·거절은 Obsidian과 콘솔에서 합니다</td></tr>
+<tr><td>검토 요약 (<code>digest</code>)</td><td>매일 08:00(Asia/Seoul) <code>digest</code> 예약 작업(<a class="wikilink" href="c7.html">C7</a>) 또는 CLI <code>knowledgeos job run digest</code></td><td><code>StewardshipOfficer</code>(<a class="wikilink" href="c5.html">C5</a>)</td><td>Temporal <code>WorkWorkflow</code> + 단일 정적 LangGraph. <strong>Hermes 모델 없음</strong> (발송만 비모델 <code>kos-ops</code>)</td></tr>
+<tr><td>즉시 알림 (<code>alert</code>)</td><td>Owner 감시 스레드가 Vault 충돌이나 위험한 결과 불명을 감지했을 때 (요약 시작 때도 1회 확인)</td><td>Owner 내부 감시(<code>kos-notices</code>)</td><td><strong>Temporal · LangGraph · Hermes 모델 모두 없음</strong> (Owner 직접 감지 후 <code>kos-ops</code> 발송)</td></tr>
+<tr><td>아침 할 일 알림 (<code>daily</code>)</td><td>매일 07:00(Asia/Seoul) <code>daily</code> 예약 작업(<a class="wikilink" href="c12.html">C12</a>)</td><td><code>DailyOfficer</code>(<a class="wikilink" href="c12.html">C12</a>)</td><td>Temporal <code>WorkWorkflow</code> + 단일 정적 LangGraph. <strong>Hermes 모델 없음</strong> (발송만 비모델 <code>kos-ops</code>)</td></tr>
 </tbody></table></div>
-<div class="callout callout-note">
-<p class="callout-title">참고</p>
-<p>용어: <strong>Owner</strong>는 권한과 기록을 맡는 KnowledgeOS의 중심 서비스, <strong>attention item(주의 항목)</strong> 은 사용자가 봐야 할 일(노트로 저장되지 않고 Bases 화면이나 콘솔·요약에서 계산됨)입니다. 자세한 뜻은 <a class="wikilink" href="glossary.html">용어</a>를 보세요.</p>
-</div>
-<h2 id="왜-이-명세가-필요한가">왜 이 명세가 필요한가<a class="anchor" href="#왜-이-명세가-필요한가" aria-label="이 제목 링크">#</a></h2>
-<p>알림은 사용자에게 가장 쉽게 새어 나가는 통로입니다. 그래서 USER_FEATURE_SPEC의 &quot;지키는 약속&quot; 가운데 다음을 직접 지켜야 합니다.</p>
-<ul>
-<li><strong>Vault는 사용자의 것입니다 / 판단이 필요한 변경은 사용자가 결정합니다(약속 1·4).</strong> Discord에서 어떤 반응으로든 변경이 승인되면 이 약속이 깨집니다. 그래서 C8은 단방향이며, 명세는 &quot;Discord로 명령 받기&quot;를 하지 않는 일로 명시합니다(USER_FEATURE_SPEC &quot;하지 않는 일&quot;).</li>
-<li><strong>문서 작업은 Obsidian 안에서 합니다(약속 2).</strong> 알림은 사용자를 Obsidian이나 콘솔로 데려다 주는 링크일 뿐이고, 처리는 거기서 합니다.</li>
-<li><strong>개인정보(<code>ai_policy</code>).</strong> <code>deny</code>·<code>local_only</code>·<code>confidential</code> 노트의 제목이나 식별 정보가 알림에 실리면, 외부 서비스인 Discord로 비밀이 나갑니다(Blueprint §5.4). C8이 없으면 알림 하나로 개인정보 경계가 무너질 수 있습니다.</li>
-<li><strong>잃으면 안 되는 것은 Vault에 둡니다(약속 6).</strong> 알림 기록은 State에 있어서, 잃어도 알림만 사라지고 지식은 남습니다(Blueprint §2). 알림이 전달됐는지 확실하지 않을 때 다시 보내지 않는 규칙도 같은 맥락입니다. 같은 알림이 반복되면 알림이 소음이 되기 때문입니다.</li>
-</ul>
-<p>철학 쪽 배경은 <a class="wikilink" href="philosophy.html">운용 원칙</a>에서, 용어는 <a class="wikilink" href="glossary.html">용어</a>에서 확인할 수 있습니다.</p>
-<h2 id="어떻게-쓰는가">어떻게 쓰는가<a class="anchor" href="#어떻게-쓰는가" aria-label="이 제목 링크">#</a></h2>
-<p>Discord 알림을 받기 위해 Obsidian에서 눌러야 할 명령은 없습니다. Thin Client에는 Discord 관련 명령이 없습니다(C11의 명령 표 참고). 알림은 Owner가 켜져 있는 동안 자동으로 갑니다.</p>
-<p><strong>자동 경로</strong></p>
+<h2 id="흐름-1-매일-0800-검토-요약-digest">흐름 1: 매일 08:00 검토 요약 (<code>digest</code>)<a class="anchor" href="#흐름-1-매일-0800-검토-요약-digest" aria-label="이 제목 링크">#</a></h2>
+<p>아침 8시가 되어 Owner 안의 스케줄러가 <code>digest</code> 작업을 실행하거나 사용자가 터미널에서 <code>knowledgeos job run digest</code>를 실행하면, <code>schedule/digest</code> 행위자로 <code>digest.run</code> 요청이 접수됩니다. 이 요청은 하나의 정적 Work로 열려 <code>StewardshipOfficer</code>가 먼저 수명주기 제안(완료 프로젝트·중단 아이디어 보관 제안, System One이 설정돼 있으면 상태 전환 제안)과 낡은 제안 만료 정리를 끝낸 뒤, 같은 완료(<code>commit</code>) 단계에서 검토 요약 생성으로 이어집니다.</p>
 <ol>
-<li>Owner가 켜져 있으면 매일 08:00(Asia/Seoul)에 <code>digest</code> 작업이 돌아 요약을 보냅니다.</li>
-<li>충돌·결과 불명·작업 실패가 생기면, 요약을 기다리지 않고 Owner가 변화를 관찰해 즉시 알림을 보냅니다. GET 요청이나 콘솔 방문, 요약 실행이 있어야 알림이 나가는 것이 아닙니다.</li>
-<li>알림의 <code>obsidian://</code> 링크는 해당 노트를 Obsidian에서 엽니다. 모바일에서도 열립니다(USER_FEATURE_SPEC &quot;모바일&quot;). 관리성 항목은 콘솔 링크가 붙습니다.</li>
-<li>Owner가 꺼져 있으면 예약 작업이 돌지 않아 요약도 가지 않습니다. 다시 켜고 <code>startup_delay_minutes</code>(기본 3분)가 지나면 놓친 작업이 한 번씩만 실행됩니다(<a class="wikilink" href="c7.html">C7</a>).</li>
-</ol>
-<p><strong>수동 경로 (CLI)</strong></p>
-<pre><code class="language-sh">knowledgeos job run digest      # 요약을 지금 보내고, 실행 결과 영수증까지 따라가 보고
-knowledgeos install profiles --config owner.json --dry-run   # 먼저 무엇이 설치될지 확인
-knowledgeos install profiles --config owner.json    # 역할 profile과 발송 전용 kos-ops profile 설치</code></pre>
-<p><strong>콘솔에서 확인</strong></p>
+<li><strong>선행 스캔과 중복 방지</strong>: 요약 생성 직전에 같은 요청 ID로 이미 만든 요약이 있으면 기존 결과를 돌려주고 끝냅니다. 처음 실행이라면 먼저 즉시 알림 스캔을 한 번 돌려 빠진 충돌·결과 불명이 있는지 확인합니다.</li>
+<li><strong>현재 상태 집계</strong>: Owner가 Vault 인덱스를 새로고침해 <code>deny</code> 노트와 시스템 폴더(<code>99_System/</code>)를 뺀 문서들을 훑고, 다음 일곱 항목을 계산합니다.
 <ul>
-<li>브라우저 관리 콘솔(로컬 전용)에서 알림 기록, 결과 불명 목록, 주의 항목을 봅니다(Blueprint §3.2). 알림 전달이 불명이 되었다면 거기에 나타납니다.</li>
-<li>콘솔은 관리용이며, 문서 작업은 하지 않습니다.</li>
-</ul>
-<p><strong>처음 연결할 때 (사용자 몫)</strong></p>
-<ul>
-<li><code>kos-ops</code> profile은 모델 없이 Discord 발송에만 쓰이고 봇 토큰을 보관합니다(USER_FEATURE_SPEC·Blueprint §4.4).</li>
-<li>봇은 서버에 초대되어 있어야 하고, 지정된 채널에서 View Channel과 Send Messages 권한이 필요합니다. PROJECT_STATE의 <code>B_DISCORD_TOKEN</code>이 바로 이 조치였고 해결됐습니다(<a class="wikilink" href="status.html">현재 상태</a>).</li>
-</ul>
-<p><strong>예시 (설명용 시나리오)</strong></p>
-<ol>
-<li>월요일: <code>remote_ok</code> 노트 하나에 병합 충돌 표시가 생깁니다. Owner가 변화를 관찰해 노트 제목과 <code>obsidian://</code> 링크가 담긴 즉시 알림을 한 번 보냅니다.</li>
-<li>월요일 08:00 요약과 화요일 08:00 요약에는 이 충돌이 계속 &quot;주의 항목&quot;으로 적힙니다. 알림은 새로 오지 않습니다(<a class="wikilink" href="#NTF-2">NTF-2</a>).</li>
-<li>같은 시기에 <code>deny</code> 노트에서 문제가 생겨도 어떤 알림에도 그 노트는 언급되지 않습니다(<a class="wikilink" href="#NTF-1">NTF-1</a>).</li>
-<li>사용자가 링크로 Obsidian을 열어 직접 충돌을 정리합니다. Discord에 답장해도 아무 일도 일어나지 않습니다.</li>
-</ol>
-<h2 id="동작-흐름">동작 흐름<a class="anchor" href="#동작-흐름" aria-label="이 제목 링크">#</a></h2>
-<p>알림은 &quot;누가 내용을 만들고, 누가 보내고, 무엇을 걸러 내는가&quot;를 나눠 맡습니다. 이 기능에 딱 맞는 전용 흐름도는 계약에 없어서, 번호 흐름과 개인정보 표를 함께 둡니다.</p>
-<ol>
-<li><strong>내용 구성</strong>: StewardshipOfficer가 요약이나 알림 내용을 정해진 규칙(결정적 코드)으로 만듭니다. 요약은 새 자동 변경의 개수와 제목, 대기 중인 제안·보고서, 오래된 제안, 결정이 필요한 계산된 주의 항목, &quot;다시 볼&quot; 목록을 담습니다. 즉시 알림은 Vault 충돌, 결과 불명, 작업 실패 세 종류이고 항목 ID로 중복을 막습니다.</li>
-<li><strong>개인정보 거르기</strong>: 알림에는 <code>remote_ok</code>·<code>ask</code> 노트의 제목과 링크만 실릴 수 있습니다. <code>deny</code>·<code>local_only</code>·<code>confidential</code> 노트는 본문은 물론 식별 정보도 나가지 않습니다.</li>
-<li><strong>의도 기록</strong>: Owner가 알림을 보내기 <em>전에</em> 알림 의도를 기록합니다.</li>
-<li><strong>전달</strong>: Notifier가 <code>kos-ops</code> profile로 Discord에 보냅니다.</li>
-<li><strong>결과 판정</strong>: 전달이 확인되지 않으면 결과는 <code>unknown</code>으로 남고 자동으로 다시 보내지 않습니다. 요약은 항상 현재 상태를 반영하므로, 아직 유효한 내용은 다음 요약에 다시 실립니다. 결과 불명인 알림 전달이 또 다른 알림을 만들지는 않습니다.</li>
-</ol>
-<figure class="diagram diagram-policy-matrix">
-<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 960 470" width="100%" preserveAspectRatio="xMidYMid meet"><title>ai_policy 값별 공개 범위: 원격 모델, 로컬 역할, 임베딩, Gateway, 알림</title><defs><marker id="d-arrow-policy-matrix" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="d-edge" d="M1,1 L9,5 L1,9" fill="none"/></marker></defs><rect class="d-box-muted" x="166" y="14" width="124" height="44" rx="8"/><text class="d-label" x="228" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">원격 모델</tspan><tspan class="d-label-small" x="228" dy="18" font-size="13">사용자 요청</tspan></text><rect class="d-box-muted" x="296" y="14" width="124" height="44" rx="8"/><text class="d-label" x="358" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">원격 모델</tspan><tspan class="d-label-small" x="358" dy="18" font-size="13">예약 작업</tspan></text><rect class="d-box-muted" x="426" y="14" width="124" height="44" rx="8"/><text class="d-label" x="488" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 모델</tspan><tspan class="d-label-small" x="488" dy="18" font-size="13">역할</tspan></text><rect class="d-box-muted" x="556" y="14" width="124" height="44" rx="8"/><text class="d-label" x="618" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">임베딩</tspan><tspan class="d-label-small" x="618" dy="18" font-size="13">Ollama 로컬</tspan></text><rect class="d-box-muted" x="686" y="14" width="124" height="44" rx="8"/><text class="d-label" x="748" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">Gateway</tspan><tspan class="d-label-small" x="748" dy="18" font-size="13">내보내기</tspan></text><rect class="d-box-muted" x="816" y="14" width="124" height="44" rx="8"/><text class="d-label" x="878" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">Discord 알림</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크</tspan></text><rect class="d-box-muted" x="10" y="14" width="150" height="44" rx="8"/><text class="d-label" x="85" y="32" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">ai_policy</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">값</tspan></text><rect class="d-box" x="10" y="70" width="150" height="54" rx="8"/><text class="d-label" x="85" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">remote_ok</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">원격 허용</tspan></text><rect class="d-box-ok" x="166" y="70" width="124" height="54" rx="8"/><text class="d-label" x="228" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="296" y="70" width="124" height="54" rx="8"/><text class="d-label" x="358" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="426" y="70" width="124" height="54" rx="8"/><text class="d-label" x="488" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="556" y="70" width="124" height="54" rx="8"/><text class="d-label" x="618" y="102" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-ok" x="686" y="70" width="124" height="54" rx="8"/><text class="d-label" x="748" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="748" dy="18" font-size="13">승인된 수신자</tspan></text><rect class="d-box-ok" x="816" y="70" width="124" height="54" rx="8"/><text class="d-label" x="878" y="93" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크만</tspan></text><rect class="d-box" x="10" y="130" width="150" height="54" rx="8"/><text class="d-label" x="85" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">ask</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">기본값</tspan></text><rect class="d-box-ok" x="166" y="130" width="124" height="54" rx="8"/><text class="d-label" x="228" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="296" y="130" width="124" height="54" rx="8"/><text class="d-label" x="358" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="130" width="124" height="54" rx="8"/><text class="d-label" x="488" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">요청만</tspan><tspan class="d-label-small" x="488" dy="18" font-size="13">예약 작업 제외</tspan></text><rect class="d-box-ok" x="556" y="130" width="124" height="54" rx="8"/><text class="d-label" x="618" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="130" width="124" height="54" rx="8"/><text class="d-label" x="748" y="162" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-ok" x="816" y="130" width="124" height="54" rx="8"/><text class="d-label" x="878" y="153" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">허용</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">제목·링크만</tspan></text><rect class="d-box" x="10" y="190" width="150" height="54" rx="8"/><text class="d-label" x="85" y="213" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">local_only</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">로컬 전용</tspan></text><rect class="d-box-bad" x="166" y="190" width="124" height="54" rx="8"/><text class="d-label" x="228" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="190" width="124" height="54" rx="8"/><text class="d-label" x="358" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="190" width="124" height="54" rx="8"/><text class="d-label" x="488" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 경로만</tspan></text><rect class="d-box-ok" x="556" y="190" width="124" height="54" rx="8"/><text class="d-label" x="618" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="190" width="124" height="54" rx="8"/><text class="d-label" x="748" y="222" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="190" width="124" height="54" rx="8"/><text class="d-label" x="878" y="213" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">알림에 안 나옴</tspan></text><rect class="d-box" x="10" y="250" width="150" height="54" rx="8"/><text class="d-label" x="85" y="273" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">confidential</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">local_only로 취급</tspan></text><rect class="d-box-bad" x="166" y="250" width="124" height="54" rx="8"/><text class="d-label" x="228" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="250" width="124" height="54" rx="8"/><text class="d-label" x="358" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-warn" x="426" y="250" width="124" height="54" rx="8"/><text class="d-label" x="488" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">로컬 경로만</tspan></text><rect class="d-box-ok" x="556" y="250" width="124" height="54" rx="8"/><text class="d-label" x="618" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">허용</tspan></text><rect class="d-box-bad" x="686" y="250" width="124" height="54" rx="8"/><text class="d-label" x="748" y="282" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="250" width="124" height="54" rx="8"/><text class="d-label" x="878" y="273" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">알림에 안 나옴</tspan></text><rect class="d-box" x="10" y="310" width="150" height="54" rx="8"/><text class="d-label" x="85" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="85" dy="0" font-size="14">deny</tspan><tspan class="d-label-small" x="85" dy="18" font-size="13">모두 금지</tspan></text><rect class="d-box-bad" x="166" y="310" width="124" height="54" rx="8"/><text class="d-label" x="228" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="228" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="296" y="310" width="124" height="54" rx="8"/><text class="d-label" x="358" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="358" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="426" y="310" width="124" height="54" rx="8"/><text class="d-label" x="488" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="488" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="556" y="310" width="124" height="54" rx="8"/><text class="d-label" x="618" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="618" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="618" dy="18" font-size="13">색인 제외</tspan></text><rect class="d-box-bad" x="686" y="310" width="124" height="54" rx="8"/><text class="d-label" x="748" y="342" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="748" dy="0" font-size="14">금지</tspan></text><rect class="d-box-bad" x="816" y="310" width="124" height="54" rx="8"/><text class="d-label" x="878" y="333" text-anchor="middle" font-size="14"><tspan class="d-label-strong" x="878" dy="0" font-size="14">금지</tspan><tspan class="d-label-small" x="878" dy="18" font-size="13">언급 금지</tspan></text><text class="d-label-small" x="10" y="388" text-anchor="start" font-size="13">· 결정적 로컬 처리(규격화 등)는 deny를 뺀 모든 값에 허용된다. confidential은 값이 느슨해도 local_only로 처리하고 attention으로 알린다.</text><text class="d-label-small" x="10" y="407" text-anchor="start" font-size="13">· 예약 C1은 로컬 경로여도 remote_ok 노트만 모델에 준다. Gateway 질의는 remote_ok 비보고서 노트만 내보낸다.</text><text class="d-label-small" x="10" y="426" text-anchor="start" font-size="13">· 출력은 읽은 모든 노트 중 가장 엄격한 정책을 이어받는다. 정책은 공개 직전 현재 내용으로 다시 확인한다.</text><text class="d-label-small" x="10" y="445" text-anchor="start" font-size="13">· 알림은 본문 없이 제목·횟수·링크만 쓰고, 임베딩은 제안·99_System/·충돌 마커 노트도 제외한다.</text></svg>
-</figure>
-<h2 id="원본-명세">원본 명세<a class="anchor" href="#원본-명세" aria-label="이 제목 링크">#</a></h2>
-<section class="source-include">
-<header class="source-label">원본: <a class="repo" href="../CAPABILITIES.md">docs/CAPABILITIES.md</a> · C8 Notifications</header>
-<h3 id="c8-notifications">C8 Notifications<a class="anchor" href="#c8-notifications" aria-label="이 제목 링크">#</a></h3>
-<p>Outbound Discord notices through the KnowledgeOS bot. The StewardshipOfficer composes the content and the Notifier delivers it.</p>
-<ul>
-<li><strong>Digest</strong> (daily):
-<ul>
-<li>Counts and titles of new autofix changes.</li>
-<li>Proposals and reports waiting.</li>
-<li>Stale proposals.</li>
-<li>Computed attention items needing a decision.</li>
-<li>The &quot;revisit&quot; set.</li>
+<li><strong>검토할 제안</strong>: 상태가 열려 있거나(<code>open</code>) 낡은(<code>stale</code>) 제안 노트.</li>
+<li><strong>오래된 제안</strong>: 그중 대상 노트가 바뀌었거나 사라져 낡은 상태가 된 제안.</li>
+<li><strong>새 보고서</strong>: 직전 검토 요약이 끝난 기준 시각(<code>cursor</code>)보다 나중에 생성된 보고서(첫 요약이면 전체 보고서).</li>
+<li><strong>3일 넘은 포착</strong>: 아직 처리되지 않은(<code>unprocessed</code>) 포착 노트 중 생성된 지 3일이 지난 항목.</li>
+<li><strong>확인 대기 작업</strong>: 규격화 미리보기처럼 사용자 확인을 기다리는(<code>awaiting_confirmation</code>) Work의 개수. 노트 제목은 드러내지 않고 개수와 콘솔 <code>#works</code> 링크만 붙입니다.</li>
+<li><strong>확인 필요</strong>: 병합 충돌, 노트 ID 중복, 깨진 YAML·인코딩 오류, 아직 해결되지 않은 결과 불명 목록.</li>
+<li><strong>다시 볼 노트</strong>: 30일 넘게 손대지 않은 아이디어와 열린 질문 중 날짜 기준으로 순환해 고른 최대 3개.</li>
 </ul></li>
-<li><strong>Alert</strong> (immediate, deduplicated by item ID): a Vault conflict, an unknown effect outcome or a failed job. The Owner observes changes independently of reads; no GET, console visit or digest is needed to trigger an alert. An unknown notification delivery does not recursively generate another alert.</li>
-<li><strong>Content</strong>: titles and counts only, <code>obsidian://</code> links to eligible notes and console links for management items. Only <code>remote_ok</code> and <code>ask</code> note titles and links may be disclosed. No body text or identifying information from <code>deny</code>, <code>local_only</code> or <code>confidential</code> notes appears in either digests or immediate alerts.</li>
-<li><strong>Delivery</strong>: the Owner records each notice intent before delivery. An unknown delivery is never re-sent. The digest reflects current state, so the next digest carries anything still relevant.</li>
-</ul>
-<p>Acceptance:</p>
+<li><strong>개인정보 최종 재검증</strong>: 목록에 오른 노트는 발송 직전 Vault에서 현재 파일을 다시 읽어 <code>ai_policy</code>가 <code>approve</code>인지 확인합니다. <code>deny</code>나 알 수 없는 정책값은 제목과 링크를 모두 뺍니다(<code>sensitivity</code>는 공개 여부에 영향을 주지 않습니다). 제안이나 보고서 노트라면 그 문서가 참조한 원본·대상 노트까지 모두 현재 <code>approve</code>여야만 포함합니다. 본문 내용은 어떤 경우에도 요약에 넣지 않습니다.</li>
+<li><strong>발송 여부 결정과 조용한 통과</strong>:
 <ul>
-<li><strong><a class="wikilink" href="#NTF-1">NTF-1</a></strong> Given an attention item from a <code>deny</code> note, then no notice mentions it.</li>
-<li><strong><a class="wikilink" href="#NTF-2">NTF-2</a></strong> Given the same unresolved conflict on two days, then one alert was sent and both digests list it.</li>
-<li><strong><a class="wikilink" href="#NTF-3">NTF-3</a></strong> Given a notice with an unknown delivery outcome, then it is not re-sent.</li>
+<li><strong>검토할 제안, 새 보고서, 3일 넘은 포착, 확인 대기 작업, 확인 필요</strong> 중 하나라도 1건 이상 있으면 제목 <code>KnowledgeOS 검토 요약</code>으로 Discord에 보냅니다. 0건인 항목은 줄을 만들지 않습니다.</li>
+<li>위 다섯 항목이 모두 0건이면 <strong>다시 볼 노트</strong>나 <strong>실패한 자동 작업</strong>이 있더라도 알림을 보내지 않고 조용히 끝납니다. 이때도 다음 요약에서 같은 보고서를 중복 집계하지 않도록 요약 기준 시각(<code>cursor</code>)은 현재 시각으로 전진합니다.</li>
+<li>최근 자동 규격화(<code>autofix</code>) 내역은 콘솔 주의 목록에만 남기고 검토 요약에는 넣지 않습니다.</li>
+<li><strong>실패한 자동 작업 처리</strong>: 각 예약 작업의 가장 최근 실행이 실패(<code>failed</code>)한 경우 작업 이름을 별도로 모아 두되, 실패 자체만으로는 알림을 보내지 않습니다. 다른 발송 사유가 있어 요약을 보낼 때만 맨 아래에 <code>자동 작업 점검 필요: &lt;작업 이름&gt;</code> 한 줄을 덧붙입니다. 일시정지로 막힌 작업이나 실행 시점을 놓친 작업은 요약 줄에 넣지 않습니다.</li>
+</ul></li>
+<li><strong>결과물</strong>: 발송 조건을 만족하면 항목별 제목·개수, 해당 노트를 바로 여는 <code>obsidian://</code> 링크, 콘솔 <code>#attention</code> 링크가 담긴 메시지가 Discord 채널로 나가고, State의 알림 기록(<code>notices</code>)에 한 건이 저장됩니다.</li>
+</ol>
+<h2 id="흐름-2-기다리지-않고-보내는-즉시-알림-alert">흐름 2: 기다리지 않고 보내는 즉시 알림 (<code>alert</code>)<a class="anchor" href="#흐름-2-기다리지-않고-보내는-즉시-알림-alert" aria-label="이 제목 링크">#</a></h2>
+<p>즉시 알림은 사용자가 콘솔을 열거나 요약을 실행하지 않아도 Owner가 스스로 변화를 감지해 보냅니다. Owner가 켜지면 <code>kos-notices</code>라는 백그라운드 스레드가 약 0.1초 간격으로 Vault 파일과 State의 <code>unknowns</code>·<code>jobs</code> 기록의 파일 상태 변화를 살피고, 변화가 생길 때마다 즉시 알림 스캔을 돌립니다.</p>
+<p>즉시 알림이 나가는 경우는 다음 두 부류로 엄격히 제한됩니다.</p>
+<ul>
+<li><strong>Vault 병합 충돌(<code>conflict</code>)</strong>: 동기화 충돌 표식(<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>)이 들어간 <code>approve</code> 노트가 발견되었을 때.</li>
+<li><strong>실제 파일이나 사용자 행동에 영향을 줄 수 있는 미해결 결과 불명(<code>unknown</code>)</strong>:
+<ul>
+<li>Vault 파일 쓰기 결과 불명(<code>effect</code>)</li>
+<li>적용·거절·되돌리기·취소·조정 같은 사용자 동작 결과 불명(<code>action</code>)</li>
+<li>실행 중인 Work 취소 결과 불명(<code>cancellation</code>)</li>
+<li>Temporal 실행 단계(<code>runtime_phase</code>) 중 실제 반영을 수행하는 <code>commit</code>으로 시작하는 단계의 결과 불명</li>
+</ul></li>
 </ul>
-</section>
-<h2 id="인수-시나리오와-검증">인수 시나리오와 검증<a class="anchor" href="#인수-시나리오와-검증" aria-label="이 제목 링크">#</a></h2>
-<p>인수 시나리오는 이 기능이 약속대로 동작함을 보이는 구체적인 예시로, 각각이 공개 인터페이스를 통한 실행 가능한 테스트이며 아래 표에서 구현 위치와 테스트 노드를 볼 수 있습니다.</p>
+<p>반대로 다음 항목들은 <strong>즉시 알림을 보내지 않습니다.</strong> 모두 콘솔과 API(<code>/api/attention</code>, <code>/api/unknowns</code>)에는 남아 관리 화면에서 확인할 수 있습니다.</p>
+<ul>
+<li>분류기·연결자 같은 모델 단계의 <code>runtime_phase</code> 결과 불명, 역할 호출(<code>role_invocation</code>) 결과 불명</li>
+<li>요청 처리(<code>request</code>), Experience 전달(<code>experience_delivery</code>), 알림 전달(<code>notice</code>) 자체의 결과 불명</li>
+<li>실패한 작업, 일시정지된 작업, 놓친 예약 작업</li>
+</ul>
+<p><strong>중복 방지와 지속 노출</strong>: 예를 들어 <code>approve</code> 노트에 병합 충돌이 생기면 Owner가 해당 항목 ID를 State(<code>alerts</code>)에 먼저 기록한 뒤 즉시 알림을 <strong>딱 한 번</strong> 보냅니다. 충돌을 고치지 않고 이틀이 지나면 즉시 알림은 다시 오지 않지만, 매일 08:00 검토 요약의 <code>확인 필요</code> 줄에는 해결될 때까지 계속 표시됩니다. 만약 충돌이 난 노트가 <code>deny</code> 정책이면 즉시 알림도 요약도 그 노트를 언급하지 않습니다.</p>
+<h2 id="흐름-3-매일-0700-아침-할-일-알림-c12-연동">흐름 3: 매일 07:00 아침 할 일 알림 (<a class="wikilink" href="c12.html">C12</a> 연동)<a class="anchor" href="#흐름-3-매일-0700-아침-할-일-알림-c12-연동" aria-label="이 제목 링크">#</a></h2>
+<p>매일 07:00에 도는 <code>daily</code> 작업은 C8의 검토 요약과 별개입니다. <a class="wikilink" href="c12.html">C12</a>의 <code>DailyOfficer</code>가 이전 데일리 노트의 미완료 항목을 오늘 노트로 옮겨 적은 뒤, 발송 시점에 현재 <code>approve</code> 상태인 오늘 데일리 노트의 <code>#task</code> 항목과 Vault 내 다른 <code>approve</code> 노트에 적힌 오늘 마감·기한 지난 <code>#task</code> 항목을 모읍니다.</p>
+<ul>
+<li><code>obsidian://</code> 링크나 노트 경로 없이 <strong>할 일 이름만</strong> 최대 20개(초과 시 남은 개수 한 줄 추가) 정리해 따뜻한 아침 인사말과 함께 보냅니다.</li>
+<li>같은 날짜의 같은 데일리 노트(노트 ID 기준)에 대해서는 한 번만 보냅니다. 오늘 노트를 지우고 새로 만들었을 때만 새 인계로 봅니다.</li>
+<li>발송 통로는 C8과 동일한 Owner 알림 발송 경로와 <code>kos-ops</code> 프로필을 함께 사용합니다.</li>
+</ul>
+<h2 id="발송-전용-kos-ops-프로필과-결과-불명-처리">발송 전용 <code>kos-ops</code> 프로필과 결과 불명 처리<a class="anchor" href="#발송-전용-kos-ops-프로필과-결과-불명-처리" aria-label="이 제목 링크">#</a></h2>
+<p>KnowledgeOS는 Discord 발송을 모델 역할과 완전히 분리합니다. <code>config/roles.json</code>의 운영 프로필로 선언된 <code>kos-ops</code>는 모델 경로가 비어 있고(<code>null</code>), 학습·도구·예약 실행이 모두 꺼져 있습니다. <code>knowledgeos install profiles --config owner.json</code>으로 설치하면 프로필 안에 <code>gateway.parked</code>(수신 정지 표식) 파일이 함께 생성되어 Hermes gateway가 Discord 수신 어댑터를 열지 못하게 막습니다.</p>
+<p>알림 한 건이 실제로 전달되는 순서는 다음과 같습니다.</p>
+<ol>
+<li><strong>의도 먼저 기록</strong>: Owner가 발송 명령을 부르기 전에 State(<code>notices</code>)에 알림 내용을 대기(<code>pending</code>) → 전달 중(<code>delivering</code>) 상태로 먼저 저장합니다.</li>
+<li><strong>단일 발송 시도</strong>: 기본 발송기가 <code>hermes -p kos-ops send --to discord:&lt;채널ID&gt; --json --file -</code>를 한 번만 호출해 제목·본문 줄·링크를 그대로 보냅니다(설정에서 외부 발송 명령 <code>C8.notifier_command</code>를 따로 지정한 경우 그 명령을 대신 실행합니다).</li>
+<li><strong>응답 판정</strong>:
+<ul>
+<li>종료 코드가 0이고 Hermes JSON 응답이 성공(<code>success: true</code> 또는 <code>skipped: true</code>, 오류 없음)이면 전달 완료(<code>delivered</code>)로 확정합니다.</li>
+<li>종료 코드가 1이고 실패 JSON이 돌아오면 미전달(<code>not_delivered</code>)로 기록합니다. 결정 사항에 따라 전달 실패 사유 문구는 알림 기록에 남기지 않습니다.</li>
+<li>응답 시간 초과(기본 10초), 프로세스 오류, 깨지거나 모순된 JSON, 또는 발송 도중 Owner가 꺼졌다가 재시작해 대기·전달 중 상태로 남은 알림은 모두 결과 불명(<code>unknown</code>)으로 전환하고 <code>notice</code> 결과 불명 항목을 남깁니다.</li>
+</ul></li>
+<li><strong>재전송 금지와 가시적 실패</strong>: 결과 불명으로 남은 알림은 Owner가 재시작되더라도 <strong>절대 자동으로 다시 보내지 않습니다.</strong> 또한 알림 전달 자체가 결과 불명이 되었다고 해서 또 다른 Discord 즉시 알림을 만들지도 않습니다. 사용자는 로컬 관리 콘솔의 알림 기록(<code>#notices</code>)과 결과 불명(<code>#unknowns</code>) 화면에서 전달 결과를 확인하고, 필요하면 콘솔이나 CLI에서 관찰 결과를 정리할 수 있습니다.</li>
+</ol>
+<p>실제 Discord 연결에 필요한 봇 토큰은 <code>kos-ops</code> 프로필의 <code>.env</code>에 보관하며, 봇이 대상 서버에 초대되어 있고 설정된 채널의 보기·메시지 보내기 권한을 갖고 있어야 합니다. 권한이 없으면 첫 발송이 <code>not_delivered</code>로 남고 채널에는 메시지가 뜨지 않습니다.</p>
+<h2 id="실제-확인-범위">실제 확인 범위<a class="anchor" href="#실제-확인-범위" aria-label="이 제목 링크">#</a></h2>
+<p>실제 Discord 요약·데일리 전달과 발송용 Profile 설치의 근거는 <a class="wikilink" href="status.html">현재 상태</a>에 모았습니다. 기본 08:00 시각의 자연 실행, 실제 충돌·쓰기 결과 불명에 따른 즉시 알림, Discord 입력 무응답의 직접 관찰은 별도 확인 범위입니다.</p>
+<h2 id="관련-문서와-소스">관련 문서와 소스<a class="anchor" href="#관련-문서와-소스" aria-label="이 제목 링크">#</a></h2>
+<ul>
+<li>관련 기능: <a class="wikilink" href="c5.html">C5</a> 문서 관리 · <a class="wikilink" href="c7.html">C7</a> 예약 작업 · <a class="wikilink" href="c12.html">C12</a> 데일리 노트 · <a class="wikilink" href="c6.html">C6</a> 검토 · <a class="wikilink" href="c11.html">C11</a> 호출·관리 화면</li>
+<li>참고 문서: <a class="repo" href="../CAPABILITIES.md#c8-notifications">CAPABILITIES.md C8</a> · <a class="repo" href="../../config/capabilities/C8.json">C8 설정</a> · <a class="repo" href="../../config/jobs.json">예약 작업 설정</a> · <a class="repo" href="../../config/roles.json">역할 설정</a></li>
+<li>주요 구현: <a class="repo" href="../../src/knowledgeos/capabilities/c8_notify.py">c8_notify.py</a> · <a class="repo" href="../../src/knowledgeos/capabilities/c5_stewardship.py">c5_stewardship.py</a> · <a class="repo" href="../../src/knowledgeos/capabilities/c12_daily.py">c12_daily.py</a> · <a class="repo" href="../../src/knowledgeos/hermes.py">hermes.py</a> · <a class="repo" href="../../src/knowledgeos/owner.py">owner.py</a></li>
+</ul>
+<h2 id="부록-인수-예시와-추적">부록: 인수 예시와 추적<a class="anchor" href="#부록-인수-예시와-추적" aria-label="이 제목 링크">#</a></h2>
 <div class="table-wrap"><table class="acceptance">
 <thead><tr><th>ID</th><th>인수 예시 (원문)</th><th>구현</th><th>테스트</th></tr></thead><tbody>
-<tr><td class="acc-id"><a class="acc-id" id="NTF-1" href="#NTF-1">NTF-1</a></td><td class="acc-example">Given an attention item from a <code>deny</code> note, then no notice mentions it.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::_shareable</code><br><code>src/knowledgeos/capabilities/c8_notify.py::send_digest</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_1_deny_notes_never_appear_in_notices_or_attention</code></li><li><code>tests/test_c8_notify.py::test_local_only_and_confidential_titles_do_not_leave_machine</code></li></ul></details></td></tr>
-<tr><td class="acc-id"><a class="acc-id" id="NTF-2" href="#NTF-2">NTF-2</a></td><td class="acc-example">Given the same unresolved conflict on two days, then one alert was sent and both digests list it.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::alert_scan</code><br><code>src/knowledgeos/capabilities/c8_notify.py::send_digest</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_2_unresolved_conflict_alert_once_but_both_digests</code></li><li><code>tests/test_c8_notify.py::test_unknown_effect_alert_is_observed_without_digest</code></li><li><code>tests/test_c8_notify.py::test_digest_lists_only_new_autofixes_since_previous_digest</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="NTF-1" href="#NTF-1">NTF-1</a></td><td class="acc-example">Given an attention item from a <code>deny</code> note, then no notice mentions it.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::_shareable</code><br><code>src/knowledgeos/capabilities/c8_notify.py::send_digest</code></td><td class="acc-tests"><details><summary>테스트 2개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_1_deny_notes_never_appear_in_notices_or_attention</code></li><li><code>tests/test_c8_notify.py::test_retired_policy_is_hidden_but_confidential_approve_title_may_leave</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="NTF-2" href="#NTF-2">NTF-2</a></td><td class="acc-example">Given the same unresolved conflict on two days, then one alert was sent and both digests list it.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::alert_scan</code><br><code>src/knowledgeos/capabilities/c8_notify.py::send_digest</code></td><td class="acc-tests"><details><summary>테스트 3개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_2_unresolved_conflict_alert_once_but_both_digests</code></li><li><code>tests/test_c8_notify.py::test_unknown_effect_alert_is_observed_without_digest</code></li><li><code>tests/test_c8_notify.py::test_digest_lists_only_reports_created_after_previous_digest</code></li></ul></details></td></tr>
 <tr><td class="acc-id"><a class="acc-id" id="NTF-3" href="#NTF-3">NTF-3</a></td><td class="acc-example">Given a notice with an unknown delivery outcome, then it is not re-sent.</td><td class="acc-impl"><code>src/knowledgeos/owner.py::Owner.post_notice</code><br><code>src/knowledgeos/hermes.py::SendNotifier</code></td><td class="acc-tests"><details><summary>테스트 5개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_3_unknown_delivery_is_never_resent_even_after_restart</code></li><li><code>tests/test_c8_notify.py::test_notice_intent_precedes_callable_and_exception_is_unknown</code></li><li><code>tests/test_c8_notify.py::test_notifier_command_exit_codes</code></li><li><code>tests/test_hermes_adapter.py::test_NTF_3_hermes_send_maps_receipts_without_retry</code></li><li><code>tests/test_runtime_lifecycle.py::test_runtime_unknown_external_delivery_is_not_replayed_on_restart</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="NTF-4" href="#NTF-4">NTF-4</a></td><td class="acc-example">Given a failed scheduled job and nothing to review, then no alert is sent and the digest posts nothing, while <code>failed_jobs</code> is counted separately from non-job <code>attention</code>; given an open proposal next, the digest lists it with the supplemental failed-job line.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::send_digest</code><br><code>src/knowledgeos/capabilities/c8_notify.py::alert_scan</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_4_failed_jobs_never_alert_and_quiet_digest_sends_nothing</code></li></ul></details></td></tr>
+<tr><td class="acc-id"><a class="acc-id" id="NTF-5" href="#NTF-5">NTF-5</a></td><td class="acc-example">Given a classifier model-step <code>runtime_phase</code> unknown and a <code>role_invocation</code> unknown, then both remain in <code>/api/attention</code> without alerting; given an unknown Vault write effect, then the observer alerts exactly once.</td><td class="acc-impl"><code>src/knowledgeos/capabilities/c8_notify.py::alert_scan</code></td><td class="acc-tests"><details><summary>테스트 1개</summary><ul><li><code>tests/test_c8_notify.py::test_NTF_5_unknown_model_step_never_alerts_but_unknown_vault_effect_does</code></li></ul></details></td></tr>
 </tbody></table></div>
-<h2 id="현재-상태와-남은-일">현재 상태와 남은 일<a class="anchor" href="#현재-상태와-남은-일" aria-label="이 제목 링크">#</a></h2>
-<ul>
-<li><strong>구현·테스트</strong>: 인수 예시 NTF-1~NTF-3은 모두 구현과 통과한 테스트에 연결되어 있습니다(CAPABILITY_TRACE, PROJECT_STATE의 <code>E_CAPABILITY_TRACE</code>·<code>E_TRACED_TESTS</code>). 이 테스트들은 모델 역할과 Discord 전송에 대역을 씁니다(README &quot;검증 범위&quot;).</li>
-<li><strong>실환경 Discord 전달</strong>: <code>KNOWLEDGEOS_REAL_ADOPTION.DISCORD</code>가 통과했습니다. <code>E_DISCORD_DELIVERED</code>는 요약 알림 하나가 Owner와 <code>kos-ops</code> 발송 경로를 거쳐 <code>knowledgeos</code> 채널에 전달된 기록입니다. 이에 앞서 봇이 서버에 들어오기 전에는 Discord API 403 Missing Access로 첫 요약이 <code>not_delivered</code>로 기록됐고(<code>E_DISCORD_MISSING_ACCESS</code>, 이력으로 보존), 봇 초대와 권한 부여로 <code>B_DISCORD_TOKEN</code>이 해결됐습니다.</li>
-<li><strong>알림 기록의 범위</strong>: <code>D_NOTICE_NO_FAILURE_REASON</code>에 따라 알림 기록에는 전달 실패 사유를 남기지 않습니다.</li>
-<li><strong>Hermes cron 제거</strong>: 예약은 Owner 안의 스케줄러만 맡습니다. <code>E_HERMES_CRON_REMOVED</code>는 <code>kos-ops</code>의 Hermes cron 작업 세 개를 지우고 발송 전용으로 다시 설치했음을 기록합니다.</li>
-<li><strong>PROJECT_STATE에 기록되지 않은 것</strong> ([INFERENCE] 기록에서 찾지 못했다는 뜻이며 일어나지 않았다는 뜻은 아닙니다): 정해진 08:00 슬롯에서 자연스럽게 돈 실제 요약 실행, 실제 환경에서 즉시 알림이 나간 사례는 증거 기록에 없습니다. 실환경 스케줄러 증거(<code>E_REAL_SCHEDULER_SLOT</code>)는 임시 <code>index.embed</code> 작업이며, 현재 인계 항목은 열린 정리 제안 검토, 매시간 규격화의 자연 실행 관찰, 임계값 조정입니다.</li>
-</ul>
-<div class="callout callout-note">
-<p class="callout-title">참고</p>
-<p><strong>보내기 전용 구성</strong>: <code>kos-ops</code> profile에는 Hermes gateway가 이 profile을 Discord 수신·예약 실행 대상에서 빼도록 하는 <code>gateway.parked</code> 표시가 있고, 발송은 <code>hermes -p kos-ops send</code>로만 합니다(<code>E_HERMES_CRON_REMOVED</code>). 그래서 Blueprint §9의 &quot;보내기 전용 Discord&quot; 열린 질문은 닫혔습니다. 봇이 입력을 받지 않는다는 것을 따로 관찰한 기록은 아직 없습니다.</p>
-</div>
-<p>시작 전·막힘·후속 과제 전체는 <a class="wikilink" href="roadmap.html">로드맵</a>에서 보세요.</p>
-<h2 id="관련-기능">관련 기능<a class="anchor" href="#관련-기능" aria-label="이 제목 링크">#</a></h2>
-<ul>
-<li><a class="wikilink" href="c5.html">C5</a> 문서 관리: 요약과 즉시 알림의 내용(주의 항목, 오래된 제안, &quot;다시 볼&quot; 목록)을 만드는 StewardshipOfficer의 기능입니다.</li>
-<li><a class="wikilink" href="c7.html">C7</a> 예약 작업: <code>digest</code> 작업이 매일 08:00에 요약을 보내는 스케줄입니다. Owner가 꺼져 있을 때의 따라잡기 규칙도 여기에 있습니다.</li>
-<li><a class="wikilink" href="c6.html">C6</a> 검토: 알림에 나온 대기 제안과 오래된 제안을 실제로 적용·거절하는 곳입니다. Discord에서는 결정할 수 없습니다.</li>
-<li><a class="wikilink" href="c2.html">C2</a> 규격화: 요약이 세는 &quot;새 자동 변경&quot;(autofix)을 만듭니다.</li>
-<li><a class="wikilink" href="c1.html">C1</a> 정리와 <a class="wikilink" href="c4.html">C4</a> 강화: 요약이 &quot;대기 중&quot;으로 알리는 제안(<code>01_AI_Review/Proposals/</code>)과 보고서(<code>01_AI_Review/Reports/</code>)를 만듭니다.</li>
-<li><a class="wikilink" href="c11.html">C11</a> 호출·관리 화면: 콘솔의 알림 기록과 CLI <code>job run digest</code>를 제공합니다.</li>
-</ul>
-<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="architecture.html">구조</a></li><li><a href="glossary.html">용어</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c11.html">C11 호출·관리 화면</a></li><li><a href="status.html">현재 상태</a></li></ul></section>
+<section class="related"><h2 id="backlinks">이 페이지를 가리키는 문서</h2><ul class="chips"><li><a href="index.html">개요</a></li><li><a href="usage.html">사용 가이드</a></li><li><a href="glossary.html">용어</a></li><li><a href="c5.html">C5 문서 관리</a></li><li><a href="c6.html">C6 검토: 적용·거절·되돌리기</a></li><li><a href="c7.html">C7 예약 작업</a></li><li><a href="c9.html">C9 학습·Experience</a></li><li><a href="c10.html">C10 Gateway</a></li><li><a href="c12.html">C12 데일리 노트</a></li></ul></section>
 </article>
-<footer class="meta">원본 digest <code>6783e56d741088f3</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
+<footer class="meta">원본 digest <code>c32a17ba1d767976</code> · <a href="philosophy.html">위키 운용</a></footer></main></div>
 <script src="assets/search-index.js"></script><script src="assets/wiki.js"></script>
 </body>
 </html>

@@ -134,7 +134,10 @@ def start(owner) -> None:
 
     def watch():
         while not stop.is_set():
-            settle_runs(owner)
+            try:
+                settle_runs(owner)
+            except Exception:
+                log.exception("settling job runs failed")
             wake.wait(0.1)
             wake.clear()
         settle_runs(owner)

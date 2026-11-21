@@ -10,7 +10,7 @@ from typing import Any
 from .. import proposals, system_one
 from ..capabilities import Done, Registry
 from ..notes import FrontmatterEditor
-from ..policy import declared_looser_than_confidential, effective, strictest
+from ..policy import approved, effective, strictest
 from ..standardize import path_skip_reason
 from ..system_one import SystemOneUnavailable
 from ..util import digest, iso
@@ -95,7 +95,7 @@ def lifecycle_targets(owner) -> list[str]:
         targets.update(
             path for path, doc in docs.items()
             if (doc.type, doc.status) in JUDGMENTS and _eligible(doc) and doc.note_id not in duplicates
-            and system_one.may_send(doc.policy, "schedule") and not _is_reserved(reserved, path, doc.note_id)
+            and approved(doc.policy) and not _is_reserved(reserved, path, doc.note_id)
             and not _seen(owner, doc.note_id or path, doc.sha))
     return sorted(targets)
 
@@ -127,10 +127,8 @@ def attention(owner) -> list[dict[str, Any]]:
         if not doc.valid:
             result.append(_item("invalid_yaml", path, doc.title, paths=[path], detail="Invalid YAML or text encoding"))
         note = owner.vault.read(path)
-        if note is None or effective(note, owner.config.default_policy) == "deny":
+        if note is None or effective(note) == "deny":
             continue
-        if declared_looser_than_confidential(note):
-            result.append(_item("confidential_policy", path, doc.title, paths=[path], detail="Confidential note has a looser declared ai_policy"))
         if path.startswith(PROPOSALS_DIR + "/") and note.type == "proposal":
             proposal = proposals.parse(note)
             if proposal:
@@ -154,7 +152,8 @@ def attention(owner) -> list[dict[str, Any]]:
         if path and (path not in visible):
             continue
         result.append(_item("unknown", unknown["unknown_id"], "Unknown effect outcome", paths=[path] if path else [],
-                            detail=unknown.get("kind", "effect"), severity="alert", unknown_id=unknown["unknown_id"], unknown_kind=unknown.get("kind")))
+                            detail=unknown.get("kind", "effect"), severity="alert", unknown_id=unknown["unknown_id"],
+                            unknown_kind=unknown.get("kind"), unknown_ref=ref))
     for job in jobs_view(owner):
         status = job.get("last_outcome")
         if status in ("failed", "unknown", "unmet", "refused", "cancelled"):
@@ -189,8 +188,8 @@ def _judge(ctx, service, note, item, duplicates, reserved):
             or _is_reserved(reserved, note.path, note.note_id) or _seen(owner, identity, note.sha)):
         return None, None
     # The disclosure boundary: the note's current policy, at the strictest of admission and now.
-    policy = strictest([item["policy"], effective(current, owner.config.default_policy)])
-    if not system_one.may_send(policy, ctx.workspec["origin"]):
+    policy = strictest([item["policy"], effective(current)])
+    if not approved(policy):
         return None, None
     answers = service.decide(system_one.note_input(note, service.max_input_chars),
                              [system_one.predicate(rule.question, rule.instructions)],
@@ -238,8 +237,6 @@ def officer_step(ctx) -> dict[str, Any]:
 def check(ctx, artifact):
     seen = set()
     result = []
-    origin = ctx.workspec["origin"]
-    default_policy = ctx.owner.config.default_policy
     for entry in artifact["lifecycle"]:
         note = ctx.snapshot(entry["path"])
         ok = entry["path"] not in seen and note.sha == entry["preimage"]
@@ -247,7 +244,7 @@ def check(ctx, artifact):
             rule = JUDGMENTS.get((note.type, note.status))
             ok = (ok and rule is not None and entry.get("source") == "system_one" and
                   [(c["op"], c.get("key"), c.get("value")) for c in entry["changes"]] == [("set", "status", rule.target)] and
-                  system_one.may_send(effective(note, default_policy), origin))
+                  approved(effective(note)))
             reason = "System One status judgment on an admitted candidate; Owner proposes, the user decides"
         else:
             ok = ok and (note.type, note.status) in STATIC_RULES
@@ -263,7 +260,7 @@ def maintain_proposals(ctx) -> dict[str, list[str]]:
     docs = owner.index.refresh()
     for path in owner.vault.iter_paths(PROPOSALS_DIR):
         note = owner.vault.read(path)
-        if note is None or effective(note, owner.config.default_policy) == "deny":
+        if note is None or effective(note) == "deny":
             continue
         proposal = proposals.parse(note)
         if not proposal:

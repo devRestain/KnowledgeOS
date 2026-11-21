@@ -9,9 +9,10 @@ import asyncio
 import hashlib
 import itertools
 import threading
+import time
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,12 @@ from .capabilities import Done
 from .core_records import core_name
 from .temporal_workflow import ActionWorkflow, WorkWorkflow, topology
 from .util import digest
+
+# The Activity dispatch window, measured on this worker's monotonic clock. The Temporal
+# server's clock (a container VM after host sleep) can lag the host by minutes, so its
+# ``started_time`` is never compared with the host wall clock.
+_WINDOW = threading.local()
+WINDOW_MARGIN_SECONDS = 1.0
 
 
 def source_digest(distribution: str) -> str:
@@ -142,7 +149,13 @@ class TemporalRuntime:
 
     @activity.defn(name="knowledgeos.phase")
     def execute_phase(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self.engine.activity(payload)
+        timeout = activity.info().start_to_close_timeout
+        _WINDOW.deadline = (None if timeout is None
+                            else time.monotonic() + timeout.total_seconds() - WINDOW_MARGIN_SECONDS)
+        try:
+            return self.engine.activity(payload)
+        finally:
+            _WINDOW.deadline = None
 
     def pin(self, work_id: str) -> dict[str, Any]:
         def bind(work: dict[str, Any]) -> None:
@@ -218,10 +231,8 @@ class TemporalRuntime:
 
     def assert_activity_current(self) -> None:
         if activity.in_activity():
-            info = activity.info()
-            expired = (info.start_to_close_timeout is not None
-                       and datetime.now(UTC) >= info.started_time + info.start_to_close_timeout)
-            if activity.is_cancelled() or expired:
+            deadline = getattr(_WINDOW, "deadline", None)
+            if activity.is_cancelled() or (deadline is not None and time.monotonic() >= deadline):
                 raise RuntimeError("Activity dispatch window closed; stale effects/commits are fenced")
 
     def prepare_shutdown(self) -> None:

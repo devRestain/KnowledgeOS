@@ -35,7 +35,6 @@ class OwnerConfig:
     port: int = DEFAULT_PORT
     operation_id: str = OPERATION_ID
     instance_id: str = "knowledgeos-local"
-    default_policy: str = "ask"
     workers: int = 4
     settings: dict[str, dict[str, Any]] = field(default_factory=dict)
 
@@ -49,8 +48,6 @@ class OwnerConfig:
             for right, right_path in bound.items():
                 if left != right and (left_path == right_path or left_path.is_relative_to(right_path)):
                     raise ConfigError(f"{left} must not alias or nest inside {right}")
-        if self.default_policy not in ("remote_ok", "ask", "local_only"):
-            raise ConfigError(f"invalid default_policy {self.default_policy!r}")
 
     @property
     def endpoint(self) -> str:

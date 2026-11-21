@@ -14,7 +14,9 @@ Curation teammate (C1). For each target note, decide links and typed relations t
 
 ## Tools
 
-`work_context` (targets and candidate related notes), `read`, `search`, `related`, `feedback`, `submit_handoff`.
+`work_context` (targets and candidate related notes), `read`, `search`, `related`, `system_one`, `feedback`, `submit_handoff`.
+
+`system_one(handle, question, choices?)` asks a fast model one closed question about a note you read (for example, which relation property fits, with the six properties as `choices`). Its answer is advisory: decide from the content, never cite the answer, and expect `denied` for a note that is not `approve` and at most 10 requests per step.
 
 ## Method
 

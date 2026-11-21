@@ -21,13 +21,14 @@ import re
 from datetime import date, datetime, time
 from typing import Any
 
+from .. import role_questions
 from ..capabilities import Done, Registry, WorkDraft
 from ..engine import EffectContext, StepContext
 from ..evidence import Unavailable
 from ..notes import render_list, render_scalar
 from ..owner import Admission, Owner
-from ..policy import model_may_read, strictest
-from ..search import SearchIndex, role_filter
+from ..policy import strictest
+from ..search import SearchIndex
 from ..util import SEOUL, iso, new_uuid
 from ..vault import PROPOSALS_DIR, REPORTS_DIR, SYSTEM_ROOT, VaultPathError
 
@@ -77,6 +78,7 @@ def register(reg: Registry) -> None:
             "challenger": handoff_validator("challenger"),
             "synthesizer": validate_report,
         },
+        tools={"system_one": role_questions.ask},
         context=team_context,
         finish=finish,
     )
@@ -109,7 +111,7 @@ def admit(adm: Admission) -> WorkDraft | Done:
         params["question"] = adm.params["question"].strip()
         if not params["question"]:
             adm.refuse("the question is empty")
-        if not targets and not keyword_candidates(adm.owner, params["question"], adm.origin, 1):
+        if not targets and not keyword_candidates(adm.owner, params["question"], 1):
             return Done(
                 status="completed",
                 outcome={"mode": "ask", "covered": False, "report": None},
@@ -144,8 +146,6 @@ def _focal(adm: Admission, raw: str, digest: str | None) -> tuple[str, Any]:
     doc = adm.owner.index.refresh()[path]
     if doc.type in ("report", "proposal"):
         adm.refuse(f"{path}: a KnowledgeOS {doc.type} is not evidence until its type changes")
-    if not model_may_read(doc.policy, adm.origin, False):
-        adm.refuse(f"{path}: ai_policy {doc.policy} does not allow model roles in this Work")
     return path, doc
 
 
@@ -189,12 +189,11 @@ def terms(text: str) -> list[str]:
     return found[:12]
 
 
-def keyword_candidates(owner: Owner, text: str, origin: str, limit: int) -> list[tuple[str, list[str]]]:
-    """Notes matching any term, ranked by matched terms, within the model policy for ``origin``."""
-    allow = role_filter(origin, False)
+def keyword_candidates(owner: Owner, text: str, limit: int) -> list[tuple[str, list[str]]]:
+    """Notes matching any term, ranked by matched terms; role audience, approved notes only."""
     scores: dict[str, int] = {}
     for term in terms(text):
-        for hit in owner.index.keyword(term, audience="role", allow=allow, limit=50)["results"]:
+        for hit in owner.index.keyword(term, audience="role", limit=50)["results"]:
             scores[hit["path"]] = scores.get(hit["path"], 0) + 1
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
     return [(path, ["keyword"]) for path, _ in ranked[:limit]]
@@ -216,15 +215,14 @@ def _in_window(owner: Owner, path: str, mtime: float, window: dict[str, str]) ->
 def _review_candidates(ctx: StepContext, project: str, limit: int) -> list[tuple[str, list[str]]]:
     """Notes linked with the project or in its folder whose creation or change is in the window."""
     owner = ctx.owner
-    allow = role_filter(ctx.workspec["origin"], False)
     docs = owner.index.refresh()
     reasons: dict[str, list[str]] = {}
-    for hit in owner.index.related(project, audience="role", allow=allow, limit=100)["results"]:
+    for hit in owner.index.related(project, audience="role", limit=100)["results"]:
         reasons[hit["path"]] = list(hit.get("reasons", []))
     folder = project.rsplit("/", 1)[0] if "/" in project else None
     if folder:
         for path, doc in docs.items():
-            if path.startswith(folder + "/") and path != project and SearchIndex.visible(doc, "role", allow):
+            if path.startswith(folder + "/") and path != project and SearchIndex.visible(doc, "role"):
                 reasons.setdefault(path, []).append("project_folder")
     window = ctx.params["window"]
     chosen = [
@@ -253,15 +251,13 @@ def retriever(ctx: StepContext) -> dict[str, Any]:
         found = _review_candidates(ctx, focal, limit)
         artifact["window"] = ctx.params["window"]
     else:
-        allow = role_filter(ctx.workspec["origin"], False)
         ranked: dict[str, list[str]] = {}
         if focal is not None:
-            for hit in ctx.owner.index.related(focal, audience="role", allow=allow, limit=limit * 2,
-                                               system_one=ctx.owner.system_one,
-                                               origin=ctx.workspec["origin"])["results"]:
+            for hit in ctx.owner.index.related(focal, audience="role", limit=limit * 2,
+                                               system_one=ctx.owner.system_one)["results"]:
                 ranked[hit["path"]] = list(hit.get("reasons", []))
         text = ctx.params["question"] if ctx.mode == "ask" else inputs[0]["title"]
-        for path, why in keyword_candidates(ctx.owner, text, ctx.workspec["origin"], limit * 2):
+        for path, why in keyword_candidates(ctx.owner, text, limit * 2):
             ranked.setdefault(path, []).extend(why)
         found = list(ranked.items())
         if ctx.mode == "ask":

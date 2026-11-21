@@ -108,7 +108,7 @@ class VaultBuilder:
         }
 
 
-def conforming_note(note_type: str, status: str, body: str = "Body.\n", extra: str = "", policy: str = "ask") -> str:
+def conforming_note(note_type: str, status: str, body: str = "Body.\n", extra: str = "", policy: str = "approve") -> str:
     """A note whose frontmatter already satisfies standardization."""
     return (
         f"---\nid: {uuid.uuid4()}\ntype: {note_type}\ncreated: 2026-11-01T09:00:00+09:00\n"

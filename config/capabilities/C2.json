@@ -57,7 +57,7 @@
     },
     "std.decisions_grounded": {
       "runtime": "static",
-      "text": "Every System One value is an offered value of a rule-9 field, equals an accepted answer at or above the recorded confidence threshold, and belongs to a note whose policy allows remote model use for the Work origin"
+      "text": "Every System One value is an offered value of a rule-9 field, equals an accepted answer at or above the recorded confidence threshold, and belongs to a note whose admitted policy is approve"
     }
   },
   "settings": {"quiet_period_minutes": 10}

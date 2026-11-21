@@ -13,7 +13,7 @@
   },
   "modes": {"intake": {"criteria": ["gateway.capture_valid"]}},
   "criteria": {
-    "gateway.capture_valid": {"runtime": "static", "text": "The new capture preserves the submitted text, sender provenance and Owner default policy"}
+    "gateway.capture_valid": {"runtime": "static", "text": "The new capture preserves the submitted text and sender provenance, with ai_policy approve"}
   },
   "settings": {"authorized_operations": {}}
 }

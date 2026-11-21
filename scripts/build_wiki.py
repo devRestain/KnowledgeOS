@@ -43,7 +43,7 @@ DOC_TITLES = {
     "BLUEPRINT": "Blueprint",
     "README": "README",
 }
-CAPS = [f"C{n}" for n in range(1, 12)]
+CAPS = [f"C{n}" for n in range(1, 13)]
 GROUPS = [
     ("시작하기", ["index", "philosophy", "usage"]),
     ("구조", ["architecture", "glossary"]),
@@ -218,7 +218,7 @@ def load_data() -> Data:
             acceptance[current].append((match.group(1), match.group(2)))
             acc_cap[match.group(1)] = current
     if sorted(acceptance, key=lambda c: int(c[1:])) != CAPS:
-        raise BuildError(f"CAPABILITIES sections {sorted(acceptance)} are not C1..C11")
+        raise BuildError(f"CAPABILITIES sections {sorted(acceptance)} are not C1..C12")
 
     trace: dict[str, tuple[list[str], list[str]]] = {}
     for line in texts["TRACE"].split("\n"):

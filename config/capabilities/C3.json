@@ -21,7 +21,7 @@
   "criteria": {
     "idx.eligible_only": {
       "runtime": "static",
-      "text": "Every planned note is an admitted snapshot that is eligible for embedding (ai_policy other than deny, outside 99_System/, not a proposal, no merge-conflict markers), and no planned note is also listed for removal"
+      "text": "Every planned note is an admitted snapshot that is eligible for embedding (effective ai_policy approve, outside 99_System/, not a proposal, no merge-conflict markers), and no planned note is also listed for removal"
     },
     "idx.chunks_cover_body": {
       "runtime": "static",

@@ -49,7 +49,6 @@ class RoleBinding:
     role: str
     profile: str
     model_route: str | None
-    local: bool
     tools: tuple[str, ...]
     submission_tool: str | None
 
@@ -73,7 +72,6 @@ def binding(
         role=role,
         profile=declared["profile"],
         model_route=declared.get("model_route"),
-        local=bool(declared.get("local", False)),
         tools=tuple(declared.get("tools", ())),
         submission_tool=submission,
     )
@@ -214,6 +212,13 @@ class ScriptedRunner:
             return [entry for entry in self.invocations if role is None or entry["role"] == role]
 
 
+DESCRIPTIONS = {
+    "system_one": "Ask a fast model one closed question about a note read in this Work (handle). With choices "
+                  "it picks one of them; without choices it gives a yes/no probability. The classifier may omit "
+                  "question for a target's type/status suggestion. Advisory only; at most 10 requests per step.",
+}
+
+
 def tool_manifest(session: RoleSession) -> list[dict[str, Any]]:
     """Stable schemas: the binding chooses the tool names; the Owner chooses the Work."""
     result = []
@@ -223,7 +228,7 @@ def tool_manifest(session: RoleSession) -> list[dict[str, Any]]:
         if name.startswith("submit_"):
             properties = {"payload": {"type": "object"}}
             required = ["payload"]
-        elif name in ("read", "related"):
+        elif name in ("read", "related", "system_one"):
             properties = {"handle": {"type": "string"}}
             required = ["handle"]
         elif name == "search":
@@ -231,9 +236,13 @@ def tool_manifest(session: RoleSession) -> list[dict[str, Any]]:
             required = ["query"]
         if name in ("search", "related"):
             properties["limit"] = {"type": "integer", "minimum": 1, "maximum": 20}
+        if name == "system_one":
+            properties["question"] = {"type": "string", "maxLength": 300}
+            properties["choices"] = {"type": "array", "items": {"type": "string", "maxLength": 100},
+                                     "minItems": 2, "maxItems": 10}
         result.append({
             "name": name,
-            "description": f"{name.replace('_', ' ')} for this bound {session.role} step.",
+            "description": DESCRIPTIONS.get(name, f"{name.replace('_', ' ')} for this bound {session.role} step."),
             "inputSchema": {"type": "object", "properties": properties, "required": required,
                             "additionalProperties": False},
         })

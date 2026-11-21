@@ -4,11 +4,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from test_hermes_adapter import cli_call, fake_calls, fake_config, make_fake
 
-from knowledgeos.config import ROOT, load
-from knowledgeos.hermes import host_from_config
+from knowledgeos.config import ROOT, ConfigError, load
+from knowledgeos.hermes import host_from_config, role_files
 from knowledgeos.roles import HermesRunner, binding
 
 
@@ -18,7 +19,10 @@ def test_LRN_2_classifier_skill_update_leaves_other_profiles_unchanged(tmp_path,
     code, output, error = cli_call("install", "profiles", "--config", str(config_file))
     assert code == 0, (output, error)
     report = json.loads(output)
-    assert all(entry["credential"] == "needs credential" for entry in report["profiles"])
+    assert {entry["role"]: entry["credential"] for entry in report["profiles"]} == {
+        role: "needs credential"
+        for role in json.loads((ROOT / "config/roles.json").read_text())["roles"]
+    }
     config = load(config_file)
     runner = HermesRunner(host_from_config(config), config.runtime)
     kos = make_kos(runner=runner)
@@ -62,7 +66,16 @@ def test_LRN_2_profiles_pin_routes_tools_and_learning_without_credentials(tmp_pa
         home = Path(config.settings["hermes"]["home"]) / "profiles" / declared["profile"]
         settings = yaml.safe_load((home / "config.yaml").read_text())
         provider, model = declared["model_route"].split("/", 1)
-        assert settings["model"] == {"provider": provider, "default": model}, role
+        expected_model = {"provider": provider, "default": model}
+        expected_model.update({key: declared[key] for key in ("base_url", "ollama_num_ctx") if key in declared})
+        assert settings["model"] == expected_model, role
+        assert settings["agent"]["reasoning_effort"] == declared["reasoning_effort"]
+        if role == "classifier":
+            assert settings["model"] == {"provider": "openai-codex", "default": "gpt-6.1-terra"}
+            assert settings["agent"]["reasoning_effort"] == "high"
+        elif role in ("challenger", "synthesizer"):
+            assert (provider, model) == ("openai-codex", "gpt-6.1-sol")
+            assert settings["agent"]["reasoning_effort"] == "high"
         assert settings["fallback_providers"] == []
         assert settings["agent"]["auto_recovery_cycles"] == 0
         assert set(settings["agent"]["disabled_toolsets"]) == disabled
@@ -75,3 +88,13 @@ def test_LRN_2_profiles_pin_routes_tools_and_learning_without_credentials(tmp_pa
         manifest = yaml.safe_load((home / "distribution.yaml").read_text())
         assert "skills" not in manifest["distribution_owned"]
         assert "memories" not in manifest["distribution_owned"]
+
+
+@pytest.mark.parametrize("effort", ["urgent", "", 7])
+def test_profile_generation_rejects_invalid_reasoning_effort(tmp_path, vault, effort):
+    binary = make_fake(tmp_path)
+    config = load(fake_config(tmp_path, binary, vault.root))
+    document = json.loads((ROOT / "config/roles.json").read_text())
+    declared = {**document["roles"]["classifier"], "reasoning_effort": effort}
+    with pytest.raises(ConfigError, match="reasoning_effort"):
+        role_files(config, "classifier", declared, "")

@@ -41,10 +41,10 @@ def test_DOC_5_system_one_proposes_status_changes_for_sendable_notes_only(make_k
     kos = kos_with_system_one(make_kos, decisions, tmp_path)
     judge(decisions)
     question = conforming_note("question", "open", body="Why is the sky blue?\n\nRAYLEIGH-ANSWER: scattering.\n",
-                               policy="remote_ok")
+                               policy="approve")
     vault.write(ANSWERED, question)
     vault.write(PRIVATE, conforming_note("question", "open", body=f"Why? {SECRET}. RAYLEIGH-ANSWER\n", policy="ask"))
-    vault.write(ALIVE, conforming_note("idea", "seed", body="Still exploring this.\n", policy="remote_ok"))
+    vault.write(ALIVE, conforming_note("idea", "seed", body="Still exploring this.\n", policy="approve"))
     before = {path: vault.read(path) for path in (ANSWERED, PRIVATE, ALIVE)}
 
     first = digest(kos)
@@ -71,7 +71,7 @@ def test_DOC_5_system_one_proposes_status_changes_for_sendable_notes_only(make_k
     assert second["outcome"]["proposals"] == []
     assert vault.snapshot() == snapshot
 
-    vault.write(ALIVE, conforming_note("idea", "seed", body="Edited since.\n", policy="remote_ok"))
+    vault.write(ALIVE, conforming_note("idea", "seed", body="Edited since.\n", policy="approve"))
     digest(kos)
     assert len(decisions.calls) == asked + 1
     assert proposal_paths(vault) == [path]
@@ -83,8 +83,8 @@ def test_DOC_5_project_and_idea_judgments_become_proposals_and_open_proposals_re
     decisions.predict("finished", 0.9)
     decisions.predict("abandoned", 0.4)
     decisions.predict("answered", 0.05)
-    vault.write("20_Projects/Shipped/Shipped.md", conforming_note("project", "active", policy="remote_ok"))
-    vault.write(ALIVE, conforming_note("idea", "mature", policy="remote_ok"))
+    vault.write("20_Projects/Shipped/Shipped.md", conforming_note("project", "active", policy="approve"))
+    vault.write(ALIVE, conforming_note("idea", "mature", policy="approve"))
     digest(kos)
     [path] = proposal_paths(vault)
     proposal = parse_proposal(parse(path, vault.read(path)))
@@ -92,7 +92,7 @@ def test_DOC_5_project_and_idea_judgments_become_proposals_and_open_proposals_re
     assert [(c.get("key"), c.get("value")) for c in proposal.changes] == [("status", "done")]
 
     # The open proposal reserves its target: a changed note is not asked about or proposed again.
-    edited = conforming_note("project", "active", body="Changed.\n", policy="remote_ok")
+    edited = conforming_note("project", "active", body="Changed.\n", policy="approve")
     vault.write("20_Projects/Shipped/Shipped.md", edited)
     asked = len(decisions.calls)
     digest(kos)
@@ -103,8 +103,8 @@ def test_DOC_5_unavailable_system_one_leaves_static_proposals_and_asks_again_lat
         make_kos, vault, decisions, tmp_path):
     kos = kos_with_system_one(make_kos, decisions, tmp_path)
     judge(decisions)
-    vault.write(DONE, conforming_note("project", "done", policy="remote_ok"))
-    vault.write(ANSWERED, conforming_note("question", "open", body="RAYLEIGH-ANSWER\n", policy="remote_ok"))
+    vault.write(DONE, conforming_note("project", "done", policy="approve"))
+    vault.write(ANSWERED, conforming_note("question", "open", body="RAYLEIGH-ANSWER\n", policy="approve"))
     decisions.down = True
     receipt = digest(kos)
     [path] = proposal_paths(vault)
@@ -123,6 +123,6 @@ def test_DOC_5_unavailable_system_one_leaves_static_proposals_and_asks_again_lat
 
 def test_DOC_5_unconfigured_system_one_changes_nothing(make_kos, vault):
     kos = make_kos()
-    vault.write(ANSWERED, conforming_note("question", "open", body="RAYLEIGH-ANSWER\n", policy="remote_ok"))
+    vault.write(ANSWERED, conforming_note("question", "open", body="RAYLEIGH-ANSWER\n", policy="approve"))
     digest(kos)
     assert proposal_paths(vault) == []

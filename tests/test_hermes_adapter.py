@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,7 @@ from knowledgeos import cli
 from knowledgeos.config import ROOT, load
 from knowledgeos.hermes import SendNotifier, host_from_config
 from knowledgeos.roles import HermesRunner
+from knowledgeos.util import iso
 
 
 # Written into tmp_path as a Python executable, also shared by the profile/CLI tests.
@@ -246,7 +248,8 @@ def test_ENH_1_hermes_acp_submits_through_real_mcp_and_bound_owner(tmp_path, vau
     work = kos.get(f"/api/works/{receipt['work_id']}")[1]
     step = next(step for step in work["segments"][0]["steps"] if step["role"] == "synthesizer")
     assert step["invocation"]["profile"] == "kos-synthesizer"
-    assert step["invocation"]["model_route"] == "openai-codex/gpt-6.1-terra"
+    declared = json.loads((ROOT / "config/roles.json").read_text())["roles"]["synthesizer"]
+    assert step["invocation"]["model_route"] == declared["model_route"]
     assert len(step["invocation"]["skill_digest"]) == 64
     starts = [row for row in fake_calls(binary, "start") if row["argv"][-1:] == ["acp"]]
     assert len(starts) == 4  # graph, report, independent evaluation, TeamReview
@@ -302,7 +305,8 @@ def test_SUR_4_role_tools_keep_exops_loopback_json_checks(kos):
     (1, None, "lost receipt", "unknown"),
     (2, {"error": "usage"}, None, "unknown"),
 ])
-def test_NTF_3_hermes_send_maps_receipts_without_retry(tmp_path, vault, make_kos, code, payload, raw, expected):
+def test_NTF_3_hermes_send_maps_receipts_without_retry(
+        tmp_path, vault, make_kos, clock, code, payload, raw, expected):
     binary = make_fake(tmp_path)
     response = {"code": code, "payload": payload}
     if raw is not None:
@@ -311,6 +315,9 @@ def test_NTF_3_hermes_send_maps_receipts_without_retry(tmp_path, vault, make_kos
     config = load(fake_config(tmp_path, binary, vault.root))
     notifier = SendNotifier(host_from_config(config), "123456789")
     kos = make_kos(notifier=notifier)
+    text = conforming_note("capture", "unprocessed").replace(
+        "2026-11-01T09:00:00+09:00", iso(clock.now() - timedelta(days=4)))
+    vault.write("00_Inbox/Review me.md", text, age=timedelta(days=4))
     receipt = kos.run("digest.run", {}, actor="schedule/digest")
     assert receipt["status"] == "completed", receipt
     notice = next(row for row in kos.get("/api/notices")[1] if row["notice_id"] == receipt["outcome"]["notice_id"])
@@ -393,6 +400,14 @@ def test_CRED_1_credential_is_local_borrowed_or_missing_by_key_presence(tmp_path
         assert credential(profile, **args) == "needs credential"
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost"])
+def test_loopback_model_credentials_are_not_required(tmp_path, host):
+    from knowledgeos.hermes import credential
+
+    assert credential(tmp_path / "missing-profile", provider="custom",
+                      base_url=f"http://{host}:11434/v1") == "not required"
+
+
 def test_CRED_1_kos_ops_discord_env_is_local_and_never_borrowed(tmp_path):
     from knowledgeos.hermes import credential
 
@@ -413,15 +428,17 @@ def test_CRED_1_install_and_roles_report_borrowed_root_pool(tmp_path, vault):
     assert code == 0, (output, error)
     assert "fake-not-a-token" not in output
     report = json.loads(output)
-    assert report["profiles"] and all(entry["credential"] == "borrowed" for entry in report["profiles"])
+    expected = {entry["profile"]: "borrowed" for entry in report["profiles"]}
+    assert {entry["profile"]: entry["credential"] for entry in report["profiles"]} == expected
     config = load(config_file)
     runner = HermesRunner(host_from_config(config), config.runtime)
     profiles = [entry["profile"] for entry in report["profiles"]]
     # HermesRunner.profile_state is the source of GET /api/roles per-role state.
-    assert all(runner.profile_state(profile)["credential"] == "borrowed" for profile in profiles)
+    assert {profile: runner.profile_state(profile)["credential"] for profile in profiles} == expected
     # One profile-local login shadows root for that role only; removing root leaves the rest missing.
-    write_auth(home / "profiles" / "kos-classifier", {"credential_pool": {"openai-codex": [{"id": "local"}]}})
+    write_auth(home / "profiles" / "kos-linker", {"credential_pool": {"openai-codex": [{"id": "local"}]}})
     (home / "auth.json").unlink()
     after = {profile: runner.profile_state(profile)["credential"] for profile in profiles}
-    assert after.pop("kos-classifier") == "present"
+    assert after.pop("kos-linker") == "present"
+    assert after.pop("kos-classifier") == "needs credential"
     assert set(after.values()) == {"needs credential"}

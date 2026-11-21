@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import threading
 import time
+from datetime import timedelta
 
 from conftest import conforming_note, enhance_scripts, evaluator_script, manager_script
+from temporalio import activity
 from temporalio.client import Client
 
 from knowledgeos.roles import RoleOutcomeUnknown
+from knowledgeos.util import iso
 
 IDEA = "40_Knowledge/Ideas/Restartable idea.md"
 REPORTS = "01_AI_Review/Reports"
@@ -71,6 +75,19 @@ def test_runtime_different_state_roots_use_isolated_stable_queues(make_kos, vaul
         observation = temporal_description(kos, receipt["work_id"], temporal_settings)
         queues.append(observation.task_queue)
     assert queues[0] != queues[1]
+
+
+def test_runtime_server_clock_lag_keeps_the_activity_window_open(make_kos, vault, monkeypatch):
+    # A Temporal server in a VM whose clock lags the host (after host sleep) reports a started_time
+    # minutes in the past; the dispatch window is still measured on the worker's own clock.
+    real_info = activity.info
+    monkeypatch.setattr(activity, "info", lambda: dataclasses.replace(
+        real_info(), started_time=real_info().started_time - timedelta(minutes=20)))
+    vault.write("00_Inbox/Lagging server.md", "A capture without frontmatter.\n")
+    kos = make_kos()
+    receipt = kos.run("standardize.batch", {"path": "00_Inbox/Lagging server.md", "apply": True})
+    assert receipt["status"] == "completed", receipt
+    assert vault.text("00_Inbox/Lagging server.md").startswith("---\nid: ")
 
 
 def test_runtime_running_work_reattaches_without_duplicate_report_or_review(make_kos, vault, runner, temporal_settings):
@@ -184,13 +201,17 @@ def test_runtime_unknown_model_result_is_retained_without_reinvocation(make_kos,
                for row in unknowns)
 
 
-def test_runtime_unknown_external_delivery_is_not_replayed_on_restart(make_kos):
+def test_runtime_unknown_external_delivery_is_not_replayed_on_restart(make_kos, vault, clock):
     deliveries = []
 
     def lost_response(notice):
         deliveries.append(notice["notice_id"])
         raise OSError("delivery response lost after dispatch")
 
+    # The digest posts only when something is actionable: an unprocessed capture four days old.
+    created = iso(clock.now() - timedelta(days=4))
+    vault.write("00_Inbox/Old capture.md", conforming_note("capture", "unprocessed").replace(
+        "2026-11-01T09:00:00+09:00", created), age=timedelta(days=4))
     kos = make_kos(notifier=lost_response)
     request_id = "lost-delivery-response"
     status, receipt = kos.submit("digest.run", {}, actor="schedule/digest", request_id=request_id)

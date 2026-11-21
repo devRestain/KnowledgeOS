@@ -8,10 +8,10 @@ KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 
 
 | 문서 | 내용 |
 |---|---|
-| [KnowledgeOS 위키](docs/wiki/index.html) | 기능·목적·사용법·현황·후속 과제를 쉽게 풀어 쓴 정적 HTML 위키 (원본 문서에서 생성) |
+| [KnowledgeOS 위키](docs/wiki/index.html) | 코드를 읽지 않고 실제 기능의 처리 흐름·Hermes Profile·Graph·Temporal 연결을 이해하는 한국어 구현 해설 |
 | [기능 명세](docs/CAPABILITIES.md) | 최상위 기준: 기능별 동작, 인수 시나리오, 구현 순서 |
 | [기능 추적표](docs/CAPABILITY_TRACE.md) | 인수 ID마다 구현 위치와 pytest 노드 |
-| [사용자 기능 명세](USER_FEATURE_SPEC.md) | 지키는 약속, 다섯 기능, Obsidian·관리·모바일 사용 흐름 |
+| [사용자 기능 명세](USER_FEATURE_SPEC.md) | 지키는 약속, 여섯 기능, Obsidian·관리·모바일 사용 흐름 |
 | [Blueprint](OBSIDIAN_VAULT_BLUEPRINT.md) | 화면 분담, 역할 조직, Vault 계약, 효과 규칙, Core 준수 |
 | [온톨로지 공간](Ontology/README.md) | 도메인 용어·관계 작성 공간 |
 | [PROJECT_STATE.md](PROJECT_STATE.md) | 진행 상태와 검증 근거 |
@@ -21,7 +21,7 @@ KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 
 | 위치 | 내용 |
 |---|---|
 | `src/knowledgeos/` | Owner(접수·State·효과), ExOps HTTP, Vault 경계, 검색, 규격화, 제안, 역할 실행, Temporal·LangGraph 런타임, Hermes 어댑터, InterOps 송신, CLI |
-| `src/knowledgeos/capabilities/` | C1–C11 기능 모듈 |
+| `src/knowledgeos/capabilities/` | C1–C12 기능 모듈 |
 | `config/` | 기능 카탈로그, 역할·모델 경로(`roles.json`), 예약 작업(`jobs.json`), Core 채택 고정값(`core-adoption.json`) |
 | `roles/` | 역할별 Hermes profile의 공통 지침과 SOUL |
 | `frontend/` | 관리 콘솔(브라우저) |
@@ -52,11 +52,13 @@ make wiki-check                  # 위키가 원본과 일치하고 링크가 �
 
 모든 개발 세션은 바뀐 범위에 맞춰 원본 문서와 위키 설명을 함께 갱신합니다. 끝내기 전에 `make wiki`로 위키를 다시 만들고, `make wiki-check`를 통과시킨 뒤, 바뀐 페이지를 브라우저로 열어 확인합니다. 설명 문장은 `docs/wiki/_source/`에서만 고치고, 생성된 HTML은 직접 고치지 않습니다. 위키를 갱신하다 명세 문서끼리 어긋나는 곳을 발견하면, 위키에 경고만 남기지 말고 같은 세션에서 우선순위가 낮은 문서(Blueprint, 사용자 기능 명세)를 고칩니다.
 
+위키의 독자는 설계 원칙을 이미 알고 있는 소유자입니다. [작성 철학](docs/wiki/philosophy.html)에 따라 실제 입력에서 결과까지의 구현 선택을 자연어로 설명하고, 공통 원칙·영문 명세·검증 이력을 기능마다 반복하지 않습니다. 처리 순서와 기본값은 현재 코드·설정으로 확인하며, 구현 근거와 실제 실행 관찰을 구별합니다.
+
 ### 모바일에서 위키 읽기
 
 위키는 휴대폰 브라우저에서도 읽을 수 있습니다. 좁은 화면에서는 검색창이 별도 줄을 쓰고 본문은 화면 폭에 맞춥니다. 넓은 표·코드는 영역 안에서 가로 스크롤하며, 그림은 **그림 크게 보기 / 그림 전체 보기**로 전환합니다.
 
-접속 경로는 **정적 위키 전용 비공개 HTTPS + Tailscale Serve**를 권장합니다. Mac이 켜져 있어야 하며 접근 규칙을 본인 기기로 제한해야 합니다. 배포·네트워크 설정은 변경하지 않습니다. 다른 선택지, 배포 파일 범위와 원문 링크의 한계는 [위키 운용 원칙](docs/wiki/philosophy.html)에 있습니다. Owner·관리 콘솔의 원격 노출은 포함하지 않습니다.
+접속 경로는 **정적 위키 전용 비공개 HTTPS + Tailscale Serve**를 권장합니다. Mac이 켜져 있어야 하며 접근 규칙을 본인 기기로 제한해야 합니다. 배포·네트워크 설정은 변경하지 않습니다. 배포 파일 범위와 원문 링크의 한계는 [위키 작성 철학의 정적 배포 안내](docs/wiki/philosophy.html#휴대폰과-정적-배포)에 있습니다. Owner·관리 콘솔의 원격 노출은 포함하지 않습니다.
 
 ### 기능 검증과 Owner 실행
 
@@ -72,7 +74,7 @@ Owner 실행과 유지보수 CLI(`python -m knowledgeos.cli` 또는 설치된 `k
 knowledgeos serve --config owner.json          # Owner와 ExOps 백엔드, 관리 콘솔
 knowledgeos health | vault-check | index rebuild|verify|embed
 knowledgeos standardize PATH --dry-run|--apply
-knowledgeos job run standardize|embed|curate|digest  # 실행 결과 영수증까지 따라가 보고
+knowledgeos job run standardize|embed|curate|daily|digest  # 실행 결과 영수증까지 따라가 보고
 knowledgeos reconcile UNKNOWN_ID --resolution applied|not_applied --yes
 knowledgeos install profiles --config owner.json [--dry-run]  # Hermes 역할 profile과 발송 전용 kos-ops profile 설치
 knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgent 등록(--label, --plist 선택)
@@ -89,7 +91,17 @@ knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgen
 }
 ```
 
+`ai_policy`는 `approve`(기본)와 `deny` 두 값입니다. 빠졌거나 비면 `approve`, 퇴역값을 포함한 알 수 없는 값은 `deny`입니다. `approve`만 모든 자동화·모델·예약 작업에 쓰며, 보고서가 아닌 허용 노트만 승인된 수신자에게 Gateway로 내보냅니다. `sensitivity: confidential`은 이 허용 여부를 바꾸지 않습니다. 정책 결정은 사용자만 하며, KnowledgeOS는 C2 규칙 6의 빠진 값 기본 `approve`와 새로 생성하는 노트의 기본·상속 정책만 씁니다.
+
+역할의 모델 설정은 `config/roles.json`에서 관리합니다. `classifier`·`linker`·`connector`는 `openai-codex/gpt-6.1-terra`, Director·Manager·EvalOfficer·`challenger`·`synthesizer`는 `openai-codex/gpt-6.1-sol`을 씁니다. 모든 모델 역할의 `reasoning_effort`는 `high`이며, profile 생성 시 `agent` 아래에 씁니다. `classifier`에는 로컬 `base_url`·`ollama_num_ctx`나 대체 모델을 두지 않습니다.
+
+모델 단계 하나는 Temporal Activity 하나 안에서 끝나야 합니다. 기본 Activity 시간(`settings.runtime.activity_timeout_seconds`)은 120초이며, 실제 호스트 `owner.json`은 이 값을 600초로 설정합니다.
+
 예약 작업은 Owner가 켜져 있는 동안 Owner 안에서만 실행됩니다. Owner가 시작되고 `startup_delay_minutes`(기본 3분)가 지나면 꺼져 있는 동안 놓친 작업을 한 번씩 실행하고, 이후에는 정해진 시각에 실행합니다. `settings.C7`의 `scheduler_enabled`(기본 true)·`startup_delay_minutes`·`tick_seconds`(기본 30)로 조정합니다.
+
+`daily`는 매일 07:00 이전 날짜의 허용된 미완료 일정·할 일을 오늘의 `10_Journal/Daily/YYYY-MM-DD.md`로 인계하고, 원본 항목의 체크박스만 `[>]`로 표시합니다. 오늘 노트의 기존 줄은 보존하며, 없는 날만 `ai_policy: approve`로 메모·할 일·일정·하루 정리 네 구역의 노트를 만듭니다. 데일리 노트에는 AI 제안을 만들지 않습니다. 알릴 할 일이 있으면 하루 한 번 Discord 할 일 알림을 보내며, 현재 `approve` 노트의 할 일 이름만 날짜·메타데이터·링크 없이 공개합니다.
+
+Discord 즉시 알림은 충돌·해결되지 않은 효과의 결과 불명만 보냅니다. 실패·차단·놓친 작업은 즉시 알리지 않습니다. 08:00 `digest`는 제안·새 보고서·오래된 포착·확인 대기·주의 항목 등 확인할 것이 있을 때만 보내며, 자동 규격화 내역이나 다시 볼 노트·실패 작업만으로는 보내지 않습니다. 실패 작업 이름은 다른 확인거리가 있는 요약에만 한 줄로 덧붙입니다.
 
 의미 검색은 로컬 Ollama 임베딩과 State의 벡터 색인(`<State>/semantic/`)을 씁니다. Owner가 loopback HTTP로 Ollama를 직접 호출하며(loopback이 아닌 주소는 설정 오류), 게이트웨이나 원격 모델은 쓰지 않습니다. 기본값은 아래와 같고 `settings.C3.semantic`으로 바꿉니다(그 밖에 `batch_size`, `timeout_seconds`, `max_notes`, `related_neighbors`, `related_min_score`, System One 관련 노트 거르기 기준 `related_min_probability`). `ollama_url`이나 `model`을 비우면 의미 검색을 쓰지 않습니다.
 
@@ -97,11 +109,11 @@ knowledgeos install service --config owner.json [--dry-run]   # Owner LaunchAgen
 "settings": {"C3": {"semantic": {"ollama_url": "http://127.0.0.1:11434", "model": "qwen3-embedding:8b-q4_K_M"}}}
 ```
 
-- 예약 작업 `embed`(매시 30분)와 `knowledgeos index embed`(남은 노트가 없을 때까지 반복)가 같은 `index.embed` 요청을 처리합니다. 새 노트와 내용이 바뀐 노트만 임베딩하고, 삭제·이름 변경으로 사라졌거나 `deny`·제안(`type: proposal`)·`99_System/`·충돌 표시 때문에 대상이 아니게 된 노트의 벡터는 지웁니다. `local_only`·`confidential`·보고서 노트는 로컬 처리이므로 임베딩합니다.
+- 예약 작업 `embed`(매시 30분)와 `knowledgeos index embed`(남은 노트가 없을 때까지 반복)가 같은 `index.embed` 요청을 처리합니다. 새 노트와 내용이 바뀐 `approve` 노트만 임베딩하고, 삭제·이름 변경으로 사라졌거나 정책 거부·제안(`type: proposal`)·`99_System/`·충돌 표시 때문에 대상이 아니게 된 노트의 벡터는 지웁니다. `approve`이면 `confidential`·보고서 노트도 임베딩합니다.
 - 아직 임베딩되지 않았거나 수정된 노트는 다음 임베딩까지 의미 검색·관련 노트 결과에서 빠집니다. 모델을 바꾸면 다음 실행에서 모든 벡터를 새로 만들고, 그 전까지 의미 검색은 `unavailable`입니다. Ollama가 꺼져 있으면 작업이 실패로 남고(재시도 없음) 기존 벡터는 그대로 유지됩니다.
 - `knowledgeos index verify`의 `semantic`과 `GET /api/health`의 `search_semantic`으로 준비 상태와 범위(대상·임베딩·오래됨·누락 수)를 확인합니다.
 
-System One은 OpenAI Decisions API(`gpt-6-luna`)에 선택형 질문을 보내는 Owner 서비스입니다. 규격화 규칙 9(폴더로 못 정하는 `type`, 잘못된 `status`·`confidence`, 빠지거나 잘못된 `capture_kind`), 정리 `scout` 힌트, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 씁니다. `ai_policy`·`sensitivity`는 묻지 않고, 예약 작업은 `remote_ok` 노트만 보냅니다. API 키는 Git·Vault 밖의 0600 파일에 두고 경로만 설정합니다.
+System One은 OpenAI Decisions API(`gpt-6-luna`)에 선택형 질문을 보내는 Owner 서비스입니다. 규격화 규칙 9(폴더로 못 정하는 `type`, 잘못된 `status`·`confidence`, 빠지거나 잘못된 `capture_kind`), 모델 teammate(`classifier`·`linker`·`connector`·`challenger`·`synthesizer`)의 `system_one(handle, question, choices?)` 도구, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 씁니다. 도구는 그 Work에서 읽은 노트에 대해 선택지 하나를 고르거나 예/아니오 확률을 묻고, step마다 10번까지 보냅니다. `classifier`가 `question` 없이 대상 핸들로 부르면 type/status 제안이며 대상마다 Work에 기록해 재사용합니다. Director·Manager·EvalOfficer에는 이 도구가 없습니다. 답은 조언일 뿐이고 Owner가 어디에도 쓰지 않습니다. `ai_policy`·`sensitivity`는 묻지 않고, 출처와 관계없이 현재 `approve` 노트만 보냅니다. API 키는 Git·Vault 밖의 0600 파일에 두고 경로만 설정합니다.
 
 ```json
 "settings": {"system_one": {"api_key_file": "/path/to/States/System/OpenAI/knowledgeos-decisions.key"}}

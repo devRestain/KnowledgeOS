@@ -1,182 +1,110 @@
-# 구조: 누가 무엇을 맡는가
+# 실행 구조: 요청에서 파일이 만들어지기까지
 
-KnowledgeOS의 설계는 한 문장으로 줄일 수 있습니다. **"모든 객체는 서로 겹치지 않는 책임 하나만 맡는다."** 어떤 일이 두 객체에 걸쳐 보이면 그것은 설계 결함이고, 명세를 고쳐야 합니다(Blueprint §4.1). 이 페이지는 그 책임 지도를 위에서부터 풀어 줍니다. 용어가 낯설면 [[glossary]]를 함께 여세요.
+KnowledgeOS는 버튼마다 별도 에이전트 앱을 띄우는 구조가 아닙니다. **하나의 Owner 프로세스가 요청을 받고, 오래 걸리는 작업은 Temporal에 맡기며, 모델이 필요한 단계에서만 해당 Hermes Profile을 호출합니다.** 이 페이지는 기능 설명에 공통으로 등장하는 실행 장치를 연결합니다.
 
-## 한눈에 보기
+## 요청이 들어왔다고 모두 Graph가 도는 것은 아닙니다
 
-{{svg:system-map}}
+사이드바의 “관련 노트 찾기”와 “정리 요청”은 서로 다른 길을 갑니다. 앞의 요청은 검색 서비스가 후보를 골라 바로 돌려줍니다. 뒤의 요청은 입력 노트를 고정하고 Work를 만든 뒤, 팀의 Graph 실행과 평가를 거쳐 제안 파일을 만듭니다.
 
-- **입구는 셋**: Obsidian Thin Client(명령·사이드바), 브라우저 콘솔, CLI. 셋 모두 **같은 접수 경로**(ExOps)로 Owner에 요청합니다.
-- **Owner**가 권한 판단·파일 쓰기·기록을 모두 맡고, 작업의 수명은 **Temporal**(내구성 있는 실행)과 **LangGraph**(Graph 실행)가 이끕니다.
-- **모델이 필요한 단계**는 역할마다 따로 둔 **Hermes profile**이 맡습니다. Discord로 나가는 알림은 모델 없는 `kos-ops` profile만 보냅니다.
-- **빠른 선택형 판단**은 역할이 아니라 Owner 서비스인 **System One**이 맡습니다. Owner가 OpenAI Decisions API(`gpt-6-luna`)에 직접 묻고 정해진 선택지나 확률만 받으며, Hermes profile은 쓰지 않습니다.
-- **의미 검색용 임베딩**은 Owner가 로컬 Ollama를 loopback HTTP로 직접 부릅니다.
-- **데이터는 셋으로 갈립니다**: 사용자의 Vault, 운영 기록인 State, 다시 만들 수 있는 Runtime.
+Owner의 접수 코드는 기능 카탈로그에서 요청 이름과 허용 매개변수를 찾고 해당 처리기로 넘깁니다. 처리기가 즉시 결과를 돌려줄 수도 있고, **WorkDraft라는 실행 초안**을 돌려줄 수도 있습니다. 후자의 경우에만 Owner가 Work 기록을 만들고 실행 엔진에 맡깁니다. 따라서 Director라는 접수 책임을 지난다는 말이 `kos-director` 모델을 매번 부른다는 뜻은 아닙니다.
 
-## 화면(표면)은 서로의 일을 하지 않는다
+자유 요청은 한 단계가 더 있습니다. System One이 요청 문장만 보고 명백히 기능 밖인 요청을 거를 수 있고, 나머지는 `kos-director`가 기존 명령 하나로 번역합니다. 그 명령은 다시 같은 정형 접수 코드를 지납니다. Director 모델이 새 기능·평가 기준·예산을 만드는 경로는 없습니다([[c11]]).
 
-| 표면 | 맡는 일 | 하지 않는 일 | 더 보기 |
+## 한 Work가 실제로 실행되는 순서
+
+정리 요청을 예로 들면 다음과 같습니다. 각 기능에서 달라지는 부분은 [[c1]], [[c2]], [[c4]] 등의 설명으로 이어집니다.
+
+1. **접수와 입력 고정.** Owner가 요청 ID와 영수증을 남기고, 대상과 기준을 담은 WorkSpec 및 입력 스냅숏을 State에 기록합니다. 사용자가 실행 도중 노트를 고쳐도 모델이 읽은 판본과 현재 파일을 구별할 수 있게 됩니다.
+2. **Temporal 시작.** `knowledgeos.work.v1` Workflow를 Work에 연결합니다. Workflow ID는 Operation ID와 Work ID를 합친 것이므로 같은 Work를 다시 붙잡을 때 새 작업을 임의로 만들지 않습니다.
+3. **실행 순서 선택.** Team이면 Manager가 팀원 목록과 순서를 제출합니다. Officer이면 이미 정해진 정적 처리기 하나를 선택합니다.
+4. **Graph 구간 시작.** Owner가 검증한 순서에 맞는 LangGraph를 고르고 구간 기록을 엽니다. 팀원들이 순서대로 중간 결과를 남깁니다.
+5. **평가.** 정적 검사, 필요한 경우 모델 의미 평가, 최종 판정 저장을 따로 수행합니다. 어떤 기준이 부족한지도 이때 기록합니다.
+6. **반영 또는 후속 구간.** 모두 만족하면 기능별 마무리 처리기가 제안·보고서 등을 씁니다. 부족하면 Team만 예산 안에서 후속 Graph를 만들 수 있습니다. 평가 미충족을 성공 파일로 포장하지 않습니다.
+7. **종료.** Team은 성공적인 반영 뒤 Manager의 TeamReview를 남깁니다. 마지막으로 Work와 요청 영수증에 결과를 연결해 클라이언트가 읽게 합니다.
+
+규격화 미리보기처럼 이 실행 결과가 `awaiting_confirmation`인 경우도 있습니다. 계산과 평가가 끝났어도 사용자가 확정하기 전에는 원본 반영이 끝난 것이 아닙니다.
+
+## Manager가 만드는 Graph는 얼마나 자유로운가
+
+현재 구현의 Graph는 **허용된 팀원을 한 번씩 배치하는 직렬 목록**입니다. Manager가 임의의 Python 코드, 병렬 분기, 순환, 새로운 역할을 작성하는 방식이 아닙니다. 제출물에는 팀원 순서와 “마지막에 평가”라는 표시만 들어갑니다.
+
+정리는 `scout → classifier → linker` 같은 순서를, 강화는 `retriever → connector → challenger → synthesizer` 같은 순서를 사용할 수 있습니다. 이것들은 가능한 사례이지 모든 요청의 고정 파이프라인은 아닙니다. Manager는 팀원 풀과 기능별 제약 안에서 필요한 구성을 고릅니다.
+
+Owner는 다음을 확인한 뒤에만 구간을 엽니다.
+
+- 목록이 비어 있지 않고, 그 팀의 허용된 역할만 들어 있는가.
+- 같은 팀원을 한 구간에서 두 번 부르지 않는가.
+- 기능이 마지막 생산자를 지정했다면 그 역할로 끝나는가.
+- 남은 생산자 호출 예산 안에 있는가.
+- 후속 구간이면 각 팀원이 실제로 남은 기준을 다루는가.
+
+평가 노드는 Owner가 끝에 붙입니다. Manager가 평가자의 입력·지시·모델·위치를 바꾸려 하면 거절됩니다. 이미 시작한 Graph를 고치는 대신, 미충족 기준을 담은 RemainingWork에 따라 **다음 구간**을 새로 만듭니다. 현재 Team 기본 한도는 총 2구간·생산자 6회이며 정적 팀원도 이 호출 수를 씁니다. 같은 부족이 후속 구간에도 남으면 종료합니다.
+
+Officer도 LangGraph를 사용합니다. 다만 Manager는 없고 **Officer 처리기 하나 → 평가**로 고정됩니다. “코드로 실행한다”와 “Temporal·Graph를 쓰지 않는다”는 같은 말이 아닙니다.
+
+## Temporal과 LangGraph가 만나는 정확한 지점
+
+Owner는 Temporal 서버의 작업을 받는 Worker도 함께 실행합니다. 기본 접속은 `127.0.0.1:7233`, 네임스페이스는 `knowledgeos`이고, 작업 큐는 State 경로에서 구한 식별값으로 구분합니다. 서버가 모델을 실행하는 것이 아니라, **Owner 쪽 Worker가 모델과 처리기를 실행하고 서버가 이력을 보존**합니다.
+
+Work Workflow는 `begin`, `compose`, `open` 단계를 거쳐 승인된 LangGraph를 호출합니다. Graph의 각 생산자 노드는 `produce` Activity를 실행합니다. 평가 노드 안에는 `evaluate_static → evaluate_model → evaluate_commit`이라는 세 Activity가 있습니다. Graph가 끝나면 Workflow가 `commit`, 필요한 `review`, `settle`을 이어 갑니다.
+
+Activity는 외부 작업을 할 수 있는 실행 단위입니다. 한 모델 팀원의 도구 호출과 형식 오류 교정 턴까지 하나의 생산자 Activity 안에서 진행됩니다. **도구 호출 하나마다 별도 Workflow를 만드는 구조는 아닙니다.** 의미 평가가 필요 없을 때 `evaluate_model` 단계는 지나가되 Hermes는 호출하지 않습니다.
+
+실행 가능한 역할 순서들은 Worker 시작 때 LangGraph로 등록됩니다. Manager가 제출한 목록을 검증한 뒤 정확히 일치하는 등록 Graph를 사용합니다. 구간에는 선택된 노드·간선·Graph 식별값도 남습니다.
+
+미리보기 확정처럼 대기 중 Work에 붙는 사용자 결정은 별도 `knowledgeos.action.v1` Workflow가 처리합니다. 모든 클릭이 이 Workflow인 것은 아니며, 각 기능의 접수 처리기가 어느 경로인지 결정합니다([[c6]], [[c11]]).
+
+### 재시작과 시간 초과는 어떻게 보이는가
+
+각 Activity는 시작 의도를 먼저 State에 기록하고 끝나면 결과를 저장합니다. 완료 기록이 있으면 그것을 재사용합니다. 시작 기록만 남아 실제 실행 결과를 알 수 없다면 자동으로 다시 호출하지 않고 `unknown`으로 남깁니다. 최대 시도는 1회로, Activity를 자동 재시도하지 않습니다.
+
+따라서 Temporal이 있다고 모델 호출·알림·파일 쓰기를 무조건 재실행하는 것은 아닙니다. Workflow 이력을 이어 가는 것과 결과를 모르는 외부 작업을 다시 보내는 것은 구별됩니다.
+
+Activity 기본 시간은 120초이며 실제 호스트 설정은 600초로 기록되어 있습니다. Worker는 자신의 단조 시계로 남은 시간을 확인합니다. Mac이 잠든 뒤 Temporal 서버의 시계가 늦어져도 서버 시각과 호스트 시각을 비교해 정상 작업을 차단하지 않습니다. 실행 코드나 역할 선언의 고정값이 달라지면 진행 중 Work를 새 구현으로 조용히 바꿔 이어 가지 않습니다.
+
+## 실제 Hermes Profile 목록
+
+모델 역할은 다음 아홉 Profile입니다. 모델 공급자는 모두 `openai-codex`이며 추론 노력은 `high`입니다. 이 표는 현재 소스 설정을 설명하며, 각 설정을 실제로 실행해 본 범위는 [[status]]에서 구별합니다.
+
+| Profile | 언제 호출되는가 | 모델 | 받는 정보와 제출물 |
 |---|---|---|---|
-| Obsidian 본체와 플러그인 | 쓰기, 템플릿, 키워드 검색, 보기, 할 일, Git 보기 | KnowledgeOS 호출 | [[usage]] |
-| Thin Client | 현재 노트에서 KnowledgeOS 호출(명령·사이드바), 결과 알림, Owner 시작·중지 | 문서 목록, 작업 브라우저, 설정 늘리기 | [[c11]] |
-| 브라우저 콘솔 | KnowledgeOS **관찰과 관리** | 문서 작업 | [[c11]] |
-| CLI | 유지보수와 설치 | 문서 작업 | [[c11]] |
-| Discord | 나가는 알림 | 명령·승인 받기 | [[c8]] |
+| `kos-director` | 자유 요청을 정형 명령으로 바꿀 때 | `gpt-6.1-sol` | 기능 목록·허용 대상 → 명령 초안 또는 거절 |
+| `kos-curation-manager` | 정리의 구성·후속 구성·TeamReview | `gpt-6.1-sol` | 팀과 기준·진행 요약 → 팀원 순서 또는 팀 회고 |
+| `kos-thinking-manager` | 강화의 구성·후속 구성·TeamReview | `gpt-6.1-sol` | 팀과 기준·진행 요약 → 팀원 순서 또는 팀 회고 |
+| `kos-classifier` | 정리의 분류 단계 | `gpt-6.1-terra` | 읽은 노트와 앞선 결과 → 분류 handoff |
+| `kos-linker` | 정리의 연결 단계 | `gpt-6.1-terra` | 읽은 후보·분류 결과 → 링크 handoff |
+| `kos-connector` | 강화의 연결 단계 | `gpt-6.1-terra` | 읽은 근거 → 연결·긴장 관계 handoff |
+| `kos-challenger` | 강화의 반론 단계 | `gpt-6.1-sol` | 읽은 근거와 앞선 결과 → 빈틈·반론 handoff |
+| `kos-synthesizer` | 강화의 보고서 단계 | `gpt-6.1-sol` | 근거와 중간 결과 → 인용이 있는 보고서 제출 |
+| `kos-eval` | 의미 기준의 독립 평가 | `gpt-6.1-sol` | 기준·정적 검사·산출물과 인용 근거 → 기준별 판정 |
 
-플러그인이 할 수 있는 일은 플러그인에 맡기고 Thin Client는 작게 둡니다. 플러그인은 설정일 뿐 필수 의존이 아니어서, 플러그인이 하나도 없어도 Vault는 일반 Markdown으로 쓸 수 있습니다.
+`scout`, `retriever`, 각 Officer는 Python 처리기입니다. 이 이름의 모델 Profile은 없습니다. 별도로 **`kos-ops`**가 있지만 모델이 아니라 Owner가 완성한 메시지를 Discord로 보내는 발송용 Profile입니다.
 
-## 세 개의 저장소: Vault · State · Runtime
+### Profile은 상시 팀원이 아니라 단계별 실행 환경입니다
 
-핵심 규칙은 **"사용자가 잃으면 아쉬울 것은 전부 Vault에 있다"** 입니다. State와 Runtime을 잃어도 지식은 남고, 잃는 것은 진행 중이던 작업, 되돌리기 바로가기, 대기 중이던 알림 정도입니다. 이 셋은 설정에서 각각 따로 지정하며 서로 겹치거나 포함할 수 없고, State·Runtime·자격 증명은 Git과 Vault 밖에 둡니다.
+Owner는 모델 단계가 필요할 때 `hermes -p <profile> acp` 하위 프로세스를 열고 세션을 만듭니다. 프로세스에는 그 단계 전용 `kos` MCP 도구 연결을 제공합니다. 도구 요청은 세션에 묶인 토큰으로 Owner의 해당 Work·역할에 연결됩니다. 모델이 Work ID를 써서 다른 작업을 선택하는 구조가 아닙니다.
 
-{{include:BLUEPRINT#2. Ownership and storage}}
+모델은 허용된 도구로 문맥을 읽고 **제출 도구**를 호출해야 합니다. 채팅의 마지막 문장만으로는 결과가 접수되지 않습니다. 형식·인용 검증에 실패하면 같은 세션에서 진단을 받아 한 번 교정하고, 그 뒤 세션을 닫습니다. 다음 역할은 자신의 Profile과 새 세션으로 실행됩니다.
 
-## 역할: 누가 무엇을 하나
+Profile 설치물은 공통 지침과 역할별 SOUL을 합친 `SOUL.md`, 모델·도구·학습 설정이 든 `config.yaml`입니다. 기본 파일·셸·브라우저 도구는 막고 역할별 Owner 도구와 허용된 학습 도구를 사용합니다. 모델·Profile을 사용할 수 없으면 실패가 드러나며 대체 모델로 몰래 바꾸지 않습니다.
 
-실행 단계는 두 가지입니다. **static**은 Owner 코드가 하는 단계이고, **model**은 Hermes 역할 profile이 하는 단계입니다. Owner가 바이트 단위로 계산하거나 검증할 수 있는 일은 static이고, 모델은 판단에만 씁니다.
+## Hermes를 거치지 않는 두 모델 서비스
 
-| 객체 | 쉽게 말하면 | 실행 방식 |
-|---|---|---|
-| **Owner** | 권한 판단·파일 쓰기·기록 담당. 내용은 판단하지 않음 | 코드 |
-| **Director** | 접수 창구. 요청을 작업 명세(WorkSpec)로 받아들임 | 정형 요청은 static, 자유 요청만 model(`kos-director`) |
-| **Manager** (CurationManager, ThinkingManager) | 팀장. 어느 팀원을 어떤 순서로 쓸지 정하고 다시 짜며, 끝나면 TeamReview를 남김. 직접 만들거나 평가하지 않음 | model |
-| **Teammate** | 팀원. 중간 산출물(handoff) 한 종류만 만듦 | `scout`·`retriever`는 static, 나머지(`classifier`·`linker`·`connector`·`challenger`·`synthesizer`)는 model |
-| **Officer** (StandardizationOfficer, StewardshipOfficer) | 팀 없이 혼자 한 결과를 책임짐 | static |
-| **EvalOfficer** | 독립 평가자. 결과를 만들거나 고치지 않고, Manager의 설명이나 팀원의 자기평가도 보지 않음 | static 검사는 항상, 의미 기준만 model(`kos-eval`) |
-| **Scheduler** | 정해진 작업을 때맞춰 트리거함 | Owner 안 서비스 |
-| **Notifier** | 만들어진 알림을 전달함 | `kos-ops` profile |
-| **System One** | 선택지 중 하나(`choice`)나 확률(`predicate`)만 답하는 빠른 판단. 쓰지도 글을 짓지도 않고 `ai_policy`·`sensitivity`는 정하지 않음 | Owner 서비스(OpenAI Decisions API 직접 호출, profile 없음) |
+**System One**은 Owner가 OpenAI Decisions API에 직접 보내는 선택형 판단입니다. 기본 모델은 `gpt-6-luna`이고 Hermes Profile은 없습니다. 규격화의 제한된 속성 매핑, 관련 노트 거르기, 문서 관리 상태 제안, 자유 요청 사전 분류에 쓰입니다. 다섯 모델 팀원도 `system_one` 도구로 읽은 노트에 대해 질문할 수 있지만 Director·Manager·EvalOfficer에는 이 도구가 없습니다.
 
-검색(C3)은 역할이 아니라 Owner가 사람과 역할에게 도구로 제공하는 **서비스**입니다. System One도 역할이 아니라 Owner의 **서비스**입니다. 규격화 규칙 9([[c2]]), 정리 `scout` 힌트([[c1]]), 관련 노트 이웃 거르기([[c3]]), 문서 관리 상태 제안([[c5]]), 자유 요청 사전 거름([[c11]])에서 Owner 코드가 질문하고, 답을 쓸지는 Owner 코드가 정합니다. 설정이 없거나 실패하면 이 기능들은 System One 없이 하던 대로 동작하며, 어떤 기능도 System One 때문에 실패하지 않습니다. 역할을 더하거나 빼는 것은 사용자가 검토하는 명세 변경이며, 대개 TeamReview 제안이 계기가 됩니다.
+**임베딩**은 Owner가 로컬 Ollama에 직접 요청합니다. 기본 모델은 `qwen3-embedding:8b-q4_K_M`이며, 결과는 State의 의미 색인에 저장됩니다. Hermes 역할의 대화 모델과 별개입니다. 무엇을 임베딩하고 언제 다시 만드는지는 [[c3]]에서 설명합니다.
 
-### 두 개의 팀
+## 파일과 기록은 어디에 남는가
 
-| 팀 | 기능 | Manager | 팀원 |
-|---|---|---|---|
-| Curation Team | [[c1]] 정리 | CurationManager | `scout`(수집), `classifier`(분류), `linker`(연결) |
-| Thinking Team | [[c4]] 강화 | ThinkingManager | `retriever`(근거 수집), `connector`(연결·긴장), `challenger`(빈틈·반론), `synthesizer`(보고서) |
+사용자가 읽을 제안·보고서·데일리는 Vault에 남습니다. 요청 영수증, WorkSpec, 입력 스냅숏, 단계별 handoff, 평가·효과·알림 기록과 벡터 색인은 State에 남습니다. Python 설치물·생성 Profile 배포본·로그는 Runtime에 있습니다. Hermes Profile의 세션·스킬·자격 증명 참조는 별도의 호스트 Profile 홈에 있습니다.
 
-Officer로 처리되는 것은 [[c2]] 규격화(StandardizationOfficer), [[c5]] 문서 관리(StewardshipOfficer), [[c3]]의 임베딩(EmbeddingOfficer)입니다. 앞의 둘은 코드로 움직이면서 설정 시 System One에게 선택 질문을 합니다.
+모델은 파일을 직접 수정하지 않습니다. 제출한 구조화 결과를 Owner가 검사하고 기능별 형식으로 렌더링합니다. 정리의 최종 반영은 **제안 파일 생성**이고, 그 제안을 사용자가 적용해 원본을 바꾸는 일은 별도 요청입니다. 강화는 보고서 파일을 만듭니다. 규격화와 데일리는 각자의 정해진 범위에서 기존 파일도 바꿉니다.
 
-아래는 Blueprint의 원문입니다.
+쓰기가 필요한 순간에는 현재 파일의 해시가 기대한 판본과 같은지 확인합니다. 달라졌다면 덮어쓰거나 자동 병합하지 않습니다. 노트의 `ai_policy`도 현재 값을 다시 확인합니다. `approve`만 대상이며 빠졌거나 비면 기본 `approve`, 그 외 알 수 없는 값은 `deny`입니다. `confidential` 표시는 이 이진 허용 여부를 바꾸지 않습니다.
 
-{{include:BLUEPRINT#4.1 Responsibility map}}
+## 구현 근거
 
-{{include:BLUEPRINT#4.2 Roster}}
-
-## 일이 흘러가는 길 (Work flow)
-
-{{svg:work-flow}}
-
-모든 요청은 먼저 Director를 지납니다. 정형 요청(Thin Client 명령, 예약 작업, CLI 명령)은 코드가 접수하고, 자유 요청만 `kos-director` 모델이 읽어 초안을 만듭니다.
-
-1. **요청**: Thin Client·CLI·예약 작업·Gateway에서 들어옵니다. 요청 ID가 있어 같은 요청을 두 번 보내도 한 번만 처리됩니다.
-2. **접수(Director)**: 대상(Officer 또는 Team), 기준(criteria), 예산, 입력 범위를 담은 WorkSpec을 만듭니다. 기준은 기능 카탈로그에서 오며 **모델은 기준을 쓰지 못합니다**.
-3. **Officer 대상이면** 한 단계로 결과를 만듭니다. **Team 대상이면** Manager가 Graph를 짭니다. Manager가 내는 것은 "승인된 팀원 중 누구를 어떤 순서로" 와 "평가 위치"뿐이고, Owner가 그것을 검증해 Core의 `GraphSpec` 등으로 만듭니다.
-4. **팀원 단계**: 팀원이 차례로 handoff를 만들고, 뒤의 팀원은 앞의 handoff를 읽을 수 있습니다.
-5. **평가(EvalOfficer)**: Owner가 증거 시점을 먼저 기록합니다. 그다음 static 검사가 돌고, 의미 기준만 EvalOfficer 모델이 판단합니다. 최종 판정(`CompletionAssessment`)과 남은 일(`RemainingWork`)은 Owner가 만듭니다.
-6. **만족하면** Owner가 결과(제안 노트·보고서)를 렌더링해 씁니다. **기준에 못 미치고 예산이 남으면** 같은 Manager가 남은 부분만 다루는 후속 구간을 짭니다. **예산이 바닥나면** 사용자에게 보이고, 새 요청이 필요합니다.
-7. **TeamReview**: 완료 후 Manager가 팀원마다 성과를 평가하고 개선 제안을 최대 3개 남깁니다. 제안은 조언일 뿐, 역할·카탈로그·평가를 바꾸지 못합니다. 바꾸는 것은 사용자가 명세와 카탈로그를 고쳐서만 합니다.
-
-중요한 규칙은 다음과 같습니다.
-
-- **예산**: Team은 기본 2구간·생산자 호출 6회, Officer는 1구간. 팀원 단계는 static이든 model이든 생산자 예산을 소모하고, 교정 턴은 소모하지 않습니다.
-- **같은 미충족이 두 번 이어지면** 작업은 미충족으로 끝납니다. 대상이나 목표가 바뀌면 새 접수가 필요합니다.
-- **모델 제출이 형식에 어긋나면** 진단과 함께 교정 턴을 한 번 줍니다. 두 번째에도 실패하면 그 단계는 실패이고 해당 기준은 미충족으로 남으며, 유효한 출력 없이 평가자에게 인증을 요청하지 않습니다. 예: 인용 없는 주장([[ENH-2]]), 읽지 않은 노트를 인용한 링크([[ORG-2]]).
-- **권한 위반**은 **교정 턴 없이 즉시 거절**됩니다. Manager가 EvalOfficer에게 지시하는 Graph를 제출하면 구간은 시작되지 않고 이미 접수된 Work가 실패합니다([[ORG-5]]). Director 모델이 기준·예산·경로 같은 권한 필드를 정하려 하면 접수 단계에서 거절되어 **Work 자체가 만들어지지 않습니다**.
-- 이미 승인된 구간은 바뀌지 않습니다. 기준 미충족이면 새 구간을 더할 뿐입니다([[ORG-6]], [[ENH-6]]).
-
-**예**: Inbox의 노트에 "정리 요청"을 누르면, Director가 정리 작업을 접수하고, CurationManager가 `scout → classifier → linker` 같은 Graph를 짠 뒤, 평가를 거쳐, Owner가 `01_AI_Review/Proposals/`에 제안 노트 하나를 씁니다. 원래 노트는 그대로입니다([[ORG-1]]).
-
-## Owner와 ExOps
-
-**Owner**는 권한과 효과의 주인입니다. 정책 결정, State, 입력 스냅숏, 근거 핸들, 제출물의 스키마 검증, Vault 파일 렌더링과 쓰기, Core 기록 작성, 알림을 맡고, 내용을 고르거나 Graph를 짜거나 기준을 판단하지 않습니다. **Vault에 쓰는 것은 Owner뿐**이며, 어떤 역할도 파일·셸·네트워크 도구가 없습니다.
-
-**ExOps**는 Owner의 HTTP 접수 경로입니다.
-
-- Thin Client, 콘솔, CLI가 **하나의 접수 경로**를 공유합니다.
-- loopback(`127.0.0.1`)에만 바인딩하고, Host와 Origin을 자동으로 검사하며, 변경은 JSON만 받고, 교차 출처 접근을 허용하지 않습니다. 로그인·계정·토큰이 없습니다. 이것은 **로컬 전용·단일 사용자** 전제입니다.
-- **GET은 관찰만** 합니다. 작업을 시작하거나 결정을 저장하거나 알림을 보내거나 결과 불명을 정리하지 않습니다. 콘솔을 열어 보는 것만으로 알림이 나가거나, 알림이 나가기 위해 콘솔 방문이 필요하지는 않습니다([[c8]]).
-
-## Temporal과 LangGraph
-
-- **Temporal**은 Work의 **내구성 있는 수명**(재시작해도 이어지는 실행)을 맡습니다. 공유 Temporal 서버는 호스트 loopback `127.0.0.1:7233`에만 열려 있고, Owner는 `knowledgeos` 네임스페이스에 연결합니다(PROJECT_STATE의 [[status#E_TEMPORAL_RUNNING|E_TEMPORAL_RUNNING]]).
-- **LangGraph**는 승인된 Graph 구간을 **실행**합니다.
-- 실행 엔진은 하나입니다. Officer든 Team이든 같은 엔진이 돌리고, 역할 로직은 핸들러 또는 profile이지 별도 파이프라인이 아닙니다(Blueprint §8.4).
-- 실행 기록과 결과는 Temporal 서버에 보존되지만, **Work의 소유와 판단은 KnowledgeOS**가 가집니다(README).
-- 테스트는 실제 Temporal 개발 서버와 LangGraph를 쓰고, 모델 역할만 스크립트 대역입니다([[status]]).
-
-## Hermes 역할 profile
-
-{{include:BLUEPRINT#4.4 Hermes role profiles}}
-
-쉬운 말로:
-
-- 모델을 쓰는 역할마다 profile이 따로 있고, 모델 경로는 profile 설정에 **고정**됩니다. 모델이나 자격 증명이 없으면 그 단계가 **눈에 보이게 실패**하며, 몰래 다른 모델로 바꾸지 않습니다.
-- 역할이 쓸 수 있는 도구는 **작업에 묶인(binding)** 것뿐입니다. 예컨대 Manager는 노트를 읽을 수 없고, EvalOfficer는 평가 보기와 평가 제출만 합니다. 터미널·파일·브라우저·웹·코드 실행 같은 도구는 모두 꺼져 있습니다.
-- 모델은 경로·ID·digest처럼 Owner가 계산할 수 있는 값을 **직접 쓰지 않고**, 읽기 도구가 돌려준 짧은 핸들(`e7` 같은 것)을 인용합니다. Owner가 그것을 정확한 인용으로 펼칩니다.
-- 설치는 `knowledgeos install profiles --config owner.json`으로 합니다. 설정에는 Hermes 호스트 설정(`settings.hermes.binary` 등)이 필요합니다. `--dry-run`은 Runtime에 배포물을 생성하되 Hermes 설치 명령은 실행하지 않습니다. 역할 정의(SOUL·공통 지침)는 `roles/`에, 모델 경로는 `config/roles.json`에 있습니다.
-- 실환경 스모크에서 관찰된 모델은 Director·Manager·EvalOfficer가 `gpt-6.1-sol`, 팀원이 `gpt-6.1-terra`였습니다([[status#E_REAL_ROLE_SMOKE|E_REAL_ROLE_SMOKE]]). 이것은 **그 실행에서 관찰된 값**이고, 설정의 영구 약속이 아닙니다.
-
-## 개인정보: `ai_policy`
-
-노트마다 `ai_policy`가 있어 모델과 자동화가 그 노트로 무엇을 해도 되는지 정합니다. 이것은 **모델·자동화의 사용 범위**를 정할 뿐이며, GitHub 동기화 여부는 Vault의 `.gitignore`가 정합니다.
-
-{{svg:policy-matrix}}
-
-| 값 | 쉬운 말 |
-|---|---|
-| `remote_ok` | 예약 작업을 포함해 모델이 써도 됩니다 |
-| `ask` (기본) | 내가 직접 요청한 작업에서만 모델이 씁니다. 예약 작업의 모델은 이 노트를 못 봅니다 |
-| `local_only` | 로컬 처리와 로컬 모델만 |
-| `deny` | KnowledgeOS가 읽지도, 색인하지도, 알리지도 않습니다 |
-
-지켜지는 규칙은 이렇습니다.
-
-- `confidential` 노트는 `ai_policy`가 느슨해도 `local_only`처럼 다룹니다. 어긋남은 "주의 항목"으로 알려 주되 **내 값을 고쳐 쓰지는 않습니다**.
-- **결과물은 입력 중 가장 엄격한 정책을 물려받습니다.** 읽기만 했고 인용하지 않은 노트도 포함합니다([[ENH-4]]).
-- 정책은 공개하기 **직전**의 현재 내용으로 다시 확인하며, 옮겨지거나 지워지거나 새로 제한된 노트는 닫힌 채로 실패합니다.
-- 결정적 로컬 처리(규격화 규칙 1~8·임베딩)는 `deny`만 빼고 모두 할 수 있어서, `ask`·`local_only`·`confidential` 노트도 임베딩됩니다([[c3]]).
-- 예약 정리([[c1]])는 모델에 `remote_ok` 노트만 줍니다([[ORG-3]]). Gateway 조회는 `remote_ok` 노트만 내보냅니다([[GW-2]]). 알림 제목·링크는 `remote_ok`·`ask`만 쓸 수 있습니다([[NTF-1]]).
-- **System One은 원격 모델입니다.** 같은 정책 열을 따르고 로컬 경로가 없습니다. 내가 직접 요청한 작업과 검색은 `remote_ok`·`ask` 노트를, 예약 작업과 Gateway 작업은 `remote_ok` 노트만 보내며, `local_only`·`confidential`·`deny` 노트는 어느 경로에서도 보내지 않습니다. 정책은 보내기 직전의 현재 값으로 다시 확인하고, `ai_policy`·`sensitivity` 자체는 System One에게 묻지 않습니다. 자격 증명은 Git과 Vault 밖의 호스트 소유 0600 파일에 있고 Hermes 하위 프로세스에는 전달되지 않습니다. 호출 기록(State `system_one`)에는 질문 이름·입력 해시·모델·토큰 수만 남고 노트 내용은 남지 않습니다([[c2]]).
-
-{{include:BLUEPRINT#5.4 Privacy}}
-
-## 제안·보고서, 그리고 안전하게 쓰기
-
-정리·강화의 결과 파일은 제안과 보고서입니다. 이 밖에 Gateway 접수([[c10]])는 `00_Inbox/`에 출처 정보가 붙은 포착(`capture`) 노트를 만듭니다. 기존 노트의 변경은 아래 효과 규칙을 따릅니다.
-
-- **보고서**(`01_AI_Review/Reports/`): 한 번 만들어지면 이후로는 **사용자의 문서**입니다. `type`을 바꾸기 전까지는 근거로 쓰이지 않습니다.
-- **제안**(`01_AI_Review/Proposals/`): 대상 노트 하나에 대한 변경 목록(체크리스트)입니다. 적용·거절·만료 뒤에 KnowledgeOS가 지웁니다. 기록은 Git에 남습니다.
-
-{{svg:review-flow}}
-
-대상 노트를 바꾸는 길은 규격화([[c2]]), 사용자가 적용한 제안, 사용자가 요청한 되돌리기, 이렇게 셋뿐입니다. 쓰기는 다음 규칙을 지킵니다.
-
-- **정확한 preimage**: 바꾸기 직전에 파일의 현재 SHA-256이 기대한 값과 같은지 확인하고 원자적으로 교체합니다. 다르면 **쓰지 않습니다**. 병합·덮어쓰기·재시도 반복이 없습니다([[STD-3]], [[REV-2]]).
-- **의도 먼저**: Owner는 효과를 하기 전에 의도를 기록합니다. Vault 쓰기는 파일을 읽어 판정합니다(기대한 결과면 적용됨, preimage면 적용 안 됨, 그 밖이면 충돌로 사용자에게 보임).
-- **결과 불명은 재실행하지 않는다**: 관찰할 수 없는 역할 호출·알림 결과는 `unknown`으로 남고, 자동으로 다시 보내거나 다시 돌리지 않습니다([[NTF-3]]). 사람이 확인해 "적용됨/적용 안 됨"으로 **관찰 기록**을 남길 수는 있지만(콘솔·CLI의 reconcile), 과거 기록은 고치지 않습니다([[SUR-4]]).
-- **영수증(receipt)**: 요청마다 요청 ID가 있고, Owner는 영수증을 **먼저 확정한 뒤** 답합니다. 응답을 잃으면 클라이언트는 그 영수증을 읽습니다. 재전송은 "기록된 적 없음"이 확인된 뒤에만 허용되고, 불명 상태는 재전송 허가가 아닙니다([[REV-4]]).
-- **스냅숏**: 접수 때 선택한 입력의 바이트를 State에 잡아 두므로, 작업 중 사용자가 노트를 고쳐도 보고서는 그 스냅숏을 인용하고 "바뀌었음"을 밝힙니다([[ENH-3]]). 다만 적용은 항상 현재 preimage를 요구합니다.
-- **문서 단위 신선도**: 노트 하나가 바뀌면 그 노트에 대한 결과만 무효가 되고 Vault 전체가 무효가 되지 않습니다.
-- **Git은 건드리지 않는다**: KnowledgeOS는 commit·pull·push·checkout·reset을 하지 않고, 변경은 frontmatter 중심의 작은 diff로 씁니다. 어떤 변경이든 Git 이력으로 되돌릴 수 있습니다.
-
-{{include:BLUEPRINT#5.6 Files KnowledgeOS writes}}
-
-{{include:BLUEPRINT#6. Effect rules}}
-
-## AgentFabric Core와의 관계
-
-KnowledgeOS는 `Core/`의 계약과 스키마를 **수정하지 않고**, `config/core-adoption.json`에 고정한 핀으로 따릅니다. 아래 표는 Core가 요구하는 아홉 가지 기능(Capsule function)을 KnowledgeOS가 무엇으로 채우는지 보여 줍니다.
-
-{{include:BLUEPRINT#7. AgentFabric Core conformance}}
-
-## 개발자를 위한 제약
-
-{{include:BLUEPRINT#8. Engineering constraints}}
-
-## 코드는 어디에 있나
-
-{{include:README#구성}}
-
-{{include:README#소유와 경계}}
+- [요청 접수와 자유 요청 번역](../../src/knowledgeos/owner.py), [공통 실행 단계·Graph 검증·평가](../../src/knowledgeos/engine.py)
+- [Work·Action Workflow와 실제 직렬 Graph](../../src/knowledgeos/temporal_workflow.py), [Worker·Graph 등록·실행 바인딩](../../src/knowledgeos/temporal_runtime.py)
+- [역할별 Profile·모델·도구](../../config/roles.json), [세션별 Hermes 호출](../../src/knowledgeos/roles.py), [Profile 생성·발송 어댑터](../../src/knowledgeos/hermes.py)
+- [시스템 계약](../../OBSIDIAN_VAULT_BLUEPRINT.md), [[status]], [[glossary]]

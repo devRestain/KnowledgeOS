@@ -159,6 +159,9 @@ def test_JOB_4_job_fires_at_each_slot_while_the_owner_runs(make_kos, clock):
     assert runs(kos, "standardize") == []
     clock.advance(minutes=1)  # 10:00
     eventually(lambda: len(runs(kos, "standardize")) == 1)
+    assert_scheduled_run(kos, runs(kos, "standardize")[0], "standardize")
+    # Advancing the fake clock while the first run is active can consume the next slot.
+    eventually(lambda: job_state(kos, "standardize")["last_outcome"] == "completed")
     quiet()
     assert len(runs(kos, "standardize")) == 1
     clock.advance(hours=1)  # 11:00

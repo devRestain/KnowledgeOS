@@ -65,18 +65,18 @@ def test_STD_9_manual_preview_maps_type_then_status_and_applies_after_confirmati
     assert all("생각" not in str(entry) for entry in recorded)  # references and digests, never content
 
 
-def test_STD_10_automatic_path_applies_confident_answers_only_for_remote_ok_notes(make_kos, vault, decisions,
+def test_STD_10_automatic_path_applies_confident_answers_only_for_approve_notes(make_kos, vault, decisions,
                                                                                 tmp_path):
     kos = make_kos(settings={"system_one": system_one_settings(decisions, tmp_path)})
     confident = NOTES + "Confident.md"
     unsure = NOTES + "Unsure.md"
     private = NOTES + "Private.md"
     capture = "00_Inbox/Link.md"
-    vault.write(confident, conforming_note("knowledge", "draft", body="CONFIDENT body\n", policy="remote_ok"), age=OLD)
-    vault.write(unsure, conforming_note("knowledge", "wip", body="UNSURE body\n", policy="remote_ok"), age=OLD)
+    vault.write(confident, conforming_note("knowledge", "draft", body="CONFIDENT body\n", policy="approve"), age=OLD)
+    vault.write(unsure, conforming_note("knowledge", "wip", body="UNSURE body\n", policy="approve"), age=OLD)
     vault.write(private, conforming_note("knowledge", "draft", body="PRIVATE body\n", policy="ask"), age=OLD)
     vault.write(capture, conforming_note("capture", "unprocessed", body="https://example.org/x\n",
-                                         policy="remote_ok"), age=OLD)
+                                         policy="approve"), age=OLD)
     decisions.rules["status"] = lambda question, body: {
         "choice": "developing", "confidence": 0.6 if "UNSURE" in json.dumps(body["input"]) else 0.9}
     decisions.choose("capture_kind", "link", 0.95)
@@ -87,8 +87,9 @@ def test_STD_10_automatic_path_applies_confident_answers_only_for_remote_ok_note
     assert parse(capture, vault.read(capture)).data["capture_kind"] == "link"
     assert parse(unsure, vault.read(unsure)).data["status"] == "wip"  # below min_confidence 0.7: untouched
     assert parse(private, vault.read(private)).data["status"] == "draft"
-    assert "PRIVATE" not in decisions.sent_text()  # scheduled Work never sends an ask note
-    assert {"path": private, "key": "status", "reason": "policy"} in run["outcome"]["undecided"]
+    assert "PRIVATE" not in decisions.sent_text()  # retired policies fail closed for every origin
+    work = kos.get(f"/api/works/{run['work_id']}")[1]
+    assert private not in {item["path"] for item in work["workspec"]["inputs"]}
     assert {"path": unsure, "key": "status", "reason": "low_confidence"} in run["outcome"]["undecided"]
     autofix = {change["path"]: change for change in kos.changes()}
     assert autofix[confident]["kind"] == "autofix"
@@ -102,7 +103,7 @@ def test_STD_11_unavailable_system_one_keeps_deterministic_rules_and_asks_again_
                                                                                        tmp_path):
     kos = make_kos(settings={"system_one": system_one_settings(decisions, tmp_path)})
     path = NOTES + "Later.md"
-    vault.write(path, "---\nstatus: draft\nai_policy: remote_ok\n---\nA claim.\n", age=OLD)
+    vault.write(path, "---\nstatus: draft\nai_policy: approve\n---\nA claim.\n", age=OLD)
     decisions.down = True
 
     run = automatic(kos)

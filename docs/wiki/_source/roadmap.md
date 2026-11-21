@@ -1,148 +1,64 @@
-# 로드맵: 막힘 · 시작 전 · 후속 과제
+# 남은 확인과 아직 만들지 않은 기능
 
-이 페이지는 **무엇이 막혀 있고, 무엇이 아직 시작 전이며, 다음에 무엇을 할 것인가**를 한곳에 모읍니다. 이미 되어 있는 것과 그 근거는 [[status]]에 있습니다.
+현재 남은 일은 기능 자체의 설명과 분리해 이곳에 모읍니다. **구현되어 있지만 실제 사용을 더 봐야 하는 일**과 **아직 구현하지 않은 모바일 요청 기능**은 다릅니다. 완료 근거는 [[status]]에서 확인할 수 있습니다.
 
-| 구분 | 뜻 | 이 페이지의 절 |
-|---|---|---|
-| **막힘** | 진행을 막는 것으로 기록된 일 | 지금 막힌 것 |
-| **인계** | 다음 세션이 이어받을 일 | 다음 세션이 이어받을 일 |
-| **미확인** | 이 종류의 증거가 아직 없는 것 | 아직 확인하지 못한 것 |
-| **열린 질문** | 명세가 아직 정하지 않은 것 | Blueprint §9의 열린 질문 |
-| **시작 전** | 명세에 자리만 잡아 둔 모바일 후속 | 시작 전: 모바일 후속 과제 |
-| **후속 구현 과제** | 위를 한 목록으로 모으고 출처를 단 것 | 후속 구현 과제 |
+## 다음에 이어갈 일
 
-## 지금 막힌 것
-
-`PROJECT_STATE.md`의 막힘(blocker) 기록입니다. `state`가 `resolved`이면 해결된 기록이며, 이력으로 남겨 둔 것입니다. **열린 막힘이 없다면 모든 행이 `resolved`입니다.**
-
-{{state:blockers}}
-
-**과거의 미확인 기록**도 남아 있습니다. 사이드바 1.1.0의 macOS 기본 팝업 메뉴는 접근성 자동화가 거부되고 렌더러 DOM에도 나타나지 않아 확인하지 못했습니다([[status#E_SIDEBAR_NATIVE_MENUS|E_SIDEBAR_NATIVE_MENUS]], blocked). 이 이력은 지우지 않습니다. 현재 1.2.0은 팝업 대신 인라인 입력·검색 결과·미리보기 결정을 사용하며([[status#D_SIDEBAR_INLINE|D_SIDEBAR_INLINE]]), 실제 Obsidian에서 인라인 기능과 의미 검색 결과 7개, 밝은/어두운 테마와 242px 레이아웃을 확인했습니다([[status#E_SIDEBAR_INLINE_GUI|E_SIDEBAR_INLINE_GUI]]). 따라서 과거 팝업의 검증을 현재 UI의 후속 과제로 두지 않습니다.
-
-## 다음 세션이 이어받을 일
-
-`PROJECT_STATE.md`의 인계(handoff) 기록입니다.
+현재 인계 기록은 다음과 같습니다.
 
 {{state:handoff}}
 
-풀어 쓰면 세 가지입니다.
+읽기 쉽게 풀면 세 가지입니다.
 
-1. **열린 정리 제안 검토**: 실제 Obsidian 사이드바의 **정리**가 만든 `01_AI_Review/Proposals/KOS 점검 - 생성 효과 — organize.md`가 사용자의 적용·거절을 기다립니다([[status#E_SYSTEM_ONE_CLIENT_GUI|E_SYSTEM_ONE_CLIENT_GUI]]). 결정은 사용자가 [[c6]]에서 합니다.
-2. **첫 자연 실행 관찰**: 지금까지는 임시로 만든 작업이 한 번 도는 것만 확인되었습니다([[status#E_REAL_SCHEDULER_SLOT|E_REAL_SCHEDULER_SLOT]]). Owner가 켜져 있는 동안 선언된 `standardize`(매시 정각)가 System One과 함께 제 시각에 저절로 도는지 지켜봅니다. 설명은 [[c7]], 방법은 [[usage]]를 보세요.
-3. **임계값 조정**: 관련 노트에 의미 이웃을 올리는 `related_min_score`(기본 0.5), System One이 이웃을 거르는 `related_min_probability`(기본 0.5), 선택 질문의 `min_confidence`(기본 0.7)는 모두 실제 노트로 보고 알맞게 고칠 시작값입니다([[c3]], [[c2]]).
+1. **Home·Tasks 화면 확인.** 데일리의 기한 없는 할 일이 실제 Obsidian 보기에서 나타나고, 과거 노트의 `[>]` 이월 항목은 숨겨지는지 확인합니다. 파일 처리와 Discord 전달은 실행 기록이 있지만 최신 보기의 장치 관찰은 남아 있습니다([[E_HOME_TASKS_DEVICE]], [[c12]]).
+2. **열린 정리 제안의 사용자 검토.** 제안을 적용할지 거절할지는 사용자가 결정합니다. 에이전트가 문서를 정비한다는 이유로 대신 결정하지 않습니다([[c6]]).
+3. **관련 노트·선택 질문 문턱 조정.** `related_min_score`, `related_min_probability`, `min_confidence`를 실제 노트 결과와 비교합니다. 각각 벡터 후보 문턱, 관련성 판단 확률 문턱, 선택형 답의 채택 문턱입니다([[c3]], [[c2]]).
 
-## 아직 확인하지 못한 것
+## 별도 실행 근거가 필요한 경로
 
-"실패했다"가 아니라 **"이 종류의 증거가 아직 `PROJECT_STATE.md`에 없다"**는 뜻입니다. 기록이 없다는 점은 사실이지만, 실제로 일어났는지는 [해석]으로 남습니다. 근거의 종류는 [[status]]의 "근거의 종류"를 보세요.
+먼저 **공유 System One의 선택지 배열 전달**을 바로잡을 필요가 있습니다. 내부 도구는 선택지 목록을 받지만 Hermes→Owner의 HTTP 검사는 현재 배열을 거절합니다. 문자열·객체·정수와 구별해 배열을 검사하고, 실제 도구 HTTP 경계를 지나는 검증을 추가하는 것이 다음 구현 범위입니다. 이번에는 소스 대조만 했고 동작은 바꾸지 않았습니다([[status]]).
 
-| 아직 확인하지 못한 것 | 지금 있는 기록 | 출처 |
+공개 인터페이스 테스트가 있어도 다음 실환경 근거까지 생긴 것은 아닙니다.
+
+| 확인할 경로 | 지금 구별해야 할 한계 |
+|---|---|
+| 공유 System One 도구를 쓰는 네 모델 팀원 | 도구 설치·집중 테스트는 있으나 `linker`·`connector`·`challenger`·`synthesizer`의 새 실제 모델 호출은 미실행([[E_SHARED_SYSTEM_ONE_MODELS]]) |
+| 기본 다섯 작업의 자연 실행과 지속 사용 | 임시 예약 슬롯·수동 실행·따라잡기 기록이 모든 기본 시각의 장기 관찰은 아님 |
+| 문서 관리의 상태·보관 제안 | 실제 System One 상태 제안과 실제 Bases 사용 관찰은 별도 |
+| 제안 거절·낡은 제안·자동 변경 되돌리기 | 실제 제안 적용 기록이 이 분기들까지 증명하지 않음 |
+| Gateway의 다른 Operation과의 왕복 | 구현·테스트와 실제 송신자/수신자 연동은 별개 |
+| HermesTrace 수신기 | 로컬 사건·Candidate 생성과 실제 수신 확인은 별개 |
+| 충돌·효과 결과 불명의 즉시 Discord 전달 | 요약·데일리 메시지 전달이 즉시 경고 조건의 실행 근거는 아님 |
+| 실제 Owner의 관리 콘솔 | 기존 브라우저 관찰은 일회용 합성 환경 |
+
+과거 Gemma 분류의 시간 초과나 사이드바 1.1.0의 팝업 미확인은 당시 구성의 이력입니다. 현재 분류기는 Terra high이고, 사이드바는 인라인 방식입니다. 과거 구성을 다시 검증하는 일을 현재 과제로 만들지 않습니다.
+
+## 실제 사용으로 정할 세 가지
+
+Blueprint §9에 남아 있는 열린 질문입니다.
+
+- **검색 품질:** 기본 관련성 점수와 이웃 수가 실제 노트에서 적절한가.
+- **예약 주기:** 지금의 다섯 작업 시각·주기가 실제 사용에 맞는가.
+- **보기 도구:** 문서 관리에 Obsidian 코어 Bases만으로 충분한가.
+
+이는 기능이 없다는 뜻이 아니라 기본값과 도구 선택의 적합성을 평가하는 일입니다. [Blueprint의 열린 질문](../../OBSIDIAN_VAULT_BLUEPRINT.md#9-open-questions-and-follow-ups)이 원본입니다.
+
+## 아직 구현하지 않은 모바일 요청 기능
+
+현재 모바일에서는 Obsidian으로 노트를 쓰고 Working Copy 등으로 동기화합니다. Mac이 그 파일을 받은 뒤 기존 예약 작업이 처리하는 흐름은 사용할 수 있지만, **모바일에 요청 표시를 붙여 KnowledgeOS를 호출하는 아래 경로는 아직 비활성**입니다.
+
+| 후속 기능 | 만들려는 것 | 시작 전에 정할 것 |
 |---|---|---|
-| 선언된 예약 작업(`standardize` 매시 정각, `embed` 매시 30분)의 자연 실행 | 임시 작업의 슬롯 실행 1회 | 인계 기록, `E_REAL_SCHEDULER_SLOT` |
-| 예약 `curate`(06:00)·`digest`(08:00)의 자연 실행 | 기록 없음 [해석: 임시 작업과 수동 요약 전달만 있음] | `PROJECT_STATE.md` |
-| 실제 HermesTrace 수신기와의 연동 | README가 "별도로 확인해야 한다"고 한 항목이며 기록 없음 | README "검증 범위", [[c9]] |
-| 즉시 알림(충돌·결과 불명·작업 실패)의 실제 Discord 전달 | 요약 알림 1건 전달만 있음 | `E_DISCORD_DELIVERED` |
-| Gateway([[c10]])의 실제 다른 Operation과의 송수신 | 기록 없음(테스트만) | 추적표, `PROJECT_STATE.md` |
-| 실제 Owner의 관리 콘솔 사용 | 일회용 합성 환경의 콘솔 관찰만 있음 | `E_CONSOLE_BROWSER` |
-| 제안 거절·낡은 제안·자동 변경 되돌리기의 실제 사용 | 제안 적용 1건만 있음 | `E_USER_PROPOSAL_APPLY` |
-| 모델 응답의 품질·꾸준함 | 모든 모델 역할을 스모크 노트 세 개로 한 번씩 돌린 기록 | `E_REAL_ROLE_SMOKE` |
-| System One의 문서 관리 상태 제안(DOC-5)·자동 `standardize` 값 쓰기·예약 `curate`의 힌트 | 실제 호출은 규격화 수동 미리보기, 자유 요청 거름, 관련 노트 거르기, 사이드바 정리 한 번(힌트 기록)만 있음 | `E_SYSTEM_ONE_LIVE`, `E_SYSTEM_ONE_CLIENT_GUI` |
-| 1.3.0 사이드바의 관련 노트·의미 검색 화면과 화면 잠금 없는 시각 확인 | 규격화 미리보기만 사이드바 영역의 CDP 렌더로 관찰(macOS 화면이 잠겨 있었음) | `E_SYSTEM_ONE_CLIENT_GUI` |
-| 모바일 흐름 M1~M3 | 시작 전 | 명세의 모바일 후속 |
+| M1 템플릿·동기화 단축어 | Apple 단축어로 표준 노트를 만들고 Working Copy 동기화를 실행 | 생성 노트가 규격화 계약을 만족하는 인수 기준 |
+| M2 Vault를 통한 요청 | `kos_request` 또는 `00_Inbox/Requests/`를 Mac이 읽어 접수 | 기기 간 요청 신원, 중복 방지, 결과 알림 |
+| M3 GitHub Actions | push된 노트의 YAML·충돌·중복 ID를 결정적으로 검사 | 결과 전달 방식; Git 작성자를 늘릴 경우 계약 개정 |
 
-> [!note]
-> 추적표 문서의 머리말은 "네이티브 Hermes/모델 호출, 실제 Discord, 실제 Owner 서비스 배포, Obsidian/장치 검증은 돌리지 않았다"고 적습니다. 그 문장은 **추적표가 가리키는 테스트**에 대한 것이고, 그중 일부는 이후 실제 환경 스모크로 확인되었습니다([[status]]). 위 표는 **지금도** 기록이 없는 것만 남겼습니다.
+M2의 속성과 폴더는 예약만 되어 있습니다. 지금 노트에 표시를 적는다고 요청이 실행되지는 않습니다. 모바일 전용 KnowledgeOS 앱, 원격 관리 API 개방, Actions의 모델 호출이나 자격 증명 보관을 이 계획에 포함하지 않습니다.
 
-## Blueprint §9의 열린 질문
+원본 범위는 [기능 명세의 모바일 후속](../CAPABILITIES.md#follow-up-mobile)과 [사용자 모바일 흐름](../../USER_FEATURE_SPEC.md#모바일)에서 확인할 수 있습니다.
 
-명세가 아직 정하지 않은 것입니다. 실제 사용으로 답이 나면 같은 세션에서 §9에서 **지웁니다**([[philosophy]]).
+## 막힘 기록
 
-{{include:BLUEPRINT#9. Open questions}}
+아래는 PROJECT_STATE의 blocker 기록입니다. 해결된 행은 과거 장애가 해소되었음을 뜻하며 현재 작업을 막는 것으로 읽지 않습니다.
 
-각 질문이 무엇을 기다리는지 한 줄씩 풀면 [해석]:
-
-- **Semantic ranking**: 위 인계 3번과 같은 일입니다. 실제 노트로 `related_min_score`·`related_min_probability`와 이웃 수를 보고 정합니다.
-- **Default `ai_policy`**: 예약 정리(`curate`)를 실제로 쓰기 시작한 뒤에야 `ask`가 맞는 기본값인지 판단할 수 있습니다. `ask` 노트는 예약 작업의 모델에게 보이지 않습니다([[ORG-3]]).
-- **Schedules**: 선언된 주기가 실제 사용과 맞는지는 자연 실행을 지켜본 뒤 판단합니다([[c7]]).
-- **Plugin choices**: Obsidian 코어 Bases만으로 문서 관리 목록이 충분한지, 다른 커뮤니티 플러그인이 필요한지([[c5]]).
-
-## 시작 전: 모바일 후속 과제
-
-모바일에서도 처리는 **언제나 Mac의 KnowledgeOS**가 합니다. 모바일은 만들고, 고치고, 표시하고, 동기화만 합니다. 아래 세 가지(M1~M3)는 **시작 전**이며 명세는 시작할 때 구체화합니다. 모바일 전용 KnowledgeOS 앱은 하지 않기로 한 범위 밖입니다([[philosophy]]).
-
-{{include:CAPABILITIES#Follow-up: mobile}}
-
-쉬운 말로 정리하면 이렇습니다.
-
-| 과제 | 무엇 | 아직 정해야 할 것 (원본) |
-|---|---|---|
-| **M1 템플릿·동기화 단축어** | Apple 단축어로 포착·아이디어·질문 노트를 Vault 템플릿에서 만들고 Working Copy의 pull·commit·push를 구동 | 인수 기준을 써야 함: 단축어로 만든 노트가 [[STD-7]]을 통과해야 함 |
-| **M2 Vault를 통한 요청** | 노트에 `kos_request: <기능[:모드]>`를 표시하거나 `00_Inbox/Requests/`에 요청 노트를 두면, Mac이 pull한 뒤 Director가 접수. 결과는 평소처럼 쓰이고 요청 표시는 규격화 쓰기 경로로 지움 | 기기 간 요청 신원, 중복 표시, 결과를 요약으로 알릴지 즉시 알림으로 알릴지 |
-| **M3 GitHub Actions** | push 때의 결정적 점검(YAML 유효성, 충돌 표시, 중복 ID)을 점검 상태나 이슈로 보고 | 제약: 모델 호출 없음, KnowledgeOS 자격 증명 없음, Blueprint §5.7을 고쳐 두 번째 Git 작성자를 인정하기 전에는 commit 없음 |
-
-`kos_request` 속성과 `00_Inbox/Requests/` 폴더는 이 용도로 **예약**되어 있어 비활성이며, 다른 용도로 쓰지 않습니다. 지금 모바일에서 하는 일(Obsidian으로 쓰고 Working Copy로 동기화하면 Mac이 예약 작업으로 규격화·정리)은 아래 원문의 "지금" 부분입니다.
-
-{{include:USER#모바일}}
-
-## 구현 순서(명세)
-
-명세는 기능을 얇은 조각으로 나눠 차례로 끝까지 만들고, 한 조각을 끝낼 때마다 명세를 고치도록 정합니다.
-
-{{include:CAPABILITIES#Delivery order}}
-
-`PROJECT_STATE.md`의 목표 `KNOWLEDGEOS_CAPABILITY_IMPLEMENTATION`은 완료로 기록되어 있어 1~5번 조각은 모든 인수 시나리오가 테스트로 구현된 상태입니다. 6번(모바일)만 시작 전입니다. 지금의 목표 `KNOWLEDGEOS_REAL_ADOPTION`은 이 구현을 실제 호스트에서 하나씩 확인하는 일입니다([[status]]).
-
-## 일부러 하지 않기로 한 것
-
-기록에 **결정**으로 남은, 빠진 것이 아니라 의도한 것입니다. 후속 과제로 오해하지 마세요.
-
-- **알림 기록에 전달 실패 이유를 남기지 않는다**: [[status#D_NOTICE_NO_FAILURE_REASON|D_NOTICE_NO_FAILURE_REASON]].
-- **TeamReview의 일반 개선 제안은 후보로 자동 승격하지 않는다.** 로컬 관찰로 두고, 이후 실제 사용자 수정 같은 사건이 생기면 그 사건 자체의 근거로 새로 기록합니다: [[status#D_C9_PENDING_CLASSIFICATION|D_C9_PENDING_CLASSIFICATION]], [[c9]].
-- **Temporal은 호스트 loopback에만 공개한다**: [[status#D_TEMPORAL_LOOPBACK|D_TEMPORAL_LOOPBACK]].
-- **하지 않는 일**(브라우저·CLI에서 문서 작업, Discord로 명령 받기, 모바일 전용 KnowledgeOS, Git 명령 실행 등)은 [[philosophy]]에 있습니다.
-
-## 후속 구현 과제
-
-> [!warning]
-> 이 목록은 새 요구를 만든 것이 아니라, 원본 문서가 이미 **후속·미확인·미정**으로 적어 둔 것을 한곳에 모으고 **출처를 단** 해설입니다. 출처에 명시되지 않은 연결은 [해석]으로 표시했습니다. 우선순위나 일정은 정해져 있지 않습니다.
-
-### A. 이미 인계된 일 (PROJECT_STATE의 handoff)
-
-| # | 과제 | 출처 |
-|---|---|---|
-| A1 | 열린 정리 제안 `KOS 점검 - 생성 효과 — organize.md`를 검토(적용·거절) | `PROJECT_STATE.md` handoff, `E_SYSTEM_ONE_CLIENT_GUI` |
-| A2 | Owner가 켜져 있는 동안 매시 `standardize`의 첫 자연 실행을 System One과 함께 관찰 | `PROJECT_STATE.md` handoff |
-| A3 | `related_min_score`·`related_min_probability`·`min_confidence`를 실제 노트로 조정 | `PROJECT_STATE.md` handoff, `docs/CAPABILITIES.md` C3("시작값")·System One, Blueprint §9 Semantic ranking |
-
-### B. 확인되지 않은 실제 환경 구성
-
-| # | 과제 | 출처 · 비고 |
-|---|---|---|
-| B1 | 실제 HermesTrace 수신기 확인 | README "검증 범위", `docs/CAPABILITIES.md` C9, 기록 없음 |
-| B2 | 예약 `curate`·`digest`의 자연 실행, 즉시 알림의 실제 Discord 전달 | 기록 없음 [해석]. Blueprint §9 Schedules·Default `ai_policy`가 답을 기다리는 자리이기도 합니다 |
-| B3 | Gateway의 실제 Operation 간 송수신 | 기록 없음 [해석]. 명세는 [[c10]] |
-| B4 | 실제 Owner에서 관리 콘솔 사용 확인 | `E_CONSOLE_BROWSER`는 일회용 환경만 다룸 [해석] |
-
-### C. 정해야 할 것 (Blueprint §9)
-
-| # | 질문 | 출처 |
-|---|---|---|
-| C1 | `ask`가 예약 정리를 쓰기 시작한 뒤에도 알맞은 기본 `ai_policy`인가 | Blueprint §9 |
-| C2 | C7의 기본 작업 주기가 실제 사용과 맞는가 | Blueprint §9 |
-| C3 | 문서 관리 화면에 코어 Bases로 충분한가, 다른 커뮤니티 플러그인이 필요한가 | Blueprint §9 |
-
-(의미 검색 순위 기준 질문은 A2와 같은 일입니다.)
-
-### D. 모바일 (명세의 Follow-up: mobile)
-
-| # | 과제 | 출처 |
-|---|---|---|
-| D1 | M1 템플릿·동기화 단축어. 인수 기준 작성: 단축어로 만든 노트가 STD-7 통과 | `docs/CAPABILITIES.md` Follow-up, Blueprint §9 |
-| D2 | M2 Vault를 통한 요청. 정할 것: 기기 간 요청 신원, 중복 표시, 결과 알림 방식 | 같음 |
-| D3 | M3 GitHub Actions. 제약: 모델 호출 없음, 자격 증명 없음, §5.7 개정 전 commit 없음 | 같음 |
-
-### E. 조건이 생기면 하는 일
-
-| # | 과제 | 출처 |
-|---|---|---|
-| E1 | HermesTrace가 승격한 능력을 쓰려면 버전·digest를 고정한 구성 변경으로 명시적으로 채택. Core 계약과 스키마는 그대로 | `docs/CAPABILITIES.md` C9, Blueprint §4.5 |
-| E2 | 역할 추가·제거는 사용자가 검토하는 명세 변경이며 대개 TeamReview 제안이 계기 | Blueprint §4.2 |
+{{state:blockers}}

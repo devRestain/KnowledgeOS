@@ -106,7 +106,7 @@ def _eligible_now(owner: Owner, path: str) -> bool:
     except VaultPathError:
         return False
     return note is not None and ineligible_reason(
-        path, effective(note, owner.config.default_policy), note.type, note.conflict
+        path, effective(note), note.type, note.conflict
     ) is None
 
 

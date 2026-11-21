@@ -39,7 +39,7 @@ def test_GW_1_intake_commits_one_capture_and_replays_receipt(make_kos, vault, cl
     note = parse(path, vault.read(path))
     assert UUID4_RE.fullmatch(note.data["id"])
     assert note.type == "capture" and note.status == "unprocessed"
-    assert note.data["ai_policy"] == "ask"
+    assert note.data["ai_policy"] == "approve"
     assert note.data["created"] == iso(clock.now())
     assert note.data["captured_from"] == "operation/research"
     assert note.data["capture_kind"] == "text"
@@ -103,30 +103,30 @@ def test_GW_1_malformed_envelope_is_rejected(make_kos, clock, change):
     assert status == 400 and refusal["error"]["code"] == "INVALID_PAYLOAD"
 
 
-def test_GW_2_query_exports_only_remote_ok_sources(make_kos, vault, tmp_path):
+def test_GW_2_query_exports_only_approve_sources(make_kos, vault, tmp_path):
     kos = gateway(make_kos)
     for name, policy, note_type, extra in [
-        ("Shared", "remote_ok", "idea", ""), ("Ask", "ask", "idea", ""),
+        ("Shared", "approve", "idea", ""), ("Ask", "ask", "idea", ""),
         ("Local", "local_only", "idea", ""), ("Denied", "deny", "idea", ""),
-        ("Secret", "remote_ok", "idea", "sensitivity: confidential\n"),
-        ("Report", "remote_ok", "report", ""), ("Proposal", "remote_ok", "proposal", ""),
+        ("Secret", "approve", "idea", "sensitivity: confidential\n"),
+        ("Report", "approve", "report", ""), ("Proposal", "approve", "proposal", ""),
     ]:
         vault.write(f"Notes/{name}.md", f"---\ntitle: {name}\ntype: {note_type}\nai_policy: {policy}\n{extra}---\nSharedneedle evidence.\n")
     status, found = kos.post("/interops/query", {"sender_operation_id": "research", "purpose": "consultation", "query": "Sharedneedle"})
     assert status == 200
-    [item] = found["results"]
-    assert item["title"] == "Shared" and item["path"] == "Notes/Shared.md"
-    assert item["locator"] == {"path": item["path"], "line": item["line"]}
-    assert vault.text(item["path"]).splitlines()[item["line"] - 1] == item["excerpt"]
+    assert {item["title"] for item in found["results"]} == {"Shared", "Secret"}
+    for item in found["results"]:
+        assert item["locator"] == {"path": item["path"], "line": item["line"]}
+        assert vault.text(item["path"]).splitlines()[item["line"] - 1] == item["excerpt"]
     saved = json.loads((tmp_path / "state/gateway" / f"{found['gateway_id']}.json").read_text())
-    assert saved["result_count"] == 1
+    assert saved["result_count"] == 2
     assert [d["stage"] for d in saved["decisions"]] == ["admission", "effect"]
 
 
 def test_GW_2_bounds_and_purpose_are_enforced(make_kos, vault):
     kos = gateway(make_kos, max_results=2, max_excerpt_chars=12)
     for index in range(5):
-        vault.write(f"Notes/{index}.md", "---\nai_policy: remote_ok\n---\nBoundneedle " + "x" * 300)
+        vault.write(f"Notes/{index}.md", "---\nai_policy: approve\n---\nBoundneedle " + "x" * 300)
     body = {"sender_operation_id": "research", "purpose": "consultation", "query": "Boundneedle", "max_results": 99, "max_excerpt_chars": 1000}
     status, found = kos.post("/interops/query", body)
     assert status == 200 and len(found["results"]) == 2

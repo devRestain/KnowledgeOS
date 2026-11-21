@@ -14,8 +14,14 @@
     },
     "curate": {
       "schedule": "0 6 * * *",
-      "description": "C1 over new captures and untyped remote_ok notes, at most 10 targets",
+      "description": "C1 over new captures and untyped approve notes, at most 10 targets",
       "command": "organize.auto",
+      "params": {}
+    },
+    "daily": {
+      "schedule": "0 7 * * *",
+      "description": "C12 daily note handoff and the morning task reminder",
+      "command": "daily.run",
       "params": {}
     },
     "digest": {

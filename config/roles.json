@@ -6,7 +6,7 @@
       "profile": "kos-director",
       "soul": "roles/kos-director/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-sol",
-      "local": false,
+      "reasoning_effort": "high",
       "tools": ["catalog_view", "feedback"],
       "submissions": ["submit_workspec"]
     },
@@ -14,7 +14,7 @@
       "profile": "kos-curation-manager",
       "soul": "roles/kos-curation-manager/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-sol",
-      "local": false,
+      "reasoning_effort": "high",
       "tools": ["team_view", "feedback"],
       "submissions": ["submit_graph", "submit_team_review"]
     },
@@ -22,7 +22,7 @@
       "profile": "kos-thinking-manager",
       "soul": "roles/kos-thinking-manager/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-sol",
-      "local": false,
+      "reasoning_effort": "high",
       "tools": ["team_view", "feedback"],
       "submissions": ["submit_graph", "submit_team_review"]
     },
@@ -30,47 +30,47 @@
       "profile": "kos-classifier",
       "soul": "roles/kos-classifier/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-terra",
-      "local": false,
-      "tools": ["work_context", "read", "search", "related", "feedback"],
+      "reasoning_effort": "high",
+      "tools": ["work_context", "read", "search", "related", "system_one", "feedback"],
       "submissions": ["submit_handoff"]
     },
     "linker": {
       "profile": "kos-linker",
       "soul": "roles/kos-linker/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-terra",
-      "local": false,
-      "tools": ["work_context", "read", "search", "related", "feedback"],
+      "reasoning_effort": "high",
+      "tools": ["work_context", "read", "search", "related", "system_one", "feedback"],
       "submissions": ["submit_handoff"]
     },
     "connector": {
       "profile": "kos-connector",
       "soul": "roles/kos-connector/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-terra",
-      "local": false,
-      "tools": ["work_context", "read", "search", "related", "feedback"],
+      "reasoning_effort": "high",
+      "tools": ["work_context", "read", "search", "related", "system_one", "feedback"],
       "submissions": ["submit_handoff"]
     },
     "challenger": {
       "profile": "kos-challenger",
       "soul": "roles/kos-challenger/SOUL.md",
-      "model_route": "openai-codex/gpt-6.1-terra",
-      "local": false,
-      "tools": ["work_context", "read", "search", "related", "feedback"],
+      "model_route": "openai-codex/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "tools": ["work_context", "read", "search", "related", "system_one", "feedback"],
       "submissions": ["submit_handoff"]
     },
     "synthesizer": {
       "profile": "kos-synthesizer",
       "soul": "roles/kos-synthesizer/SOUL.md",
-      "model_route": "openai-codex/gpt-6.1-terra",
-      "local": false,
-      "tools": ["work_context", "read", "search", "related", "feedback"],
+      "model_route": "openai-codex/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "tools": ["work_context", "read", "search", "related", "system_one", "feedback"],
       "submissions": ["submit_report"]
     },
     "eval_officer": {
       "profile": "kos-eval",
       "soul": "roles/kos-eval/SOUL.md",
       "model_route": "openai-codex/gpt-6.1-sol",
-      "local": false,
+      "reasoning_effort": "high",
       "tools": ["eval_view", "feedback"],
       "submissions": ["submit_evaluation"]
     }

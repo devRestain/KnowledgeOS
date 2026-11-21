@@ -1,0 +1,31 @@
+{
+  "id": "C12",
+  "name": "Daily notes",
+  "version": "1",
+  "target": {"kind": "officer", "name": "DailyOfficer", "runtime": "static"},
+  "evaluation": {"officer": "EvalOfficer", "runtime": "static"},
+  "budget": {"segments": 1, "producer_invocations": 1},
+  "commands": {
+    "daily.run": {"origins": ["user", "schedule"], "params": {}}
+  },
+  "modes": {
+    "daily": {"criteria": ["day.carry_exact"]}
+  },
+  "criteria": {
+    "day.carry_exact": {
+      "runtime": "static",
+      "text": "Every carried item is an open top-level checkbox item of an admitted earlier daily note, today's note keeps every existing line in order and only gains carried items, and each source changes only the carried items' checkbox marks to [>]"
+    }
+  },
+  "settings": {
+    "folder": "10_Journal/Daily",
+    "reminder": {
+      "greeting": "좋은 아침이에요. {month}월 {day}일 {weekday}요일, 오늘 챙길 일 {count}가지를 정리해 왔어요.",
+      "item": "• {name}",
+      "due_today": "• {name} (오늘까지)",
+      "overdue": "• {name} (기한이 지났어요)",
+      "more": "• 그리고 {count}가지가 더 있어요",
+      "closing": "하나씩 천천히 해 봐요. 오늘 다 못 해도 괜찮아요, 남은 일은 내일 노트로 잘 넘겨 둘게요."
+    }
+  }
+}

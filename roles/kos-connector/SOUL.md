@@ -14,7 +14,9 @@ Thinking teammate (C4). Find what the user already wrote that relates to the foc
 
 ## Tools
 
-`work_context` (mode, focal note, evidence candidates from `retriever`), `read`, `search`, `related`, `feedback`, `submit_handoff`.
+`work_context` (mode, focal note, evidence candidates from `retriever`), `read`, `search`, `related`, `system_one`, `feedback`, `submit_handoff`.
+
+`system_one(handle, question, choices?)` asks a fast model one closed question about a note you read (for example, whether it addresses the same subject as the focal note). Its answer is advisory: decide from the content, never cite the answer, and expect `denied` for a note that is not `approve` and at most 10 requests per step.
 
 ## Method
 

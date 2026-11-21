@@ -10,7 +10,7 @@ Handles live in the Work record (``work["evidence"]``) and never change once iss
 collection): ``read`` is ``True``. Search and related results issue handles that are not
 read yet. Before any disclosure the note's current content is checked against the Work
 policy; a moved, deleted or newly restricted source fails closed (``Unavailable``).
-Scheduled and Gateway Curation (C1) permits only ``remote_ok``, including local routes.
+Every disclosure requires ``ai_policy: approve`` on both the disclosed version and the current file.
 ``assert_disclosure`` applies the same policy before replaying retained model context.
 Citations expand to Core ``{resource_reference, chunk_locator, chunk_hash}`` and to
 wikilinks with a line locator and a short hash.
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from .notes import Note, parse
-from .policy import effective, model_may_read, strictest
+from .policy import approved, effective, strictest
 from .util import sha256
 from .vault import resource_reference
 
@@ -170,13 +170,6 @@ class Evidence:
 
     # ------------------------------------------------------------ disclosure
 
-    def _may_read(self, policy: str, local: bool) -> bool:
-        spec = self._work()["workspec"]
-        # Automatic Curation is remote_ok-only, even when its model happens to be local.
-        if spec["capability"] == "C1" and spec["origin"] in ("schedule", "gateway"):
-            return policy == "remote_ok"
-        return model_may_read(policy, spec["origin"], local)
-
     def _input(self, path: str) -> dict[str, Any] | None:
         for item in self._work()["workspec"]["inputs"]:
             if item["path"] == path:
@@ -196,21 +189,21 @@ class Evidence:
         if current is None:
             raise Unavailable("the source was moved or deleted")
         self.owner.store.put_blob(current.raw)
-        return current, effective(current, self.owner.config.default_policy), "current"
+        return current, effective(current), "current"
 
-    def _check(self, path: str, local: bool, also: str | None = None) -> str:
+    def _check(self, path: str, also: str | None = None) -> str:
         """Policy of the note's current content, checked immediately before disclosure."""
         current = self.owner.vault.read(path)
         if current is None:
             raise Unavailable("the source was moved or deleted")
-        policy = effective(current, self.owner.config.default_policy)
+        policy = effective(current)
         if also is not None:
             policy = strictest([policy, also])
-        if not self._may_read(policy, local):
-            raise Unavailable("privacy: the source is not readable under this Work's policy")
+        if not approved(policy):
+            raise Unavailable("privacy: the source's ai_policy is deny")
         return policy
 
-    def assert_disclosure(self, *, local: bool = False, handles: Iterable[str] | None = None) -> None:
+    def assert_disclosure(self, *, handles: Iterable[str] | None = None) -> None:
         """Fail closed before replaying retained evidence to another receiving role."""
         table = self.table()
         selected = handles if handles is not None else (h for h, entry in table.items() if entry["read"])
@@ -218,13 +211,13 @@ class Evidence:
             entry = table.get(handle)
             if entry is None:
                 raise Unavailable("privacy: the retained evidence handle is unavailable")
-            self._check(entry["path"], local, entry["policy"])
+            self._check(entry["path"], entry["policy"])
 
-    def read_note(self, path: str, *, local: bool = False, by: str) -> list[str]:
+    def read_note(self, path: str, *, by: str) -> list[str]:
         """Disclose every chunk of one note and mark the handles read. Raises ``Unavailable``."""
-        self._check(path, local)
+        self._check(path)
         note, version_policy, source = self._version(path)
-        policy = self._check(path, local, version_policy)
+        policy = self._check(path, version_policy)
         picked, used = [], 0
         for chunk in chunks(note):
             used += len(chunk.text)
@@ -234,18 +227,18 @@ class Evidence:
         return self._register(path, note, policy, source, picked, True, by)
 
     def note_handles(self, path: str, *, by: str) -> list[str]:
-        """Issue context handles only for readable versions; actual reads still check the role route."""
-        self._check(path, True)
+        """Issue context handles only for readable versions."""
+        self._check(path)
         note, policy, source = self._version(path)
-        policy = self._check(path, True, policy)
+        policy = self._check(path, policy)
         return self._register(path, note, policy, source, chunks(note), False, by)
 
-    def _hit(self, path: str, line: int, by: str, local: bool) -> str | None:
+    def _hit(self, path: str, line: int, by: str) -> str | None:
         """The handle of the chunk holding ``line`` (or the first chunk), not marked read."""
         try:
-            self._check(path, local)
+            self._check(path)
             note, policy, source = self._version(path)
-            policy = self._check(path, local, policy)
+            policy = self._check(path, policy)
         except Unavailable:
             return None
         found = chunks(note)
@@ -256,13 +249,13 @@ class Evidence:
 
     # ------------------------------------------------------------ role tools
 
-    def read(self, handle: Any, *, local: bool = False, by: str) -> dict[str, Any]:
+    def read(self, handle: Any, *, by: str) -> dict[str, Any]:
         """Tool ``read(handle)``: the note's chunks with their handles and line ranges."""
         entry = self.get(handle)
         if entry is None:
             return {"handle": handle, "status": "unknown_handle"}
         try:
-            issued = self.read_note(entry["path"], local=local, by=by)
+            issued = self.read_note(entry["path"], by=by)
         except Unavailable as error:
             return {"handle": handle, "status": "unavailable", "reason": str(error)}
         table = self.table()
@@ -273,45 +266,40 @@ class Evidence:
             "title": first["title"],
             "type": first["type"],
             "chunks": [
-                {"handle": h, "lines": _locator(table[h])[1:], "text": self.chunk_text(h, local=local)} for h in issued
+                {"handle": h, "lines": _locator(table[h])[1:], "text": self.chunk_text(h)} for h in issued
             ],
         }
 
-    def search(self, query: Any, *, local: bool = False, by: str, limit: int = 10) -> dict[str, Any]:
-        """Tool ``search(query)``: role-audience keyword search within the Work policy."""
+    def search(self, query: Any, *, by: str, limit: int = 10) -> dict[str, Any]:
+        """Tool ``search(query)``: role-audience keyword search over approved notes."""
         if not isinstance(query, str) or not query.strip():
             return {"status": "invalid", "results": []}
-        found = self.owner.index.keyword(
-            query, audience="role", allow=lambda doc: self._may_read(doc.policy, local),
-            limit=max(1, min(int(limit), 20))
-        )
-        return {"status": found["status"], "results": self._results(found["results"], by, local)}
+        found = self.owner.index.keyword(query, audience="role", limit=max(1, min(int(limit), 20)))
+        return {"status": found["status"], "results": self._results(found["results"], by)}
 
-    def related(self, handle: Any, *, local: bool = False, by: str, limit: int = 10) -> dict[str, Any]:
+    def related(self, handle: Any, *, by: str, limit: int = 10) -> dict[str, Any]:
         """Tool ``related(handle)``: links, backlinks and shared tags of the handle's note."""
         entry = self.get(handle)
         if entry is None:
             return {"status": "unknown_handle", "results": []}
         try:
-            self._check(entry["path"], local, entry["policy"])
+            self._check(entry["path"], entry["policy"])
         except Unavailable as error:
             return {"status": "unavailable", "results": [], "reason": str(error)}
         found = self.owner.index.related(
-            entry["path"], audience="role", allow=lambda doc: self._may_read(doc.policy, local),
-            limit=max(1, min(int(limit), 20)), system_one=self.owner.system_one,
-            origin=self._work()["workspec"]["origin"],
+            entry["path"], audience="role", limit=max(1, min(int(limit), 20)), system_one=self.owner.system_one,
         )
-        return {"status": found["status"], "results": self._results(found["results"], by, local)}
+        return {"status": found["status"], "results": self._results(found["results"], by)}
 
-    def _results(self, results: list[dict[str, Any]], by: str, local: bool) -> list[dict[str, Any]]:
+    def _results(self, results: list[dict[str, Any]], by: str) -> list[dict[str, Any]]:
         shown = []
         for result in results:
-            handle = self._hit(result["path"], result["line"], by, local)
+            handle = self._hit(result["path"], result["line"], by)
             if handle is None:
                 continue
             entry = self.get(handle)
             try:
-                excerpt = self.chunk_text(handle, local=local).strip()[:160]
+                excerpt = self.chunk_text(handle).strip()[:160]
             except Unavailable:
                 continue
             item = {
@@ -329,9 +317,9 @@ class Evidence:
 
     # ------------------------------------------------------------ expansion
 
-    def chunk_text(self, handle: str, *, local: bool = True) -> str:
+    def chunk_text(self, handle: str) -> str:
         entry = self.table()[handle]
-        self._check(entry["path"], local, entry["policy"])
+        self._check(entry["path"], entry["policy"])
         data = self.owner.store.get_blob(entry["blob"])
         if data is None:
             raise LookupError(f"evidence bytes for {handle} are missing from State")
@@ -339,7 +327,7 @@ class Evidence:
         start, end = entry["lines"]
         return "".join(lines[start - 1 : end])
 
-    def excerpts(self, handles: list[str], *, local: bool = False) -> list[dict[str, Any]]:
+    def excerpts(self, handles: list[str]) -> list[dict[str, Any]]:
         """Bounded, policy-checked chunk excerpts (the EvalOfficer's view of cited evidence)."""
         table = self.table()
         shown = []
@@ -348,7 +336,7 @@ class Evidence:
             if entry is None:
                 continue
             try:
-                self._check(entry["path"], local, entry["policy"])
+                self._check(entry["path"], entry["policy"])
             except Unavailable as error:
                 shown.append({"handle": handle, "status": "unavailable", "reason": str(error)})
                 continue
@@ -357,7 +345,7 @@ class Evidence:
                     "handle": handle,
                     "title": entry["title"],
                     "lines": _locator(entry)[1:],
-                    "text": self.chunk_text(handle, local=local)[:EVAL_EXCERPT_CHARS],
+                    "text": self.chunk_text(handle)[:EVAL_EXCERPT_CHARS],
                 }
             )
         return shown

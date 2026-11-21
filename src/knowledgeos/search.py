@@ -5,7 +5,7 @@ refresh stats every Markdown file and reparses only files whose identity changed
 notes are never indexed: only their file identity is kept so they are not reread.
 
 Audiences: ``people`` (Thin Client, console) see reports; ``role`` (Team read tools)
-excludes reports unless the user changed their type, and applies the Work's policy filter.
+excludes reports unless the user changed their type. ``deny`` notes are never visible.
 Semantic search needs a ready local vector index (``knowledgeos.semantic``); without one, or
 when the query cannot be embedded, it answers ``unavailable`` and never substitutes keyword
 results. Semantic neighbors join the related labels. Every semantic result passes the same
@@ -23,9 +23,9 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from .notes import WIKILINK_RE, Note
-from .policy import DEFAULT_POLICY, effective, model_may_read
+from .policy import approved, effective
 from .standardize import normalize_tags
-from .system_one import SystemOne, SystemOneUnavailable, may_send, note_input, predicate
+from .system_one import SystemOne, SystemOneUnavailable, note_input, predicate
 from .util import sha256
 from .vault import PROPOSALS_DIR, SYSTEM_ROOT, Vault, VaultPathError
 
@@ -94,24 +94,13 @@ class SemanticBackend(Protocol):
 Allow = Callable[[Doc], bool]
 
 
-def role_filter(origin: str, local_route: bool = False) -> Allow:
-    """The policy filter for a model role's reads in Work of the given origin (Blueprint §5.4)."""
-    return lambda doc: model_may_read(doc.policy, origin, local_route)
-
-
 def _stamp(stat: Any) -> tuple[int, int, int, int]:
     return (stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns)
 
 
 class SearchIndex:
-    def __init__(
-        self,
-        vault: Vault,
-        default_policy: str = DEFAULT_POLICY,
-        observe: Callable[[str], None] | None = None,
-    ):
+    def __init__(self, vault: Vault, observe: Callable[[str], None] | None = None):
         self.vault = vault
-        self.default_policy = default_policy
         self.observe = observe
         self.semantic_backend: SemanticBackend | None = None
         self._verdicts: dict[tuple[str, str, str], float] = {}
@@ -122,7 +111,7 @@ class SearchIndex:
     # ------------------------------------------------------------ index
 
     def _make_doc(self, path: str, note: Note, stamp: tuple[int, int, int, int], mtime: float) -> Doc:
-        policy = effective(note, self.default_policy)
+        policy = effective(note)
         if policy == "deny":
             return Doc(path=path, stamp=stamp, mtime=mtime, policy="deny")
         lines = tuple(note.text.splitlines())
@@ -203,7 +192,7 @@ class SearchIndex:
                 continue
             files += 1
             doc = indexed.pop(path, None)
-            if effective(note, self.default_policy) == "deny":
+            if effective(note) == "deny":
                 continue
             if doc is None:
                 missing.append(path)
@@ -330,10 +319,10 @@ class SearchIndex:
 
     def related(
         self, path: str, *, audience: str = "people", allow: Allow | None = None, limit: int = 20,
-        system_one: SystemOne | None = None, origin: str = "user",
+        system_one: SystemOne | None = None,
     ) -> dict[str, Any]:
         """Links, backlinks, shared tags and semantic neighbors, each labeled by reason. With
-        ``system_one``, semantic neighbors are vetted for the Work ``origin`` (see ``_vet``)."""
+        ``system_one``, semantic neighbors are vetted (see ``_vet``)."""
         docs = self.refresh()
         focal = docs.get(path)
         if focal is None or not self.visible(focal, audience, allow):
@@ -370,7 +359,7 @@ class SearchIndex:
             assert self.semantic_backend is not None
             accept = lambda doc: self.visible(doc, audience, allow)
             hits = self.semantic_backend.neighbors(focal.path, docs, limit, accept)
-            verdicts = self._vet(system_one, origin, focal, hits, docs) if system_one and hits else {}
+            verdicts = self._vet(system_one, focal, hits, docs) if system_one and hits else {}
             for hit in hits:
                 if verdicts.get(hit.path) is False:
                     continue
@@ -390,13 +379,13 @@ class SearchIndex:
         return {"status": "ok", "results": results[:limit]}
 
     def _vet(
-        self, system_one: SystemOne, origin: str, focal: Doc, hits: list[SemanticHit], docs: dict[str, Doc]
+        self, system_one: SystemOne, focal: Doc, hits: list[SemanticHit], docs: dict[str, Doc]
     ) -> dict[str, bool]:
         """System One's verdict per semantic neighbor path: is it substantively related to the
         focal note, not merely sharing generic words? One Decisions request carries the focal
         note and one predicate per neighbor that has no cached verdict. The focal note and each
         candidate are reread and their current policy checked right before sending; any that
-        may not go to a remote model, and every unavailable or refused answer, have no verdict,
+        is no longer ``approve``, and every unavailable or refused answer, have no verdict,
         so that neighbor stays a plain cosine neighbor. Reads never write State (``ref=None``).
         Verdicts are cached in memory by focal sha, candidate sha and System One model."""
         assert self.semantic_backend is not None
@@ -404,7 +393,7 @@ class SearchIndex:
         model = system_one.settings.model
         known: dict[str, float] = {}
         pending: list[tuple[str, SemanticHit, tuple[str, str, str], Note]] = []
-        focal_note = self._sendable(focal, origin)
+        focal_note = self._sendable(focal)
         if focal_note is None:
             return {}
         for hit in hits:
@@ -415,7 +404,7 @@ class SearchIndex:
             if cached is not None:
                 known[hit.path] = cached
                 continue
-            candidate = self._sendable(doc, origin)
+            candidate = self._sendable(doc)
             if candidate is not None:
                 pending.append((f"related_{len(pending) + 1}", hit, key, candidate))
         if pending:
@@ -444,13 +433,13 @@ class SearchIndex:
                     self._verdicts[key] = known[hit.path]
         return {path: probability >= threshold for path, probability in known.items()}
 
-    def _sendable(self, doc: Doc, origin: str) -> Note | None:
+    def _sendable(self, doc: Doc) -> Note | None:
         """The note reread from the Vault when it is still the indexed content and its current
-        policy lets a remote model read it in ``origin``."""
+        policy is ``approve``."""
         try:
             note = self.vault.read(doc.path)
         except VaultPathError:
             return None
-        if note is None or note.sha != doc.sha or not may_send(effective(note, self.default_policy), origin):
+        if note is None or note.sha != doc.sha or not approved(effective(note)):
             return None
         return note

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import pytest
 from conftest import (
     classifier_script,
     conforming_note,
@@ -12,6 +13,7 @@ from conftest import (
     evaluator_script,
     organize_scripts,
 )
+from test_c7_jobs import run_job
 
 from knowledgeos.notes import parse
 from knowledgeos.proposals import parse as parse_proposal
@@ -29,7 +31,7 @@ def work(kos, receipt):
     return value
 
 
-def related(vault, policy="ask"):
+def related(vault, policy="approve"):
     path = "40_Knowledge/Notes/Notebooks.md"
     vault.write(path, conforming_note("knowledge", "seed", body="Notebooks are tools for thinking. [[Tools]]\n", extra="tags: [thinking]\n", policy=policy))
     return path
@@ -85,12 +87,14 @@ def test_ORG_2_unread_link_gets_corrective_turn_then_link_criterion_unmet(kos, v
     assert vault.snapshot() == before
 
 
-def test_ORG_3_scheduled_roles_never_receive_ask_note_content(kos, vault):
+@pytest.mark.parametrize("origin", ["user", "schedule"])
+@pytest.mark.parametrize("policy", ["deny", "ask"])
+def test_ORG_3_denied_and_retired_notes_are_never_admitted_or_disclosed(kos, vault, origin, policy):
     secret = "ASK-ONLY-PLANS-796183"
-    vault.write(TARGET, conforming_note("capture", "unprocessed", body="Tools for thinking. [[Private plans]]\n", policy="remote_ok"))
+    vault.write(TARGET, conforming_note("capture", "unprocessed", body="Tools for thinking. [[Private plans]]\n", policy="approve"))
     hidden = "00_Inbox/Private plans.md"
-    vault.write(hidden, conforming_note("capture", "unprocessed", body=f"Tools {secret}\n", extra="tags: [private-unique-tag]\n"))
-    related(vault, policy="remote_ok")
+    vault.write(hidden, conforming_note("capture", "unprocessed", body=f"Tools {secret}\n", extra="tags: [private-unique-tag]\n", policy=policy))
+    related(vault, policy="approve")
     organize_scripts(kos.runner)
     results = []
     for role, original in list(kos.runner.scripts.items()):
@@ -112,8 +116,11 @@ def test_ORG_3_scheduled_roles_never_receive_ask_note_content(kos, vault):
                         session.call("read", handle=item["handle"])
             original(session)
         kos.runner.script(role, recording)
-    trigger = kos.run("job.run", {"job": "curate"}, actor="schedule/curate")
-    receipt = kos.wait(trigger["outcome"]["request_id"])
+    if origin == "schedule":
+        trigger = kos.run("job.run", {"job": "curate"}, actor="schedule/curate")
+        receipt = kos.wait(trigger["outcome"]["request_id"])
+    else:
+        receipt = organize(kos, vault)
     assert receipt["status"] == "completed", receipt
     assert {row["role"] for row in kos.runner.invocations} == {"curation_manager", "classifier", "linker", "eval_officer"}
     disclosed = json.dumps(results, ensure_ascii=False)
@@ -121,6 +128,10 @@ def test_ORG_3_scheduled_roles_never_receive_ask_note_content(kos, vault):
     record = work(kos, receipt)
     assert [item["path"] for item in record["workspec"]["inputs"]] == [TARGET]
     assert all(entry["path"] != hidden for entry in record["evidence"].values())
+    invoked = len(kos.runner.invocations)
+    refused = organize(kos, vault, (hidden,))
+    assert refused["status"] == "refused" and refused["work_id"] is None
+    assert len(kos.runner.invocations) == invoked
 
 
 def test_ORG_4_unchecked_move_keeps_file_in_place(kos, vault):
@@ -194,6 +205,27 @@ def test_ORG_6_unsupported_target_gets_only_classifier_successor(kos, vault):
     by_target = {parse_proposal(parse(p, vault.read(p))).target_path: parse_proposal(parse(p, vault.read(p))) for p in proposals(vault)}
     assert next(c["value"] for c in by_target[paths[0]].changes if c.get("key") == "title") == "First classification"
     assert next(c["value"] for c in by_target[paths[1]].changes if c.get("key") == "title") == "Revised classification"
+
+
+def test_ORG_8_daily_note_is_never_an_organize_target(kos, vault):
+    path = "10_Journal/Daily/2026-11-20.md"
+    original = conforming_note("daily", "", body="## 할 일\n- [ ] Keep my task.\n", policy="approve")
+    vault.write(path, original.replace("status: \n", ""))
+    before = vault.snapshot()
+    explicit = organize(kos, vault, [path])
+    assert explicit["status"] == "refused", explicit
+    assert "daily note (never a proposal target)" in explicit["notice"]
+    folder = kos.run("organize", {"paths": ["10_Journal/Daily"]})
+    assert folder["status"] == "completed", folder
+    assert folder["outcome"] == {
+        "proposals": [],
+        "skipped": [{"path": path, "reason": "daily note (never a proposal target)"}],
+    }
+    automatic, _ = run_job(kos, "curate")
+    assert automatic["status"] == "completed", automatic
+    assert automatic["outcome"]["proposals"] == [] and automatic["work_id"] is None
+    assert kos.runner.invocations == [] and proposals(vault) == []
+    assert vault.snapshot() == before
 
 
 def test_ORG_capture_attachment_is_processed_only_on_apply(kos, vault):
