@@ -40,7 +40,8 @@ import yaml
 
 from .catalog import Catalog
 from .config import LOOPBACK_HOSTS, ConfigError, OwnerConfig
-from .util import sha256
+from operationkit.canonical import sha256
+from operationkit.hermes import distribution_manifest, model_settings, profile_settings, soul_document
 
 OPS_PROFILE = "kos-ops"
 PACKAGE_PARENT = str(Path(__file__).resolve().parents[1])
@@ -53,14 +54,10 @@ DISABLED_TOOLSETS = (
 SAFE_ENV = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TERM", "SHELL")
 ROLE_OWNED = ["SOUL.md", "config.yaml", "distribution.yaml"]  # skills stay profile-owned (§4.5)
 OPS_OWNED = ["config.yaml", "distribution.yaml", "gateway.parked"]
-DISTRIBUTION_VERSION = "1.0.0"
 CHANNEL_RE = re.compile(r"^\d+(?::\d+)?$")
 LEDGER = ".curator_ledger.jsonl"
 LEDGER_ROWS = 20
 TAIL_CHARS = 400
-# Hermes 0.22.5: agent.reasoning_effort levels and the minimum context it admits for a model.
-REASONING_EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
-MIN_CONTEXT = 64_000
 
 
 # ---------------------------------------------------------------- host
@@ -376,24 +373,8 @@ def _yaml(data: dict[str, Any], source: str) -> str:
     return header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False)
 
 
-def _locked_down(learning: bool) -> dict[str, Any]:
-    """Profile settings shared by every KnowledgeOS profile: no fallback route, no silent
-    recovery cycles, no built-in tools, direct tool visibility, learning on or off."""
-    return {
-        "fallback_providers": [],
-        "agent": {"auto_recovery_cycles": 0, "disabled_toolsets": list(DISABLED_TOOLSETS)},
-        "platform_toolsets": {"cli": [], "acp": []},
-        "tools": {"tool_search": {"enabled": "off"}},
-        "skills": {"ledger": learning},
-        "curator": {"enabled": learning},
-        "auxiliary": {"background_review": {"enabled": learning}},
-    }
-
-
 def _distribution(profile: str, description: str, owned: list[str], files: dict[str, str]) -> dict[str, str]:
-    content = hashlib.sha256(json.dumps(files, sort_keys=True).encode("utf-8")).hexdigest()
-    manifest = {"name": profile, "version": f"{DISTRIBUTION_VERSION}+{content[:12]}",
-                "description": description, "distribution_owned": owned}
+    manifest = distribution_manifest(profile, description, owned, files)
     return {"distribution.yaml": _yaml(manifest, "KnowledgeOS source declarations"), **files}
 
 
@@ -458,30 +439,14 @@ def _roles_document(config: OwnerConfig) -> dict[str, Any]:
 def role_files(config: OwnerConfig, role: str, declared: dict[str, Any], common: str) -> dict[str, str]:
     """``SOUL.md`` (COMMON + role SOUL) and ``config.yaml`` with the pinned model route, its
     optional endpoint (``base_url``, ``ollama_num_ctx``) and ``reasoning_effort``."""
-    route = declared.get("model_route")
-    if not isinstance(route, str) or "/" not in route:
-        raise ConfigError(f"role {role} needs a provider/model route in config/roles.json")
-    provider, model = route.split("/", 1)
-    block: dict[str, Any] = {"default": model, "provider": provider}
-    base_url = declared.get("base_url")
-    if base_url is not None:
-        parts = urlsplit(base_url) if isinstance(base_url, str) else None
-        if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
-            raise ConfigError(f"role {role} base_url must be an http(s) URL")
-        block["base_url"] = base_url
-    num_ctx = declared.get("ollama_num_ctx")
-    if num_ctx is not None:
-        if type(num_ctx) is not int or num_ctx < MIN_CONTEXT:
-            raise ConfigError(f"role {role} ollama_num_ctx must be an integer of at least {MIN_CONTEXT}")
-        block["ollama_num_ctx"] = num_ctx
-    settings = {"model": block, **_locked_down(learning=True)}
-    effort = declared.get("reasoning_effort")
-    if effort is not None:
-        if effort not in REASONING_EFFORTS:
-            raise ConfigError(f"role {role} reasoning_effort must be one of {', '.join(REASONING_EFFORTS)}")
-        settings["agent"]["reasoning_effort"] = effort
+    try:
+        model = model_settings(declared)
+    except ValueError as error:
+        raise ConfigError(f"role {role} {error}") from error
+    settings = {"model": model["model"], **profile_settings(learning=True, disabled_toolsets=DISABLED_TOOLSETS)}
+    settings["agent"].update(model.get("agent", {}))
     soul = (config.root / declared["soul"]).read_text(encoding="utf-8")
-    files = {"SOUL.md": common.rstrip("\n") + "\n\n" + soul, "config.yaml": _yaml(settings, "config/roles.json")}
+    files = {"SOUL.md": soul_document(common, soul), "config.yaml": _yaml(settings, "config/roles.json")}
     return _distribution(declared["profile"], f"KnowledgeOS {role} role", ROLE_OWNED, files)
 
 
@@ -511,7 +476,7 @@ def _install_operations(config: OwnerConfig, host: HermesHost, document: dict[st
     profile = (document.get("operations_profile") or {}).get("profile")
     if not isinstance(profile, str) or not profile:
         raise ConfigError("config/roles.json needs operations_profile.profile")
-    files = {"config.yaml": _yaml(_locked_down(learning=False), "config/roles.json"),
+    files = {"config.yaml": _yaml(profile_settings(learning=False, disabled_toolsets=DISABLED_TOOLSETS), "config/roles.json"),
              "gateway.parked": "KnowledgeOS outbound-only: the gateway stays parked; the Owner only runs `hermes -p kos-ops send`.\n"}
     target = _distributions(config) / profile
     _write_tree(target, _distribution(profile, "KnowledgeOS outbound Discord delivery (no model)", OPS_OWNED, files))

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from .notes import Note, parse
 from .policy import approved, effective, strictest
-from .util import sha256
+from operationkit.canonical import sha256
 from .vault import resource_reference
 
 if TYPE_CHECKING:

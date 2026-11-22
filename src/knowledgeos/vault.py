@@ -19,7 +19,9 @@ from pathspec import GitIgnoreSpec
 from . import OPERATION_ID
 from .notes import Note, parse
 from .policy import effective
-from .util import atomic_write, create_exclusive, sha256
+from operationkit.canonical import sha256
+
+from .util import atomic_write, create_exclusive
 
 ATTACHMENT_ROOTS = ("80_Assets/",)
 SYSTEM_ROOT = "99_System/"

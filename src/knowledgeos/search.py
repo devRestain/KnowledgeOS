@@ -26,7 +26,7 @@ from .notes import WIKILINK_RE, Note
 from .policy import approved, effective
 from .standardize import normalize_tags
 from .system_one import SystemOne, SystemOneUnavailable, note_input, predicate
-from .util import sha256
+from operationkit.canonical import sha256
 from .vault import PROPOSALS_DIR, SYSTEM_ROOT, Vault, VaultPathError
 
 EXCERPT_CHARS = 160

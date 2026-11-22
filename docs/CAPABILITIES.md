@@ -2,6 +2,8 @@
 
 This is the user-designated top-level behavior and acceptance specification. [USER_FEATURE_SPEC.md](../USER_FEATURE_SPEC.md) supplies intent, and the [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md) supplies system constraints, surfaces, execution organization, data model and effect rules; they supplement this contract without weakening its acceptance coverage or changing Core contracts or schemas. Conflicts are corrected together under Blueprint §0. Every acceptance example is an executable test through a public interface. Model steps use scripted role responses, except in the real-environment smokes.
 
+The mandatory beginner-readable technical wiki is owned by KnowledgeOS and authored only in the Sites monorepo's `knowledgeos/_source/`, with generated presentation at `/knowledgeos/wiki/`. Its purpose-to-code explanations and generated acceptance/state references supplement this specification without replacing it or creating a second state ledger. Sites publishes only explicit source/document copies through ExOps; optional usage/status/console surfaces do not become universal Operation requirements.
+
 ## Shared terms
 
 - **Request**: a Thin Client command, console action, CLI command, scheduled job run or Gateway submission, identified by a stable request ID.

@@ -6,7 +6,10 @@ from datetime import datetime
 
 from ..notes import UUID4_RE, parse, render_scalar
 from ..policy import DEFAULT_POLICY, approved, effective
-from ..util import digest, iso, new_id, new_uuid
+from operationkit.canonical import digest
+from operationkit.interops import sender_grant
+
+from ..util import iso, new_id, new_uuid
 from . import Done, Refused, WorkDraft
 
 CAPABILITY = "C10"
@@ -82,11 +85,10 @@ def ensure_record(owner, gateway_id, body, kind):
 
 def authorization(owner, body, action):
     operations = owner.setting(CAPABILITY, "authorized_operations", {})
-    grant = operations.get(body["sender_operation_id"]) if isinstance(operations, dict) else None
-    if not isinstance(grant, dict) or grant.get(action) is not True:
-        return None, error_record("FORBIDDEN", f"Operation is not authorized for {action}")
-    if body["purpose"] not in grant.get("purposes", []):
-        return None, error_record("SCOPE_DENIED", "Purpose is not authorized")
+    grant, code = sender_grant(operations, body["sender_operation_id"], action, body["purpose"])
+    if code is not None:
+        message = f"Operation is not authorized for {action}" if code == "FORBIDDEN" else "Purpose is not authorized"
+        return None, error_record(code, message)
     if action == "intake" and not body["export_policy"]["git_sync_allowed"]:
         return None, error_record("FORBIDDEN", "Export policy forbids storage in a Git-synchronized Vault")
     return grant, None

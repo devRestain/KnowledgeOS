@@ -41,7 +41,9 @@ from ..standardize import (
     verify,
 )
 from ..system_one import SystemOneUnavailable, note_input
-from ..util import iso, new_id, new_uuid, sha256
+from operationkit.canonical import sha256
+
+from ..util import iso, new_id, new_uuid
 from ..vault import VaultPathError
 
 CAPABILITY = "C2"

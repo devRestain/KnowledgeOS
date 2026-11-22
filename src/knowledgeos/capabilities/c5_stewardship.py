@@ -13,7 +13,9 @@ from ..notes import FrontmatterEditor
 from ..policy import approved, effective, strictest
 from ..standardize import path_skip_reason
 from ..system_one import SystemOneUnavailable
-from ..util import digest, iso
+from operationkit.canonical import digest
+
+from ..util import iso
 from ..vault import PROPOSALS_DIR
 from .c7_jobs import jobs_view
 

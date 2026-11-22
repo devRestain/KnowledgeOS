@@ -2,13 +2,13 @@
 
 KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 다시 쓸 수 있는 형태로 정리·축적하고, 축적된 생각으로 사고를 강화하는 AgentFabric Operation입니다.
 
-동작 기준은 [기능 명세](docs/CAPABILITIES.md)이며, 각 인수 시나리오가 어떤 구현과 테스트로 확인되는지는 [기능 추적표](docs/CAPABILITY_TRACE.md)에 있습니다. 처음 보는 분은 브라우저로 [KnowledgeOS 위키](docs/wiki/index.html)를 먼저 열어 보세요.
+동작 기준은 [기능 명세](docs/CAPABILITIES.md)이며, 각 인수 시나리오가 어떤 구현과 테스트로 확인되는지는 [기능 추적표](docs/CAPABILITY_TRACE.md)에 있습니다. 처음 보는 분은 별도 Sites 모노레포의 [KnowledgeOS 위키](../../Sites/knowledgeos/wiki/index.html)를 먼저 읽어 보세요.
 
 ## 문서
 
 | 문서 | 내용 |
 |---|---|
-| [KnowledgeOS 위키](docs/wiki/index.html) | 코드를 읽지 않고 실제 기능의 처리 흐름·Hermes Profile·Graph·Temporal 연결을 이해하는 한국어 구현 해설 |
+| [KnowledgeOS 위키](../../Sites/knowledgeos/wiki/index.html) | 코드를 읽지 않고 실제 기능의 처리 흐름·Hermes Profile·Graph·Temporal 연결을 이해하는 필수 한국어 기술 위키 |
 | [기능 명세](docs/CAPABILITIES.md) | 최상위 기준: 기능별 동작, 인수 시나리오, 구현 순서 |
 | [기능 추적표](docs/CAPABILITY_TRACE.md) | 인수 ID마다 구현 위치와 pytest 노드 |
 | [사용자 기능 명세](USER_FEATURE_SPEC.md) | 지키는 약속, 여섯 기능, Obsidian·관리·모바일 사용 흐름 |
@@ -27,8 +27,8 @@ KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 
 | `frontend/` | 관리 콘솔(브라우저) |
 | `thin-client/` | Obsidian Thin Client 플러그인 소스 |
 | `tests/` | 공개 인터페이스 기준 계약 테스트 |
-| `scripts/` | 추적표 검사(`trace_check.py`), 상태 검증(`validate_state.py`), 위키 생성·검사(`build_wiki.py`, `wiki_check.py`) |
-| `docs/wiki/` | 생성된 위키(HTML)와 직접 쓴 설명 원본(`_source/`) |
+| `scripts/` | 추적표 검사(`trace_check.py`), 상태 검증(`validate_state.py`), Sites의 KnowledgeOS 범위 생성·검사 호출(`build_wiki.py`, `wiki_check.py`) |
+| `../../Sites/knowledgeos/` | 소개·위키·선별 공개 근거 사본과 유일한 설명 원고(`_source/`); 별도 Git 모노레포 |
 
 ## 소유와 경계
 
@@ -46,19 +46,19 @@ make image-build                 # 개발 이미지(Python 3.12.8, uv 0.8.14, No
 make trace-check                 # 추적표가 인수 ID와 정확히 일치하는지 검사하고 노드 목록 출력
 make test TESTS="<노드 ID들>"     # 지정한 테스트만 실행(네트워크 차단, 읽기 전용 소스)
 make state-check                 # PROJECT_STATE.md 검증
-make wiki                        # 원본 문서와 docs/wiki/_source/로 위키 HTML 생성
-make wiki-check                  # 위키가 원본과 일치하고 링크가 모두 열리는지 검사
+make wiki                        # Sites/knowledgeos/_source/로 Sites/knowledgeos/wiki/ 생성
+make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상태 연결·링크 검사
 ```
 
-모든 개발 세션은 바뀐 범위에 맞춰 원본 문서와 위키 설명을 함께 갱신합니다. 끝내기 전에 `make wiki`로 위키를 다시 만들고, `make wiki-check`를 통과시킨 뒤, 바뀐 페이지를 브라우저로 열어 확인합니다. 설명 문장은 `docs/wiki/_source/`에서만 고치고, 생성된 HTML은 직접 고치지 않습니다. 위키를 갱신하다 명세 문서끼리 어긋나는 곳을 발견하면, 위키에 경고만 남기지 말고 같은 세션에서 우선순위가 낮은 문서(Blueprint, 사용자 기능 명세)를 고칩니다.
+바뀐 기능에 맞춰 명세와 Sites의 `knowledgeos/_source/` 설명을 함께 갱신합니다. 설명 원고와 생성 결과는 하나의 Sites 저장소에만 두며, 예전 `docs/wiki/` HTML 별칭은 만들지 않습니다. Operation별 독립 Sites worktree에서는 `make wiki SITES_ROOT=/path/to/sites-worktree`와 대응하는 `make wiki-check`로 자신의 범위만 생성·검사합니다. 선택한 재사용 구현 worktree는 `OPERATIONKIT_ROOT=/path/to/OperationKit`로 지정할 수 있습니다. 공통 허브나 등록을 바꿀 때만 Sites에서 전체를 생성합니다.
 
-위키의 독자는 설계 원칙을 이미 알고 있는 소유자입니다. [작성 철학](docs/wiki/philosophy.html)에 따라 실제 입력에서 결과까지의 구현 선택을 자연어로 설명하고, 공통 원칙·영문 명세·검증 이력을 기능마다 반복하지 않습니다. 처리 순서와 기본값은 현재 코드·설정으로 확인하며, 구현 근거와 실제 실행 관찰을 구별합니다.
+위키는 [작성 철학](../../Sites/knowledgeos/wiki/philosophy.html)에 따라 실제 입력에서 결과까지의 구현 선택을 자연어로 설명합니다. 처리 순서와 기본값은 현재 코드·설정으로 확인하며, 구현 근거와 실제 실행 관찰을 구별합니다. Sites의 문서 변경은 독립 worktree의 GitHub PR로 리뷰·병합하며, 소유 Operation의 명세·코드 근거는 명시한 AgentFabric 소스 경로에서만 읽습니다.
 
 ### 모바일에서 위키 읽기
 
 위키는 휴대폰 브라우저에서도 읽을 수 있습니다. 좁은 화면에서는 검색창이 별도 줄을 쓰고 본문은 화면 폭에 맞춥니다. 넓은 표·코드는 영역 안에서 가로 스크롤하며, 그림은 **그림 크게 보기 / 그림 전체 보기**로 전환합니다.
 
-접속 경로는 **정적 위키 전용 비공개 HTTPS + Tailscale Serve**를 권장합니다. Mac이 켜져 있어야 하며 접근 규칙을 본인 기기로 제한해야 합니다. 배포·네트워크 설정은 변경하지 않습니다. 배포 파일 범위와 원문 링크의 한계는 [위키 작성 철학의 정적 배포 안내](docs/wiki/philosophy.html#휴대폰과-정적-배포)에 있습니다. Owner·관리 콘솔의 원격 노출은 포함하지 않습니다.
+접속은 Sites의 ExOps 정적 서버와 서버 측 **Tailscale Serve의 비공개 tailnet HTTPS**를 사용합니다. 정확한 컨테이너 실행·Host 설정·`tailscale serve --bg http://127.0.0.1:8766` 안내는 [Sites README](../../Sites/README.md)에 있습니다. 이 작업은 Serve나 네트워크를 활성화하지 않으며 Funnel·공개 인터넷·Owner API 노출을 포함하지 않습니다. 원문 근거는 Sites 안의 명시적 선별 사본으로 연결하므로 저장소 전체를 제공할 필요가 없습니다.
 
 ### 기능 검증과 Owner 실행
 

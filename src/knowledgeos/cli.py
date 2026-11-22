@@ -101,7 +101,7 @@ def _value(value: Any) -> str:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
-    from .exops import ExOps
+    from .exops import create_server
     from .hermes import host_from_config, notifier_from_config
     from .owner import Owner
     from .roles import HermesRunner
@@ -112,7 +112,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     runner = HermesRunner(host, config.runtime, config.endpoint) if host else None
     owner = Owner(config, runner=runner, notifier=notifier_from_config(config, host))
     try:
-        exops = ExOps(owner).start()
+        exops = create_server(owner).start()
     except BaseException:
         owner.close()
         raise

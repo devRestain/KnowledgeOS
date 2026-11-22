@@ -38,7 +38,9 @@ from .catalog import Catalog
 from .config import ConfigError, OwnerConfig
 from .notes import Note
 from .search import Doc, SemanticHit, SemanticUnavailable
-from .util import atomic_write, canonical, sha256
+from operationkit.canonical import canonical, sha256
+
+from .util import atomic_write
 from .vault import PROPOSALS_DIR, SYSTEM_ROOT
 
 log = logging.getLogger("knowledgeos.semantic")

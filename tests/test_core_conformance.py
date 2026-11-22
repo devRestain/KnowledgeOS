@@ -16,7 +16,7 @@ from conftest import conforming_note, core_root, core_validate, enhance_scripts,
 import knowledgeos
 from knowledgeos.config import ROOT
 from knowledgeos.core_records import pins
-from knowledgeos.util import canonical
+from operationkit.canonical import canonical
 
 IDEA = "40_Knowledge/Ideas/Tools shape thinking.md"
 RELATED = "40_Knowledge/Notes/Related.md"

@@ -9,7 +9,9 @@ from typing import Any
 
 from ..capabilities import Done, Registry
 from ..scheduler import Schedule
-from ..util import digest, iso
+from operationkit.canonical import digest
+
+from ..util import iso
 
 log = logging.getLogger("knowledgeos.jobs")
 

@@ -27,7 +27,7 @@ from temporalio.worker import Worker
 from .capabilities import Done
 from .core_records import core_name
 from .temporal_workflow import ActionWorkflow, WorkWorkflow, topology
-from .util import digest
+from operationkit.canonical import digest
 
 # The Activity dispatch window, measured on this worker's monotonic clock. The Temporal
 # server's clock (a container VM after host sleep) can lag the host by minutes, so its

@@ -28,7 +28,9 @@ from .policy import effective, strictest
 from .roles import RoleRunner
 from .search import Doc, SearchIndex
 from .store import NAME_RE, Store
-from .util import Clock, digest, iso, new_id
+from operationkit.canonical import digest
+
+from .util import Clock, iso, new_id
 from .vault import Vault, VaultPathError
 
 log = logging.getLogger("knowledgeos.owner")

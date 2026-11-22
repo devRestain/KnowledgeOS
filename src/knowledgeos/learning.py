@@ -25,7 +25,9 @@ from datetime import timedelta
 from typing import Any
 
 from . import interops
-from .util import canonical, digest, iso, parse_iso, sha256
+from operationkit.canonical import canonical, digest, sha256
+
+from .util import iso, parse_iso
 
 log = logging.getLogger("knowledgeos.learning")
 

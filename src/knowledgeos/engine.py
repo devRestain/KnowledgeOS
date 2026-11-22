@@ -16,7 +16,9 @@ from .capabilities import Done, Refused
 from .evidence import Evidence
 from .notes import Note, parse
 from .roles import AuthorityViolation, RoleOutcomeUnknown, RoleSession, RoleUnavailable
-from .util import canonical, digest, iso
+from operationkit.canonical import canonical, digest
+
+from .util import iso
 from .vault import PreimageMismatch
 
 if TYPE_CHECKING:

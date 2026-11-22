@@ -9,7 +9,9 @@ from ..engine import ActionEffects
 from ..notes import FrontmatterEditor
 from ..policy import effective
 from ..standardize import LINK_KEYS
-from ..util import digest, iso
+from operationkit.canonical import digest
+
+from ..util import iso
 from ..vault import PROPOSALS_DIR, RESERVED_REQUESTS, Vault, VaultPathError
 from .c5_stewardship import target_path
 
@@ -146,7 +148,7 @@ def _stale(adm, effects, note, proposal):
     raw = editor.render()
     marked = effects.replace(note.path, note.sha, raw)
     if marked:
-        from ..util import sha256
+        from operationkit.canonical import sha256
         _mark_record(adm.owner, proposal, status="stale", stale_at=iso(adm.owner.clock.now()), sha=sha256(raw))
     return Done(status="unmet", outcome={"state": "not_applied", "accepted": True, "proposal": note.path, "stale": marked},
                 notice="Accepted, not applied: target changed or disappeared. Request organize again to regenerate; reject a user-edited stale proposal first if needed.")

@@ -9,7 +9,9 @@ import pytest
 from conftest import conforming_note
 
 from knowledgeos.notes import parse
-from knowledgeos.util import iso, sha256
+from operationkit.canonical import sha256
+
+from knowledgeos.util import iso
 from knowledgeos.vault import Vault, VaultPathError
 
 IDEAS = "40_Knowledge/Ideas/"

@@ -136,7 +136,7 @@ class Registry:
     def route(self, method: str, pattern: str, handler: Callable[..., Any]) -> None:
         """An ExOps route. ``pattern`` segments in braces bind params: ``/api/changes/{change_id}``.
 
-        ``handler(owner, req: exops.Req)`` returns a JSON payload (200) or ``(status, payload)``.
+        ``handler(owner, req: operationkit.exops.Req)`` returns a JSON payload (200) or ``(status, payload)``.
         """
         self.routes.append(Route(method.upper(), pattern, handler, self._owner_capability()))
 

@@ -10,7 +10,9 @@ from urllib.parse import urlencode
 
 from ..capabilities import Registry, WorkDraft
 from ..policy import approved, effective
-from ..util import canonical, digest, iso
+from operationkit.canonical import canonical, digest
+
+from ..util import iso
 from .c5_stewardship import attention, check, lifecycle_targets
 
 CAPABILITY = "C8"

@@ -13,7 +13,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .util import atomic_write, canonical, create_exclusive, sha256
+from operationkit.canonical import canonical, sha256
+
+from .util import atomic_write, create_exclusive
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")

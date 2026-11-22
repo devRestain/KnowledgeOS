@@ -7,7 +7,7 @@ owner assignments; unavailable or unbound records are never fabricated.
 Identifier and digest conventions (all recomputable from the Work record):
 - Core identifiers are lowercase dotted (``^[a-z][a-z0-9_-]*(\\.[a-z0-9][a-z0-9_-]*)*``).
   A KnowledgeOS name that does not fit becomes ``<kind>.sha256-<hex of the UTF-8 name>``.
-- Digests are ``sha256:<hex>`` of ``util.canonical`` JSON (record without its own digest
+- Digests are ``sha256:<hex>`` of ``operationkit.canonical.canonical`` JSON (record without its own digest
   field) or of exact bytes. ``work_run_id`` is ``<work_id>.run`` (one run per Work);
   ``graph_run_id`` is ``<work_id>.s<segment, 1-based>``.
 - ``capability_digest`` covers the admitted capability declaration copied into the Work
@@ -29,7 +29,7 @@ from typing import Any
 from . import OPERATION_ID
 from .config import ROOT
 from .policy import DEFAULT_POLICY, strictest
-from .util import canonical, sha256
+from operationkit.canonical import canonical, sha256
 from .vault import CLASSIFICATION, PROPOSALS_DIR, REPORTS_DIR
 
 ID_RE = re.compile(r"^[a-z][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*$")

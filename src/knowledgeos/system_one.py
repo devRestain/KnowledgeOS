@@ -30,7 +30,7 @@ from urllib.parse import urlsplit
 
 from .config import LOOPBACK_HOSTS, ConfigError
 from .notes import Note
-from .util import canonical, sha256
+from operationkit.canonical import canonical, sha256
 
 log = logging.getLogger("knowledgeos.system_one")
 

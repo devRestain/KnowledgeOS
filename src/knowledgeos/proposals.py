@@ -12,7 +12,9 @@ from typing import Any
 from .notes import FrontmatterEditor, Note, render_value
 from .notes import parse as parse_note
 from .policy import ORDER, effective, strictest
-from .util import canonical, digest, iso, new_uuid, sha256
+from operationkit.canonical import canonical, digest, sha256
+
+from .util import iso, new_uuid
 from .vault import PROPOSALS_DIR
 
 CHANGE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,63}$")

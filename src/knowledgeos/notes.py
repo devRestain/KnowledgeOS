@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from .util import sha256
+from operationkit.canonical import sha256
 
 
 class _StringTimestampLoader(yaml.SafeLoader):

@@ -25,7 +25,8 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/tmp
-WORKDIR /opt/knowledgeos
-COPY pyproject.toml uv.lock ./
+WORKDIR /opt/AgentFabric/Operations/KnowledgeOS
+COPY KnowledgeOS/pyproject.toml KnowledgeOS/uv.lock ./
+COPY OperationKit /opt/AgentFabric/OperationKit
 RUN uv sync --frozen --no-install-project --group dev
-WORKDIR /workspace/control
+WORKDIR /workspace/Operations/KnowledgeOS

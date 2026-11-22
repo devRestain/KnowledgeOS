@@ -39,10 +39,14 @@ import pytest
 
 from knowledgeos import cli
 from knowledgeos.config import OwnerConfig
-from knowledgeos.exops import ExOps
+from operationkit.exops import ExOpsServer
+
+from knowledgeos.exops import create_server
 from knowledgeos.owner import TERMINAL, Owner
 from knowledgeos.roles import ScriptedRunner
-from knowledgeos.util import SEOUL, sha256
+from operationkit.canonical import sha256
+
+from knowledgeos.util import SEOUL
 
 
 class FakeClock:
@@ -217,7 +221,7 @@ def enhance_scripts(runner: ScriptedRunner, *, graph=FULL_GRAPH, successor=("con
 class Kos:
     """An in-process Owner + ExOps and an HTTP client for it."""
 
-    def __init__(self, owner: Owner, exops: ExOps, vault: VaultBuilder, clock: FakeClock, runner: Any):
+    def __init__(self, owner: Owner, exops: ExOpsServer, vault: VaultBuilder, clock: FakeClock, runner: Any):
         self.owner = owner
         self.exops = exops
         self.vault = vault
@@ -403,7 +407,7 @@ def make_kos(tmp_path: Path, vault: VaultBuilder, clock: FakeClock, runner: Scri
             **overrides,
         }
         owner = Owner(OwnerConfig(**settings), runner=role_runner, clock=clock, notifier=notifier)
-        kos = Kos(owner, ExOps(owner, port=0).start(), vault, clock, role_runner)
+        kos = Kos(owner, create_server(owner, port=0).start(), vault, clock, role_runner)
         started.append(kos)
         return kos
 

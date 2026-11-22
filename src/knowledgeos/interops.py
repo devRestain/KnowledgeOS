@@ -6,21 +6,18 @@ replayed automatically: recovery queries its original effective request digest.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import os
 import re
 import socket
-import stat
-import struct
 from pathlib import Path
 from typing import Any
 
-from .core_records import pins
-from .util import canonical, iso, parse_iso, sha256
+from operationkit.canonical import canonical, sha256
+from operationkit.interops import MAX_FRAME, Unavailable, exchange, load_secret, request_digest
 
-MAX_FRAME = 32768
+from .core_records import pins
+from .util import iso, parse_iso
 _ID = re.compile(r"[a-z][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*")
 _TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})")
 _RECEIPT_FIELDS = {"admission_level", "candidate_id", "disposition", "idempotency_key",
@@ -45,14 +42,6 @@ def configured(owner) -> bool:
     return _binding(owner) is not None
 
 
-def _secret(path: Path) -> bytes:
-    info = path.lstat()
-    if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600:
-        raise ValueError("HermesTrace credential must be a private 0600 regular file")
-    value = path.read_bytes()
-    if len(value) != 32:
-        raise ValueError("HermesTrace credential must contain exactly 32 bytes")
-    return value
 
 
 def status(owner) -> str:
@@ -60,7 +49,7 @@ def status(owner) -> str:
     if binding is None:
         return "unconfigured"
     try:
-        _secret(binding[1])
+        load_secret(binding[1])
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
             connection.settimeout(0.5)
             connection.connect(str(binding[0]))
@@ -150,18 +139,9 @@ def prepare(owner, entry: dict[str, Any]) -> dict[str, Any]:
         "ttl_seconds": catalog["limits"]["experience_ttl_seconds"], "hop_count": 0, "revision": 1,
     }
     fields = catalog["digest_policy"]["effective_request_fields"]
-    return {"envelope": envelope, "request_digest": "sha256:" + sha256(canonical(
-        {name: envelope[name] for name in fields}))}
+    return {"envelope": envelope, "request_digest": request_digest(envelope, fields)}
 
 
-def _read_exact(connection: socket.socket, count: int) -> bytes:
-    chunks = bytearray()
-    while len(chunks) < count:
-        chunk = connection.recv(count - len(chunks))
-        if not chunk:
-            raise ValueError("incomplete InterOps response")
-        chunks.extend(chunk)
-    return bytes(chunks)
 
 
 def _receipt(value: Any, entry: dict) -> dict | None:
@@ -211,39 +191,27 @@ def deliver(owner, entry: dict[str, Any]) -> dict[str, Any]:
     if not 2 <= len(body) <= MAX_FRAME:
         return {**result, "delivery": "unknown" if query_only else "rejected", "last_error_code": "INVALID_PAYLOAD"}
     try:
-        secret = _secret(binding[1])
+        secret = load_secret(binding[1])
     except (OSError, ValueError):
         return {**result, "delivery": "unknown" if query_only else "pending", "last_error_code": "SCOPE_DENIED"}
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        connection.settimeout(float(owner.setting("C9", "hermestrace_timeout_seconds", 5)))
-        try:
-            connection.connect(str(binding[0]))
-        except OSError:
-            return {**result, "delivery": "unknown" if query_only else "pending", "last_error_code": "UNAVAILABLE"}
-        try:
-            signature = hmac.new(secret, body, hashlib.sha256).digest()
-            connection.sendall(struct.pack("!I", len(body)) + signature + body)
-            length = struct.unpack("!I", _read_exact(connection, 4))[0]
-            if not 2 <= length <= MAX_FRAME:
-                return result
-            signature = _read_exact(connection, 32)
-            data = _read_exact(connection, length)
-            if not hmac.compare_digest(signature, hmac.new(secret, data, hashlib.sha256).digest()):
-                return result
-            response = json.loads(data)
-            if not isinstance(response, dict) or set(response) != {"ok", "result"}:
-                return result
-            if response["ok"] is False:
-                error = response["result"]
-                code = error.get("code") if isinstance(error, dict) else None
-                return {**result, "delivery": "rejected" if not query_only and code in _REFUSED else "unknown",
-                        "last_error_code": code if isinstance(code, str) else "OUTCOME_UNKNOWN"}
-            if response["ok"] is not True:
-                return result
-            receipt = _receipt(response["result"], entry)
-            if receipt is not None:
-                return {"delivery": "delivered" if receipt["disposition"] == "admitted" else "rejected",
-                        "receipt": receipt, "last_error_code": None}
-        except (OSError, ValueError, TypeError, KeyError):
-            pass
+    try:
+        response = exchange(binding[0], secret, body,
+                            timeout=float(owner.setting("C9", "hermestrace_timeout_seconds", 5)))
+        if set(response) != {"ok", "result"}:
+            return result
+        if response["ok"] is False:
+            error = response["result"]
+            code = error.get("code") if isinstance(error, dict) else None
+            return {**result, "delivery": "rejected" if not query_only and code in _REFUSED else "unknown",
+                    "last_error_code": code if isinstance(code, str) else "OUTCOME_UNKNOWN"}
+        if response["ok"] is not True:
+            return result
+        receipt = _receipt(response["result"], entry)
+        if receipt is not None:
+            return {"delivery": "delivered" if receipt["disposition"] == "admitted" else "rejected",
+                    "receipt": receipt, "last_error_code": None}
+    except Unavailable:
+        return {**result, "delivery": "unknown" if query_only else "pending", "last_error_code": "UNAVAILABLE"}
+    except (OSError, ValueError, TypeError, KeyError):
+        pass
     return result

@@ -17,7 +17,9 @@ from conftest import (
 
 from knowledgeos.config import ROOT
 from knowledgeos.notes import UUID4_RE, parse
-from knowledgeos.util import iso, sha256
+from operationkit.canonical import sha256
+
+from knowledgeos.util import iso
 
 IDEA = "40_Knowledge/Ideas/Tools shape thinking.md"
 IDEA_BODY = "Tools shape how we think.\n\nA notebook changes what I notice.\n"

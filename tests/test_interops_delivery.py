@@ -19,7 +19,7 @@ from conftest import conforming_note, core_root, core_validate, organize_scripts
 from hermestrace.operating import CoreBoundary, HermesTraceOwnerInbox, InterOpsError, InterOpsServer
 
 from knowledgeos import interops
-from knowledgeos.util import canonical, digest
+from operationkit.canonical import canonical, digest
 
 SECRET = "PRIVATE_INTEROPS_NOTE_BODY_7b86f3"
 DENIED = "40_Knowledge/Ideas/Denied.md"

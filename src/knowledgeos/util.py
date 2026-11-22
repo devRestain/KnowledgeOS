@@ -1,31 +1,15 @@
-"""Small shared helpers: hashing, canonical JSON, time and atomic file writes."""
+"""Owner-local time, identity and atomic file helpers."""
 
 from __future__ import annotations
 
-import hashlib
-import json
 import os
 import secrets
 import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 
 SEOUL = timezone(timedelta(hours=9), "Asia/Seoul")
-
-
-def sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def canonical(value: Any) -> bytes:
-    """The single canonical serialization used for digests and stored records."""
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
-
-
-def digest(value: Any) -> str:
-    return sha256(canonical(value))
 
 
 class Clock:

@@ -9,7 +9,7 @@ import pytest
 from conftest import conforming_note, core_validate, enhance_scripts, evaluator_script, organize_scripts
 
 from knowledgeos.roles import RoleOutcomeUnknown
-from knowledgeos.util import digest
+from operationkit.canonical import digest
 
 SECRET = "PRIVATE_NOTE_BODY_6a3d7f"
 DENIED = "40_Knowledge/Ideas/Private note.md"
