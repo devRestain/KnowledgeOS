@@ -1,5 +1,6 @@
 {
   "enabledCssSnippets": [
-    "mobile-toolbar"
+    "mobile-toolbar",
+    "knowledgeos-home"
   ]
 }

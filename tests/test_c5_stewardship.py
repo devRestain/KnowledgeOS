@@ -38,6 +38,41 @@ def test_DOC_1_old_capture_in_inbox_base_and_digest(kos, vault, clock):
     assert digest(kos)["outcome"]["counts"]["inbox_older_3_days"] == 0
 
 
+def test_review_base_mobile_queue_and_home_proposals_keep_queue_semantics(vault, clock):
+    system = os.environ.get("KNOWLEDGEOS_VAULT_SYSTEM")
+    assert system, "KNOWLEDGEOS_VAULT_SYSTEM must name the read-only 99_System mount provided by make test"
+    base = Path(system) / "Bases/Review.base"
+    now = clock.now()
+    mtime = now - timedelta(hours=1)
+    notes = {
+        "open": ("01_AI_Review/Proposals/Open.md", conforming_note("proposal", "open")),
+        "stale": ("01_AI_Review/Proposals/Stale.md", conforming_note("proposal", "stale")),
+        "closed": ("01_AI_Review/Proposals/Closed.md", conforming_note("proposal", "closed")),
+        "report": ("01_AI_Review/Reports/Report.md", conforming_note("report", "completed")),
+        "capture": ("00_Inbox/Capture.md", conforming_note("capture", "unprocessed")),
+    }
+    parsed = {}
+    for name, (path, text) in notes.items():
+        vault.write(path, text, age=timedelta(hours=1))
+        parsed[name] = parse(path, vault.read(path))
+
+    assert matches(base, "Mobile Queue", parsed["open"], mtime=mtime, now=now)
+    assert matches(base, "Mobile Queue", parsed["stale"], mtime=mtime, now=now)
+    assert matches(base, "Mobile Queue", parsed["report"], mtime=mtime, now=now)
+    assert matches(base, "Mobile Queue", parsed["closed"], mtime=mtime, now=now)
+    assert not matches(base, "Mobile Queue", parsed["capture"], mtime=mtime, now=now)
+
+    assert matches(base, "Home Proposals", parsed["open"], mtime=mtime, now=now)
+    assert matches(base, "Home Proposals", parsed["stale"], mtime=mtime, now=now)
+    assert not matches(base, "Home Proposals", parsed["report"], mtime=mtime, now=now)
+    assert not matches(base, "Home Proposals", parsed["closed"], mtime=mtime, now=now)
+    assert not matches(base, "Home Proposals", parsed["capture"], mtime=mtime, now=now)
+
+    for name in ("open", "stale", "closed", "report"):
+        assert matches(base, "Queue", parsed[name], mtime=mtime, now=now)
+    assert not matches(base, "Queue", parsed["capture"], mtime=mtime, now=now)
+
+
 def test_DOC_2_duplicate_ids_stay_searchable_and_ambiguous_targets_refused(kos, vault):
     shared = str(uuid.uuid4())
     paths = ["40_Knowledge/Ideas/Twin A.md", "40_Knowledge/Ideas/Twin B.md"]

@@ -1,0 +1,540 @@
+/* KnowledgeOS dashboard styles.
+   Scoped to Home.md (.knowledgeos-home) and Mobile.md (.knowledgeos-mobile).
+   Markdown, Core Bases and Tasks stay authoritative; no sidebar, theme, plugin or global chrome is restyled. */
+
+.knowledgeos-home,
+.knowledgeos-mobile {
+  --ko-line: var(--background-modifier-border);
+  --ko-triage-bg: var(--background-secondary);
+  --ko-muted: var(--text-muted);
+  --ko-accent: var(--text-accent);
+  --bases-header-border-width: 0px;
+  --bases-embed-border-width: 0px;
+  --bases-embed-border-color: transparent;
+  --bases-embed-border-radius: 0;
+  --bases-embed-padding: 0;
+  --bases-view-padding: 0;
+  --bases-table-header-icon-display: none;
+  --bases-table-column-border-width: 0px;
+  --bases-table-row-border-width: 1px;
+  --bases-table-border-color: var(--background-modifier-border);
+  --bases-table-header-background: transparent;
+  --bases-table-header-background-hover: var(--background-modifier-hover);
+  --bases-table-group-background: transparent;
+  line-height: 1.5;
+}
+
+/* One visible document title per note. */
+.knowledgeos-home .inline-title,
+.knowledgeos-mobile .inline-title {
+  display: none;
+}
+
+.knowledgeos-home h1,
+.knowledgeos-mobile h1 {
+  margin: 0 0 0.35rem;
+  color: var(--text-normal);
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+/* Native Reading View pads the sizer by half a viewport for overscroll.
+   Remove only that blank Home tail; keep file margins and natural scrolling. */
+.markdown-preview-view.knowledgeos-home > .markdown-preview-sizer {
+  padding-bottom: 0 !important;
+}
+
+/* Compact Home navigation line under the title. Reading View wraps the
+   heading and paragraph in sibling .el-h1 / .el-p containers. */
+.knowledgeos-home .el-h1 + .el-p {
+  margin: 0 0 0.9rem;
+}
+
+.knowledgeos-home .el-h1 + .el-p > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.7rem;
+  margin: 0;
+  color: var(--ko-muted);
+  font-size: 0.8125rem;
+}
+
+.knowledgeos-home .el-h1 + .el-p > p a {
+  color: var(--ko-accent);
+  text-decoration: none;
+}
+
+.knowledgeos-home .el-h1 + .el-p > p a:hover {
+  text-decoration: underline;
+}
+
+/* Callout shells: Markdown callouts are layout only, not themed cards. */
+.knowledgeos-home .callout[data-callout^="ko-home-"],
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] {
+  --callout-border-width: 0px;
+  --callout-border-opacity: 0;
+  --callout-content-padding: 0;
+  --callout-padding: 0;
+  --callout-radius: 0;
+  --callout-title-padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  mix-blend-mode: normal;
+}
+
+/* Grid wrappers are the responsive containers for the real note width. */
+.knowledgeos-home .callout[data-callout="ko-home-grid"],
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] {
+  container-type: inline-size;
+  display: block;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] {
+  container-name: ko-home;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] {
+  container-name: ko-mobile;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-title,
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] > .callout-title {
+  display: none;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content,
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] > .callout-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.05rem 0.875rem;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/* Section headings: a hairline label with its full-list link inline. */
+.knowledgeos-home .callout[data-callout^="ko-home-"]:not([data-callout="ko-home-grid"]) > .callout-title,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0 0.35rem;
+  border-bottom: 1px solid var(--ko-line);
+  padding: 0 0 0.3rem;
+  color: var(--text-normal);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] > .callout-title .callout-icon,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-title .callout-icon {
+  display: none;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"]:not([data-callout="ko-home-grid"]) > .callout-title .callout-title-inner,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-title .callout-title-inner {
+  min-width: 0;
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] > .callout-title a,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-title a {
+  margin-inline-start: 0.4em;
+  color: var(--ko-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] > .callout-title a:hover,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-title a:hover {
+  text-decoration: underline;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"]:not([data-callout="ko-home-grid"]) > .callout-content,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-content {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] > .callout-content > p,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-content > p {
+  margin: 0;
+}
+
+/* Home Triage surfaces are the only boxed regions. */
+.knowledgeos-home .callout[data-callout="ko-home-tasks"],
+.knowledgeos-home .callout[data-callout="ko-home-ai-review"],
+.knowledgeos-home .callout[data-callout="ko-home-inbox"] {
+  min-width: 0;
+  border: 1px solid var(--ko-line);
+  border-radius: var(--radius-s);
+  padding: 0.55rem 0.7rem;
+  background: var(--ko-triage-bg);
+}
+
+/* Native Core Bases embeds: hide the per-embed toolbar, keep the table. */
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-header,
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-table-footer,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-header,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-footer {
+  display: none;
+}
+
+.knowledgeos-home .bases-embed,
+.knowledgeos-mobile .bases-embed {
+  max-width: 100%;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-view,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-view {
+  --bases-embed-border-width: 0px;
+  --bases-embed-border-color: transparent;
+  --bases-embed-border-radius: 0;
+  --bases-embed-padding: 0;
+  --bases-view-padding: 0;
+  --bases-table-header-background: transparent;
+  --bases-table-border-color: var(--ko-line);
+  --bases-table-column-max-width: 300;
+  --bases-table-row-height: 26px;
+  --bases-table-font-size: 0.8125rem;
+  --table-border-color: var(--ko-line);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  scrollbar-gutter: auto;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-table-container,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-container {
+  min-width: 0;
+  background: transparent;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-tbody,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-tbody {
+  background: transparent;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-thead,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead {
+  background: transparent;
+}
+
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-td,
+.knowledgeos-home .callout[data-callout^="ko-home-"] .bases-table-cell,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-td,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-cell {
+  min-width: 0;
+}
+
+/* Compact Home tables keep two columns inside their columns; Base widens the last column. */
+.knowledgeos-home .callout[data-callout="ko-home-ai-review"] .bases-view,
+.knowledgeos-home .callout[data-callout="ko-home-inbox"] .bases-view {
+  --bases-table-column-max-width: 120;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-decisions"] .bases-view,
+.knowledgeos-home .callout[data-callout="ko-home-review"] .bases-view {
+  --bases-table-column-max-width: 160;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-compass"] .bases-view {
+  --bases-table-column-max-width: 220;
+}
+
+.knowledgeos-home .callout[data-callout="ko-home-projects"] .bases-td:last-child .bases-table-cell,
+.knowledgeos-home .callout[data-callout="ko-home-compass"] .bases-td:last-child .bases-table-cell {
+  justify-content: flex-end;
+  text-align: end;
+}
+
+/* Tasks: compact, no duplicated native counters or metadata. */
+.knowledgeos-home .task-count,
+.knowledgeos-mobile .task-count,
+.knowledgeos-mobile .task-extras {
+  display: none;
+}
+
+.knowledgeos-home ul.contains-task-list {
+  margin: 0;
+  padding-inline-start: 1.5rem;
+}
+
+.knowledgeos-home li.task-list-item {
+  margin: 0.15rem 0;
+}
+
+.knowledgeos-home .tasks-list-text,
+.knowledgeos-home .task-description {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+/* Wide Home, driven by the actual note container, not the app viewport. */
+@container ko-home (min-width: 560px) {
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout {
+    grid-column: 1 / -1;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-ai-review"] {
+    grid-column: 1 / 7;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-inbox"] {
+    grid-column: 7 / 13;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-decisions"] {
+    grid-column: 1 / 7;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-review"] {
+    grid-column: 7 / 13;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-projects"] .bases-view {
+    --bases-table-column-max-width: 130;
+  }
+}
+
+@container ko-home (min-width: 720px) {
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-tasks"] {
+    grid-column: 1 / 8;
+    grid-row: 1 / 3;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-ai-review"] {
+    grid-column: 8 / 13;
+    grid-row: 1 / 2;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-grid"] > .callout-content > .callout[data-callout="ko-home-inbox"] {
+    grid-column: 8 / 13;
+    grid-row: 2 / 3;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-projects"] .bases-view {
+    --bases-table-column-max-width: 220;
+  }
+}
+
+/* Medium and narrow split panes keep compact six-column pairs inside the pane. */
+@container ko-home (max-width: 719px) {
+  .knowledgeos-home .callout[data-callout="ko-home-decisions"] .bases-view,
+  .knowledgeos-home .callout[data-callout="ko-home-review"] .bases-view {
+    --bases-table-column-max-width: 130;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-compass"] .bases-view {
+    --bases-table-column-max-width: 150;
+  }
+}
+
+/* Narrow split panes: four-column Projects still has to stay inside the note. */
+@container ko-home (max-width: 559px) {
+  .knowledgeos-home .callout[data-callout="ko-home-projects"] .bases-view {
+    --bases-table-column-max-width: 75;
+  }
+}
+
+@container ko-home (max-width: 319px) {
+  .knowledgeos-home .callout[data-callout="ko-home-ai-review"] .bases-view,
+  .knowledgeos-home .callout[data-callout="ko-home-inbox"] .bases-view,
+  .knowledgeos-home .callout[data-callout="ko-home-decisions"] .bases-view,
+  .knowledgeos-home .callout[data-callout="ko-home-review"] .bases-view,
+  .knowledgeos-home .callout[data-callout="ko-home-compass"] .bases-view {
+    --bases-table-column-max-width: 110;
+  }
+
+  .knowledgeos-home .callout[data-callout="ko-home-projects"] .bases-view {
+    --bases-table-column-max-width: 60;
+  }
+}
+
+/* Mobile: one readable column, native 44px touch geometry. */
+.knowledgeos-mobile {
+  --bases-embed-width: 100%;
+  --bases-embed-transform: none;
+  font-size: 1rem;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-title {
+  min-height: 44px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-title a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 0.25rem;
+  font-size: 1rem;
+}
+
+.knowledgeos-mobile .bases-embed {
+  width: 100%;
+  max-width: 100%;
+  transform: none;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-view {
+  --bases-table-row-height: 44px;
+  --bases-table-font-size: 1rem;
+  --bases-table-column-max-width: 150;
+}
+
+@container ko-mobile (max-width: 319px) {
+  .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-view {
+    --bases-table-column-max-width: 120;
+  }
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-td {
+  color: var(--ko-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-td a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.knowledgeos-mobile ul.contains-task-list {
+  margin: 0;
+  padding: 0;
+}
+
+.knowledgeos-mobile li.task-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+}
+
+.knowledgeos-mobile .tasks-list-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.knowledgeos-mobile .task-description {
+  font-size: 1rem;
+}
+
+/* Real checkbox hit target stays 44x44 while the drawn box stays modest. */
+.knowledgeos-mobile ul.contains-task-list > li.task-list-item > input.task-list-item-checkbox {
+  --checkbox-size: 22px;
+  position: relative;
+  top: 0;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.knowledgeos-mobile input.task-list-item-checkbox::before {
+  content: "";
+  position: absolute;
+  inset: 11px;
+  box-sizing: border-box;
+  border: 1px solid var(--checkbox-border-color);
+  border-radius: var(--checkbox-radius);
+  background: var(--background-primary);
+  pointer-events: none;
+}
+
+.knowledgeos-mobile input.task-list-item-checkbox:checked::before {
+  border-color: var(--checkbox-color);
+  background: var(--checkbox-color);
+}
+
+.knowledgeos-mobile input.task-list-item-checkbox:checked::after {
+  top: 11px;
+  inset-inline-start: 11px;
+  width: 22px;
+  height: 22px;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-links"] .callout-content p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.75rem;
+  margin: 0;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-links"] .callout-content a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--ko-accent);
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-links"] .callout-content a:hover {
+  text-decoration: underline;
+}
+
+/* Visible keyboard focus. */
+.knowledgeos-home a:focus-visible,
+.knowledgeos-home button:focus-visible,
+.knowledgeos-home input:focus-visible,
+.knowledgeos-home .bases-view:focus-visible,
+.knowledgeos-home .bases-td:focus-visible,
+.knowledgeos-mobile a:focus-visible,
+.knowledgeos-mobile button:focus-visible,
+.knowledgeos-mobile input:focus-visible,
+.knowledgeos-mobile .bases-view:focus-visible,
+.knowledgeos-mobile .bases-td:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledgeos-home *,
+  .knowledgeos-home *::before,
+  .knowledgeos-home *::after,
+  .knowledgeos-mobile *,
+  .knowledgeos-mobile *::before,
+  .knowledgeos-mobile *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -58,7 +58,9 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 ### iPhone용 Obsidian 설정
 
-`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`에는 같은 구성을 재현하는 참조 프리셋을 유지합니다. 자동 업데이터나 새 동기화 파이프라인은 없습니다. `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac 설정과 Mac용 Git 무시 규칙은 수정하지 않습니다.
+`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`에는 같은 구성을 재현하는 참조 프리셋을 유지합니다. 자동 업데이터나 새 동기화 파이프라인은 없습니다. `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac appearance JSON·테마·플러그인 원본·다른 프로필·Mac용 Git 무시 규칙은 그대로이며, Mac 프로필에서는 Home/Mobile용 `knowledgeos-home` 스타일시트 내용만 승인되어 바뀌었습니다. Vault의 `Home.md`·`Mobile.md`는 아래 대시보드 내용으로 갱신되었습니다. 새 업데이터·빌드·동기화 파이프라인은 없습니다.
+
+`Home.md`와 `Mobile.md`는 Obsidian Reading View에서 Markdown·Core Bases·Tasks만으로 동작하는 대시보드입니다. Home은 할 일·대기 제안·Inbox, 전체 폭 프로젝트, 열린 질문·읽는 중인 자료, 30일 방치 아이디어의 일곱 구획을 유지하고, Mobile은 설명 없이 할 일·Inbox·읽기 전용 AI 검토(제안과 보고서)·진행 중 프로젝트·전체 목록 순서로 시작하며, 16px 본문과 44×44 동작을 씁니다. 작은 목록은 limit이 있는 추가 compact Base view를 쓰고, 각 구획의 링크는 원래 full view나 dashboard를 엽니다. 스타일 원본은 `99_System/CSS/dashboard.css`이며 같은 `knowledgeos-home` 사본이 실제 Mac/폰 스니펫과 참조 프리셋에 있습니다. `mobile-toolbar`는 폰의 다섯 자리 툴바용으로 폰에만 남습니다. 기존 다섯 자리 툴바와 일곱 QuickAdd 명령은 그대로입니다. 폰 소스와 실제 appearance는 `[mobile-toolbar, knowledgeos-home]`을 켭니다. 프로필 준비와 Mac 렌더링은 실제 iPhone 실행·원격 전달과 별개입니다.
 
 1. 기존에 쓰던 모바일 설정이 있다면 전환 전에 백업합니다. `.obsidian-mac`은 대상이 아닙니다.
 2. Mac에서 평소 쓰는 기존 Git 동기화 절차로 변경을 GitHub에 push한 뒤, iPhone Working Copy Pro에서 평소대로 pull합니다. 숨김 폴더(`.obsidian-phone`)가 iOS 파일 앱에 직접 보이지 않아도 정상이며, 새 디렉터리 연결을 만들지 않고 기존 Working Copy 워크플로를 그대로 씁니다.
@@ -78,7 +80,7 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 **오늘 / Today**는 신뢰된 `T10_Daily.md`만 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있으면 수정 없이 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task`와 이월된 `[>]`의 `NON_TASK` 구분을 유지합니다.
 
-폰 프로필의 `mobile-toolbar` CSS 스니펫은 버튼의 최소 터치 영역을 44×44px로 늘립니다. 좁은 화면에서는 라벨을 숨기지 않고 두 줄로 배치될 수 있으며, Mac 프로필에는 스니펫을 추가하지 않습니다.
+폰 프로필의 `mobile-toolbar` CSS 스니펫은 버튼의 최소 터치 영역을 44×44px로 늘립니다. 좁은 화면에서는 라벨을 숨기지 않고 두 줄로 배치될 수 있으며, Mac 프로필에는 폰 전용 `mobile-toolbar`를 추가하지 않고 공유 `knowledgeos-home` 사본만 Home/Mobile에 적용합니다.
 
 원격 Git 조작, iPhone 설정 변경, Apple 단축어 설치와 Mac Owner 기동은 자동으로 수행하지 않습니다. 이는 사용자 선택 설정 유지보수이며 Owner 런타임의 플러그인 관리가 아닙니다. 플러그인 5개(QuickAdd·Note Toolbar·Templater·Tasks·Homepage)는 그대로 유지합니다. 제목·본문을 실행 구문으로 재해석하는 QuickAdd Capture와 Mac 캡처 매크로를 사용하지 않으며, Templater의 **새 파일 자동 실행**과 모바일 코어 **Daily Notes**도 계속 끕니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하고, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
 
