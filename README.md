@@ -64,7 +64,7 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 1. 기존에 쓰던 모바일 설정이 있다면 전환 전에 백업합니다. `.obsidian-mac`은 대상이 아닙니다.
 2. Mac에서 평소 쓰는 기존 Git 동기화 절차로 변경을 GitHub에 push한 뒤, iPhone Working Copy Pro에서 평소대로 pull합니다. 숨김 폴더(`.obsidian-phone`)가 iOS 파일 앱에 직접 보이지 않아도 정상이며, 새 디렉터리 연결을 만들지 않고 기존 Working Copy 워크플로를 그대로 씁니다.
-3. iPhone Obsidian에서 **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 앱을 다시 불러옵니다(커뮤니티 플러그인 허용 필요 시 확인). 시작 화면은 `Mobile.md`이며, 하단에는 **홈 · 오늘 · 새노트 · 문맥별 동작 · 찾기**가 표시됩니다.
+3. iPhone Obsidian에서 **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 앱을 다시 불러옵니다(커뮤니티 플러그인 허용 필요 시 확인). 시작 화면은 `Mobile.md`이며, 하단에는 기존 네 버튼과 **동기화** 메뉴가 표시됩니다.
 4. **새노트**에서 QuickAdd의 **입력 · 아이디어 · 질문 · 지식 · 자료 · 프로젝트 · Today**를 고릅니다. 입력은 타임스탬프 이름의 Inbox 노트를 열어 기본 편집기로 작성합니다. 다섯 유형은 제목 한 번만 묻고 기존 템플릿으로 만들며, 별칭은 빈 목록으로 시작합니다. 실행 구문이 든 제목은 거부하고 기존 노트는 덮어쓰지 않습니다.
 5. 노트의 `type`에 따라 네 번째 버튼이 바뀝니다. 노트를 다른 폴더로 옮겨도 종류별 툴바가 유지되며, 알 수 없는 종류도 공통 툴바를 사용합니다.
 
@@ -82,7 +82,15 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 폰 프로필의 `mobile-toolbar` CSS 스니펫은 버튼의 최소 터치 영역을 44×44px로 늘립니다. 좁은 화면에서는 라벨을 숨기지 않고 두 줄로 배치될 수 있으며, Mac 프로필에는 폰 전용 `mobile-toolbar`를 추가하지 않고 공유 `knowledgeos-home` 사본만 Home/Mobile에 적용합니다.
 
-원격 Git 조작, iPhone 설정 변경, Apple 단축어 설치와 Mac Owner 기동은 자동으로 수행하지 않습니다. 이는 사용자 선택 설정 유지보수이며 Owner 런타임의 플러그인 관리가 아닙니다. 플러그인 5개(QuickAdd·Note Toolbar·Templater·Tasks·Homepage)는 그대로 유지합니다. 제목·본문을 실행 구문으로 재해석하는 QuickAdd Capture와 Mac 캡처 매크로를 사용하지 않으며, Templater의 **새 파일 자동 실행**과 모바일 코어 **Daily Notes**도 계속 끕니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하고, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
+하단 **동기화** 메뉴는 **받기**, **보내기**, **Git 상태**를 제공합니다. **Git 상태** URI는 기본 `KnowledgeHub` Working Copy 저장소를 가리키므로, Working Copy 저장소 이름이 다르면 이 URI의 `repo` 값도 함께 바꿉니다. 저장소를 조용히 잘못 연 상태로 두지 않도록 이름이 불확실하면 키가 없는 Working Copy 상태 열기를 사용합니다.
+
+### 모바일 단축어와 서명 배포
+
+`config/obsidian-mobile/automation/build_shortcuts.py`가 `KOS 캡처`, `KOS 음성`, `KOS 오늘`, `KOS 받기`, `KOS 보내기`의 unsigned `.shortcut` 정의를 만듭니다. 캡처와 음성은 고정 frontmatter 뒤에 원문을 그대로 넣고 QuickAdd Capture나 Templater로 재해석하지 않으며, `obsidian://new`로 새 파일을 엽니다. 오늘은 `obsidian://quickadd?vault=…&choice=Today`를 사용하고 `obsidian://daily`를 사용하지 않습니다. 받기와 보내기는 기존 Working Copy native pull/commit/push를 호출하며, 보내기는 staged 파일 이름 검토·커밋 메시지 확인·오류 문자열 확인을 거치고 빈 push 결과를 완료로 표시하지 않습니다. 다섯 단축어 모두 iPhone/iPad에서만 동작하도록 먼저 기기 종류를 확인합니다. `KOS 캡처`의 실제 frontmatter는 `tests/test_mobile_automation.py::test_actual_capture_frontmatter_is_std7_unchanged`에서 공개 C2 미리보기로 STD-7 무변경을 확인합니다. 기존 AppleScript note opener는 Today 생성 경로가 아닙니다.
+
+Operation의 `build_shortcuts.py`가 생성 원본입니다. Mac에서 `shortcuts sign --mode anyone`으로 서명한 파일을 Vault `99_System/Shortcuts/`에 두고 기존 GitHub–Working Copy로 전달합니다. 서명은 정의만 Apple에 전송하므로 민감 정보를 넣지 않습니다. 현재 다섯 파일이 준비되었으며 폰 1회 가져오기가 필요합니다. 폰에서는 Working Copy에서 각 파일을 한 번 열어 Shortcuts로 가져오고, 가져오기 질문에서 KnowledgeOS Vault 이름과 Working Copy 저장소 이름을 확인합니다. 저장소 이름이 `KnowledgeHub`가 아니면 동기화 메뉴의 `Git 상태` URI도 함께 바꿉니다. M2 모바일 요청과 M3 GitHub Actions는 아직 예약 상태입니다.
+
+원격 Git 조작, iPhone 설정 변경, Apple 단축어 설치와 Mac Owner 기동은 자동으로 수행하지 않습니다. 이는 사용자 선택 설정 유지보수이며 Owner 런타임의 플러그인 관리가 아닙니다. QuickAdd·Note Toolbar·Templater·Tasks·Homepage는 제공하는 기본 워크플로일 뿐 플러그인 수 제한이 아닙니다. Style Settings와 Notebook Navigator 등도 자유롭게 추가할 수 있습니다. 기본 생성 경로는 본문을 실행 구문으로 재해석하는 QuickAdd Capture와 Mac 캡처 매크로를 사용하지 않으며, Templater의 **새 파일 자동 실행**은 Mac과 폰 모두 끕니다. Mac의 기존 Daily Note 버튼과 `Mod+Shift+E` 단축키는 QuickAdd **Today**를 호출합니다. Core Daily Notes를 직접 호출하는 외부 호출자는 이 전환 밖이며, Core Daily Notes 직접 생성은 Templater를 자동 실행하지 않습니다. 모바일 코어 **Daily Notes**는 끕니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하고, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
 
 ### 모바일에서 위키 읽기
 

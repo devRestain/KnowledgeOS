@@ -169,19 +169,21 @@ Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시�
 - Discord 알림의 Obsidian 링크는 모바일에서도 열립니다.
 - iPhone 설정은 MacBook에서 관리하는 `Vaults/KnowledgeHub/.obsidian-phone/`이 기준이며, `config/obsidian-mobile/profile/`에는 같은 구성을 재현하는 참조 프리셋을 유지합니다. 자동 업데이터는 없습니다. 폰 폴더 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac appearance JSON·테마·플러그인 원본·다른 프로필·무시 규칙과 Owner 실행 정책은 바꾸지 않습니다. Mac 프로필에서는 승인된 Home/Mobile용 `knowledgeos-home` 스타일시트 내용만 바뀌었고, Vault의 `Home.md`·`Mobile.md`는 대시보드 내용으로 갱신되었습니다.
 - QuickAdd 명령은 **Today · 입력 · 아이디어 · 질문 · 지식 · 자료 · 프로젝트**입니다. 입력은 코어 고유 노트 생성으로 Inbox 노트를 열고 기본 편집기에서 씁니다. 나머지 다섯 유형은 제목 한 번만 입력하면 기존 템플릿과 표준 폴더로 새 노트를 만들며 별칭은 빈 목록으로 시작하고 기존 노트는 덮어쓰지 않습니다. 제목의 실행 구문은 거부하며 본문을 QuickAdd Capture로 재해석하지 않습니다.
-- Note Toolbar는 기존 `type`을 읽어 노트를 옮겨도 종류별로 전환합니다. 폰·태블릿 하단은 **홈 · 오늘 · 새노트 · 문맥별 동작 · 찾기** 다섯 자리이며, 문맥에 따라 포착함·할 일·관련 종류의 새 노트·검토함으로 연결됩니다. 알 수 없는 종류도 검토 폴더 또는 공통 툴바를 사용하며 Mac에는 표시하지 않습니다. 모바일에서 AI 실행·제안 적용·거절·Owner 기동은 추가하지 않습니다.
+- Note Toolbar는 기존 `type`을 읽어 노트를 옮겨도 종류별로 전환합니다. 폰·태블릿 하단은 기존 네 버튼의 위치와 선택을 유지하고 다섯 번째 **동기화** 메뉴를 덧붙입니다. 메뉴는 **받기·보내기·Git 상태**를 제공하며, 동기화 툴바 자체는 별도 행으로 표시하지 않습니다. **Git 상태** URI는 기본 `KnowledgeHub` Working Copy 저장소를 가리키므로 저장소 이름이 다르면 이 URI도 바꾸거나 키가 없는 상태 열기를 사용합니다. 문맥에 따라 포착함·할 일·관련 종류의 새 노트·검토함으로 연결됩니다. 알 수 없는 종류도 검토 폴더 또는 공통 툴바를 사용하며 Mac에는 표시하지 않습니다. 모바일에서 AI 실행·제안 적용·거절·Owner 기동은 추가하지 않습니다.
 - 폰 전용 `mobile-toolbar` CSS 스니펫으로 터치 영역을 최소 44×44px로 늘립니다. 좁은 화면은 라벨을 숨기지 않고 두 줄로 배치될 수 있으며, Mac 테마나 플러그인 원본은 바꾸지 않습니다.
 - `Home.md`는 할 일·대기 제안·Inbox, 전체 폭 진행 프로젝트, 열린 질문·읽는 중인 자료, 30일 방치 아이디어의 일곱 구획을 유지합니다. `Mobile.md`는 설명 없이 할 일·Inbox·읽기 전용 AI 검토(원래 Queue대로 제안과 보고서)·진행 중 프로젝트·전체 목록 순서로 시작합니다. Tasks는 완료·기한/데일리 범위를 고르고 정렬한 뒤 Home 6·Mobile 5로 제한하며 count·backlink·tag를 숨깁니다. 추가 compact Base view는 작은 목록 limit(Home 3, Mobile 5, ideas 2; 원래 Projects Now 5)을 맡고, 각 구획 링크는 바꾸지 않은 원래 full view나 dashboard를 엽니다.
 - 스타일 원본은 `99_System/CSS/dashboard.css`이며 같은 `knowledgeos-home` 사본을 실제 Mac 스니펫·폰 스니펫·참조 프리셋에 둡니다. `knowledgeos-home`은 Home/Mobile의 16px 본문과 범위형 44×44 동작, 노트 폭 기반 배치를 맡습니다. 폰 소스와 실제 `appearance.json`은 `[mobile-toolbar, knowledgeos-home]`을 켜고, `mobile-toolbar`는 폰의 다섯 자리 하단 툴바에만 남습니다. 기존 다섯 자리 툴바와 일곱 QuickAdd 명령은 그대로입니다. 프로필 준비와 Mac 렌더링은 실제 iPhone 런타임·원격 전달과 별개입니다.
 - QuickAdd·Note Toolbar·Templater·Tasks·Homepage 다섯 플러그인을 유지합니다. **Today**만 기존 Daily를 수정 없이 열거나 템플릿을 명시적으로 렌더링합니다. Templater 새 파일 자동 실행과 모바일 코어 Daily Notes는 끄고, Tasks의 `#task`·이월 `[>]` 구분과 `Mobile.md` 시작 화면은 유지합니다. 기존 Mac sync push와 Working Copy Pro pull 후 Obsidian **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 다시 불러옵니다. 새 파이프라인·디렉터리 연결은 만들지 않으며 원격 전송·기기 적용과 설정 파일 준비는 별개입니다.
 
-**후속 과제**(구현 공간 확보, 상세는 [기능 명세](docs/CAPABILITIES.md)의 Follow-up):
+**후속 과제**(구현 공간 확보, 상세는 [기능 명세](docs/CAPABILITIES.md)의 Follow-up). M1은 이번에 명세되었고 M2·M3는 예약 상태입니다:
 
 | 과제 | 내용 |
 |---|---|
-| M1 단축어 | Apple 단축어로 템플릿 노트 생성, Working Copy pull·commit·push |
+| M1 단축어 | `KOS 캡처`·`KOS 음성`·`KOS 오늘`·`KOS 받기`·`KOS 보내기`가 기존 Obsidian URL과 Working Copy native pull/commit/push를 사용합니다. 캡처는 raw 본문을 고정 frontmatter 뒤에 그대로 넣고 QuickAdd Capture/Templater로 재해석하지 않으며, STD-7은 `test_actual_capture_frontmatter_is_std7_unchanged` 공개 C2 미리보기로 확인합니다. Mac의 기존 Daily Note 버튼·단축키는 명시적 QuickAdd Today를 호출하고, 기존 AppleScript note opener는 Today 생성 경로가 아닙니다. 새 Git writer·동기화 파이프라인·Owner runtime은 추가하지 않습니다. |
 | M2 Vault를 통한 요청 | 노트에 `kos_request` 표시나 `00_Inbox/Requests/` 요청 노트를 두면, 맥 KnowledgeOS가 동기화 후 처리하고 결과가 다시 동기화됨 |
 | M3 GitHub Actions | push 시 YAML·충돌 표시·중복 ID 같은 결정적 점검 |
+
+Operation의 `build_shortcuts.py`가 생성 원본입니다. Mac에서 `shortcuts sign --mode anyone`으로 서명한 파일을 Vault `99_System/Shortcuts/`에 두고 기존 GitHub–Working Copy로 전달합니다. 서명은 정의만 Apple에 전송하므로 민감 정보를 넣지 않습니다. 현재 다섯 파일이 준비되었으며 폰 1회 가져오기가 필요합니다. 폰에서는 Working Copy에서 각 파일을 한 번 열어 Shortcuts로 가져오고, 가져오기 질문의 Vault 이름과 Working Copy 저장소 이름을 확인합니다. 저장소 이름이 `KnowledgeHub`가 아니면 `Git 상태` URI도 함께 바꿉니다.
 
 GitHub Actions에는 제약이 있습니다.
 

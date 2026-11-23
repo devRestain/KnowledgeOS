@@ -43,45 +43,6 @@
       ],
       "items": [
         {
-          "uuid": "11111111-1111-4111-8111-111111111101",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
-        {
           "uuid": "11111111-1111-4111-8111-111111111102",
           "description": "",
           "hasCommand": false,
@@ -236,56 +197,22 @@
               }
             }
           }
-        }
-      ],
-      "mobileStyles": [
-        "mbtn",
-        "mwd",
-        "mevn"
-      ],
-      "position": {
-        "desktop": {
-          "allViews": {
-            "position": "hidden"
-          }
         },
-        "tablet": {
-          "allViews": {
-            "position": "bottom"
-          }
-        },
-        "mobile": {
-          "allViews": {
-            "position": "bottom"
-          }
-        }
-      },
-      "updated": "2026-11-23T00:00:00.000Z"
-    },
-    {
-      "uuid": "91f20486-2583-44d1-b134-eed4908591ed",
-      "name": "capture",
-      "customClasses": "",
-      "defaultStyles": [
-        "border",
-        "even"
-      ],
-      "items": [
         {
-          "uuid": "ae2b11c0-f3b1-57bb-baf6-3af6d3dcfbb4",
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c51",
           "description": "",
           "hasCommand": false,
-          "icon": "lucide-home",
+          "icon": "lucide-refresh-cw",
           "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
           "linkAttr": {
             "commandCheck": false,
             "commandId": "",
             "hasVars": false,
-            "type": "file"
+            "type": "menu"
           },
-          "tooltip": "홈",
+          "tooltip": "동기화",
           "visibility": {
             "desktop": {
               "allViews": {
@@ -309,7 +236,41 @@
               }
             }
           }
+        }
+      ],
+      "mobileStyles": [
+        "mbtn",
+        "mwd",
+        "mevn"
+      ],
+      "position": {
+        "desktop": {
+          "allViews": {
+            "position": "hidden"
+          }
         },
+        "tablet": {
+          "allViews": {
+            "position": "props"
+          }
+        },
+        "mobile": {
+          "allViews": {
+            "position": "props"
+          }
+        }
+      },
+      "updated": "2026-11-23T00:00:00.000Z"
+    },
+    {
+      "uuid": "91f20486-2583-44d1-b134-eed4908591ed",
+      "name": "capture",
+      "customClasses": "",
+      "defaultStyles": [
+        "border",
+        "even"
+      ],
+      "items": [
         {
           "uuid": "989fb7d1-5fd2-5cbf-b440-3b3f44b67c5e",
           "description": "",
@@ -465,6 +426,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c52",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -480,12 +480,12 @@
         },
         "tablet": {
           "allViews": {
-            "position": "bottom"
+            "position": "props"
           }
         },
         "mobile": {
           "allViews": {
-            "position": "bottom"
+            "position": "props"
           }
         }
       },
@@ -515,45 +515,6 @@
             "type": "file"
           },
           "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
-        {
-          "uuid": "041ed8ff-6cde-53d6-813a-32cfb655d3cc",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-calendar-days",
-          "inGallery": false,
-          "label": "오늘",
-          "link": "quickadd:choice:6ef52046-1168-4f20-8f9e-8f27eefc4279",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "quickadd:choice:6ef52046-1168-4f20-8f9e-8f27eefc4279",
-            "hasVars": false,
-            "type": "command"
-          },
-          "tooltip": "오늘",
           "visibility": {
             "desktop": {
               "allViews": {
@@ -694,56 +655,22 @@
               }
             }
           }
-        }
-      ],
-      "mobileStyles": [
-        "mbtn",
-        "mwd",
-        "mevn"
-      ],
-      "position": {
-        "desktop": {
-          "allViews": {
-            "position": "hidden"
-          }
         },
-        "tablet": {
-          "allViews": {
-            "position": "bottom"
-          }
-        },
-        "mobile": {
-          "allViews": {
-            "position": "bottom"
-          }
-        }
-      },
-      "updated": "2026-11-23T00:00:00.000Z"
-    },
-    {
-      "uuid": "941fd764-7b25-4783-a2a1-0354f082e9c4",
-      "name": "idea",
-      "customClasses": "",
-      "defaultStyles": [
-        "border",
-        "even"
-      ],
-      "items": [
         {
-          "uuid": "d52e24d4-b84a-5cc4-b080-290049d00758",
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c53",
           "description": "",
           "hasCommand": false,
-          "icon": "lucide-home",
+          "icon": "lucide-refresh-cw",
           "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
           "linkAttr": {
             "commandCheck": false,
             "commandId": "",
             "hasVars": false,
-            "type": "file"
+            "type": "menu"
           },
-          "tooltip": "홈",
+          "tooltip": "동기화",
           "visibility": {
             "desktop": {
               "allViews": {
@@ -767,7 +694,41 @@
               }
             }
           }
+        }
+      ],
+      "mobileStyles": [
+        "mbtn",
+        "mwd",
+        "mevn"
+      ],
+      "position": {
+        "desktop": {
+          "allViews": {
+            "position": "hidden"
+          }
         },
+        "tablet": {
+          "allViews": {
+            "position": "props"
+          }
+        },
+        "mobile": {
+          "allViews": {
+            "position": "props"
+          }
+        }
+      },
+      "updated": "2026-11-23T00:00:00.000Z"
+    },
+    {
+      "uuid": "941fd764-7b25-4783-a2a1-0354f082e9c4",
+      "name": "idea",
+      "customClasses": "",
+      "defaultStyles": [
+        "border",
+        "even"
+      ],
+      "items": [
         {
           "uuid": "f157ddec-d66f-5a0d-b650-374263b1d3f0",
           "description": "",
@@ -923,6 +884,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c54",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -958,45 +958,6 @@
         "even"
       ],
       "items": [
-        {
-          "uuid": "00ff9634-702d-5c8d-bf7f-e143144ba977",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
         {
           "uuid": "4ee3252e-11e3-5471-9c68-5272b8c13b2b",
           "description": "",
@@ -1152,6 +1113,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c55",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -1187,45 +1187,6 @@
         "even"
       ],
       "items": [
-        {
-          "uuid": "b5c2ee5f-7d58-5068-94fd-693f3ee93554",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
         {
           "uuid": "bc8d7f2f-8b78-55bb-a8b2-4d0bc3350c7f",
           "description": "",
@@ -1381,6 +1342,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c56",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -1416,45 +1416,6 @@
         "even"
       ],
       "items": [
-        {
-          "uuid": "e739ac0b-067e-57ea-9413-95dfeba00f75",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
         {
           "uuid": "d64b0a06-592a-5757-9a17-c5979a5a7085",
           "description": "",
@@ -1610,6 +1571,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c57",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -1645,45 +1645,6 @@
         "even"
       ],
       "items": [
-        {
-          "uuid": "f922ec55-7845-5009-b501-b7d6b108c4d0",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
         {
           "uuid": "6c9d6f35-2a31-5293-a174-79a85ca66bc4",
           "description": "",
@@ -1839,6 +1800,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c58",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -1874,45 +1874,6 @@
         "even"
       ],
       "items": [
-        {
-          "uuid": "6037f388-243b-55ff-bc80-3c875eb6d076",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-home",
-          "inGallery": false,
-          "label": "홈",
-          "link": "Mobile.md",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "file"
-          },
-          "tooltip": "홈",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
-        },
         {
           "uuid": "ea0f2d42-040b-5816-90ed-6dbeff5bd3a0",
           "description": "",
@@ -2068,6 +2029,45 @@
               }
             }
           }
+        },
+        {
+          "uuid": "a3b1c2d4-e5f6-4a7b-8c9d-0e1f2a3b4c59",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-refresh-cw",
+          "inGallery": false,
+          "label": "동기화",
+          "link": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "menu"
+          },
+          "tooltip": "동기화",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
         }
       ],
       "mobileStyles": [
@@ -2093,6 +2093,150 @@
         }
       },
       "updated": "2026-11-23T00:00:00.000Z"
+    },
+    {
+      "uuid": "f1e2d3c4-b5a6-4978-8abc-def012345678",
+      "name": "Sync",
+      "customClasses": "",
+      "defaultStyles": [],
+      "items": [
+        {
+          "uuid": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d61",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-download",
+          "inGallery": false,
+          "label": "받기",
+          "link": "shortcuts://run-shortcut?name=KOS%20%EB%B0%9B%EA%B8%B0",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "uri"
+          },
+          "tooltip": "받기",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "uuid": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d62",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-upload",
+          "inGallery": false,
+          "label": "보내기",
+          "link": "shortcuts://run-shortcut?name=KOS%20%EB%B3%B4%EB%82%B4%EA%B8%B0",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "uri"
+          },
+          "tooltip": "보내기",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "uuid": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d63",
+          "description": "",
+          "hasCommand": false,
+          "icon": "lucide-git-branch",
+          "inGallery": false,
+          "label": "Git 상태",
+          "link": "working-copy://open?repo=KnowledgeHub&mode=status",
+          "linkAttr": {
+            "commandCheck": false,
+            "commandId": "",
+            "hasVars": false,
+            "type": "uri"
+          },
+          "tooltip": "Git 상태",
+          "visibility": {
+            "desktop": {
+              "allViews": {
+                "components": []
+              }
+            },
+            "mobile": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            },
+            "tablet": {
+              "allViews": {
+                "components": [
+                  "icon",
+                  "label"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mobileStyles": [],
+      "position": {
+        "desktop": {
+          "allViews": {
+            "position": "hidden"
+          }
+        },
+        "tablet": {
+          "allViews": {
+            "position": "hidden"
+          }
+        },
+        "mobile": {
+          "allViews": {
+            "position": "hidden"
+          }
+        }
+      },
+      "updated": "2026-11-24T00:00:00.000Z"
     }
   ],
   "useCommands": false,
