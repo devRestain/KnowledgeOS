@@ -26,10 +26,11 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from operationkit.canonical import canonical, sha256
+
 from . import OPERATION_ID
 from .config import ROOT
 from .policy import DEFAULT_POLICY, strictest
-from operationkit.canonical import canonical, sha256
 from .vault import CLASSIFICATION, PROPOSALS_DIR, REPORTS_DIR
 
 ID_RE = re.compile(r"^[a-z][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*$")
@@ -84,6 +85,12 @@ def pins(root: Path | None = None) -> dict[str, str]:
             pattern = DIGEST_RE if key.endswith("_digest") else SEMVER_RE
             if not isinstance(value, str) or not pattern.fullmatch(value):
                 raise AdoptionError(f"{path.name}: invalid {key}")
+        manifest_sha = data.get("core_manifest_sha256")
+        if not isinstance(manifest_sha, str) or not DIGEST_RE.fullmatch(manifest_sha):
+            raise AdoptionError(f"{path.name}: invalid core_manifest_sha256")
+        package_id = data.get("semantic_package_id")
+        if not isinstance(package_id, str) or not ID_RE.fullmatch(package_id):
+            raise AdoptionError(f"{path.name}: invalid semantic_package_id")
         _pins_cache[path] = (identity, selected)
         return dict(selected)
 

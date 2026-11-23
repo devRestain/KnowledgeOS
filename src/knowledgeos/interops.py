@@ -18,6 +18,7 @@ from operationkit.interops import MAX_FRAME, Unavailable, exchange, load_secret,
 
 from .core_records import pins
 from .util import iso, parse_iso
+
 _ID = re.compile(r"[a-z][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*")
 _TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})")
 _RECEIPT_FIELDS = {"admission_level", "candidate_id", "disposition", "idempotency_key",
@@ -61,8 +62,15 @@ def status(owner) -> str:
 def _profile(owner) -> tuple[dict, dict, dict]:
     """Bind catalog/schema metadata to the Operation's exact selected Core release."""
     selected = pins(owner.config.root)
+    adoption = json.loads((owner.config.root / "config" / "core-adoption.json").read_text(encoding="utf-8"))
     root = Path(os.environ.get("KNOWLEDGEOS_CORE_ROOT") or owner.config.root.parents[1] / "Core")
-    manifest = json.loads((root / "release/manifest.json").read_bytes())
+    manifest_path = root / "release/manifest.json"
+    if manifest_path.is_symlink():
+        raise ValueError("InterOps Core manifest differs from KnowledgeOS adoption")
+    manifest_bytes = manifest_path.read_bytes()
+    if "sha256:" + sha256(manifest_bytes) != adoption["core_manifest_sha256"]:
+        raise ValueError("InterOps Core manifest differs from KnowledgeOS adoption")
+    manifest = json.loads(manifest_bytes)
     body = {name: manifest[name] for name in ("core_release_version", "files")}
     if manifest["release_digest"] != "sha256:" + sha256(canonical(body)) \
             or manifest["release_digest"] != selected["core_digest"]:
@@ -82,7 +90,8 @@ def _profile(owner) -> tuple[dict, dict, dict]:
     actual = {"core_version": catalog["core_release_version"], "core_digest": manifest["release_digest"],
               "schema_version": catalog["schema_bundle_version"], "semantic_version": semantic["version"],
               "semantic_digest": "sha256:" + sha256(canonical(semantic))}
-    if actual != selected:
+    if (actual != selected or catalog["catalog_version"] != selected["core_version"]
+            or semantic.get("package_id") != adoption["semantic_package_id"]):
         raise ValueError("InterOps Core catalog pins differ from KnowledgeOS adoption")
     return selected, catalog, schema
 

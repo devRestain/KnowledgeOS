@@ -1,8 +1,8 @@
 {
-  "core_release_version": "0.20.1",
-  "core_digest": "sha256:d79104d89c643e29701e3e4c47aabe59b0915bce152f6b4459b199501f941616",
-  "core_manifest_sha256": "sha256:30a6400eaab27207c3a87f11425ae5d95062b01412b3ce15141cd23544d38f03",
-  "schema_version": "0.20.1",
+  "core_release_version": "0.21.1",
+  "core_digest": "sha256:0b574fd0bdee9877aea1e4cdb147a481623e079293239263d02b239b5c9cad22",
+  "core_manifest_sha256": "sha256:7e483d91c9a364e4439b38d51a23409aaf4bd4e416107852f6f50f70361c08a9",
+  "schema_version": "0.21.1",
   "semantic_package_id": "agentfabric.core.common",
   "semantic_version": "0.7.1",
   "semantic_digest": "sha256:73fe9df29be7720d87486b2a91511f96b831c6dfa7558a38746647a70704d54e"

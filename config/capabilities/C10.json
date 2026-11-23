@@ -8,12 +8,19 @@
   "commands": {
     "gateway.intake": {
       "origins": ["gateway"],
-      "params": {"envelope": {"type": "object", "required": true}}
+      "params": {
+        "envelope": {"type": "object", "required": true},
+        "signature": {"type": "string", "required": true, "min": 1, "max": 128}
+      }
     }
   },
   "modes": {"intake": {"criteria": ["gateway.capture_valid"]}},
   "criteria": {
     "gateway.capture_valid": {"runtime": "static", "text": "The new capture preserves the submitted text and sender provenance, with ai_policy approve"}
   },
-  "settings": {"authorized_operations": {}}
+  "settings": {
+    "authorized_operations": {},
+    "default_ttl_seconds": 300,
+    "max_ttl_seconds": 43200
+  }
 }

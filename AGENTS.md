@@ -5,6 +5,9 @@
 - Treat this checkout as the KnowledgeOS control and source boundary.
 - Bind the independent KnowledgeHub Vault, owner State (`States/Operations/knowledgeos/`) and host Runtime separately; never alias or nest them.
 - Keep Operation State, Runtime and credentials outside Git and outside the Vault.
+- Separate source Core adoption (`config/core-adoption.json`) from live owner State migration and Runtime activation.
+- Admit InterOps requests and submissions from any authenticated Operation only under explicit sender `INTEROP_REQUEST` grant and KnowledgeOS recipient admission; foundation labels confer no authority.
+- Retain KnowledgeOS's owner-selected loopback-only, no-login ExOps policy with Host/Origin/JSON checks, native Obsidian document work, and optional `frontend/` browser console.
 - Do not operate Obsidian GUI, plugins, profiles, devices or external transports without separate explicit authorization.
 
 ## Specification
@@ -27,7 +30,7 @@
 
 ## Verification and state
 
-- Read `PROJECT_STATE.md` as the sole machine-state source and validate it with `make state-check` after every write.
+- Keep root `PROJECT_STATE.md` as the sole authored coordination ledger under `Core/docs/OPERATION_STATE.md` without adding parallel ledgers; preserve history and unresolved records and validate with `make state-check` after every write.
 - Record static, runtime, deployment and device evidence separately; mark unrun checks accurately.
 - Run `git diff --check` in every changed Git root before handoff.
 - Update affected wiki explanations in an independent Sites worktree, regenerate only the KnowledgeOS namespace with `make wiki SITES_ROOT=<worktree>`, pass `make wiki-check SITES_ROOT=<worktree>`, and review changed pages in a browser before handoff.

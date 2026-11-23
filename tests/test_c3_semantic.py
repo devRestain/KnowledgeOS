@@ -274,9 +274,17 @@ def neighbors(result):
     return sorted(item["title"] for item in result["results"])
 
 
-def test_SRC_7_people_and_gateway_search_keep_their_audiences(make_kos, ollama, vault):
+def test_SRC_7_people_and_gateway_search_keep_their_audiences(make_kos, ollama, vault, tmp_path, clock):
+    from knowledgeos.capabilities.c10_gateway import QUERY_ROUTE, sign_request
+    from knowledgeos.util import iso
+
+    secret = b"r" * 32
+    key = tmp_path / "research.key"
+    key.write_bytes(secret)
+    key.chmod(0o600)
     settings = semantic_settings(ollama)
     settings["C10"] = {"authorized_operations": {"research": {
+        "credential_file": str(key),
         "query": True, "purposes": ["consultation"], "max_results": 10, "max_excerpt_chars": 160,
     }}}
     kos = make_kos(settings=settings)
@@ -292,9 +300,20 @@ def test_SRC_7_people_and_gateway_search_keep_their_audiences(make_kos, ollama, 
     }
     assert all(item["line"] >= 8 for item in related["results"])
     assert NOTES + "Secret.md" not in paths(kos.search(mode="semantic", query="garden soil tomato plants water secret"))
-    status, exported = kos.post("/interops/query", {
-        "sender_operation_id": "research", "purpose": "consultation", "query": "garden soil tomato",
-    })
+    qbody = {
+        "sender_operation_id": "research", "purpose": "consultation",
+        "query": "garden soil tomato", "issued_at": iso(clock.now()),
+    }
+    status, exported, _ = kos.raw(
+        "POST",
+        QUERY_ROUTE,
+        json.dumps(qbody).encode("utf-8"),
+        {
+            "Content-Type": "application/json",
+            "X-InterOps-Sender": "research",
+            "X-InterOps-Signature": sign_request(secret, "POST", QUERY_ROUTE, qbody),
+        },
+    )
     assert status == 200, exported
     assert sorted(paths(exported)) == sorted([focal, NOTES + "Ask.md", NOTES + "Remote.md"])
 

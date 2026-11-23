@@ -19,6 +19,10 @@ def _found(value: Any) -> Any:
 
 def _submit(owner: Owner, req: Req) -> Any:
     assert req.body is not None
+    command = req.body.get("command") if isinstance(req.body, dict) else None
+    declared = owner.catalog.command(command) if isinstance(command, str) else None
+    if declared is not None and set(declared[1].get("origins", ["user"])) == {"gateway"}:
+        return 403, {"error": f"{command} requires an authenticated InterOps route"}
     receipt, created = owner.submit(req.body)
     return (202 if created else 200), receipt
 

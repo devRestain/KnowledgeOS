@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 from conftest import conforming_note, core_root, core_validate, enhance_scripts, evaluator_script
+from operationkit.canonical import canonical
 
 import knowledgeos
 from knowledgeos.config import ROOT
 from knowledgeos.core_records import pins
-from operationkit.canonical import canonical
 
 IDEA = "40_Knowledge/Ideas/Tools shape thinking.md"
 RELATED = "40_Knowledge/Notes/Related.md"
@@ -78,7 +78,12 @@ def test_CORE_1_adoption_pins_match_the_core_release():
     adoption = json.loads((ROOT / "config" / "core-adoption.json").read_text(encoding="utf-8"))
     selected = pins()
 
-    assert selected["core_version"] == manifest["core_release_version"] == catalog["core_release_version"]
+    assert (
+        selected["core_version"]
+        == manifest["core_release_version"]
+        == catalog["core_release_version"]
+        == catalog["catalog_version"]
+    )
     assert selected["core_digest"] == manifest["release_digest"]
     assert manifest["release_digest"] == core_digest(
         {"core_release_version": manifest["core_release_version"], "files": manifest["files"]})

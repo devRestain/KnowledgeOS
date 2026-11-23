@@ -4,7 +4,7 @@ KnowledgeOS가 자기 도메인의 용어·관계와 필요한 의미 정렬을 
 
 ## 기존 정의의 원본
 
-설계 충돌은 [사용자 기능 명세](../USER_FEATURE_SPEC.md), [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md), [기능 명세](../docs/CAPABILITIES.md) 순서로 해소한다.
+설계 충돌은 최상위 기준인 [기능 명세](../docs/CAPABILITIES.md)를 우선으로 삼고, [사용자 기능 명세](../USER_FEATURE_SPEC.md)의 의도와 [Blueprint](../OBSIDIAN_VAULT_BLUEPRINT.md)(§0)의 시스템 제약으로 보충하며 Core 계약·스키마는 바꾸지 않고 함께 해소한다.
 
 | 원본 | 정확한 범위와 역할 |
 |---|---|

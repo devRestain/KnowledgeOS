@@ -8,7 +8,7 @@
 
 ## Preserve authoritative inputs
 
-- Apply the spec precedence: `../USER_FEATURE_SPEC.md`, then `../OBSIDIAN_VAULT_BLUEPRINT.md`, then `../docs/CAPABILITIES.md`.
+- Treat `../docs/CAPABILITIES.md` as the top-level behavior and acceptance specification, supplemented by intent in `../USER_FEATURE_SPEC.md` and system constraints in `../OBSIDIAN_VAULT_BLUEPRINT.md` (§0), without changing Core contracts or schemas.
 - Reference Blueprint §5.2 note types and §5.3 properties and relations for existing definitions.
 - Use `knowledgeos.domain` for new domain vocabulary while retaining existing Blueprint identifiers.
 - Keep the Blueprint authoritative until a spec change updates it.

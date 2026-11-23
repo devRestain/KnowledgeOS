@@ -33,9 +33,11 @@ KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 
 ## 소유와 경계
 
 - 이 디렉터리는 제어·소스 경계입니다. Vault, Owner State(`States/Operations/knowledgeos/`), Runtime은 설정에서 각각 따로 지정하며 서로 겹치거나 포함할 수 없습니다.
-- State, Runtime, 자격 증명은 Git과 Vault 밖에 둡니다. ExOps는 loopback(`127.0.0.1`)에만 바인딩합니다.
-- `Core/`의 계약과 스키마는 수정하지 않고 `config/core-adoption.json`으로 고정해 따릅니다.
+- State, Runtime, 자격 증명은 Git과 Vault 밖에 둡니다. ExOps는 KnowledgeOS 소유자가 선택한 로컬 정책에 따라 별도 로그인·토큰 없이 loopback(`127.0.0.1`)에만 바인딩하며, 문서 작업은 Obsidian 네이티브 경계에 두고 `frontend/` 브라우저 관리 콘솔은 선택 표면으로 유지합니다.
+- `Core/`의 계약과 스키마는 수정하지 않고 `config/core-adoption.json`으로 고정해 따릅니다. Core `0.21.1`에 맞춘 소스 정렬과 `Runtimes/knowledgeos/.venv` 고정 설치·`States/Operations/knowledgeos/` 수동 호환성 채택은 기존 이력·미해결 기록·과거 고정값을 덮어쓰지 않으며, 기존 소유자 선택 온디맨드 중지 정책과 C7 예약 설정을 그대로 유지하고 이번 채택 범위에서는 Owner를 기동하지 않았습니다.
+- 다른 Operation과의 InterOps 요청·수신은 기반 역할 이름만으로 자동 허용되지 않으며, 발신 측의 명시적 `INTEROP_REQUEST` 권한, 발신자별 `0600` 자격 증명 서명 인증, 수신 측의 Gateway 허용이 모두 있을 때만 처리합니다.
 - 실행 기록과 결과는 Temporal 서버에 보존되지만, Work의 소유와 판단은 KnowledgeOS가 가집니다.
+- 작업 조정 상태의 유일한 원본 원장은 `Core/docs/OPERATION_STATE.md` 기준의 [PROJECT_STATE.md](PROJECT_STATE.md)이며, 별도 상태 문서를 추가하지 않습니다.
 
 ## 사용
 
@@ -67,6 +69,15 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 ```sh
 make test TESTS="$(make -s trace-check | tail -n 1)"
 ```
+
+호스트 Runtime(`Runtimes/knowledgeos/.venv`)을 Core 고정값과 소스 작업 트리에 맞춰 설치·갱신할 때는 `.pth` 우회 파일이 아니라 격리된 빌드 환경에서 고정 잠금(`--frozen --no-dev`)으로 설치합니다. 이 명령은 기존 서드파티 패키지를 바꾸지 않고 `knowledgeos`·`operationkit` 편집 가능 패키지만 설치하며, Owner 서비스를 시작하거나 State 기록을 고쳐 쓰지 않습니다.
+
+```sh
+UV_PROJECT_ENVIRONMENT=/path/to/Runtimes/knowledgeos/.venv \
+  uv sync --project /path/to/Operations/KnowledgeOS --frozen --no-dev
+```
+
+일반적인 Owner 시작(예: Thin Client의 **Owner 시작** 또는 `launchctl kickstart`)은 `startup_delay_minutes` 경과 후 꺼져 있던 동안 놓친 예약 슬롯(C7)·복구·알림을 실행할 수 있으며, 기존 온디맨드·C7 예약 정책을 유지한 채 이번 비활성 설치·호환성 채택에서는 Owner 기동을 수행하지 않았습니다.
 
 Owner 실행과 유지보수 CLI(`python -m knowledgeos.cli` 또는 설치된 `knowledgeos`):
 
