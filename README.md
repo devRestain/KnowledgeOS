@@ -56,6 +56,17 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 위키는 [작성 철학](../../Sites/knowledgeos/wiki/philosophy.html)에 따라 실제 입력에서 결과까지의 구현 선택을 자연어로 설명합니다. 처리 순서와 기본값은 현재 코드·설정으로 확인하며, 구현 근거와 실제 실행 관찰을 구별합니다. Sites의 문서 변경은 독립 worktree의 GitHub PR로 리뷰·병합하며, 소유 Operation의 명세·코드 근거는 명시한 AgentFabric 소스 경로에서만 읽습니다.
 
+### iPhone용 Obsidian 설정
+
+`config/obsidian-mobile/profile/`은 실제 Vault 설정과 분리한 복사용 모바일 프로필입니다. QuickAdd·Note Toolbar·Templater·Tasks·Homepage만 사용하며, Mac의 `.obsidian-mac/`, Vault 문서, `.gitignore`, 기존 GitHub–Working Copy Pro 동기화는 수정하지 않습니다. 이 묶음은 모바일 KnowledgeOS 실행기나 새 동기화 파이프라인이 아닙니다.
+
+1. iPhone에서 기존 모바일 설정 폴더를 별도로 백업하고 Obsidian을 종료합니다. `.obsidian-mac`은 대상이 아닙니다.
+2. 권장 플러그인을 설치한 뒤 `profile/`의 내용을 **iPhone이 이미 사용하는 설정 폴더**에 복사합니다. 폴더 이름과 Working Copy 연결은 바꾸지 않습니다. 패키지에 플러그인 실행 파일이 함께 제공된 경우에는 해당 고정 버전을 그대로 사용할 수 있습니다.
+3. Obsidian을 다시 열고 커뮤니티 플러그인을 허용합니다. `Mobile.md`와 하단 **홈·오늘·입력·찾기**를 확인합니다. **입력**은 코어 고유 노트 생성으로 타임스탬프 이름의 `00_Inbox/` 새 노트를 연 뒤 기본 편집기에서 입력합니다. 입력 본문을 실행 구문으로 재해석하는 QuickAdd Capture나 Mac 전용 캡처 매크로는 사용하지 않습니다.
+4. **오늘**은 QuickAdd가 기존 `99_System/Templates/T10_Daily.md`를 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있는 파일은 수정하지 않고 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task` 필터를 유지하고 이월된 `[>]`를 `NON_TASK`로 구분합니다.
+
+설정 준비와 iPhone 적용은 별개입니다. iPhone 연결이나 설정 폴더 복사, Apple 단축어 설치, Git commit/pull/push, Mac Owner 기동은 이 패키지가 자동 실행하지 않습니다. 설치 버전 Templater에는 폴더별 자동 실행 제외 기능이 없어 **새 파일 자동 실행을 끕니다**. 원시 템플릿을 생성하는 우회 경로를 막기 위해 모바일의 코어 Daily Notes도 끄고 **오늘** 버튼만 사용합니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하며, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
+
 ### 모바일에서 위키 읽기
 
 위키는 휴대폰 브라우저에서도 읽을 수 있습니다. 좁은 화면에서는 검색창이 별도 줄을 쓰고 본문은 화면 폭에 맞춥니다. 넓은 표·코드는 영역 안에서 가로 스크롤하며, 그림은 **그림 크게 보기 / 그림 전체 보기**로 전환합니다.

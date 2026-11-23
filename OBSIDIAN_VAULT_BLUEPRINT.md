@@ -129,7 +129,11 @@ One KnowledgeOS-specific bot delivers actionable-only review digests and conflic
 
 ### 3.5 Mobile
 
-The Vault syncs to iPhone and iPad through Git and GitHub with Working Copy, and the user edits there in Obsidian. KnowledgeOS has no mobile component. Changes arriving through a pull on the Mac are processed by scheduled jobs like any other edit. Mobile request and template flows are follow-up work (§9). This contract reserves their interfaces:
+The Vault syncs to iPhone and iPad through Git and GitHub with Working Copy, and the user edits there in Obsidian. KnowledgeOS has no mobile component. Changes arriving through a pull on the Mac are processed by scheduled jobs like any other edit. Mobile request and template flows are follow-up work (§9).
+
+An optional copyable Obsidian profile is maintained at `config/obsidian-mobile/profile/` outside the Vault. It configures QuickAdd, Note Toolbar, Templater, Tasks and Homepage for local mobile document work: a new Inbox capture, `Mobile.md`, the existing daily-note path and ordinary search. It is not a KnowledgeOS mobile client or a request transport. Preparing the package never installs it into a live `.obsidian*` directory, changes the Mac profile, changes Git ignore or sync rules, or starts the Owner. Plugin installation and copying settings into the phone's existing configuration folder are separate user actions. Existing mobile settings must be backed up before replacement.
+
+The mobile request follow-up reserves these interfaces:
 
 - The frontmatter property `kos_request`.
 - The folder `00_Inbox/Requests/`.

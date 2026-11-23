@@ -167,6 +167,7 @@ Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시�
 - 모바일용 KnowledgeOS는 만들지 않습니다.
 - 맥이 변경을 받아오면 맥의 KnowledgeOS가 예약 작업으로 규격화·정리합니다.
 - Discord 알림의 Obsidian 링크는 모바일에서도 열립니다.
+- `config/obsidian-mobile/profile/`에는 iPhone용 Obsidian 설정 묶음이 있습니다. 코어 고유 노트 생성의 새 Inbox 메모, Note Toolbar의 홈·오늘·입력·찾기, QuickAdd·Templater의 명시적 Daily 생성, Tasks의 이월 상태, `Mobile.md` 시작 화면을 구성합니다. 실제 iPhone 설치와 적용은 별도이며 Mac 설정·GitHub/Working Copy 동기화·Owner 실행 정책은 변경하지 않습니다.
 
 **후속 과제**(구현 공간 확보, 상세는 [기능 명세](docs/CAPABILITIES.md)의 Follow-up):
 
