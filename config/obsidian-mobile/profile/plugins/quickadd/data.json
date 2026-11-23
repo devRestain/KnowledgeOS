@@ -29,6 +29,293 @@
       },
       "fileExistsMode": "Nothing",
       "setFileExistsBehavior": true
+    },
+    {
+      "id": "9b026f65-6b73-4d87-83af-9c0cb7baf002",
+      "name": "입력",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe100",
+        "name": "입력",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe300",
+            "name": "새 고유 노트",
+            "type": "Obsidian",
+            "commandId": "zk-prefixer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9bba3ca7-d9c7-4df3-8ab4-425ddd7da0a6",
+      "name": "아이디어",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe101",
+        "name": "아이디어",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe301",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe401",
+            "name": "아이디어 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "a6522e99-aab5-4301-978b-66f930abe201",
+              "name": "아이디어 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T21_Idea.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["40_Knowledge/Ideas"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Increment the file name",
+              "setFileExistsBehavior": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "5eddd4fc-24b8-4189-b926-c91f34b20ce1",
+      "name": "질문",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe102",
+        "name": "질문",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe302",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe402",
+            "name": "질문 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "a6522e99-aab5-4301-978b-66f930abe202",
+              "name": "질문 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T22_Question.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["40_Knowledge/Questions"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Increment the file name",
+              "setFileExistsBehavior": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c44007fc-f3e5-47f0-b295-d9c99cc5aa9b",
+      "name": "지식",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe103",
+        "name": "지식",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe303",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe403",
+            "name": "지식 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "a6522e99-aab5-4301-978b-66f930abe203",
+              "name": "지식 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T40_Knowledge.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["40_Knowledge/Notes"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Increment the file name",
+              "setFileExistsBehavior": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "9b026f65-6b73-4d87-83af-9c0cb7baf001",
+      "name": "자료",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe104",
+        "name": "자료",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe304",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe404",
+            "name": "자료 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "a6522e99-aab5-4301-978b-66f930abe204",
+              "name": "자료 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T41_Source.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["40_Knowledge/Sources"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Increment the file name",
+              "setFileExistsBehavior": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "dc798d84-85be-465e-b461-c4cc13d198aa",
+      "name": "프로젝트",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "a6522e99-aab5-4301-978b-66f930abe105",
+        "name": "프로젝트",
+        "commands": [
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe305",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": { "project": true }
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe505",
+            "name": "PrepareInputs::ensureProjectDirectories",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "a6522e99-aab5-4301-978b-66f930abe405",
+            "name": "프로젝트 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "a6522e99-aab5-4301-978b-66f930abe205",
+              "name": "프로젝트 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T20_Project.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["20_Projects/{{VALUE:title}}"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Nothing",
+              "setFileExistsBehavior": true
+            }
+          }
+        ]
+      }
     }
   ],
   "inputPrompt": "single-line",

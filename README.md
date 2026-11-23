@@ -58,14 +58,29 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 ### iPhone용 Obsidian 설정
 
-`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`은 초기 소스 템플릿(설정 JSON 10개)으로 유지하되 자동 업데이터나 새 동기화 파이프라인은 두지 않습니다. Vault `.gitignore`에서 `.obsidian-phone` 제외 규칙을 제거해 `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro 동기화 대상에 포함하며, 공통 `.DS_Store`·임시 파일 무시 규칙만 그대로 적용합니다. 휴대폰 전용 workspace·캐시·알 수 없는 플러그인 제외 규칙은 두지 않으므로, `.obsidian-phone/` 안에 workspace나 캐시 파일이 생성되면 함께 동기화될 수 있습니다. Mac의 `.obsidian-mac/`과 Mac용 Git 무시 규칙, Vault 문서는 수정하지 않습니다.
+`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`에는 같은 구성을 재현하는 참조 프리셋을 유지합니다. 자동 업데이터나 새 동기화 파이프라인은 없습니다. `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac 설정과 Mac용 Git 무시 규칙은 수정하지 않습니다.
 
 1. 기존에 쓰던 모바일 설정이 있다면 전환 전에 백업합니다. `.obsidian-mac`은 대상이 아닙니다.
 2. Mac에서 평소 쓰는 기존 Git 동기화 절차로 변경을 GitHub에 push한 뒤, iPhone Working Copy Pro에서 평소대로 pull합니다. 숨김 폴더(`.obsidian-phone`)가 iOS 파일 앱에 직접 보이지 않아도 정상이며, 새 디렉터리 연결을 만들지 않고 기존 Working Copy 워크플로를 그대로 씁니다.
-3. iPhone Obsidian에서 **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 앱을 다시 불러옵니다(커뮤니티 플러그인 허용 필요 시 확인). `Mobile.md` 시작 화면과 하단 **홈·오늘·입력·찾기**를 확인합니다. **입력**은 코어 고유 노트 생성(`zk-prefixer`)으로 타임스탬프 이름의 `00_Inbox/` 새 노트를 연 뒤 기본 편집기에서 입력합니다. 입력 본문을 실행 구문으로 재해석하는 QuickAdd Capture나 Mac 전용 캡처 매크로는 사용하지 않습니다.
-4. **오늘**은 QuickAdd의 신뢰된 `Today` 선택지 하나만으로 기존 `99_System/Templates/T10_Daily.md`를 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있는 파일은 수정하지 않고 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task` 필터를 유지하고 이월된 `[>]`를 `NON_TASK`로 구분합니다.
+3. iPhone Obsidian에서 **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 앱을 다시 불러옵니다(커뮤니티 플러그인 허용 필요 시 확인). 시작 화면은 `Mobile.md`이며, 하단에는 **홈 · 오늘 · 새노트 · 문맥별 동작 · 찾기**가 표시됩니다.
+4. **새노트**에서 QuickAdd의 **입력 · 아이디어 · 질문 · 지식 · 자료 · 프로젝트 · Today**를 고릅니다. 입력은 타임스탬프 이름의 Inbox 노트를 열어 기본 편집기로 작성합니다. 다섯 유형은 제목 한 번만 묻고 기존 템플릿으로 만들며, 별칭은 빈 목록으로 시작합니다. 실행 구문이 든 제목은 거부하고 기존 노트는 덮어쓰지 않습니다.
+5. 노트의 `type`에 따라 네 번째 버튼이 바뀝니다. 노트를 다른 폴더로 옮겨도 종류별 툴바가 유지되며, 알 수 없는 종류도 공통 툴바를 사용합니다.
 
-로컬 Vault 채택과 원격 push·iPhone 기기 전환은 별개이며, 원격 Git commit/pull/push, iPhone 설정 변경, Apple 단축어 설치, Mac Owner 기동은 자동으로 수행되지 않습니다. `.obsidian-phone/` 채택은 사용자가 명시적으로 선택한 MacBook 기반 설정 유지보수이며 KnowledgeOS Owner 런타임의 플러그인 관리가 아니므로, Owner 런타임이 Git을 실행하거나 `.obsidian*/`·기기 로컬 경로에 쓰지 않는 원칙은 그대로 유지됩니다. 초기 구성에는 QuickAdd·Note Toolbar·Templater·Tasks·Homepage만 포함되며, 설치 버전 Templater에는 폴더별 자동 실행 제외 기능이 없어 **새 파일 자동 실행(`trigger_on_file_creation`)을 끕니다**. 원시 템플릿을 생성하는 우회 경로를 막기 위해 모바일의 코어 Daily Notes(`daily-notes`)도 끄고 **오늘** 버튼만 사용합니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하며, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
+| 현재 노트 | 네 번째 버튼 |
+|---|---|
+| 일반·홈 | 입력 |
+| capture | 포착함 |
+| daily·project | 할일 |
+| idea | 질문 만들기 |
+| question·source | 지식 만들기 |
+| knowledge | 자료 만들기 |
+| AI 검토 폴더의 분류되지 않은 노트 | 검토함 |
+
+**오늘 / Today**는 신뢰된 `T10_Daily.md`만 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있으면 수정 없이 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task`와 이월된 `[>]`의 `NON_TASK` 구분을 유지합니다.
+
+폰 프로필의 `mobile-toolbar` CSS 스니펫은 버튼의 최소 터치 영역을 44×44px로 늘립니다. 좁은 화면에서는 라벨을 숨기지 않고 두 줄로 배치될 수 있으며, Mac 프로필에는 스니펫을 추가하지 않습니다.
+
+원격 Git 조작, iPhone 설정 변경, Apple 단축어 설치와 Mac Owner 기동은 자동으로 수행하지 않습니다. 이는 사용자 선택 설정 유지보수이며 Owner 런타임의 플러그인 관리가 아닙니다. 플러그인 5개(QuickAdd·Note Toolbar·Templater·Tasks·Homepage)는 그대로 유지합니다. 제목·본문을 실행 구문으로 재해석하는 QuickAdd Capture와 Mac 캡처 매크로를 사용하지 않으며, Templater의 **새 파일 자동 실행**과 모바일 코어 **Daily Notes**도 계속 끕니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하고, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
 
 ### 모바일에서 위키 읽기
 

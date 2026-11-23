@@ -1,0 +1,7 @@
+.is-mobile .cg-note-toolbar-container .cg-note-toolbar-item[role="link"] {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
