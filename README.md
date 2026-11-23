@@ -58,14 +58,14 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 ### iPhone용 Obsidian 설정
 
-`config/obsidian-mobile/profile/`은 실제 Vault 설정과 분리한 복사용 모바일 프로필입니다. QuickAdd·Note Toolbar·Templater·Tasks·Homepage만 사용하며, Mac의 `.obsidian-mac/`, Vault 문서, `.gitignore`, 기존 GitHub–Working Copy Pro 동기화는 수정하지 않습니다. 이 묶음은 모바일 KnowledgeOS 실행기나 새 동기화 파이프라인이 아닙니다.
+`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`은 초기 소스 템플릿(설정 JSON 10개)으로 유지하되 자동 업데이터나 새 동기화 파이프라인은 두지 않습니다. Vault `.gitignore`에서 `.obsidian-phone` 제외 규칙을 제거해 `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro 동기화 대상에 포함하며, 공통 `.DS_Store`·임시 파일 무시 규칙만 그대로 적용합니다. 휴대폰 전용 workspace·캐시·알 수 없는 플러그인 제외 규칙은 두지 않으므로, `.obsidian-phone/` 안에 workspace나 캐시 파일이 생성되면 함께 동기화될 수 있습니다. Mac의 `.obsidian-mac/`과 Mac용 Git 무시 규칙, Vault 문서는 수정하지 않습니다.
 
-1. iPhone에서 기존 모바일 설정 폴더를 별도로 백업하고 Obsidian을 종료합니다. `.obsidian-mac`은 대상이 아닙니다.
-2. 권장 플러그인을 설치한 뒤 `profile/`의 내용을 **iPhone이 이미 사용하는 설정 폴더**에 복사합니다. 폴더 이름과 Working Copy 연결은 바꾸지 않습니다. 패키지에 플러그인 실행 파일이 함께 제공된 경우에는 해당 고정 버전을 그대로 사용할 수 있습니다.
-3. Obsidian을 다시 열고 커뮤니티 플러그인을 허용합니다. `Mobile.md`와 하단 **홈·오늘·입력·찾기**를 확인합니다. **입력**은 코어 고유 노트 생성으로 타임스탬프 이름의 `00_Inbox/` 새 노트를 연 뒤 기본 편집기에서 입력합니다. 입력 본문을 실행 구문으로 재해석하는 QuickAdd Capture나 Mac 전용 캡처 매크로는 사용하지 않습니다.
-4. **오늘**은 QuickAdd가 기존 `99_System/Templates/T10_Daily.md`를 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있는 파일은 수정하지 않고 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task` 필터를 유지하고 이월된 `[>]`를 `NON_TASK`로 구분합니다.
+1. 기존에 쓰던 모바일 설정이 있다면 전환 전에 백업합니다. `.obsidian-mac`은 대상이 아닙니다.
+2. Mac에서 평소 쓰는 기존 Git 동기화 절차로 변경을 GitHub에 push한 뒤, iPhone Working Copy Pro에서 평소대로 pull합니다. 숨김 폴더(`.obsidian-phone`)가 iOS 파일 앱에 직접 보이지 않아도 정상이며, 새 디렉터리 연결을 만들지 않고 기존 Working Copy 워크플로를 그대로 씁니다.
+3. iPhone Obsidian에서 **Settings → Files and links → Override config folder**를 `.obsidian-phone`으로 지정하고 앱을 다시 불러옵니다(커뮤니티 플러그인 허용 필요 시 확인). `Mobile.md` 시작 화면과 하단 **홈·오늘·입력·찾기**를 확인합니다. **입력**은 코어 고유 노트 생성(`zk-prefixer`)으로 타임스탬프 이름의 `00_Inbox/` 새 노트를 연 뒤 기본 편집기에서 입력합니다. 입력 본문을 실행 구문으로 재해석하는 QuickAdd Capture나 Mac 전용 캡처 매크로는 사용하지 않습니다.
+4. **오늘**은 QuickAdd의 신뢰된 `Today` 선택지 하나만으로 기존 `99_System/Templates/T10_Daily.md`를 명시적으로 렌더링해 `10_Journal/Daily/YYYY-MM-DD.md`를 만들며, 이미 있는 파일은 수정하지 않고 엽니다. 새 Daily에 원시 Templater 문법이 남지 않는지 확인합니다. Tasks는 기존 `#task` 필터를 유지하고 이월된 `[>]`를 `NON_TASK`로 구분합니다.
 
-설정 준비와 iPhone 적용은 별개입니다. iPhone 연결이나 설정 폴더 복사, Apple 단축어 설치, Git commit/pull/push, Mac Owner 기동은 이 패키지가 자동 실행하지 않습니다. 설치 버전 Templater에는 폴더별 자동 실행 제외 기능이 없어 **새 파일 자동 실행을 끕니다**. 원시 템플릿을 생성하는 우회 경로를 막기 위해 모바일의 코어 Daily Notes도 끄고 **오늘** 버튼만 사용합니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하며, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
+로컬 Vault 채택과 원격 push·iPhone 기기 전환은 별개이며, 원격 Git commit/pull/push, iPhone 설정 변경, Apple 단축어 설치, Mac Owner 기동은 자동으로 수행되지 않습니다. `.obsidian-phone/` 채택은 사용자가 명시적으로 선택한 MacBook 기반 설정 유지보수이며 KnowledgeOS Owner 런타임의 플러그인 관리가 아니므로, Owner 런타임이 Git을 실행하거나 `.obsidian*/`·기기 로컬 경로에 쓰지 않는 원칙은 그대로 유지됩니다. 초기 구성에는 QuickAdd·Note Toolbar·Templater·Tasks·Homepage만 포함되며, 설치 버전 Templater에는 폴더별 자동 실행 제외 기능이 없어 **새 파일 자동 실행(`trigger_on_file_creation`)을 끕니다**. 원시 템플릿을 생성하는 우회 경로를 막기 위해 모바일의 코어 Daily Notes(`daily-notes`)도 끄고 **오늘** 버튼만 사용합니다. 외부 단축어가 필요하면 코어 `obsidian://daily` 대신 `obsidian://quickadd?choice=Today`를 사용하며, 다른 Vault가 열려 있다면 `vault=KnowledgeHub`도 지정합니다.
 
 ### 모바일에서 위키 읽기
 

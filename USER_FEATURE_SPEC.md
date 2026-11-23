@@ -167,7 +167,7 @@ Owner가 켜져 있는 동안 Owner 안의 스케줄러가 다음 작업을 시�
 - 모바일용 KnowledgeOS는 만들지 않습니다.
 - 맥이 변경을 받아오면 맥의 KnowledgeOS가 예약 작업으로 규격화·정리합니다.
 - Discord 알림의 Obsidian 링크는 모바일에서도 열립니다.
-- `config/obsidian-mobile/profile/`에는 iPhone용 Obsidian 설정 묶음이 있습니다. 코어 고유 노트 생성의 새 Inbox 메모, Note Toolbar의 홈·오늘·입력·찾기, QuickAdd·Templater의 명시적 Daily 생성, Tasks의 이월 상태, `Mobile.md` 시작 화면을 구성합니다. 실제 iPhone 설치와 적용은 별도이며 Mac 설정·GitHub/Working Copy 동기화·Owner 실행 정책은 변경하지 않습니다.
+- 현재 iPhone용 Obsidian 설정의 기준 위치는 MacBook에서 관리하는 `Vaults/KnowledgeHub/.obsidian-phone/`이며, `config/obsidian-mobile/profile/`은 자동 업데이터가 아닌 초기 소스 템플릿(설정 JSON 10개)으로 유지합니다. Vault `.gitignore`에서 `.obsidian-phone` 규칙을 제거해 `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro 동기화 대상에 포함하며, 공통 `.DS_Store`·임시 파일 무시 규칙만 그대로 적용합니다. 휴대폰 전용 workspace·캐시·알 수 없는 플러그인 제외 규칙은 두지 않으므로 workspace·캐시 파일이 생성되면 함께 동기화될 수 있습니다. 초기 프로필은 선택 플러그인 5개(QuickAdd·Note Toolbar·Templater·Tasks·Homepage)로 코어 고유 노트 생성(`zk-prefixer`)의 새 Inbox 메모, Note Toolbar의 홈·오늘·입력·찾기, QuickAdd의 신뢰된 `Today` 선택지 하나와 Templater(`trigger_on_file_creation: false`)의 명시적 Daily 생성(모바일 코어 Daily Notes 비활성화), Tasks의 `#task`·이월 `[>]` 구분, `Mobile.md` 시작 화면을 구성합니다. 새 동기화 파이프라인 없이 기존 Mac 동기화 push와 Working Copy Pro pull, 그리고 iPhone Obsidian의 **Settings → Files and links → Override config folder**(`.obsidian-phone`) 지정 및 앱 재실행으로 적용하며, iOS 파일 앱에 숨김 폴더가 보이지 않아도 기존 Working Copy 연결을 그대로 씁니다. Mac의 `.obsidian-mac/`과 Mac Git 무시 규칙·Owner 실행 정책은 바꾸지 않으며, 이는 사용자가 명시적으로 선택한 MacBook 기반 설정 유지보수이지 KnowledgeOS Owner 런타임의 Git 조작이나 `.obsidian*/`·플러그인 관리가 아닙니다.
 
 **후속 과제**(구현 공간 확보, 상세는 [기능 명세](docs/CAPABILITIES.md)의 Follow-up):
 
