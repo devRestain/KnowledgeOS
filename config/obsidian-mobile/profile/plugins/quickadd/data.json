@@ -316,6 +316,27 @@
           }
         ]
       }
+    },
+    {
+      "id": "803f3d6d-96b1-4159-9cc3-1d925d24a288",
+      "name": "KOS Capture",
+      "type": "Macro",
+      "command": true,
+      "onePageInput": "never",
+      "runOnStartup": false,
+      "macro": {
+        "id": "012c903f-cada-466c-8080-53f18960730c",
+        "name": "KOS Capture",
+        "commands": [
+          {
+            "id": "189e54ea-cc24-4615-a9f7-73193671b6c0",
+            "name": "CaptureNote",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/CaptureNote.js",
+            "settings": {}
+          }
+        ]
+      }
     }
   ],
   "inputPrompt": "single-line",

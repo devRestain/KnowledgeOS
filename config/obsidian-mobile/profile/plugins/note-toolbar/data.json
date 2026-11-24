@@ -2177,45 +2177,6 @@
               }
             }
           }
-        },
-        {
-          "uuid": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d63",
-          "description": "",
-          "hasCommand": false,
-          "icon": "lucide-git-branch",
-          "inGallery": false,
-          "label": "Git 상태",
-          "link": "working-copy://open?repo=KnowledgeHub&mode=status",
-          "linkAttr": {
-            "commandCheck": false,
-            "commandId": "",
-            "hasVars": false,
-            "type": "uri"
-          },
-          "tooltip": "Git 상태",
-          "visibility": {
-            "desktop": {
-              "allViews": {
-                "components": []
-              }
-            },
-            "mobile": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            },
-            "tablet": {
-              "allViews": {
-                "components": [
-                  "icon",
-                  "label"
-                ]
-              }
-            }
-          }
         }
       ],
       "mobileStyles": [],
