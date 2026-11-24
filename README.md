@@ -38,6 +38,7 @@ KnowledgeOS는 KnowledgeHub Vault에 자유롭게 쓴 아이디어와 발상을 
 - 다른 Operation과의 InterOps 요청·수신은 기반 역할 이름만으로 자동 허용되지 않으며, 발신 측의 명시적 `INTEROP_REQUEST` 권한, 발신자별 `0600` 자격 증명 서명 인증, 수신 측의 Gateway 허용이 모두 있을 때만 처리합니다.
 - 실행 기록과 결과는 Temporal 서버에 보존되지만, Work의 소유와 판단은 KnowledgeOS가 가집니다.
 - 작업 조정 상태의 유일한 원본 원장은 `Core/docs/OPERATION_STATE.md` 기준의 [PROJECT_STATE.md](PROJECT_STATE.md)이며, 별도 상태 문서를 추가하지 않습니다.
+- 테마·CSS 스니펫·커뮤니티 플러그인은 모든 기기에서 자유롭게 설치·삭제·업데이트하고 설정합니다. 연동 목록은 허용 목록이 아니며, KnowledgeOS와 에이전트 유지보수는 별도 요청 없이 개인 외형·플러그인 설정을 덮어쓰거나 프리셋으로 되돌리지 않습니다.
 
 ## 사용
 
@@ -58,9 +59,9 @@ make wiki-check                  # KnowledgeOS 범위의 신선도·인수/상�
 
 ### iPhone용 Obsidian 설정
 
-`Vaults/KnowledgeHub/.obsidian-phone/`은 MacBook에서 관리하는 현재 iPhone용 Obsidian 설정의 기준 위치이며, `config/obsidian-mobile/profile/`에는 같은 구성을 재현하는 참조 프리셋을 유지합니다. 자동 업데이터나 새 동기화 파이프라인은 없습니다. `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac appearance JSON·테마·플러그인 원본·다른 프로필·Mac용 Git 무시 규칙은 그대로이며, Mac 프로필에서는 Home/Mobile용 `knowledgeos-home` 스타일시트 내용만 승인되어 바뀌었습니다. Vault의 `Home.md`·`Mobile.md`는 아래 대시보드 내용으로 갱신되었습니다. 새 업데이터·빌드·동기화 파이프라인은 없습니다.
+`Vaults/KnowledgeHub/.obsidian-phone/`은 사용자 소유의 iPhone용 Obsidian 설정 위치이며 MacBook이나 폰에서 자유롭게 바꿉니다. `config/obsidian-mobile/profile/`은 참조 프리셋이지 현재 개인 설정과 같아야 하는 기준본이 아닙니다. 자동 업데이터나 초기화는 없습니다. `.obsidian-phone/` 트리 전체를 기존 GitHub–Working Copy Pro로 동기화하고 공통 `.DS_Store`·임시 파일 제외만 유지하므로 workspace·캐시도 생성되면 동기화될 수 있습니다. Mac은 별도 `.obsidian-mac/`을 쓰므로 같은 Vault를 동기화해도 두 프로필의 테마·플러그인 설정이 자동으로 같아지지는 않습니다.
 
-`Home.md`와 `Mobile.md`는 Obsidian Reading View에서 Markdown·Core Bases·Tasks만으로 동작하는 대시보드입니다. Home은 할 일·대기 제안·Inbox, 전체 폭 프로젝트, 열린 질문·읽는 중인 자료, 30일 방치 아이디어의 일곱 구획을 유지하고, Mobile은 설명 없이 할 일·Inbox·읽기 전용 AI 검토(제안과 보고서)·진행 중 프로젝트·전체 목록 순서로 시작하며, 16px 본문과 44×44 동작을 씁니다. 작은 목록은 limit이 있는 추가 compact Base view를 쓰고, 각 구획의 링크는 원래 full view나 dashboard를 엽니다. 스타일 원본은 `99_System/CSS/dashboard.css`이며 같은 `knowledgeos-home` 사본이 실제 Mac/폰 스니펫과 참조 프리셋에 있습니다. `mobile-toolbar`는 폰의 다섯 자리 툴바용으로 폰에만 남습니다. 기존 다섯 자리 툴바와 일곱 QuickAdd 명령은 그대로입니다. 폰 소스와 실제 appearance는 `[mobile-toolbar, knowledgeos-home]`을 켭니다. 프로필 준비와 Mac 렌더링은 실제 iPhone 실행·원격 전달과 별개입니다.
+`Home.md`와 `Mobile.md`는 Obsidian Reading View에서 Markdown·Core Bases·Tasks만으로 동작하는 대시보드입니다. Home은 할 일·대기 제안·Inbox, 전체 폭 프로젝트, 열린 질문·읽는 중인 자료, 30일 방치 아이디어의 일곱 구획을 유지하고, Mobile은 할 일·Inbox·읽기 전용 AI 검토(제안과 보고서)·진행 중 프로젝트·전체 목록 순서로 시작합니다. 제공 스타일은 16px 본문과 44×44 동작을 쓰며 작은 목록과 원래 full view를 연결합니다. 스타일 원본은 `99_System/CSS/dashboard.css`이고 `knowledgeos-home` 사본을 Mac·폰·참조 프리셋에 둡니다. 폰 전용 `mobile-toolbar`는 하단 툴바용입니다. 참조 프리셋은 두 스니펫을 켜지만 사용자가 바꾼 사본이나 활성화 선택을 강제하지 않습니다. 프로필 준비와 Mac 렌더링은 실제 iPhone 실행·원격 전달과 별개입니다.
 
 1. 기존에 쓰던 모바일 설정이 있다면 전환 전에 백업합니다. `.obsidian-mac`은 대상이 아닙니다.
 2. Mac에서 평소 쓰는 기존 Git 동기화 절차로 변경을 GitHub에 push한 뒤, iPhone Working Copy Pro에서 평소대로 pull합니다. 숨김 폴더(`.obsidian-phone`)가 iOS 파일 앱에 직접 보이지 않아도 정상이며, 새 디렉터리 연결을 만들지 않고 기존 Working Copy 워크플로를 그대로 씁니다.

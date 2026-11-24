@@ -8,7 +8,9 @@
 - Separate source Core adoption (`config/core-adoption.json`) from live owner State migration and Runtime activation.
 - Admit InterOps requests and submissions from any authenticated Operation only under explicit sender `INTEROP_REQUEST` grant and KnowledgeOS recipient admission; foundation labels confer no authority.
 - Retain KnowledgeOS's owner-selected loopback-only, no-login ExOps policy with Host/Origin/JSON checks, native Obsidian document work, and optional `frontend/` browser console.
-- Do not operate Obsidian GUI, plugins, profiles, devices or external transports without separate explicit authorization.
+- Leave Obsidian GUI, plugin, profile, device and external-transport operations to the user unless separately authorized for agent execution.
+- Treat themes, CSS snippets and community plugins as freely user-selected on every device, not an allowlist or a KnowledgeOS admission requirement.
+- Preserve user appearance, plugin choices and settings during maintenance; never restore a reference preset over them without explicit scope.
 
 ## Specification
 
