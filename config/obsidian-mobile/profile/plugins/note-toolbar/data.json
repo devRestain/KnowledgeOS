@@ -2107,7 +2107,7 @@
           "icon": "lucide-download",
           "inGallery": false,
           "label": "받기",
-          "link": "shortcuts://run-shortcut?name=KOS%20%EB%B0%9B%EA%B8%B0",
+          "link": "shortcuts://run-shortcut?name=KOS%20Pull",
           "linkAttr": {
             "commandCheck": false,
             "commandId": "",
@@ -2146,7 +2146,7 @@
           "icon": "lucide-upload",
           "inGallery": false,
           "label": "보내기",
-          "link": "shortcuts://run-shortcut?name=KOS%20%EB%B3%B4%EB%82%B4%EA%B8%B0",
+          "link": "shortcuts://run-shortcut?name=KOS%20Push",
           "linkAttr": {
             "commandCheck": false,
             "commandId": "",
