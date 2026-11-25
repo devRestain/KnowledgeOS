@@ -42,7 +42,7 @@
   "toolbars": [
     {
       "uuid": "8b7c4d2e-6f1a-4c9b-9e3d-1a2b3c4d5e6f",
-      "name": "Mobile",
+      "name": "home",
       "customClasses": "",
       "defaultStyles": [
         "border",

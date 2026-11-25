@@ -1,6 +1,28 @@
+/* @settings
+
+name: KnowledgeOS Toolbars
+id: knowledgeos-toolbars
+settings:
+    -
+        id: ko-toolbar-target-size
+        title: Note Toolbar target size
+        description: Minimum width and height for Note Toolbar link items on mobile (Apple HIG >= 44px).
+        type: variable-number-slider
+        default: 44
+        min: 44
+        max: 56
+        step: 1
+        format: px
+
+*/
+
+:root {
+  --ko-toolbar-target-size: 44px;
+}
+
 .is-mobile .cg-note-toolbar-container .cg-note-toolbar-item[role="link"] {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--ko-toolbar-target-size);
+  min-height: var(--ko-toolbar-target-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -1,7 +1,7 @@
 /state version=1
 /project id=knowledgeos
 /status value=blocked
-/checkpoint revision=1ad38db dirty=true updated=2026-11-25T09:19:16Z
+/checkpoint revision=cdd4c21 dirty=true updated=2026-11-25T10:21:29Z
 /goal phase=history id=KNOWLEDGEOS_SPEC_REBASE state=complete action="Replace the execution centered specs with a living specification of the five capabilities roles surfaces and mobile follow ups"
 /goal phase=history id=KNOWLEDGEOS_LEGACY_RETIREMENT state=complete action="Stop archive and delete the previous KnowledgeOS implementation State Runtime Hermes profiles and synthetic Vault assets"
 /goal phase=history id=KNOWLEDGEOS_CAPABILITY_IMPLEMENTATION state=complete action="Implement every CAPABILITIES acceptance example with public interface focused tests and an exact capability trace while preserving Core"
@@ -20,6 +20,7 @@
 /goal phase=current id=KNOWLEDGEOS_MOBILE_AUTOMATION_REWRITE state=blocked action="Deliver the three locally signed Shortcut clients with native metadata and artifact integrity proven while awaiting owner iPhone validation"
 /goal phase=history id=KNOWLEDGEOS_NATIVE_REFERENCE_ACQUISITION state=complete action="Inspect unexecuted owner exports and resolve explicit KnowledgeHub entities changed-file filtering path review and commit-all-modified fields"
 /goal phase=history id=KNOWLEDGEOS_VAULT_USABILITY_REDESIGN state=complete action="Rework templates capture names Bases visuals and Mac and phone Note Toolbars for inline-title use while preserving view names filters and Owner policy"
+/goal phase=history id=KNOWLEDGEOS_PHONE_NAVIGATOR_STYLE state=complete action="Adopt Notebook Navigator and Style Settings on the phone profile for iPhone 17 and densify Mobile.md while preserving Mac settings and Owner policy"
 /goal phase=next id=KNOWLEDGEOS_THREE_SHORTCUT_PHONE_VALIDATION state=planned action="Transfer the three signed clients capture receiver and phone configuration through the owner selected route and validate actual iPhone import and execution"
 /decision id=D_SPEC_REBASE state=accepted action="Use USER_FEATURE_SPEC OBSIDIAN_VAULT_BLUEPRINT and docs/CAPABILITIES as the living specification with spec governance in Blueprint section zero" source=user_request
 /decision id=D_SPEC_ORGANIZATION state=accepted action="Keep Director Manager teammate Officer and EvalOfficer roles with exclusive responsibilities one Hermes profile per model role a minimal invocation Thin Client community plugins browser and CLI management manual and automatic standardization and mobile follow ups" source=user_request
@@ -326,4 +327,11 @@
 /evidence id=E_USABILITY_MAC_RENDER class=device result=pass source=../../Tmp/knowledgehub-usability-20261125/shots observed="Observe Knowledge Home toolbars at props with five expected labels and a colored Knowledge card in actual Mac Obsidian then restore the daily note and focus emulation"
 /evidence id=E_USABILITY_PHONE_DEVICE class=device result=not_run source=../../Vaults/KnowledgeHub/.obsidian-phone observed="Leave iPhone toolbar rendering phone QuickAdd capture inline titles Base cards and Shortcuts URI behavior unverified"
 /evidence id=E_USABILITY_REMOTE class=deployment result=not_run source=../../Vaults/KnowledgeHub observed="Leave Vault Git push Sites PR merge and production deployment unrun"
+/decision id=D_PHONE_NAVIGATOR_STYLE state=accepted action="Install Mac-pinned Notebook Navigator 3.4.1 and Style Settings 1.0.9 on the phone with synced Navigator settings remove the Mobile heading and halve Mobile task row spacing with smaller task hit areas" source=user_request
+/scope id=S_PHONE_NAVIGATOR_STYLE state=in action="Edit phone and reference plugin lists and data shared dashboard and toolbar snippets the phone home toolbar name Mobile.md heading and five guides"
+/accept id=KNOWLEDGEOS_PHONE_NAVIGATOR_STYLE.PLUGINS state=pass action="Load both pinned plugins from the phone configuration with the iPhone Navigator profile active" evidence=E_PHONE_NAVIGATOR_LOAD
+/accept id=KNOWLEDGEOS_PHONE_NAVIGATOR_STYLE.DENSITY state=pass action="Render Mobile.md denser at 402 by 874 with task rows near half spacing and other targets kept at 44 pixels" evidence=E_PHONE_MOBILE_DENSITY
+/evidence id=E_PHONE_NAVIGATOR_LOAD class=runtime result=pass source=../../Tmp/knowledgehub-mobile-navigator-20261125/shots/navigator-nav.png observed="Load the phone configuration copy in a disposable Obsidian 1.13.7 vault with mobile emulation and observe all seven plugins the iPhone profile six shortcuts 44 pixel navigation rows and plugin-normalized settings after adding all-synced syncModes"
+/evidence id=E_PHONE_MOBILE_DENSITY class=runtime result=pass source=../../Tmp/knowledgehub-mobile-navigator-20261125/shots/r3-mobile-1.png observed="Measure the Mobile dashboard grid from 970 to 558 pixels and task rows from 50 to 28 pixels with 28 pixel checkbox hits no heading and the renamed home toolbar showing four items without a missing-toolbar prompt"
+/evidence id=E_PHONE_NAVIGATOR_DEVICE class=device result=not_run source=../../Vaults/KnowledgeHub/.obsidian-phone observed="Leave actual iPhone plugin loading drawer tab selection Style Settings rendering and Tasks JavaScript enablement unverified"
 /handoff state=blocked action="Transfer the three local signed clients capture receiver and phone configuration through the owner selected route then validate the iPhone cases without assuming remote delivery or starting Owner"

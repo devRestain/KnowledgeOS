@@ -3,5 +3,7 @@
   "templater-obsidian",
   "obsidian-tasks-plugin",
   "homepage",
-  "note-toolbar"
+  "note-toolbar",
+  "notebook-navigator",
+  "obsidian-style-settings"
 ]

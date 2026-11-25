@@ -1,6 +1,81 @@
+/* @settings
+
+name: KnowledgeOS Dashboard
+id: knowledgeos-dashboard
+settings:
+    -
+        id: ko-mobile-line-height
+        title: Mobile line height
+        description: Unitless line-height multiplier for mobile dashboard text (default 1.2, 80% of 1.5).
+        type: variable-number-slider
+        default: 1.2
+        min: 0.9
+        max: 1.6
+        step: 0.05
+    -
+        id: ko-mobile-space-scale
+        title: Mobile vertical space scale
+        description: Multiplier for mobile vertical section gaps, header spacing, and padding (default 0.8).
+        type: variable-number-slider
+        default: 0.8
+        min: 0.6
+        max: 1.2
+        step: 0.05
+    -
+        id: ko-mobile-text-size
+        title: Mobile body text size
+        description: Font size for mobile dashboard body text, tasks, and Base cells (16-17px per Apple HIG).
+        type: variable-number-slider
+        default: 16
+        min: 15
+        max: 21
+        step: 1
+        format: px
+    -
+        id: ko-mobile-task-row-height
+        title: Mobile task row height
+        description: Compact row height for mobile dashboard Task items (default 28px; ~50% of previous 50px rows, >= 28px HIG minimum control size).
+        type: variable-number-slider
+        default: 28
+        min: 24
+        max: 44
+        step: 1
+        format: px
+    -
+        id: ko-mobile-target-size
+        title: Mobile minimum touch target
+        description: Minimum hit area size for mobile links, callout titles, and cards (Apple HIG >= 44px).
+        type: variable-number-slider
+        default: 44
+        min: 44
+        max: 56
+        step: 1
+        format: px
+    -
+        id: ko-mobile-row-height
+        title: Mobile Base row height
+        description: Row height for mobile Core Bases data rows (Apple HIG >= 44px).
+        type: variable-number-slider
+        default: 44
+        min: 44
+        max: 56
+        step: 1
+        format: px
+
+*/
+
 /* KnowledgeOS dashboard styles.
    Scoped to Home.md (.knowledgeos-home) and Mobile.md (.knowledgeos-mobile).
    Markdown, Core Bases and Tasks stay authoritative; no sidebar, theme, plugin or global chrome is restyled. */
+
+:root {
+  --ko-mobile-line-height: 1.2;
+  --ko-mobile-space-scale: 0.8;
+  --ko-mobile-text-size: 16px;
+  --ko-mobile-task-row-height: 28px;
+  --ko-mobile-target-size: 44px;
+  --ko-mobile-row-height: 44px;
+}
 
 .knowledgeos-home,
 .knowledgeos-mobile {
@@ -191,7 +266,7 @@
 .knowledgeos-home .callout[data-callout^="ko-home-"] .bases-table-footer,
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-header,
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-footer {
-  display: none;
+  display: none !important;
 }
 
 .knowledgeos-home .bases-embed,
@@ -369,39 +444,116 @@
   }
 }
 
-/* Mobile: one readable column, native 44px touch geometry. */
+/* Mobile: one readable column, 80% vertical density, compact 28px task rows, >= 44px other touch targets. */
 .knowledgeos-mobile {
   --bases-embed-width: 100%;
   --bases-embed-transform: none;
-  font-size: 1rem;
+  font-size: var(--ko-mobile-text-size);
+  line-height: var(--ko-mobile-line-height);
+}
+
+.markdown-preview-view.knowledgeos-mobile > .markdown-preview-sizer {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.knowledgeos-mobile .cg-note-toolbar-bar-container {
+  margin-top: 0 !important;
+  margin-bottom: calc(0.25rem * var(--ko-mobile-space-scale)) !important;
+}
+
+.knowledgeos-mobile .callout[data-callout="note-toolbar"] {
+  margin: 0 !important;
+}
+
+.knowledgeos-mobile .callout[data-callout="note-toolbar"] .callout-content ul {
+  margin: calc(0.2rem * var(--ko-mobile-space-scale)) 0 !important;
+}
+
+.knowledgeos-mobile .el-callout,
+.knowledgeos-mobile .el-p,
+.knowledgeos-mobile .el-pre {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.knowledgeos-mobile h1 {
+  margin: 0 0 calc(0.25rem * var(--ko-mobile-space-scale));
+  line-height: calc(var(--ko-mobile-line-height) * 0.8333);
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] {
+  margin: 0 !important;
+  margin-block: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-content {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] > .callout-content {
+  gap: calc(0.6rem * var(--ko-mobile-space-scale)) 0.875rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] > .callout-content > br,
+.knowledgeos-mobile .callout[data-callout="ko-mobile-grid"] > .callout-content > p:empty {
+  display: none !important;
 }
 
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-title {
-  min-height: 44px;
-  font-size: 1rem;
+  box-sizing: border-box;
+  min-height: var(--ko-mobile-target-size);
+  margin: 0 0 calc(0.125rem * var(--ko-mobile-space-scale)) !important;
+  padding: 0 !important;
+  font-size: var(--ko-mobile-text-size);
   font-weight: 600;
+  line-height: calc(var(--ko-mobile-line-height) * 0.9);
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"]:not([data-callout="ko-mobile-grid"]) > .callout-title .callout-title-inner {
+  line-height: calc(var(--ko-mobile-line-height) * 0.9);
 }
 
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] > .callout-title a {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--ko-mobile-target-size);
+  min-height: var(--ko-mobile-target-size);
   padding-inline: 0.25rem;
-  font-size: 1rem;
+  font-size: var(--ko-mobile-text-size);
+  line-height: calc(var(--ko-mobile-line-height) * 0.9);
 }
 
-.knowledgeos-mobile .bases-embed {
+.knowledgeos-mobile .bases-embed,
+.knowledgeos-mobile .internal-embed.bases-embed {
   width: 100%;
   max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
   transform: none;
 }
 
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-view {
-  --bases-table-row-height: 44px;
-  --bases-table-font-size: 1rem;
+  --bases-table-row-height: var(--ko-mobile-row-height);
+  --bases-table-font-size: var(--ko-mobile-text-size);
   --bases-table-column-max-width: 150;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: var(--ko-mobile-line-height);
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-container,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-tbody {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 @container ko-mobile (max-width: 319px) {
@@ -410,54 +562,92 @@
   }
 }
 
-.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-td {
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead {
+  --bases-table-row-height: calc(28px * var(--ko-mobile-space-scale));
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-tr,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-td,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-table-cell,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-thead .bases-table-header-cell {
+  height: calc(28px * var(--ko-mobile-space-scale)) !important;
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
   color: var(--ko-muted);
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: var(--ko-mobile-line-height);
+}
+
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-td,
+.knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-table-cell,
+.knowledgeos-mobile .bases-cards-item,
+.knowledgeos-mobile .bases-cards-property {
+  line-height: var(--ko-mobile-line-height);
+}
+
+.knowledgeos-mobile .bases-group-heading {
+  margin-top: calc(0.5rem * var(--ko-mobile-space-scale));
+  margin-bottom: calc(0.25rem * var(--ko-mobile-space-scale));
+  padding-bottom: calc(0.15rem * var(--ko-mobile-space-scale));
+  line-height: var(--ko-mobile-line-height);
 }
 
 .knowledgeos-mobile .callout[data-callout^="ko-mobile-"] .bases-td a {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  font-size: 1rem;
+  min-width: var(--ko-mobile-target-size);
+  min-height: var(--ko-mobile-target-size);
+  font-size: var(--ko-mobile-text-size);
+  line-height: var(--ko-mobile-line-height);
 }
 
+.knowledgeos-mobile .block-language-tasks,
 .knowledgeos-mobile ul.contains-task-list {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .knowledgeos-mobile li.task-list-item {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  margin: 0;
-  padding: 0.2rem 0;
+  gap: 0.4rem;
+  min-height: var(--ko-mobile-task-row-height);
+  margin: 0 !important;
+  padding: 0 !important;
   list-style: none;
+  line-height: var(--ko-mobile-line-height);
+}
+
+.knowledgeos-mobile li.task-list-item a {
+  min-height: 0;
 }
 
 .knowledgeos-mobile .tasks-list-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 1rem;
-  line-height: 1.45;
+  font-size: var(--ko-mobile-text-size);
+  line-height: var(--ko-mobile-line-height);
 }
 
 .knowledgeos-mobile .task-description {
-  font-size: 1rem;
+  font-size: var(--ko-mobile-text-size);
+  line-height: var(--ko-mobile-line-height);
 }
 
-/* Real checkbox hit target stays 44x44 while the drawn box stays modest. */
+/* Task checkbox hit target stays >= 28px (HIG minimum control size) with an 18px drawn box. */
 .knowledgeos-mobile ul.contains-task-list > li.task-list-item > input.task-list-item-checkbox {
-  --checkbox-size: 22px;
+  --checkbox-size: 18px;
   position: relative;
   top: 0;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
+  flex: 0 0 max(28px, var(--ko-mobile-task-row-height));
+  width: max(28px, var(--ko-mobile-task-row-height));
+  height: max(28px, var(--ko-mobile-task-row-height));
   margin: 0;
   border: 0;
   background-color: transparent;
@@ -467,7 +657,7 @@
 .knowledgeos-mobile input.task-list-item-checkbox::before {
   content: "";
   position: absolute;
-  inset: 11px;
+  inset: calc((max(28px, var(--ko-mobile-task-row-height)) - 18px) / 2);
   box-sizing: border-box;
   border: 1px solid var(--checkbox-border-color);
   border-radius: var(--checkbox-radius);
@@ -481,10 +671,10 @@
 }
 
 .knowledgeos-mobile input.task-list-item-checkbox:checked::after {
-  top: 11px;
-  inset-inline-start: 11px;
-  width: 22px;
-  height: 22px;
+  top: calc((max(28px, var(--ko-mobile-task-row-height)) - 18px) / 2);
+  inset-inline-start: calc((max(28px, var(--ko-mobile-task-row-height)) - 18px) / 2);
+  width: 18px;
+  height: 18px;
 }
 
 .knowledgeos-mobile .callout[data-callout="ko-mobile-links"] .callout-content p {
@@ -492,17 +682,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0 0.75rem;
-  margin: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: var(--ko-mobile-line-height);
 }
 
 .knowledgeos-mobile .callout[data-callout="ko-mobile-links"] .callout-content a {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--ko-mobile-target-size);
+  min-height: var(--ko-mobile-target-size);
   color: var(--ko-accent);
-  font-size: 1rem;
+  font-size: var(--ko-mobile-text-size);
+  line-height: var(--ko-mobile-line-height);
   text-decoration: none;
 }
 
@@ -576,20 +770,20 @@
 }
 
 .is-mobile .bases-cards-item {
-  min-height: 44px;
+  min-height: var(--ko-mobile-target-size);
 }
 
 .is-mobile .bases-cards-property.mod-title a {
   display: inline-flex;
   align-items: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--ko-mobile-target-size);
+  min-height: var(--ko-mobile-target-size);
 }
 
 .is-mobile .bases-group-heading {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--ko-mobile-target-size);
 }
 
 @media (prefers-reduced-motion: reduce) {
