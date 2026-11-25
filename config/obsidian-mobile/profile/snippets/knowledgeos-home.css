@@ -34,9 +34,9 @@ settings:
     -
         id: ko-mobile-task-row-height
         title: Mobile task row height
-        description: Compact row height for mobile dashboard Task items (default 28px; ~50% of previous 50px rows, >= 28px HIG minimum control size).
+        description: Compact row height for mobile dashboard Task items (default 35px; >= 28px HIG minimum control size).
         type: variable-number-slider
-        default: 28
+        default: 35
         min: 24
         max: 44
         step: 1
@@ -72,7 +72,7 @@ settings:
   --ko-mobile-line-height: 1.2;
   --ko-mobile-space-scale: 0.8;
   --ko-mobile-text-size: 16px;
-  --ko-mobile-task-row-height: 28px;
+  --ko-mobile-task-row-height: 35px;
   --ko-mobile-target-size: 44px;
   --ko-mobile-row-height: 44px;
 }
@@ -444,7 +444,7 @@ settings:
   }
 }
 
-/* Mobile: one readable column, 80% vertical density, compact 28px task rows, >= 44px other touch targets. */
+/* Mobile: one readable column, 80% vertical density, compact 35px task rows, >= 44px other touch targets. */
 .knowledgeos-mobile {
   --bases-embed-width: 100%;
   --bases-embed-transform: none;

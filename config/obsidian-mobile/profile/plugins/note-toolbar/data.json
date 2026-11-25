@@ -14,6 +14,34 @@
       "toolbar": "d0b2a69e-b069-4cd0-a389-fb01529e4749"
     },
     {
+      "folder": "00_Inbox/",
+      "toolbar": "91f20486-2583-44d1-b134-eed4908591ed"
+    },
+    {
+      "folder": "10_Journal/Daily/",
+      "toolbar": "285cda5f-041f-4316-83d1-4302fd48cfb3"
+    },
+    {
+      "folder": "20_Projects/",
+      "toolbar": "55772d1f-1ca8-454b-92b0-49ff755dd722"
+    },
+    {
+      "folder": "40_Knowledge/Ideas/",
+      "toolbar": "941fd764-7b25-4783-a2a1-0354f082e9c4"
+    },
+    {
+      "folder": "40_Knowledge/Questions/",
+      "toolbar": "0560bde3-72a4-485c-82b0-5848fb5b6f23"
+    },
+    {
+      "folder": "40_Knowledge/Notes/",
+      "toolbar": "1be0f6a0-8cd4-439f-b7c4-f21cb9200b13"
+    },
+    {
+      "folder": "40_Knowledge/Sources/",
+      "toolbar": "d3f5ea60-6b88-4199-b692-2b7d4bca8a77"
+    },
+    {
       "folder": "*",
       "toolbar": "8b7c4d2e-6f1a-4c9b-9e3d-1a2b3c4d5e6f"
     }
