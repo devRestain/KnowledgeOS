@@ -538,3 +538,62 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Global Bases cards and group headings (applies to all Bases views). */
+.bases-cards-item {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.bases-cards-item:hover {
+  border-color: var(--background-modifier-border-hover);
+  box-shadow: var(--shadow-s);
+}
+
+.bases-cards-cover {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bases-cards-property.mod-title {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.bases-cards-property.mod-title a {
+  font-weight: 600;
+}
+
+.bases-group-heading {
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.is-mobile .bases-cards-item {
+  min-height: 44px;
+}
+
+.is-mobile .bases-cards-property.mod-title a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.is-mobile .bases-group-heading {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bases-cards-item {
+    transition-duration: 0.001ms !important;
+  }
+}

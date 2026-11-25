@@ -174,7 +174,7 @@ def render_template(text: str, title: str, now: str) -> str:
     for placeholder, value in {
         "<% id %>": str(uuid.uuid4()),
         "<% now %>": now,
-        "<% yamlTitle %>": title,
+        "<% capturedFrom %>": "phone_quickadd",
         "{{VALUE:collision_aliases_yaml}}": "[]",
     }.items():
         text = text.replace(placeholder, value)

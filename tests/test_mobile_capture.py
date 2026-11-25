@@ -38,7 +38,9 @@ def test_capture_note_contract_and_c2_std7(kos, vault) -> None:
     assert cases["openFailure"]["saved"] is True
     assert "노트는 저장했지만 열지 못했습니다" in cases["openFailure"]["notices"]
     assert cases["folderCollision"]["saved"] is False
-    assert cases["uuidCollision"]["content"] == "keep"
+    assert cases["nameCollision"]["saved"] is True
+    assert cases["nameCollision"]["result"] == "00_Inbox/Captures/memo 2.md"
+    assert cases["collisionExhausted"]["saved"] is False
 
     sample = payload["sample"]
     path = sample["path"]

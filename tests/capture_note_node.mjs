@@ -25,14 +25,17 @@ const captureNote = module.exports.default || module.exports;
 assert.equal(typeof captureNote, "function");
 
 class TFolder {
-  constructor(folderPath) {
+  constructor(folderPath, children = []) {
     this.path = folderPath;
+    this.name = folderPath.split("/").pop() ?? "";
+    this.children = children;
   }
 }
 
 class TFile {
   constructor(filePath) {
     this.path = filePath;
+    this.name = filePath.split("/").pop() ?? "";
   }
 }
 
@@ -67,7 +70,15 @@ function makeAdapter(root, options = {}) {
       const full = fullPath(root, vaultPath);
       try {
         const entry = statSync(full);
-        return entry.isDirectory() ? new TFolder(vaultPath) : new TFile(vaultPath);
+        if (!entry.isDirectory()) return new TFile(vaultPath);
+        const children = readdirSync(full).map((name) => {
+          const childPath = vaultPath ? `${vaultPath}/${name}` : name;
+          const childFull = fullPath(root, childPath);
+          return statSync(childFull).isDirectory()
+            ? new TFolder(childPath)
+            : new TFile(childPath);
+        });
+        return new TFolder(vaultPath, children);
       } catch {
         return null;
       }
@@ -121,6 +132,9 @@ async function runCase(name, variables, options = {}) {
   const root = mkdtempSync(path.join(tmpdir(), `kos-capture-${name}-`));
   const { app, obsidian, events } = makeAdapter(root, options);
   if (options.seed) seed(root, options.seed.path, options.seed.content);
+  if (options.seeds) {
+    for (const item of options.seeds) seed(root, item.path, item.content);
+  }
   if (options.seedFolder) seed(root, options.seedFolder.path, options.seedFolder.content);
   nextUuid = options.uuid ?? fixedUuid;
   let error = "";
@@ -140,19 +154,24 @@ async function runCase(name, variables, options = {}) {
     error = String(caught?.message ?? caught);
   }
   const files = listFiles(root);
+  const fileContents = Object.fromEntries(
+    files.map((file) => [file, readFileSync(fullPath(root, file), "utf8")]),
+  );
+  const target = result || options.expectedTarget || "";
   const caseResult = {
     aborted: Boolean(error),
     error,
     result,
     events,
     files,
-    target: `00_Inbox/Captures/${nextUuid}.md`,
+    fileContents,
+    target,
   };
-  if (files.includes(caseResult.target)) {
-    caseResult.content = readFileSync(fullPath(root, caseResult.target), "utf8");
+  if (target && files.includes(target)) {
+    caseResult.content = fileContents[target];
   }
   if (options.failCreate) {
-    assert.equal(files.includes(caseResult.target), false, "failed create must not leave a file");
+    assert.deepEqual(files, [], "failed create must not leave a file");
   }
   return caseResult;
 }
@@ -179,11 +198,13 @@ cases.bodyOnly = await runCase("body-only", {
   created: "1999-01-01T00:00:00Z",
 });
 assert.equal(cases.bodyOnly.aborted, false, cases.bodyOnly.error);
-assert.equal(cases.bodyOnly.result, cases.bodyOnly.target);
+assert.equal(cases.bodyOnly.result, "00_Inbox/Captures/leading.md");
+assert.equal(cases.bodyOnly.target, "00_Inbox/Captures/leading.md");
 assert.equal(savedNotice(cases.bodyOnly), true);
 assert.equal(opened(cases.bodyOnly), true);
 assert.match(cases.bodyOnly.content, /^---\nid: 11111111-1111-4111-8111-111111111111\n/);
 assert.match(cases.bodyOnly.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
+assert.doesNotMatch(cases.bodyOnly.content, /\ntitle:/);
 assert.doesNotMatch(cases.bodyOnly.content, /source-provided-id|1999-01-01/);
 assert.match(
   cases.bodyOnly.content,
@@ -196,13 +217,61 @@ cases.url = await runCase("url", {
   source_url: "https://example.com/a?b=1&c=%20",
 });
 assert.equal(cases.url.aborted, false, cases.url.error);
+assert.equal(cases.url.result, "00_Inbox/Captures/memo.md");
+assert.match(cases.url.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
 assert.match(cases.url.content, /## 원문\nmemo\n## 출처\nhttps:\/\/example\.com\/a\?b=1&c=%20\n$/);
 
 cases.urlOnly = await runCase("url-only", {
   source_url: "https://example.com/only",
 });
 assert.equal(cases.urlOnly.aborted, false, cases.urlOnly.error);
+assert.equal(cases.urlOnly.result, "00_Inbox/Captures/example.com.md");
+assert.match(cases.urlOnly.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
 assert.match(cases.urlOnly.content, /## 원문\n\n## 출처\nhttps:\/\/example\.com\/only\n$/);
+
+cases.whitespaceBodyUrl = await runCase("whitespace-body-url", {
+  body: "   \n\t  ",
+  source_url: "https://docs.example.com/guide",
+});
+assert.equal(cases.whitespaceBodyUrl.aborted, false, cases.whitespaceBodyUrl.error);
+assert.equal(cases.whitespaceBodyUrl.result, "00_Inbox/Captures/docs.example.com.md");
+assert.match(
+  cases.whitespaceBodyUrl.content,
+  /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/,
+);
+
+cases.hostileLine = await runCase("hostile-line", {
+  body: "../a:b*?|#[x]\nsecond line",
+});
+assert.equal(cases.hostileLine.aborted, false, cases.hostileLine.error);
+assert.equal(cases.hostileLine.result, "00_Inbox/Captures/a b x.md");
+assert.deepEqual(cases.hostileLine.files, ["00_Inbox/Captures/a b x.md"]);
+assert.match(cases.hostileLine.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
+assert.match(cases.hostileLine.content, /## 원문\n\.\.\/a:b\*\?\|#\[x\]\nsecond line$/);
+
+const korean40 = "한글제목".repeat(10);
+cases.koreanCap = await runCase("korean-cap", {
+  body: "한글제목".repeat(12),
+});
+assert.equal(cases.koreanCap.aborted, false, cases.koreanCap.error);
+assert.equal(cases.koreanCap.result, `00_Inbox/Captures/${korean40}.md`);
+assert.equal(Array.from(korean40).length, 40);
+assert.match(cases.koreanCap.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
+
+const surrogate40 = `${"가".repeat(39)}😀`;
+cases.surrogateCap = await runCase("surrogate-cap", {
+  body: `${surrogate40}나`,
+});
+assert.equal(cases.surrogateCap.aborted, false, cases.surrogateCap.error);
+assert.equal(cases.surrogateCap.result, `00_Inbox/Captures/${surrogate40}.md`);
+assert.equal(Array.from(surrogate40).length, 40);
+
+cases.fallbackName = await runCase("fallback-name", {
+  body: "...:::***",
+});
+assert.equal(cases.fallbackName.aborted, false, cases.fallbackName.error);
+assert.equal(cases.fallbackName.result, "00_Inbox/Captures/캡처.md");
+assert.match(cases.fallbackName.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
 
 cases.empty = await runCase("empty", {});
 assert.equal(cases.empty.aborted, true);
@@ -224,7 +293,7 @@ assert.equal(savedNotice(cases.failedCreate), false);
 
 cases.openFailure = await runCase("open-failure", { body: "memo" }, { failOpen: true });
 assert.equal(cases.openFailure.aborted, false, cases.openFailure.error);
-assert.equal(cases.openFailure.result, cases.openFailure.target);
+assert.equal(cases.openFailure.result, "00_Inbox/Captures/memo.md");
 assert.equal(savedNotice(cases.openFailure), true);
 assert.equal(
   notices(cases.openFailure).includes("노트는 저장했지만 열지 못했습니다"),
@@ -249,14 +318,32 @@ assert.equal(cases.folderCollision.aborted, true);
 assert.equal(savedNotice(cases.folderCollision), false);
 assert.doesNotMatch(cases.folderCollision.files.join("\n"), /^00_Inbox\/Captures\//m);
 
-cases.uuidCollision = await runCase(
-  "uuid-collision",
+cases.nameCollision = await runCase(
+  "name-collision",
   { body: "memo" },
-  { seed: { path: `00_Inbox/Captures/${fixedUuid}.md`, content: "keep" } },
+  { seed: { path: "00_Inbox/Captures/Memo.md", content: "keep" } },
 );
-assert.equal(cases.uuidCollision.aborted, true);
-assert.equal(cases.uuidCollision.content, "keep");
-assert.equal(savedNotice(cases.uuidCollision), false);
+assert.equal(cases.nameCollision.aborted, false, cases.nameCollision.error);
+assert.equal(cases.nameCollision.result, "00_Inbox/Captures/memo 2.md");
+assert.equal(savedNotice(cases.nameCollision), true);
+assert.equal(cases.nameCollision.fileContents["00_Inbox/Captures/Memo.md"], "keep");
+assert.match(cases.nameCollision.content, /\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\n/);
+assert.equal(cases.nameCollision.content.includes("## 원문\nmemo"), true);
+
+const exhaustedSeeds = Array.from({ length: 99 }, (_, index) => ({
+  path: index === 0 ? "00_Inbox/Captures/memo.md" : `00_Inbox/Captures/memo ${index + 1}.md`,
+  content: "keep",
+}));
+cases.collisionExhausted = await runCase(
+  "collision-exhausted",
+  { body: "memo" },
+  { seeds: exhaustedSeeds },
+);
+assert.equal(cases.collisionExhausted.aborted, true);
+assert.equal(savedNotice(cases.collisionExhausted), false);
+assert.equal(cases.collisionExhausted.files.length, 99);
+assert.equal(cases.collisionExhausted.fileContents["00_Inbox/Captures/memo.md"], "keep");
+assert.equal(cases.collisionExhausted.fileContents["00_Inbox/Captures/memo 99.md"], "keep");
 
 process.stdout.write(
   JSON.stringify({

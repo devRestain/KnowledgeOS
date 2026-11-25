@@ -42,10 +42,42 @@
         "name": "입력",
         "commands": [
           {
-            "id": "a6522e99-aab5-4301-978b-66f930abe300",
-            "name": "새 고유 노트",
-            "type": "Obsidian",
-            "commandId": "zk-prefixer"
+            "id": "c7a3e914-58b2-4f61-9d2e-7b40a8c31f52",
+            "name": "PrepareInputs::prepareMobileInputs",
+            "type": "UserScript",
+            "path": "99_System/Scripts/QuickAdd/PrepareInputs.js",
+            "settings": {}
+          },
+          {
+            "id": "e29b6d40-1c7a-48e3-a519-3f8d62b04c81",
+            "name": "입력 템플릿",
+            "type": "NestedChoice",
+            "choice": {
+              "id": "f5182a9c-94d3-4b07-8e62-5a1c79d4e306",
+              "name": "입력 템플릿",
+              "type": "Template",
+              "command": false,
+              "onePageInput": "never",
+              "templatePath": "99_System/Templates/T00_Capture.md",
+              "fileNameFormat": { "enabled": true, "format": "{{VALUE:title}}" },
+              "folder": {
+                "enabled": true,
+                "folders": ["00_Inbox/Captures"],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": true,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsMode": "Increment the file name",
+              "setFileExistsBehavior": true
+            }
           }
         ]
       }

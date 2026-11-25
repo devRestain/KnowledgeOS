@@ -29,5 +29,5 @@
   "webviewer": false,
   "word-count": false,
   "workspaces": false,
-  "zk-prefixer": true
+  "zk-prefixer": false
 }
